@@ -14,7 +14,7 @@
   // ห้ามลบ/แก้ไขส่วนอื่นของไฟล์นี้ แก้แค่ค่าใน firebaseConfig ด้านล่าง
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs,
+    getFirestore, initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs,
     query, orderBy, where, writeBatch, documentId, enableNetwork
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -33,7 +33,12 @@
   const COLLECTION_PATH = 'karmto_61d7d3244cb3337d25294dd4';
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const db = initializeFirestore(app, {
+    // บังคับให้ใช้วิธีเชื่อมต่อแบบ long-polling แทนวิธีปกติ (WebChannel) ของ Firestore
+    // เพราะบางเครือข่ายมือถือ/ฮอตสปอต/พร็อกซี จัดการวิธีเชื่อมต่อปกติของ Firestore ได้ไม่ดี
+    // ทั้งที่เข้าเว็บทั่วไปได้ปกติ วิธีนี้ช้ากว่าเล็กน้อยแต่เข้ากันได้กับเครือข่ายที่จำกัดกว่ามาก
+    experimentalForceLongPolling: true,
+  });
   // บังคับให้ Firestore พยายามเชื่อมต่อออนไลน์จริง — บางครั้งตรวจจับสถานะเน็ตผิดพลาด
   // เอง (พบเวลาเปิดไฟล์ผ่าน content:// บน Android) จนเข้าใจผิดว่าออฟไลน์ทั้งที่จริงมีเน็ต
   try{ await enableNetwork(db); }catch(e){ /* เพิกเฉยได้ ไม่กระทบการทำงานต่อ */ }

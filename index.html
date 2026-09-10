@@ -17,7 +17,7 @@
   function withApiTimeout(promise, label, ms){
     return Promise.race([
       promise,
-      new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอการตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), ms || 20000))
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอการตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), ms || 35000))
     ]);
   }
 

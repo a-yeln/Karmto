@@ -8,102 +8,78 @@
 <link href="https://fonts.googleapis.com/css2?family=Chonburi&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script type="module">
   // ==================================================================
-  // KARMTO — การเชื่อมต่อ Firebase Firestore
+  // KARMTO — การเชื่อมต่อ Google Sheets ผ่าน Apps Script
   // ==================================================================
-  // วาง config จาก Firebase Console ของคุณแทนค่าด้านล่างนี้ (ดูวิธีในแชท)
-  // ห้ามลบ/แก้ไขส่วนอื่นของไฟล์นี้ แก้แค่ค่าใน firebaseConfig ด้านล่าง
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import {
-    getFirestore, initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs,
-    query, orderBy, where, writeBatch, documentId, enableNetwork
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  // สลับกลับมาใช้ Apps Script แทน Firestore เพราะ Firestore เชื่อมต่อไม่ได้
+  // บนเครือข่ายของผู้ใช้ (ลองแก้หลายทางแล้วไม่สำเร็จ) ส่วน Apps Script ทดสอบแล้วใช้งานได้จริง
+  const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxBUioYu6BXMdc3Dmuy8XEQjc6DTW-oxivAT5yf3wWvQD-H50l32-dBZYq_XLTPbp2zBg/exec';
 
-  // ▼▼▼ วาง Firebase config ของคุณตรงนี้ ▼▼▼
-  const firebaseConfig = {
-    apiKey: "AIzaSyD3Z-XCmPPXfQhShkVwn7AeIRCuvVgWS_8",
-    authDomain: "karmto-money-34526.firebaseapp.com",
-    projectId: "karmto-money-34526",
-    storageBucket: "karmto-money-34526.firebasestorage.app",
-    messagingSenderId: "808413658360",
-    appId: "1:808413658360:web:9e4d1b5e3872c1b0ed4f0d"
-  };
-  // ▲▲▲ ▲▲▲ ▲▲▲
-
-  // เส้นทางลับใน Firestore ที่ล็อกไว้ใน security rules — ห้ามแชร์ให้ใคร
-  const COLLECTION_PATH = 'karmto_61d7d3244cb3337d25294dd4';
-
-  const app = initializeApp(firebaseConfig);
-  const db = initializeFirestore(app, {
-    // บังคับให้ใช้วิธีเชื่อมต่อแบบ long-polling แทนวิธีปกติ (WebChannel) ของ Firestore
-    // เพราะบางเครือข่ายมือถือ/ฮอตสปอต/พร็อกซี จัดการวิธีเชื่อมต่อปกติของ Firestore ได้ไม่ดี
-    // ทั้งที่เข้าเว็บทั่วไปได้ปกติ วิธีนี้ช้ากว่าเล็กน้อยแต่เข้ากันได้กับเครือข่ายที่จำกัดกว่ามาก
-    experimentalForceLongPolling: true,
-  }); // ใช้ฐานข้อมูล (default) ตัวเดียว ไม่ต้องเพิ่มฐานข้อมูลที่สอง (ต้องใช้แผนเสียเงิน)
-  // บังคับให้ Firestore พยายามเชื่อมต่อออนไลน์จริง — บางครั้งตรวจจับสถานะเน็ตผิดพลาด
-  // เอง (พบเวลาเปิดไฟล์ผ่าน content:// บน Android) จนเข้าใจผิดว่าออฟไลน์ทั้งที่จริงมีเน็ต
-  try{ await enableNetwork(db); }catch(e){ /* เพิกเฉยได้ ไม่กระทบการทำงานต่อ */ }
-  // หมายเหตุ: ไม่เปิดใช้ enableIndexedDbPersistence เพราะมีปัญหาเวลาเปิดหลายแท็บพร้อมกัน
-  // (แอปมีระบบแคชในตัวเองอยู่แล้ว ที่ dayCache_/debtsCache_ ในสคริปต์หลัก)
-
-  // ถ้าคำขอไปที่ Firestore ค้างเกินเวลานี้ (เช่น เน็ตสะดุด) ให้ล้มเลิกแล้วแจ้ง error
-  // แทนที่จะค้าง "กำลังโหลด" ตลอดไปแบบไม่มีวันจบ
-  function withFirestoreTimeout(promise, label){
+  function withApiTimeout(promise, label, ms){
     return Promise.race([
       promise,
-      new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอ Firestore ตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), 20000))
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอการตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), ms || 20000))
     ]);
   }
 
   window.storage = {
     async get(key){
-      const snap = await withFirestoreTimeout(getDoc(doc(db, COLLECTION_PATH, key)), 'get');
-      if(!snap.exists()){ const err = new Error('Key not found: '+key); throw err; }
-      return {key, value: snap.data().value, shared:false};
+      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=get&key=${encodeURIComponent(key)}`), 'get');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      if(data.error){ const err = new Error('Key not found: '+key); throw err; }
+      return {key: data.key, value: data.value, shared:false};
     },
     async set(key, value){
-      await withFirestoreTimeout(setDoc(doc(db, COLLECTION_PATH, key), {value}), 'set');
-      return {key, value, shared:false};
+      const res = await withApiTimeout(fetch(SHEET_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'set', key, value})
+      }), 'set');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      if(data.error){ throw new Error(data.message||data.error); }
+      return {key: data.key, value: data.value, shared:false};
     },
     async delete(key){
-      const ref = doc(db, COLLECTION_PATH, key);
-      const snap = await withFirestoreTimeout(getDoc(ref), 'delete-check');
-      const existed = snap.exists();
-      await withFirestoreTimeout(deleteDoc(ref), 'delete');
-      return {key, deleted: existed, shared:false};
+      const res = await withApiTimeout(fetch(SHEET_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'delete', key})
+      }), 'delete');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      return {key: data.key, deleted: !!data.deleted, shared:false};
     },
     async list(prefix){
-      const colRef = collection(db, COLLECTION_PATH);
-      const q = prefix
-        ? query(colRef, orderBy(documentId()), where(documentId(), '>=', prefix), where(documentId(), '<', prefix + '\uf8ff'))
-        : query(colRef, orderBy(documentId()));
-      const snaps = await withFirestoreTimeout(getDocs(q), 'list');
-      const keys = [];
-      snaps.forEach(d=>keys.push(d.id));
-      return {keys, prefix, shared:false};
+      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=list&prefix=${encodeURIComponent(prefix||'')}`), 'list');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      return {keys: data.keys||[], prefix, shared:false};
     }
   };
 
   window.bulkSetStorageImpl = async function(items){
-    for(let i=0;i<items.length;i+=450){
-      const batch = writeBatch(db);
-      items.slice(i,i+450).forEach(item=>{
-        batch.set(doc(db, COLLECTION_PATH, item.key), {value: item.value});
-      });
-      await withFirestoreTimeout(batch.commit(), 'bulkSet');
-    }
-    return {count: items.length};
+    const res = await withApiTimeout(fetch(SHEET_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'bulkSet', items})
+    }), 'bulkSet', 30000);
+    if(!res.ok){ throw new Error('Network error: '+res.status); }
+    const data = await res.json();
+    if(data.error){ throw new Error(data.message||data.error); }
+    return data;
   };
 
   window.bulkGetStorageImpl = async function(keys){
-    const colRef = collection(db, COLLECTION_PATH);
-    const values = {};
-    for(let i=0;i<keys.length;i+=30){
-      const batch = keys.slice(i,i+30);
-      const q = query(colRef, where(documentId(), 'in', batch));
-      const snaps = await withFirestoreTimeout(getDocs(q), 'bulkGet');
-      snaps.forEach(d=>{ values[d.id] = d.data().value; });
-    }
-    return values;
+    const res = await withApiTimeout(fetch(SHEET_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'bulkGet', keys})
+    }), 'bulkGet', 30000);
+    if(!res.ok){ throw new Error('Network error: '+res.status); }
+    const data = await res.json();
+    if(data.error){ throw new Error(data.message||data.error); }
+    return data.values || {};
   };
 
   window.dispatchEvent(new Event('firebaseReady'));
@@ -702,11 +678,12 @@ const DEFAULT_BILL_INFO = {
   buyerTax:'05568126223',
 };
 
-// ---- Storage backend: Firebase Firestore ----
+// ---- Storage backend: Google Sheets via Apps Script ----
 // See the <script type="module"> block near the top of <head> for the actual
-// Firestore connection — it sets window.storage, window.bulkSetStorageImpl and
-// window.bulkGetStorageImpl once Firebase is ready, then fires 'firebaseReady'.
-// Generic timeout wrapper — if a Firestore call genuinely hangs (network stall, etc.),
+// connection — it sets window.storage, window.bulkSetStorageImpl and
+// window.bulkGetStorageImpl, then fires 'firebaseReady' (event name kept as-is
+// for compatibility with the init() gate below, even though it's Apps Script now).
+// Generic timeout wrapper — if a call genuinely hangs (network stall, etc.),
 // this makes it fail visibly after a set time instead of spinning forever.
 function withTimeout_(promise, ms, label){
   return Promise.race([

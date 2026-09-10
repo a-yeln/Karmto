@@ -40,21 +40,30 @@
   // หมายเหตุ: ไม่เปิดใช้ enableIndexedDbPersistence เพราะมีปัญหาเวลาเปิดหลายแท็บพร้อมกัน
   // (แอปมีระบบแคชในตัวเองอยู่แล้ว ที่ dayCache_/debtsCache_ ในสคริปต์หลัก)
 
+  // ถ้าคำขอไปที่ Firestore ค้างเกินเวลานี้ (เช่น เน็ตสะดุด) ให้ล้มเลิกแล้วแจ้ง error
+  // แทนที่จะค้าง "กำลังโหลด" ตลอดไปแบบไม่มีวันจบ
+  function withFirestoreTimeout(promise, label){
+    return Promise.race([
+      promise,
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอ Firestore ตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), 20000))
+    ]);
+  }
+
   window.storage = {
     async get(key){
-      const snap = await getDoc(doc(db, COLLECTION_PATH, key));
+      const snap = await withFirestoreTimeout(getDoc(doc(db, COLLECTION_PATH, key)), 'get');
       if(!snap.exists()){ const err = new Error('Key not found: '+key); throw err; }
       return {key, value: snap.data().value, shared:false};
     },
     async set(key, value){
-      await setDoc(doc(db, COLLECTION_PATH, key), {value});
+      await withFirestoreTimeout(setDoc(doc(db, COLLECTION_PATH, key), {value}), 'set');
       return {key, value, shared:false};
     },
     async delete(key){
       const ref = doc(db, COLLECTION_PATH, key);
-      const snap = await getDoc(ref);
+      const snap = await withFirestoreTimeout(getDoc(ref), 'delete-check');
       const existed = snap.exists();
-      await deleteDoc(ref);
+      await withFirestoreTimeout(deleteDoc(ref), 'delete');
       return {key, deleted: existed, shared:false};
     },
     async list(prefix){
@@ -62,7 +71,7 @@
       const q = prefix
         ? query(colRef, orderBy(documentId()), where(documentId(), '>=', prefix), where(documentId(), '<', prefix + '\uf8ff'))
         : query(colRef, orderBy(documentId()));
-      const snaps = await getDocs(q);
+      const snaps = await withFirestoreTimeout(getDocs(q), 'list');
       const keys = [];
       snaps.forEach(d=>keys.push(d.id));
       return {keys, prefix, shared:false};
@@ -75,7 +84,7 @@
       items.slice(i,i+450).forEach(item=>{
         batch.set(doc(db, COLLECTION_PATH, item.key), {value: item.value});
       });
-      await batch.commit();
+      await withFirestoreTimeout(batch.commit(), 'bulkSet');
     }
     return {count: items.length};
   };
@@ -86,7 +95,7 @@
     for(let i=0;i<keys.length;i+=30){
       const batch = keys.slice(i,i+30);
       const q = query(colRef, where(documentId(), 'in', batch));
-      const snaps = await getDocs(q);
+      const snaps = await withFirestoreTimeout(getDocs(q), 'bulkGet');
       snaps.forEach(d=>{ values[d.id] = d.data().value; });
     }
     return values;
@@ -692,8 +701,16 @@ const DEFAULT_BILL_INFO = {
 // See the <script type="module"> block near the top of <head> for the actual
 // Firestore connection — it sets window.storage, window.bulkSetStorageImpl and
 // window.bulkGetStorageImpl once Firebase is ready, then fires 'firebaseReady'.
+// Generic timeout wrapper — if a Firestore call genuinely hangs (network stall, etc.),
+// this makes it fail visibly after a set time instead of spinning forever.
+function withTimeout_(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลารอการตอบกลับ${label?' ('+label+')':''} — ลองใหม่อีกครั้ง`)), ms))
+  ]);
+}
 async function bulkSetStorage(items){
-  return await window.bulkSetStorageImpl(items);
+  return await withTimeout_(window.bulkSetStorageImpl(items), 30000, 'บันทึกข้อมูลชุดใหญ่');
 }
 let settings = null;
 let currentDate = todayISO();

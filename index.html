@@ -2854,7 +2854,12 @@ async function renderDataGaps(){
     list.querySelectorAll('[data-gapiso]').forEach(row=>{
       row.addEventListener('click', ()=>jumpToGap(row.getAttribute('data-gapiso'), row.getAttribute('data-gaptab')));
     });
-  }catch(e){ card.style.display='none'; }
+  }catch(e){
+    // อย่าซ่อนการ์ดเฉยๆ ตอน error ไม่งั้นแยกไม่ออกว่า "ไม่มีอะไรต้องเตือน" กับ "เช็คไม่สำเร็จ"
+    console.error('renderDataGaps failed', e);
+    card.style.display='';
+    list.innerHTML = `<div class="empty">เช็คข้อมูลที่ยังไม่ครบไม่สำเร็จ (เชื่อมต่อช้า/ไม่ได้) — ${(e&&e.message)?e.message:'ลองรีเฟรชหน้าใหม่'}</div>`;
+  }
 }
 async function renderDashboard(){
   renderQuickRecordTypeTabs();

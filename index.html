@@ -1023,6 +1023,11 @@ async function parseOrderImage(file){
     URL.revokeObjectURL(imageUrl);
   }
 }
+// ตัดรหัสสินค้า/แบรนด์ที่นำหน้าชื่อสินค้าในภาพออเดอร์ (เช่น "Bm9 กุ้งแช่ (กก.)") ออกก่อนค้นหาตัวเลข
+// กันบั๊ก: ถ้าไม่ตัดออก เลข "9" ใน "Bm9" จะถูกจับเป็นจำนวนสินค้าผิดๆ โดยเฉพาะตอนจำนวนจริงอยู่คนละบรรทัด
+function stripOcrSkuPrefix(line){
+  return (line||'').replace(/^[A-Za-z]{1,4}\d{1,4}\s*/,'');
+}
 function parseOcrText(text){
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   let branchCode = '', branchArea = '';
@@ -1041,13 +1046,13 @@ function parseOcrText(text){
   }
   const items = [];
   for(let i=0; i<lines.length; i++){
-    const line = lines[i];
+    const line = stripOcrSkuPrefix(lines[i]);
     const pid = matchProductFromOcrName(line);
     if(!pid) continue;
     let numMatches = line.match(/\d+(\.\d+)?/g);
     // ถ้าบรรทัดนี้ไม่มีตัวเลข ลองดูบรรทัดถัดไป (บางทีชื่อสินค้ากับจำนวนถูกอ่านแยกคนละบรรทัด)
     if(!numMatches && lines[i+1]){
-      numMatches = lines[i+1].match(/\d+(\.\d+)?/g);
+      numMatches = stripOcrSkuPrefix(lines[i+1]).match(/\d+(\.\d+)?/g);
     }
     if(numMatches && numMatches.length){
       const qty = Number(numMatches[numMatches.length-1]);
@@ -1564,7 +1569,9 @@ function renderExpenseCategorySelect(){
   const sel = document.getElementById('expCategory');
   sel.innerHTML = settings.expenseCategories.map(c=>`<option value="${c}">${c}</option>`).join('');
   const payeeSel = document.getElementById('expPayee');
-  payeeSel.innerHTML = `<option value="">— ไม่ระบุ —</option>` + settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
+  // ตัดม๊ะก๊าด/มนต์ออกจากช่องนี้ — สองรายนี้ไม่เคยจ่ายรวมกับรายจ่ายอื่นๆ (มีแต่พี่พัฒน์ที่จ่ายรวมค่าน้ำแข็ง/ถุงต่างๆ ไปด้วย)
+  const payeeOptions = settings.purchaseSellers.filter(s=>s!=='ม๊ะก๊าด' && s!=='มนต์');
+  payeeSel.innerHTML = `<option value="">— ไม่ระบุ —</option>` + payeeOptions.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 let expPayEditingId = null;
 function renderExpenseList(){
@@ -2400,16 +2407,23 @@ function renderPurchaseForm(){
   prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   prodSel.onchange = ()=>{ updatePurchaseUnitLabels(); updatePurchaseLeftoverHint(); autofillPurchasePrice(); };
   document.getElementById('purchSeller').innerHTML = settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
+  // ถ้าผู้ใช้พิมพ์ราคาเองมือ (ไม่ใช่ค่าที่ระบบเติมให้) ให้เลิกถือว่าเป็นค่า autofill ทันที
+  // กันบั๊ก: เปลี่ยนสินค้าแล้วราคาไม่อัปเดตตามเพราะเข้าใจผิดว่าเป็นค่าที่พิมพ์เองไว้
+  const purchPriceEl = document.getElementById('purchPrice');
+  purchPriceEl.oninput = ()=>{ delete purchPriceEl.dataset.autofilled; };
   updatePurchaseUnitLabels();
   updatePurchaseLeftoverHint();
   autofillPurchasePrice();
 }
 // ดึงราคาซื้อล่าสุดของสินค้านี้จากวันก่อนหน้ามาใส่ให้อัตโนมัติ (ย้อนหลังได้ถึง 30 วัน เผื่อไม่ได้ซื้อทุกวัน)
 // ใส่ให้เฉพาะตอนที่ยังไม่ได้กรอกราคาเอง จะได้ไม่ไปทับตัวเลขที่พิมพ์ไว้แล้ว
+// สำคัญ: เช็ค dataset.autofilled ด้วย ไม่ใช่แค่ priceInput.value — เดิมถ้าเปลี่ยนสินค้าแล้วช่องราคายังมีค่าเก่า (ที่ระบบเติมให้เอง) ค้างอยู่ จะเข้าใจผิดว่าผู้ใช้พิมพ์เอง แล้วไม่ไปค้นราคาของสินค้าใหม่ให้
 async function autofillPurchasePrice(){
   const pid = document.getElementById('purchProduct').value;
   const priceInput = document.getElementById('purchPrice');
-  if(priceInput.value) return; // มีคนกรอกไว้แล้ว ไม่ต้องไปทับ
+  if(priceInput.value && priceInput.dataset.autofilled!=='1') return; // มีคนพิมพ์เองไว้แล้ว ไม่ต้องไปทับ
+  priceInput.value = '';
+  delete priceInput.dataset.autofilled;
   priceInput.placeholder = 'กำลังค้นหาราคาล่าสุด…';
   for(let i=1;i<=30;i++){
     const iso = addDaysISO(currentDate, -i);

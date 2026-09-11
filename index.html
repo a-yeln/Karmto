@@ -254,16 +254,16 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="statrow" id="statRow"></div>
     <div class="tabs" id="tabs">
-      <button class="tab active" data-tab="dashboard">แดชบอร์ด</button>
-      <button class="tab" data-tab="order">ออเดอร์วันนี้</button>
-      <button class="tab" data-tab="messages">ข้อความส่ง</button>
-      <button class="tab" data-tab="leftover">ของเหลือค้าง</button>
-      <button class="tab" data-tab="fee">Brand fee</button>
-      <button class="tab" data-tab="purchase">ต้นทุนซื้อ</button>
-      <button class="tab" data-tab="billing">บิล & โอนเงิน</button>
-      <button class="tab" data-tab="debts">หนี้สิน</button>
-      <button class="tab" data-tab="personal">การเงินส่วนตัว</button>
-      <button class="tab" data-tab="settings">ตั้งค่า</button>
+      <button class="tab active" data-tab="dashboard">📊 แดชบอร์ด</button>
+      <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
+      <button class="tab" data-tab="messages">💬 ข้อความส่ง</button>
+      <button class="tab" data-tab="leftover">📦 ของเหลือค้าง</button>
+      <button class="tab" data-tab="fee">🏷️ Brand fee</button>
+      <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
+      <button class="tab" data-tab="billing">🧾 บิล & โอนเงิน</button>
+      <button class="tab" data-tab="debts">💳 หนี้สิน</button>
+      <button class="tab" data-tab="personal">👛 การเงินส่วนตัว</button>
+      <button class="tab" data-tab="settings">⚙️ ตั้งค่า</button>
     </div>
   </div>
 
@@ -326,7 +326,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="orderImageStatus" class="hint" style="margin-top:6px;"></div>
     </div>
     <div class="card">
-      <h3>บันทึกออเดอร์ทีละสาขา</h3>
+      <h3>📝 บันทึกออเดอร์ทีละสาขา</h3>
       <div class="field">
         <label>เลือกสาขา (อ่านจากภาพออเดอร์ 1 ภาพ = 1 สาขา)</label>
         <select id="branchSelect"></select>
@@ -338,8 +338,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="card">
-      <h3>สาขาที่บันทึกแล้ววันนี้</h3>
+      <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="rowlist" id="orderList"></div>
+    </div>
+    <div class="card">
+      <h3>👀 สาขาที่ยังไม่ได้บันทึกวันนี้</h3>
+      <div class="hint">รายชื่อทุกสาขาที่มีในระบบแต่ยังไม่มีออเดอร์วันนี้ — ไม่ใช่ทุกสาขาต้องสั่งทุกคืน ใช้เช็คเผื่อมีข้อความ LINE ตกหล่น</div>
+      <div class="rowlist" id="orderMissingList" style="margin-top:8px;"></div>
     </div>
   </div>
 
@@ -364,7 +369,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
   <div class="panel" id="panel-fee">
     <div class="card">
-      <h3>Brand fee วันนี้</h3>
+      <h3>🏷️ Brand fee วันนี้</h3>
       <div class="feebig" id="feeToday">฿0</div>
       <div class="hint">ไม่รวมสาขาที่ตั้งเป็น "แยกส่ง" ในตั้งค่า</div>
       <div class="hint" id="feeExcludedToday" style="margin-top:2px;"></div>
@@ -376,13 +381,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </table>
     </div>
     <div class="card">
-      <h3>สรุปรายเดือน (สไตล์ตารางสะสมยอด)</h3>
+      <h3>📊 สรุปรายเดือน (สไตล์ตารางสะสมยอด)</h3>
       <div class="hint">ไม่รวมสาขา "แยกส่ง" — ตารางนี้คือยอดที่ใช้คิดค่าธรรมเนียมจ่ายบริษัทเท่านั้น</div>
       <div class="field"><label>เดือน</label><input type="month" id="monthInput"></div>
       <div id="monthLedger" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>สรุปยอดโอนบริษัทสิ้นเดือน (แยกตามสินค้า)</h3>
+      <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน (แยกตามสินค้า)</h3>
       <div id="monthProductSummary" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -392,7 +397,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint" style="color:var(--accent);font-size:12.5px;">🛒 การซื้อสินค้าวันนี้</div>
     </div>
     <div class="card">
-      <h3>บันทึกต้นทุนซื้อวันนี้</h3>
+      <h3>🛒 บันทึกต้นทุนซื้อวันนี้</h3>
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนขายที่ได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนขายได้เท่ากับจำนวนซื้อ</div>
       <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
       <div id="purchLeftoverHint" class="hint" style="margin-top:-4px;margin-bottom:6px;"></div>
@@ -409,12 +414,12 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn" id="addPurchaseBtn" style="margin-top:6px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
     <div class="card">
-      <h3>รายการต้นทุนซื้อวันนี้ (รายละเอียดแยกสินค้า)</h3>
+      <h3>📋 รายการต้นทุนซื้อวันนี้ (รายละเอียดแยกสินค้า)</h3>
       <div class="hint">เช็คว่าที่เพิ่งกรอกไปถูกต้องหรือเปล่า ก่อนไปดูสรุปตามผู้ขาย</div>
       <div id="purchaseList" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>สรุปบิลตามผู้ขายวันนี้ (จ่ายรวมเป็นบิลเดียว)</h3>
+      <h3>🧾 สรุปบิลตามผู้ขายวันนี้ (จ่ายรวมเป็นบิลเดียว)</h3>
       <div class="hint">รวมยอดที่ซื้อจากผู้ขายรายเดียวกันในวันนี้เป็นบิลเดียว ใส่ค่าใช้จ่ายเพิ่มเติมให้ยอดตรงกับสลิปโอนจริง แล้วกดยืนยันพร้อมวันที่จ่ายทีเดียว</div>
       <div id="purchaseGroups" style="margin-top:10px;" class="loading">กำลังโหลด…</div>
     </div>
@@ -422,7 +427,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint" style="color:var(--accent);font-size:12.5px;">💸 รายจ่ายอื่นๆ ของกิจการ (ไม่ใช่การซื้อสินค้า)</div>
     </div>
     <div class="card">
-      <h3>รายจ่ายกิจการวันนี้ (จ่ายให้ซัพพลายเออร์/อื่นๆ)</h3>
+      <h3>💸 รายจ่ายกิจการวันนี้ (จ่ายให้ซัพพลายเออร์/อื่นๆ)</h3>
       <div class="field">
         <label>หมวด</label>
         <select id="expCategory"></select>
@@ -436,12 +441,12 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint" style="color:var(--accent);font-size:12.5px;">📊 รายงาน/สรุปภาพรวม (ไม่ใช่การกรอกข้อมูล)</div>
     </div>
     <div class="card">
-      <h3>สรุปต้นทุนรายเดือน (แยกตามสินค้า)</h3>
+      <h3>📊 สรุปต้นทุนรายเดือน (แยกตามสินค้า)</h3>
       <div class="field"><label>เดือน</label><input type="month" id="purMonthInput"></div>
       <div id="purMonthSummary" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>รายการที่ต้องตามจ่ายทั้งหมด (ทุกวันที่ยังไม่ปิด)</h3>
+      <h3>⏳ รายการที่ต้องตามจ่ายทั้งหมด (ทุกวันที่ยังไม่ปิด)</h3>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button class="tab active" data-expfilter="all">ทั้งหมด</button>
         <button class="tab" data-expfilter="unpaid">เฉพาะค้างจ่าย</button>
@@ -452,19 +457,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
   <div class="panel" id="panel-billing">
     <div class="card">
-      <h3>บิลรายสาขา — วันที่เลือก</h3>
+      <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
       <button class="btn secondary" id="saveAllBillsBtn" style="margin-bottom:10px;">🖼️ บันทึกบิลทุกใบของวันนี้เป็นรูปภาพ</button>
       <div id="billingList"></div>
     </div>
     <div class="card">
-      <h3>รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
+      <h3>⏳ รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
       <div id="outstandingList" class="loading">กำลังโหลด…</div>
     </div>
   </div>
 
   <div class="panel" id="panel-debts">
     <div class="card">
-      <h3>ยอดหนี้สินรวม</h3>
+      <h3>💳 ยอดหนี้สินรวม</h3>
       <div class="dash-grid" id="debtOwnerTotals"></div>
       <table class="plain" style="margin-top:12px;">
         <tr><td>เงินต้นตั้งต้นทั้งหมด</td><td class="num num" id="debtPrincipalStart">฿0</td></tr>
@@ -497,19 +502,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="card">
-      <h3>รายการหนี้ทั้งหมด</h3>
+      <h3>📋 รายการหนี้ทั้งหมด</h3>
       <div id="debtList"></div>
     </div>
   </div>
 
   <div class="panel" id="panel-personal">
     <div class="card">
-      <h3>สรุปการเงินส่วนตัวรายเดือน</h3>
+      <h3>💰 สรุปการเงินส่วนตัวรายเดือน</h3>
       <div class="field"><label>เดือน</label><input type="month" id="personalMonthInput"></div>
       <div id="personalMonthSummary" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>รายรับส่วนตัววันนี้</h3>
+      <h3>➕ รายรับส่วนตัววันนี้</h3>
       <div class="field"><label>เจ้าของ</label><select id="pIncomePerson"></select></div>
       <div class="field"><label>หมวด</label><select id="pIncomeCategory"></select></div>
       <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="pIncomeNote" placeholder="เช่น โบนัส"></div>
@@ -518,7 +523,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="rowlist" id="pIncomeList" style="margin-top:12px;"></div>
     </div>
     <div class="card">
-      <h3>รายจ่ายส่วนตัววันนี้</h3>
+      <h3>➖ รายจ่ายส่วนตัววันนี้</h3>
       <div class="field"><label>เจ้าของ</label><select id="pExpensePerson"></select></div>
       <div class="field"><label>หมวด</label><select id="pExpenseCategory"></select></div>
       <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="pExpenseNote" placeholder="เช่น ค่ากาแฟ"></div>
@@ -530,7 +535,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
   <div class="panel" id="panel-settings">
     <div class="card">
-      <h3>ประวัติราคาสินค้า (รองรับกรอกย้อนหลัง)</h3>
+      <h3>💲 ประวัติราคาสินค้า (รองรับกรอกย้อนหลัง)</h3>
       <div class="field">
         <label>เลือกสินค้า</label>
         <select id="priceProductSelect"></select>
@@ -545,7 +550,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint">ราคาที่ใช้คำนวณบิลจะยึดราคาที่มีผลบังคับใช้ล่าสุด ณ วันที่ของออเดอร์นั้นๆ</div>
     </div>
     <div class="card">
-      <h3>ข้อมูลออกบิล</h3>
+      <h3>🧾 ข้อมูลออกบิล</h3>
       <div class="field"><label>ชื่อร้าน (ผู้ขาย)</label><input type="text" id="biSellerName"></div>
       <div class="field"><label>ที่อยู่ร้าน บรรทัด 1</label><input type="text" id="biSellerAddr1"></div>
       <div class="field"><label>ที่อยู่ร้าน บรรทัด 2</label><input type="text" id="biSellerAddr2"></div>
@@ -557,7 +562,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint">ชื่อผู้ซื้อจะใส่ชื่อสาขาอัตโนมัติถ้าไม่กรอกเฉพาะ ส่วนที่อยู่จัดส่งต้องกรอกเองในรายชื่อสาขาด้านล่างถ้าอยากได้รายละเอียดเพิ่ม (เช่น เลขที่) — ปุ่มนี้เติมให้แค่ชื่อลูกค้า/เลขภาษีที่มักซ้ำกันทุกสาขาเท่านั้น</div>
     </div>
     <div class="card">
-      <h3>รายชื่อสาขา</h3>
+      <h3>🏪 รายชื่อสาขา</h3>
       <div class="hint">ติ๊ก "แยกส่ง" สำหรับสาขาที่สั่งส่วนตัวโดยตรง (ไม่นับรวมในค่าธรรมเนียมจ่ายบริษัท) ช่องข้อมูลบิลของแต่ละสาขาเป็นอิสระจากกัน เว้นว่างไว้ = บิลนั้นจะว่างช่องนั้นไปเลย</div>
       <div id="branchExemptSummary" style="margin:8px 0;"></div>
       <div id="branchSettings"></div>
@@ -569,7 +574,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveBranchesBtn" style="margin-top:8px;">บันทึกรายชื่อสาขา</button>
     </div>
     <div class="card">
-      <h3>รายชื่อผู้ขาย/แหล่งซื้อ (ต้นทุน)</h3>
+      <h3>🚚 รายชื่อผู้ขาย/แหล่งซื้อ (ต้นทุน)</h3>
       <div id="purchSellerSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newPurchSeller" placeholder="เช่น ม๊ะก๊าด, มนต์, พี่พัฒน์/ตลาด">
@@ -578,7 +583,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="savePurchSellersBtn" style="margin-top:8px;">บันทึกรายชื่อผู้ขาย</button>
     </div>
     <div class="card">
-      <h3>หมวดรายจ่ายกิจการ</h3>
+      <h3>📂 หมวดรายจ่ายกิจการ</h3>
       <div id="expenseCategorySettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newExpCategory" placeholder="ชื่อหมวดใหม่ เช่น ค่าน้ำมัน">
@@ -587,7 +592,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveExpCategoriesBtn" style="margin-top:8px;">บันทึกหมวดรายจ่าย</button>
     </div>
     <div class="card">
-      <h3>รายชื่อเจ้าของหนี้</h3>
+      <h3>👤 รายชื่อเจ้าของหนี้</h3>
       <div class="hint">ใช้แยกยอดหนี้กิจการกับหนี้ส่วนตัวของแต่ละคน</div>
       <div id="debtOwnerSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
@@ -597,7 +602,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveDebtOwnersBtn" style="margin-top:8px;">บันทึกรายชื่อเจ้าของหนี้</button>
     </div>
     <div class="card">
-      <h3>รายชื่อประเภทหนี้</h3>
+      <h3>📂 รายชื่อประเภทหนี้</h3>
       <div id="debtTypeSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newDebtType" placeholder="เช่น เงินกู้, บัตรเครดิต">
@@ -606,7 +611,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveDebtTypesBtn" style="margin-top:8px;">บันทึกรายชื่อประเภทหนี้</button>
     </div>
     <div class="card">
-      <h3>หมวดรายรับ/รายจ่ายส่วนตัว</h3>
+      <h3>📂 หมวดรายรับ/รายจ่ายส่วนตัว</h3>
       <div class="field"><label>หมวดรายรับส่วนตัว</label><div id="pIncomeCategorySettings"></div>
         <div style="display:flex;gap:6px;margin-top:6px;">
           <input type="text" id="newPIncomeCategory" placeholder="เช่น เงินเดือน, รายได้เสริม">
@@ -622,7 +627,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="savePCategoriesBtn" style="margin-top:10px;">บันทึกหมวดส่วนตัว</button>
     </div>
     <div class="card">
-      <h3>สำรองข้อมูล</h3>
+      <h3>💾 สำรองข้อมูล</h3>
       <div class="hint">ข้อมูลทั้งหมดเก็บอยู่ในเครื่องมือนี้เท่านั้น แนะนำให้ส่งออกไฟล์สำรองเก็บไว้เป็นระยะ เผื่อกรณีฉุกเฉิน</div>
       <button class="btn secondary" id="exportDataBtn" style="margin-top:8px;">📤 ส่งออกข้อมูลสำรอง (.json)</button>
       <div class="field" style="margin-top:10px;">
@@ -952,7 +957,21 @@ async function saveRow(){
   refreshOrderTab(); renderStats();
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
-function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); }
+function renderOrderMissingList(){
+  const list = document.getElementById('orderMissingList');
+  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
+  const missing = settings.branches.filter(b=>!orderedCodes.has(b.code));
+  if(missing.length===0){ list.innerHTML = '<div class="empty">ทุกสาขาในระบบมีออเดอร์วันนี้แล้ว 🎉</div>'; return; }
+  list.innerHTML = missing.map(b=>`<div class="orow" style="cursor:pointer;" data-quickselectbranch="${b.code}"><div class="name">${branchDisplayName(b)}</div></div>`).join('');
+  list.querySelectorAll('[data-quickselectbranch]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      document.getElementById('branchSelect').value = row.getAttribute('data-quickselectbranch');
+      renderProductInputs();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+}
+function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); }
 
 // ---- Read order from photo (Claude vision) ----
 function fileToBase64(file){

@@ -304,6 +304,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card">
       <h3>🏷️ เทรนด์ Brand fee 14 วันล่าสุด</h3>
+      <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
       <div id="dashTrend" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
@@ -558,6 +559,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card">
       <h3>รายชื่อสาขา</h3>
       <div class="hint">ติ๊ก "แยกส่ง" สำหรับสาขาที่สั่งส่วนตัวโดยตรง (ไม่นับรวมในค่าธรรมเนียมจ่ายบริษัท) ช่องข้อมูลบิลของแต่ละสาขาเป็นอิสระจากกัน เว้นว่างไว้ = บิลนั้นจะว่างช่องนั้นไปเลย</div>
+      <div id="branchExemptSummary" style="margin:8px 0;"></div>
       <div id="branchSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newBranchCode" placeholder="รหัส" style="width:70px;flex:none;">
@@ -1968,6 +1970,11 @@ async function fillEmptyBranchBillInfo(){
   showToast(`เติมข้อมูลให้ ${count} สาขาที่ว่างอยู่แล้ว`);
 }
 function renderBranchSettings(){
+  const summaryEl = document.getElementById('branchExemptSummary');
+  const exemptList = settings.branches.filter(b=>b.separate);
+  summaryEl.innerHTML = exemptList.length
+    ? `<div class="hint" style="color:var(--accent);">✅ สาขาที่ติ๊ก "แยกส่ง" อยู่ตอนนี้ (${exemptList.length}): ${exemptList.map(b=>`${b.code} ${b.area||b.label||''}`).join(', ')}</div>`
+    : `<div class="hint" style="color:var(--danger);">⚠️ ยังไม่มีสาขาไหนติ๊ก "แยกส่ง" เลย — ถ้าคิดว่าควรมี ให้เลื่อนหาสาขานั้นด้านล่างแล้วติ๊กให้ถูก</div>`;
   const wrap = document.getElementById('branchSettings');
   wrap.innerHTML = settings.branches.map((b,i)=>`
     <div class="card" style="background:var(--surface-2);padding:10px;margin-bottom:8px;">
@@ -1977,14 +1984,19 @@ function renderBranchSettings(){
         <button class="iconbtn" data-brdel="${i}" aria-label="ลบสาขา">✕</button>
       </div>
       <input type="text" data-blabel="${i}" value="${b.label||''}" placeholder="ป้ายชื่อกำหนดเอง (ถ้ามี เช่น สาขา 13(แยกส่ง))" style="margin-bottom:6px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">
-        <input type="checkbox" data-bsep="${i}" ${b.separate?'checked':''} style="width:auto;"> แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:${b.separate?'var(--accent)':'var(--text-dim)'};margin-bottom:6px;font-weight:${b.separate?'600':'400'};">
+        <input type="checkbox" data-bsep="${i}" ${b.separate?'checked':''} style="width:auto;"> แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)${b.separate?' ✓':''}
       </label>
       <input type="text" data-bbillname="${i}" value="${b.billName||''}" placeholder="ชื่อผู้ซื้อเฉพาะ (ว่าง = ใช้ชื่อสาขาอัตโนมัติ)" style="margin-bottom:6px;">
       <textarea data-bbilladdr="${i}" placeholder="รายละเอียดที่อยู่เพิ่มเติม เช่น เลขที่ 28/1 หมู่ 7 ต.บางรัก... (ไม่ต้องพิมพ์ชื่อสาขาซ้ำ ระบบใส่ให้ในชื่อผู้ซื้อแล้ว) ว่าง = ว่างบนบิล" rows="2" style="margin-bottom:6px;resize:vertical;">${b.billAddr||''}</textarea>
       <input type="text" data-bbilltax="${i}" value="${b.billTax||''}" placeholder="เลขภาษีเฉพาะ (ว่าง = ว่างบนบิล)">
     </div>`).join('');
   wrap.querySelectorAll('[data-brdel]').forEach(btn=>btn.addEventListener('click', ()=>{ settings.branches.splice(Number(btn.getAttribute('data-brdel')),1); renderBranchSettings(); }));
+  // อัปเดตสรุปด้านบนทันทีเวลามีคนติ๊ก/เลิกติ๊ก โดยยังไม่ต้องกดบันทึก จะได้เห็นผลตอบรับทันที
+  wrap.querySelectorAll('[data-bsep]').forEach((cb,i)=>cb.addEventListener('change', ()=>{
+    settings.branches[i].separate = cb.checked;
+    renderBranchSettings();
+  }));
 }
 async function saveBranches(){
   const codes = document.querySelectorAll('[data-bcode]');
@@ -2826,10 +2838,12 @@ async function computeBranchAggregates(){
     Object.entries(d.orders).forEach(([code,row])=>{
       if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
       const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
-      if(!agg[code]) agg[code] = {paidTotal:0, unpaidTotal:0, unpaidCount:0, unpaidList:[], allTimeTotal:0, orderCount:0, lastOrderIso:iso, delays:[]};
+      if(!agg[code]) agg[code] = {paidTotal:0, unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:iso, delays:[]};
       const a = agg[code];
       a.allTimeTotal += amt; a.orderCount += 1; a.lastOrderIso = iso;
-      if(d.billingPaid[code]) a.paidTotal += amt;
+      const paid = !!d.billingPaid[code];
+      a.allBillsList.push({iso, amt, paid});
+      if(paid) a.paidTotal += amt;
       else {
         const delay = Math.max(0, Math.round((new Date(today)-new Date(iso))/86400000));
         a.unpaidTotal += amt; a.unpaidCount += 1; a.unpaidList.push({iso, amt, delay}); a.delays.push(delay);
@@ -2853,7 +2867,8 @@ async function renderBranchDetail(code, precomputedAgg){
   if(!code){ detailEl.className='empty'; detailEl.innerHTML = 'เลือกสาขาเพื่อดูรายละเอียด'; return; }
   detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…';
   const agg = precomputedAgg || await computeBranchAggregates();
-  const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
+  const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
+  const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=>y.iso.localeCompare(x.iso));
   detailEl.className=''; detailEl.innerHTML = `
     <div class="dash-grid" style="margin-bottom:10px;">
       <div class="dash-metric danger"><div class="dm-label">บิลค้างโอน</div><div class="dm-value num">${a.unpaidCount} บิล</div></div>
@@ -2861,12 +2876,33 @@ async function renderBranchDetail(code, precomputedAgg){
       <div class="dash-metric"><div class="dm-label">สั่งไปแล้วทั้งหมด</div><div class="dm-value num">${a.orderCount} ครั้ง</div></div>
       <div class="dash-metric"><div class="dm-label">ยอดสะสมทั้งหมด</div><div class="dm-value num">${money(a.allTimeTotal)}</div></div>
     </div>
-    <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'}</div>
-    ${a.unpaidList.length? `<div style="margin-top:10px;">${a.unpaidList.sort((x,y)=>x.iso.localeCompare(y.iso)).map(u=>`<div class="delayrow" style="cursor:pointer;" data-billiso="${u.iso}" data-billcode="${code}"><div>${formatDDMMYYYY(u.iso)}</div><span class="num">${money(u.amt)} ›</span></div>`).join('')}</div>` : '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>'}
+    <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง</div>
+    <div style="display:flex;gap:6px;margin:8px 0;">
+      <button class="tab active" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
+      <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
+    </div>
+    <div id="branchBillListInner"></div>
   `;
-  detailEl.querySelectorAll('[data-billiso]').forEach(row=>{
-    row.addEventListener('click', ()=>jumpToBillReceipt(row.getAttribute('data-billiso'), row.getAttribute('data-billcode')));
+  function renderBranchBillList(filter){
+    const wrap = document.getElementById('branchBillListInner');
+    const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : sortedBills;
+    if(rows.length===0){ wrap.innerHTML = filter==='unpaid' ? '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>' : '<div class="empty">ยังไม่มีบิล</div>'; return; }
+    wrap.innerHTML = rows.map(u=>`
+      <div class="delayrow" style="cursor:pointer;" data-billiso="${u.iso}" data-billcode="${code}">
+        <div><div>${formatDDMMYYYY(u.iso)}</div><div class="d" style="color:${u.paid?'var(--success)':'var(--danger)'};">${u.paid?'โอนแล้ว':'รอโอน'}</div></div>
+        <span class="num">${money(u.amt)} ›</span>
+      </div>`).join('');
+    wrap.querySelectorAll('[data-billiso]').forEach(row=>{
+      row.addEventListener('click', ()=>jumpToBillReceipt(row.getAttribute('data-billiso'), row.getAttribute('data-billcode')));
+    });
+  }
+  detailEl.querySelectorAll('[data-branchbillfilter]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      detailEl.querySelectorAll('[data-branchbillfilter]').forEach(b=>b.classList.toggle('active', b===btn));
+      renderBranchBillList(btn.getAttribute('data-branchbillfilter'));
+    });
   });
+  renderBranchBillList('all');
 }
 async function computeDataGaps(){
   const listRes = await window.storage.list('day:');
@@ -2893,11 +2929,10 @@ async function computeDataGaps(){
         neededByProduct[p.id] = qty;
       }
     });
-    if(Object.keys(neededByProduct).length===0) continue;
     // รวมจำนวนซื้อจริงที่บันทึกไว้ (ขายได้) แยกตามสินค้า เพื่อเทียบกับยอดที่ควรต้องใช้
     const purchasedByProduct = {};
     (d.purchases||[]).forEach(e=>{ purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
-    const missingParts = []; const mismatchParts = [];
+    const missingParts = []; const mismatchParts = []; const unexpectedParts = [];
     Object.entries(neededByProduct).forEach(([pid, needed])=>{
       const p = PRODUCTS.find(x=>x.id===pid);
       const bought = purchasedByProduct[pid];
@@ -2907,14 +2942,25 @@ async function computeDataGaps(){
         mismatchParts.push(`${p.emoji}${p.name} (ต้องการ ${needed} ${p.unit} แต่บันทึกซื้อไว้ ${bought} ${p.unit})`);
       }
     });
+    // เช็คทางกลับกัน: มีบันทึกซื้อของสินค้านี้ แต่วันนั้นไม่มีความต้องการจากออเดอร์เลย (อาจกรอกผิดวัน/ผิดสินค้า)
+    Object.entries(purchasedByProduct).forEach(([pid, bought])=>{
+      if(bought<=0) return;
+      if(!(pid in neededByProduct)){
+        const p = PRODUCTS.find(x=>x.id===pid);
+        unexpectedParts.push(`${p.emoji}${p.name} (บันทึกซื้อไว้ ${bought} ${p.unit} แต่วันนี้ไม่มีออเดอร์ที่ต้องใช้เลย)`);
+      }
+    });
     if(missingParts.length){
       gaps.push({iso, type:'purchase', text:`ยังไม่ได้บันทึกต้นทุนซื้อ: ${missingParts.join(', ')}`, tab:'purchase'});
     }
     if(mismatchParts.length){
       gaps.push({iso, type:'purchase-mismatch', text:`จำนวนซื้อกับยอดออเดอร์ต่างกันมาก เช็คว่ากรอกผิดหรือเปล่า: ${mismatchParts.join(', ')}`, tab:'purchase'});
     }
+    if(unexpectedParts.length){
+      gaps.push({iso, type:'purchase-unexpected', text:`มีต้นทุนซื้อที่ไม่มีออเดอร์รองรับ เช็คว่ากรอกผิดวัน/ผิดสินค้าหรือเปล่า: ${unexpectedParts.join(', ')}`, tab:'purchase'});
+    }
     const leftoverTouched = Object.values(d.leftoverOut||{}).some(v=>Number(v)>0) || Object.keys(d.leftoverOut||{}).length>0;
-    if(!leftoverTouched){
+    if(!leftoverTouched && Object.keys(neededByProduct).length>0){
       gaps.push({iso, type:'leftover', text:`มีออเดอร์แต่ยังไม่ได้เช็ค/บันทึก "ของเหลือค้าง"`, tab:'leftover'});
     }
   }
@@ -3005,11 +3051,14 @@ async function renderDashboard(){
     const h = Math.max(2, Math.round((t.fee/maxFee)*72));
     return `<div class="tbar-wrap" data-tbaridx="${i}" style="cursor:pointer;"><div class="tbar ${t.iso===currentDate?'today':''}" style="height:${h}px" title="${formatDDMMYYYY(t.iso)}: ${money(t.fee)}"></div><div class="tbar-label num">${t.iso.slice(8,10)}</div></div>`;
   }).join('')}</div>`;
-  // มือถือ/แท็บเล็ตกด hover ไม่ได้ — แตะแท่งแล้วโชว์ตัวเลขเป็น toast แทน
+  // มือถือ/แท็บเล็ตกด hover ไม่ได้ — แตะแท่งแล้วโชว์ตัวเลขค้างไว้เหนือกราฟ (ไม่ใช้ toast เพราะหายเร็วเกินไป สังเกตยาก)
+  const selectedValueEl = document.getElementById('trendSelectedValue');
   trendEl.querySelectorAll('[data-tbaridx]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const t = trendData[Number(el.getAttribute('data-tbaridx'))];
-      showToast(`${formatDDMMYYYY(t.iso)}: ${money(t.fee)}`);
+      selectedValueEl.innerHTML = `<b style="color:var(--accent);">${formatDDMMYYYY(t.iso)}: ${money(t.fee)}</b>`;
+      trendEl.querySelectorAll('.tbar').forEach(bar=>bar.style.opacity = '0.45');
+      el.querySelector('.tbar').style.opacity = '1';
     });
   });
 

@@ -432,6 +432,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <label>หมวด</label>
         <select id="expCategory"></select>
       </div>
+      <div class="field"><label>จ่ายให้ใคร (ถ้ามี — เช่น จ่ายรวมกับค่าเชอรี่ให้พี่พัฒน์)</label><select id="expPayee"><option value="">— ไม่ระบุ —</option></select></div>
       <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="expNote" placeholder="เช่น น้ำแข็ง 5 ถุง"></div>
       <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="expAmount" placeholder="0"></div>
       <button class="btn secondary" id="addExpenseBtn">+ เพิ่มรายจ่าย</button>
@@ -451,6 +452,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <button class="tab active" data-expfilter="all">ทั้งหมด</button>
         <button class="tab" data-expfilter="unpaid">เฉพาะค้างจ่าย</button>
       </div>
+      <div class="field"><label>กรองเฉพาะคู่ค้า (เช็คยอดค้างแต่ละราย)</label><select id="expSellerFilter"><option value="">— ทุกคู่ค้า —</option></select></div>
+      <div id="expSellerTotal" class="hint" style="margin-bottom:6px;"></div>
       <div id="allExpenseList" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -654,6 +657,8 @@ const LEFTOVER_IDS = ['p1','p2','p4','p5','p7'];
 const LEFTOVER_SHORT = {p1:'แช่',p2:'ดอง',p4:'ปู',p5:'หมึก',p7:'หอย'};
 const MONK_IDS = ['p1','p2','p4','p5','p7'];
 const KG_FEE_IDS = ['p1','p2','p3','p4','p5','p6'];
+// สีที่ใช้วนสำหรับแผนภูมิวงกลมที่มีหมวดหมู่ไม่แน่นอน (เช่น รายจ่ายส่วนตัวแยกตามหมวด)
+const PIE_COLORS = ['#5B9BD5','#E3A13D','#E2694F','#6FBF8B','#C58FE0','#4FBDBD','#F2B8B5','#A3C9A8','#D9A5D9','#F4D35E'];
 
 const DEFAULT_BRANCHES = [
   {code:'00', area:'ธงหมูกะทะ หลักสี่'},
@@ -1558,6 +1563,8 @@ async function toggleBranchDetailReceipt(iso, code){
 function renderExpenseCategorySelect(){
   const sel = document.getElementById('expCategory');
   sel.innerHTML = settings.expenseCategories.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const payeeSel = document.getElementById('expPayee');
+  payeeSel.innerHTML = `<option value="">— ไม่ระบุ —</option>` + settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 let expPayEditingId = null;
 function renderExpenseList(){
@@ -1569,7 +1576,7 @@ function renderExpenseList(){
     return `
     <div class="orow" style="flex-direction:column;align-items:stretch;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div><div class="name">${e.category}${e.note?` — ${e.note}`:''}</div><div class="items num">${money(e.amount)}${e.paid && e.paidDate?` <span style="color:var(--text-faint);">• จ่าย ${formatDDMMYYYY(e.paidDate)}</span>`:''}</div></div>
+        <div><div class="name">${e.category}${e.seller?` — ${e.seller}`:''}${e.note?` (${e.note})`:''}</div><div class="items num">${money(e.amount)}${e.paid && e.paidDate?` <span style="color:var(--text-faint);">• จ่าย ${formatDDMMYYYY(e.paidDate)}</span>`:''}</div></div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
           <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕</button>
@@ -1622,10 +1629,11 @@ function renderExpenseList(){
 }
 async function addExpense(){
   const category = document.getElementById('expCategory').value;
+  const seller = document.getElementById('expPayee').value;
   const note = document.getElementById('expNote').value.trim();
   const amount = Number(document.getElementById('expAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.expenses.push({id: 'e'+Date.now(), category, note, amount, paid:false});
+  dayData.expenses.push({id: 'e'+Date.now(), category, seller, note, amount, paid:false});
   await saveDay(currentDate, dayData);
   document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
   renderExpenseList();
@@ -1791,6 +1799,12 @@ async function renderMonthPL(){
         <span style="font-weight:600;">กำไรสุทธิโดยประมาณ</span>
         <span class="num" style="font-weight:600;color:${r.netProfit>=0?'var(--success)':'var(--danger)'};">${money(r.netProfit)}</span>
       </div>
+      <div class="hint" style="margin-top:12px;margin-bottom:4px;">🥧 สัดส่วนรายจ่ายเดือนนี้</div>
+      ${buildPieChartSVG([
+        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#E2694F'},
+        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#E3A13D'},
+        {label:'Brand fee', value:r.feeTotal, color:'#5B9BD5'},
+      ])}
       <table class="plain" style="margin-top:10px;">
       <tr><td>รายรับจริง (สาขาโอนแล้ว)</td><td class="num num" style="color:var(--success);">${money(r.revenuePaid)}</td></tr>
       <tr><td>รายจ่ายกิจการอื่นๆ + ต้นทุนซื้อ + Brand fee</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal + r.cogsTotal + r.feeTotal)}</td></tr>
@@ -1847,6 +1861,39 @@ async function computeYearFinancials(year){
   }
   const monthCount = monthly.filter(x=>x.revenue>0 || x.netProfit!==0).length || monthly.length || 1;
   return {revenue, revenuePaid, cogsTotal, expenseTotal, feeTotal, netProfit, monthly, avgProfitPerMonth: netProfit/monthCount};
+}
+// สร้างแผนภูมิวงกลม (โดนัท) จากรายการ [{label, value, color}] พร้อมคำอธิบายสีด้านล่าง
+function buildPieChartSVG(segments){
+  const filtered = segments.filter(s=>s.value>0);
+  const total = filtered.reduce((s,x)=>s+x.value,0);
+  if(total<=0) return '<div class="empty">ยังไม่มีข้อมูลพอจะสร้างแผนภูมิ</div>';
+  const size = 180, r = 80, cx = size/2, cy = size/2, innerR = 46;
+  let angle = -90; // เริ่มจากด้านบน
+  const paths = filtered.map(seg=>{
+    const frac = seg.value/total;
+    const startAngle = angle;
+    const sweep = frac*360;
+    angle += sweep;
+    const endAngle = angle;
+    const toXY = (a, rad)=>{ const rd = a*Math.PI/180; return [cx+rad*Math.cos(rd), cy+rad*Math.sin(rd)]; };
+    const [x1,y1] = toXY(startAngle, r); const [x2,y2] = toXY(endAngle, r);
+    const [ix2,iy2] = toXY(endAngle, innerR); const [ix1,iy1] = toXY(startAngle, innerR);
+    const largeArc = sweep>180 ? 1 : 0;
+    const d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} L ${ix2.toFixed(2)} ${iy2.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1.toFixed(2)} ${iy1.toFixed(2)} Z`;
+    return `<path d="${d}" fill="${seg.color}"/>`;
+  }).join('');
+  const legend = filtered.map(seg=>{
+    const pct = Math.round(seg.value/total*100);
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:4px;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${seg.color};flex:none;"></span>
+      <span style="flex:1;color:var(--text-dim);">${seg.label}</span>
+      <span class="num" style="color:var(--text);">${money(seg.value)} (${pct}%)</span>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+    <svg viewBox="0 0 ${size} ${size}" style="width:150px;height:150px;flex:none;">${paths}</svg>
+    <div style="flex:1;min-width:140px;">${legend}</div>
+  </div>`;
 }
 function buildYearBarSVG(monthly){
   const W=600, H=140, padL=34, padR=6, padT=8, padB=18;
@@ -1914,9 +1961,15 @@ async function renderYearSummary(){
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
 }
 let expenseFilterMode = 'all';
+let expSellerFilterValue = '';
 async function renderAllExpenseList(){
   const container = document.getElementById('allExpenseList');
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const sellerSel = document.getElementById('expSellerFilter');
+  if(sellerSel && sellerSel.options.length<=1){
+    sellerSel.innerHTML = `<option value="">— ทุกคู่ค้า —</option>` + settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
+    sellerSel.value = expSellerFilterValue;
+  }
   try{
     const listRes = await window.storage.list('day:');
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
@@ -1929,22 +1982,30 @@ async function renderAllExpenseList(){
       (d.expenses||[]).forEach(e=>{
         if(expenseFilterMode==='unpaid' && e.paid) return;
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay});
+        rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||''});
       });
       (d.purchases||[]).forEach(e=>{
         if(expenseFilterMode==='unpaid' && e.paid) return;
         const p = PRODUCTS.find(x=>x.id===e.productId);
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:`ต้นทุนซื้อ: ${p?p.emoji+' '+p.name:e.productId}${e.seller?` (${e.seller})`:''}`, amount:purchaseCostTotal(e), paid:e.paid, delay});
+        rows.push({iso, label:`ต้นทุนซื้อ: ${p?p.emoji+' '+p.name:e.productId}${e.seller?` (${e.seller})`:''}`, amount:purchaseCostTotal(e), paid:e.paid, delay, seller:e.seller||''});
       });
       Object.entries(d.purchaseGroupPayment||{}).forEach(([seller,g])=>{
         if(!g.extra) return;
         if(expenseFilterMode==='unpaid' && g.paid) return;
         const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:`ค่าใช้จ่ายเพิ่มเติมบิล ${seller}${g.note?` — ${g.note}`:''}`, amount:g.extra, paid:g.paid, delay});
+        rows.push({iso, label:`ค่าใช้จ่ายเพิ่มเติมบิล ${seller}${g.note?` — ${g.note}`:''}`, amount:g.extra, paid:g.paid, delay, seller});
       });
     }
+    if(expSellerFilterValue){ rows = rows.filter(r=>r.seller===expSellerFilterValue); }
     rows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
+    const totalEl = document.getElementById('expSellerTotal');
+    if(expSellerFilterValue){
+      const unpaidTotal = rows.filter(r=>!r.paid).reduce((s,r)=>s+r.amount,0);
+      totalEl.innerHTML = `<b style="color:var(--danger);">ยอดค้างกับ ${expSellerFilterValue}: ${money(unpaidTotal)}</b>`;
+    }else{
+      totalEl.innerHTML = '';
+    }
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการ</div>'; return; }
     container.innerHTML = rows.map(r=>`<div class="delayrow"><div><div>${r.label}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amount)}</div></div><span class="badge-delay" style="${r.paid?'background:var(--success-soft);color:var(--success);':''}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</span></div>`).join('');
   }catch(e){ container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
@@ -2299,7 +2360,8 @@ async function renderPersonalMonthSummary(){
         <span style="font-weight:600;">คงเหลือสุทธิ</span>
         <span class="num" style="font-weight:600;color:${r.net>=0?'var(--success)':'var(--danger)'};">${money(r.net)}</span>
       </div>
-      ${catRows.length? `<div class="hint" style="margin-top:10px;margin-bottom:4px;">รายจ่ายแยกตามหมวด</div><table class="plain">${catRows.map(([c,a])=>`<tr><td>${c}</td><td class="num num">${money(a)}</td></tr>`).join('')}</table>` : ''}
+      ${catRows.length? `<div class="hint" style="margin-top:12px;margin-bottom:4px;">🥧 สัดส่วนรายจ่ายแยกตามหมวด</div>${buildPieChartSVG(catRows.map(([c,a],i)=>({label:c, value:a, color:PIE_COLORS[i%PIE_COLORS.length]})))}` : ''}
+      ${catRows.length? `<div class="hint" style="margin-top:10px;margin-bottom:4px;">รายจ่ายแยกตามหมวด (ตาราง)</div><table class="plain">${catRows.map(([c,a])=>`<tr><td>${c}</td><td class="num num">${money(a)}</td></tr>`).join('')}</table>` : ''}
     `;
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
 }
@@ -2408,6 +2470,7 @@ async function computeNeededQtyToday(pid){
   const leftoverIn = Number((prevDay.leftoverOut||{})[pid]||0);
   return Math.max(todayOrder - leftoverIn, 0);
 }
+let purchEditingId = null;
 async function addPurchase(){
   const productId = document.getElementById('purchProduct').value;
   const seller = document.getElementById('purchSeller').value;
@@ -2428,14 +2491,37 @@ async function addPurchase(){
       if(!ok) return;
     }
   }
-  dayData.purchases.push({id:'pu'+Date.now(), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false});
+  if(purchEditingId){
+    const existing = dayData.purchases.find(x=>x.id===purchEditingId);
+    Object.assign(existing, {productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note});
+    purchEditingId = null;
+    document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
+    showToast('แก้ไขรายการแล้ว');
+  }else{
+    dayData.purchases.push({id:'pu'+Date.now(), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false});
+    showToast('บันทึกต้นทุนซื้อแล้ว');
+  }
   await saveDay(currentDate, dayData);
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   renderPurchaseList();
   renderPurchaseGroups();
   autofillPurchasePrice();
-  showToast('บันทึกต้นทุนซื้อแล้ว');
+}
+function startEditPurchase(id){
+  const e = dayData.purchases.find(x=>x.id===id);
+  if(!e) return;
+  purchEditingId = id;
+  document.getElementById('purchProduct').value = e.productId;
+  updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
+  document.getElementById('purchSeller').value = e.seller||'';
+  document.getElementById('purchQty').value = e.qty;
+  document.getElementById('purchPrice').value = e.price;
+  document.getElementById('purchExtra').value = e.extra||'';
+  document.getElementById('purchSellable').value = e.sellableQty!=null ? e.sellableQty : '';
+  document.getElementById('purchNote').value = e.note||'';
+  document.getElementById('addPurchaseBtn').textContent = '💾 บันทึกการแก้ไข';
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 function renderPurchaseList(){
   const wrap = document.getElementById('purchaseList');
@@ -2456,7 +2542,7 @@ function renderPurchaseList(){
         <td class="num num">${money(ct)}</td>
         <td class="num num" style="color:var(--accent);">${money(cpu)}</td>
         <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</span></td>
-        <td><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></td>
+        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
     }).join('')}
   </table></div>
@@ -2466,10 +2552,17 @@ function renderPurchaseList(){
     <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมวันนี้</span>
     <span class="feebig" style="font-size:20px;">${money(totalCost)}</span>
   </div>`;
+  wrap.querySelectorAll('[data-purchedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditPurchase(btn.getAttribute('data-purchedit'))));
   wrap.querySelectorAll('[data-purchdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-purchdel');
     dayData.purchases = dayData.purchases.filter(x=>x.id!==id);
     await saveDay(currentDate, dayData);
+    if(purchEditingId===id){
+      purchEditingId = null;
+      document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
+      document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
+      document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
+    }
     renderPurchaseList();
     showToast('ลบแล้ว');
     await renderAllExpenseList();
@@ -2958,6 +3051,18 @@ async function renderBranchDetail(code, precomputedAgg){
   const agg = precomputedAgg || await computeBranchAggregates();
   const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
   const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=>y.iso.localeCompare(x.iso));
+  // สรุปยอดขายรายเดือนของสาขานี้ (ไม่ต้องดึงข้อมูลเพิ่ม ใช้ข้อมูลที่โหลดมาแล้วจาก allBillsList)
+  const byMonth = {};
+  sortedBills.forEach(u=>{ const mv = u.iso.slice(0,7); byMonth[mv] = (byMonth[mv]||0) + u.amt; });
+  const monthKeys = Object.keys(byMonth).sort().slice(-12); // ล่าสุด 12 เดือน
+  const monthMax = Math.max(1, ...monthKeys.map(mv=>byMonth[mv]));
+  const trendHtml = monthKeys.length>1 ? `
+    <div class="hint" style="margin-top:10px;margin-bottom:2px;">📈 แนวโน้มยอดขายรายเดือน (แตะแท่งดูตัวเลข)</div>
+    <div id="branchTrendValue" class="hint" style="min-height:16px;"></div>
+    <div class="trendchart" id="branchTrendChart">${monthKeys.map((mv,i)=>{
+      const h = Math.max(2, Math.round((byMonth[mv]/monthMax)*72));
+      return `<div class="tbar-wrap" data-bmonthidx="${i}" style="cursor:pointer;"><div class="tbar" style="height:${h}px"></div><div class="tbar-label num">${mv.slice(5,7)}</div></div>`;
+    }).join('')}</div>` : '';
   detailEl.className=''; detailEl.innerHTML = `
     <div class="dash-grid" style="margin-bottom:10px;">
       <div class="dash-metric danger"><div class="dm-label">บิลค้างโอน</div><div class="dm-value num">${a.unpaidCount} บิล</div></div>
@@ -2966,12 +3071,24 @@ async function renderBranchDetail(code, precomputedAgg){
       <div class="dash-metric"><div class="dm-label">ยอดสะสมทั้งหมด</div><div class="dm-value num">${money(a.allTimeTotal)}</div></div>
     </div>
     <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง</div>
+    ${trendHtml}
     <div style="display:flex;gap:6px;margin:8px 0;">
       <button class="tab active" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
       <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
     </div>
     <div id="branchBillListInner"></div>
   `;
+  if(monthKeys.length>1){
+    const branchTrendValueEl = document.getElementById('branchTrendValue');
+    document.querySelectorAll('#branchTrendChart [data-bmonthidx]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const mv = monthKeys[Number(el.getAttribute('data-bmonthidx'))];
+        branchTrendValueEl.innerHTML = `<b style="color:var(--accent);">${mv}: ${money(byMonth[mv])}</b>`;
+        document.querySelectorAll('#branchTrendChart .tbar').forEach(bar=>bar.style.opacity='0.45');
+        el.querySelector('.tbar').style.opacity='1';
+      });
+    });
+  }
   function renderBranchBillList(filter){
     const wrap = document.getElementById('branchBillListInner');
     const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : sortedBills;
@@ -3269,6 +3386,10 @@ async function init(){
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));
     await renderAllExpenseList();
   }));
+  document.getElementById('expSellerFilter').addEventListener('change', async (e)=>{
+    expSellerFilterValue = e.target.value;
+    await renderAllExpenseList();
+  });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);
   document.getElementById('addExpCategoryBtn').addEventListener('click', addExpenseCategory);
   document.getElementById('saveExpCategoriesBtn').addEventListener('click', saveExpenseCategories);

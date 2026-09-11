@@ -1385,25 +1385,27 @@ async function saveAllReceiptsAsImages(){
   URL.revokeObjectURL(url);
   showToast(`บันทึกบิลทั้งหมด ${canvases.length} ใบในภาพเดียวแล้ว`);
 }
-function computeReceiptData(code){
-  const row = dayData.orders[code];
-  const billNo = billIdFor(currentDate, code);
+function computeReceiptData(code, iso, d){
+  iso = iso || currentDate; d = d || dayData;
+  const row = d.orders[code];
+  const billNo = billIdFor(iso, code);
   const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>{
-    const qty = Number(row[p.id]); const price = priceOnDate(p.id, currentDate); const amount = qty*price;
+    const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso); const amount = qty*price;
     return {p, qty, price, amount};
   });
   const subtotal = items.reduce((s,it)=>s+it.amount,0);
-  const extra = Number(dayData.billExtra[code]||0);
+  const extra = Number(d.billExtra[code]||0);
   const total = subtotal + extra;
   const bi = settings.billInfo;
   const b = branchByCode(code);
   const buyer = buyerInfoFor(b);
   return {row, billNo, items, subtotal, extra, total, bi, b, buyer};
 }
-function buildReceiptCardHTML(code){
-  const {billNo, items, subtotal, extra, total, bi, buyer} = computeReceiptData(code);
+function buildReceiptCardHTML(code, iso, d, cardId){
+  iso = iso || currentDate; d = d || dayData;
+  const {billNo, items, subtotal, extra, total, bi, buyer} = computeReceiptData(code, iso, d);
   return `
-    <div class="receipt" style="margin-top:10px;" id="receiptcard-${code}">
+    <div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
       <div class="rheadtop">
         <img src="${LOGO_DATA_URI}" alt="${bi.sellerName}" class="receiptlogo">
         <div class="rheadinfo">
@@ -1412,7 +1414,7 @@ function buildReceiptCardHTML(code){
         </div>
         <div class="rheadmeta">
           <div class="rbillno">#${billNo}</div>
-          <div class="rdate">${formatDDMMYYYY(currentDate)}</div>
+          <div class="rdate">${formatDDMMYYYY(iso)}</div>
         </div>
       </div>
       <hr>
@@ -1431,7 +1433,7 @@ function buildReceiptCardHTML(code){
       <div class="bahttext" id="bahttext-${code}">(${bahtText(total)})</div>
       <div class="sign">ผู้รับเงิน .....................................</div>
       <div class="thanks">🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀</div>
-      <div class="rno">№ ${billNo} • ${formatDDMMYYYY(currentDate)}</div>
+      <div class="rno">№ ${billNo} • ${formatDDMMYYYY(iso)}</div>
     </div>`;
 }
 async function toggleReceipt(code){
@@ -1472,6 +1474,63 @@ async function toggleReceipt(code){
       ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
+    ].join('\n');
+    try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+    showToast('คัดลอกข้อความบิลแล้ว');
+  });
+}
+// เวอร์ชันเปิดบิลแบบฝังอยู่ในที่เดิม (ไม่เปลี่ยนหน้า/ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป) ใช้ใน "เช็คยอดรายสาขา"
+async function toggleBranchDetailReceipt(iso, code){
+  const holderId = `bdreceipt-${code}-${iso}`;
+  const holder = document.getElementById(holderId);
+  if(!holder) return;
+  if(holder.innerHTML){ holder.innerHTML=''; return; }
+  const d = await loadDay(iso);
+  const cardId = `bdreceiptcard-${code}-${iso}`;
+  holder.innerHTML = buildReceiptCardHTML(code, iso, d, cardId) + `
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn secondary" data-bdprintbill="1" style="width:auto;">พิมพ์บิล</button>
+      <button class="btn secondary" data-bdsavebillimg="1" style="width:auto;">🖼️ บันทึกเป็นรูปภาพ</button>
+      <button class="btn secondary" data-bdcopybill="1" style="width:auto;">คัดลอกข้อความบิล</button>
+    </div>`;
+  const {items, subtotal, extra, total, bi, buyer, billNo} = computeReceiptData(code, iso, d);
+  holder.querySelector('[data-bdsavebillimg]').addEventListener('click', async ()=>{
+    const node = document.getElementById(cardId);
+    if(!node){ showToast('ไม่พบบิล'); return; }
+    if(typeof html2canvas === 'undefined'){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
+    showToast('กำลังสร้างรูปภาพ…');
+    try{
+      const canvas = await html2canvas(node, {backgroundColor:'#FBF9F3', scale:2});
+      canvas.toBlob(blob=>{
+        if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `บิล-${code}-${iso}.png`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('บันทึกรูปภาพบิลแล้ว');
+      });
+    }catch(e){ showToast('สร้างรูปภาพไม่สำเร็จ'); }
+  });
+  const extraInput = holder.querySelector(`[data-extra="${code}"]`);
+  extraInput.addEventListener('change', async ()=>{
+    d.billExtra[code] = Number(extraInput.value||0);
+    await saveDay(iso, d);
+    const newTotal = subtotal + Number(extraInput.value||0);
+    document.getElementById(`grandtotal-${code}`).textContent = money(newTotal);
+    document.getElementById(`bahttext-${code}`).textContent = `(${bahtText(newTotal)})`;
+  });
+  holder.querySelector('[data-bdprintbill]').addEventListener('click', ()=>window.print());
+  holder.querySelector('[data-bdcopybill]').addEventListener('click', async ()=>{
+    const curExtra = Number(document.querySelector(`[data-extra="${code}"]`).value||0);
+    const curTotal = subtotal + curExtra;
+    const txt = [
+      bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
+      `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
+      ...(buyer.addr ? [`ที่อยู่จัดส่ง ${formatAddrForDisplay(buyer.addr).replace(/<br>/g,'\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
+      `วันที่ ${formatDDMMYYYY(iso)}`, '',
+      ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
+      `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
     ].join('\n');
     try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
     showToast('คัดลอกข้อความบิลแล้ว');
@@ -2907,9 +2966,10 @@ async function renderBranchDetail(code, precomputedAgg){
             <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
           </div>
         </div>
+        <div id="bdreceipt-${code}-${u.iso}"></div>
       </div>`).join('');
     wrap.querySelectorAll('[data-viewdetailbill]').forEach(btn=>{
-      btn.addEventListener('click', ()=>jumpToBillReceipt(btn.getAttribute('data-viewdetailbill'), code));
+      btn.addEventListener('click', ()=>toggleBranchDetailReceipt(btn.getAttribute('data-viewdetailbill'), code));
     });
     wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
       btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code));

@@ -2899,12 +2899,20 @@ async function renderBranchDetail(code, precomputedAgg){
     const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : sortedBills;
     if(rows.length===0){ wrap.innerHTML = filter==='unpaid' ? '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>' : '<div class="empty">ยังไม่มีบิล</div>'; return; }
     wrap.innerHTML = rows.map(u=>`
-      <div class="delayrow" style="cursor:pointer;" data-billiso="${u.iso}" data-billcode="${code}">
-        <div><div>${formatDDMMYYYY(u.iso)}</div><div class="d" style="color:${u.paid?'var(--success)':'var(--danger)'};">${u.paid?'โอนแล้ว':'รอโอน'}</div></div>
-        <span class="num">${money(u.amt)} ›</span>
+      <div class="branchbill">
+        <div class="toprow">
+          <div class="left"><div class="n">${formatDDMMYYYY(u.iso)}</div><div class="amt num">${money(u.amt)}</div></div>
+          <div class="acts2">
+            <button class="iconbtn" data-viewdetailbill="${u.iso}" aria-label="ดูบิล">🧾</button>
+            <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
+          </div>
+        </div>
       </div>`).join('');
-    wrap.querySelectorAll('[data-billiso]').forEach(row=>{
-      row.addEventListener('click', ()=>jumpToBillReceipt(row.getAttribute('data-billiso'), row.getAttribute('data-billcode')));
+    wrap.querySelectorAll('[data-viewdetailbill]').forEach(btn=>{
+      btn.addEventListener('click', ()=>jumpToBillReceipt(btn.getAttribute('data-viewdetailbill'), code));
+    });
+    wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
+      btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code));
     });
   }
   detailEl.querySelectorAll('[data-branchbillfilter]').forEach(btn=>{
@@ -2919,7 +2927,9 @@ async function computeDataGaps(){
   const listRes = await window.storage.list('day:');
   const keys = (listRes && listRes.keys) ? listRes.keys : [];
   const today = todayISO();
-  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso<=today && (new Date(today)-new Date(iso))/86400000<=14).sort();
+  // เช็คทุกวันที่มีข้อมูลจริง ไม่จำกัดแค่ 14 วันล่าสุด — เดิมจำกัดไว้เพื่อความเร็ว แต่จริงๆ ข้อมูลของวันอื่นๆ
+  // ถูกโหลดแคชไว้แล้วจาก computeBranchAggregates() ที่ทำงานก่อนหน้านี้ในหน้าแดชบอร์ด จึงแทบไม่เสียเวลาเพิ่ม
+  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso<=today).sort();
   const prevIsoList = isoList.map(iso=>addDaysISO(iso,-1));
   const allNeeded = [...new Set([...isoList, ...prevIsoList])];
   const dayMap = await loadDaysBulk(allNeeded);
@@ -2988,6 +2998,20 @@ async function jumpToBillReceipt(iso, code){
   const card = document.getElementById('receiptcard-'+code) || document.getElementById('bb-'+code);
   if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
 }
+// สลับสถานะโอนแล้ว/รอโอน ของบิลวันไหนก็ได้ โดยไม่ต้องออกจากหน้าเช็คยอดรายสาขา
+// (ใช้วันนี้เป็นวันที่โอนโดยอัตโนมัติเวลากดยืนยันจ่าย — ถ้าอยากระบุวันที่โอนเอง ให้กดไอคอนบิล 🧾 แล้วไปทำที่หน้าบิลโอนเงินแทน)
+async function toggleBranchBillPaidQuick(iso, code){
+  const d = await loadDay(iso);
+  if(d.billingPaid[code]){
+    d.billingPaid[code] = false;
+  }else{
+    d.billingPaid[code] = {paid:true, paidDate: todayISO()};
+  }
+  await saveDay(iso, d);
+  showToast(d.billingPaid[code] ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
+  const dashSelectEl = document.getElementById('dashBranchSelect');
+  if(dashSelectEl) await renderBranchDetail(dashSelectEl.value);
+}
 async function jumpToLongestOverdue(){
   const agg = await computeBranchAggregates();
   let worst = null;
@@ -3008,11 +3032,14 @@ async function renderDataGaps(){
     const gaps = await computeDataGaps();
     if(gaps.length===0){ card.style.display='none'; return; }
     card.style.display='';
-    list.innerHTML = gaps.map(g=>`
+    // เรียงล่าสุดก่อน และโชว์แค่ 25 รายการแรกกันการ์ดยาวเกินไป (ยังเช็คครบทุกวันอยู่ดี แค่จำกัดจำนวนที่แสดง)
+    const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
+    const shown = sortedGaps.slice(0,25);
+    list.innerHTML = shown.map(g=>`
       <div class="delayrow" style="cursor:pointer;" data-gapiso="${g.iso}" data-gaptab="${g.tab}">
         <div><div>${formatDDMMYYYY(g.iso)}</div><div class="d">${g.text}</div></div>
         <span class="badge-delay">แก้ไข ›</span>
-      </div>`).join('');
+      </div>`).join('') + (sortedGaps.length>25 ? `<div class="hint" style="margin-top:6px;">...และอีก ${sortedGaps.length-25} รายการ (แสดงเฉพาะล่าสุด 25 รายการ)</div>` : '');
     list.querySelectorAll('[data-gapiso]').forEach(row=>{
       row.addEventListener('click', ()=>jumpToGap(row.getAttribute('data-gapiso'), row.getAttribute('data-gaptab')));
     });

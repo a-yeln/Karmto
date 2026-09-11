@@ -1784,7 +1784,7 @@ function buildYearBarSVG(monthly){
     const barH = Math.abs(m.netProfit)*scale;
     const y = m.netProfit>=0 ? zeroY-barH : zeroY;
     const color = m.netProfit>=0 ? '#6FBF8B' : '#E2694F';
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1,barH).toFixed(1)}" fill="${color}" rx="2"/><text x="${(x+barW/2).toFixed(1)}" y="${H-4}" font-size="9" fill="#6E827B" text-anchor="middle">${m.month}</text>`;
+    return `<rect data-monthidx="${i}" style="cursor:pointer;" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1,barH).toFixed(1)}" fill="${color}" rx="2"/><text x="${(x+barW/2).toFixed(1)}" y="${H-4}" font-size="9" fill="#6E827B" text-anchor="middle">${m.month}</text>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;">
     <line x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}" stroke="#2C4139" stroke-width="1"/>
@@ -1815,13 +1815,24 @@ async function renderYearSummary(){
         <div class="dash-metric"><div class="dm-label">📆 กำไรเฉลี่ย/เดือน</div><div class="dm-value num">${money(r.avgProfitPerMonth)}</div></div>
         <div class="dash-metric success"><div class="dm-label">✅ รับเงินจริงแล้ว</div><div class="dm-value num">${money(r.revenuePaid)}</div></div>
       </div>
-      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (เขียว=กำไร แดง=ขาดทุน)</div>
+      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (เขียว=กำไร แดง=ขาดทุน) — แตะแท่งไหนก็ได้เพื่อดูยอดเดือนนั้น</div>
+      <div id="yearSelectedValue" class="hint" style="min-height:16px;"></div>
       ${buildYearBarSVG(r.monthly)}
       <table class="plain" style="margin-top:10px;">
       <tr><td>ต้นทุนซื้อ (COGS) รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.cogsTotal)}</td></tr>
       <tr><td>รายจ่ายกิจการอื่นๆ รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal)}</td></tr>
       <tr><td>Brand fee รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.feeTotal)}</td></tr>
       </table>`;
+    const yearSelectedEl = document.getElementById('yearSelectedValue');
+    el.querySelectorAll('[data-monthidx]').forEach(rect=>{
+      rect.addEventListener('click', ()=>{
+        const m = r.monthly[Number(rect.getAttribute('data-monthidx'))];
+        const color = m.netProfit>=0 ? 'var(--success)' : 'var(--danger)';
+        yearSelectedEl.innerHTML = `<b style="color:${color};">เดือน ${m.month}/${year}: กำไรสุทธิ ${money(m.netProfit)} (ยอดขาย ${money(m.revenue)})</b>`;
+        el.querySelectorAll('[data-monthidx]').forEach(r2=>r2.style.opacity = '0.45');
+        rect.style.opacity = '1';
+      });
+    });
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
 }
 let expenseFilterMode = 'all';

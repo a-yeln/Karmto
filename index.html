@@ -299,8 +299,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="tab active" data-tab="dashboard">📊 แดชบอร์ด</button>
       <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
       <button class="tab" data-tab="messages">💬 ข้อความส่ง</button>
-      <button class="tab" data-tab="leftover">📦 ของเหลือค้าง</button>
       <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
+      <button class="tab" data-tab="leftover">📦 ของเหลือค้าง</button>
       <button class="tab" data-tab="fee">🏷️ Brand fee</button>
       <button class="tab" data-tab="billing">🧾 บิล & โอนเงิน</button>
       <button class="tab" data-tab="debts">💳 หนี้สิน</button>
@@ -875,6 +875,18 @@ async function loadSettings(){
     if(!settings.purchaseSellers) settings.purchaseSellers = [...DEFAULT_PURCHASE_SELLERS];
     if(!settings.purchaseSellers.includes('อื่นๆ')) settings.purchaseSellers.push('อื่นๆ');
     if(settings.calendarDotsEnabled===undefined) settings.calendarDotsEnabled = true;
+    // จัดให้ "อื่นๆ" กลับไปอยู่ท้ายสุดของทุกลิสต์เสมอ เผื่อเคยหลุดตำแหน่งจากบั๊กเพิ่มหมวดใหม่ก่อนหน้านี้
+    ensureOtherLast(settings.expenseCategories);
+    ensureOtherLast(settings.purchaseSellers);
+    ensureOtherLast(settings.personalIncomeCategories);
+    ensureOtherLast(settings.personalExpenseCategories);
+    ensureOtherLast(settings.debtTypes);
+    // ล็อควัตถุดิบเป็นผู้ขายที่ใช้ประจำ — ถ้ายังไม่เคยตั้งผู้ขายล่าสุด ให้หาในรายชื่อที่มีอยู่แล้วว่าชื่อไหนมีคำว่า "เจ๊ต๊อก"
+    // (ไม่เดาชื่อเต็มแล้วเพิ่มใหม่ซ้ำ เพราะอาจตั้งชื่อเต็มไว้แล้ว เช่น "เจ๊ต๊อกทะเลไทย")
+    if(!settings.lastLotSeller){
+      const existingTok = settings.purchaseSellers.find(s=>s.includes('เจ๊ต๊อก'));
+      if(existingTok) settings.lastLotSeller = existingTok;
+    }
     // Self-heal branch "area" fields that got corrupted with a duplicated "สาขา N" prefix
     // (e.g. area = "สาขา 2 เทิดราชัน" instead of just "เทิดราชัน") from an earlier version.
     (settings.branches||[]).forEach(b=>{ if(b.area) b.area = b.area.replace(/^สาขา\s*\d+\s*/,''); });
@@ -1769,6 +1781,16 @@ function startEditExpense(id){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 // ---- รายการที่แก้ไขเอง (หมวด/ประเภท/คู่ค้า) เลื่อนลำดับได้ด้วย ▲▼ โดย "อื่นๆ" (ถ้ามีในลิสต์) จะถูกปักท้ายสุดเสมอ ----
+// เพิ่มรายการใหม่ก่อน "อื่นๆ" เสมอ (ถ้ามี) กันไม่ให้ "อื่นๆ" หลุดจากตำแหน่งท้ายสุดทุกครั้งที่กดเพิ่มหมวดใหม่
+function pushBeforeOther(list, v){
+  const idx = list.indexOf('อื่นๆ');
+  if(idx>=0) list.splice(idx, 0, v); else list.push(v);
+}
+// เผื่อ "อื่นๆ" เคยหลุดไปอยู่กลางลิสต์จากบั๊กเดิม (เพิ่มหมวดใหม่แล้วมันไม่ยอมอยู่ท้ายสุด) — จัดให้กลับไปอยู่ท้ายสุดเสมอตอนโหลด
+function ensureOtherLast(list){
+  const idx = list.indexOf('อื่นๆ');
+  if(idx>=0 && idx!==list.length-1){ list.splice(idx,1); list.push('อื่นๆ'); }
+}
 function renderEditableListRows(list, itemAttr){
   const pinLast = list.includes('อื่นๆ') ? 'อื่นๆ' : null;
   return list.map((val,i)=>{
@@ -1818,7 +1840,7 @@ function addExpenseCategory(){
   const el = document.getElementById('newExpCategory');
   const v = el.value.trim();
   if(!v){ showToast('กรอกชื่อหมวดก่อน'); return; }
-  settings.expenseCategories.push(v);
+  pushBeforeOther(settings.expenseCategories, v);
   el.value='';
   renderExpenseCategorySettings();
 }
@@ -2562,12 +2584,12 @@ async function savePersonalCategories(){
 function addPIncomeCategory(){
   const el = document.getElementById('newPIncomeCategory'); const v = el.value.trim();
   if(!v){ showToast('กรอกชื่อหมวดก่อน'); return; }
-  settings.personalIncomeCategories.push(v); el.value=''; renderPIncomeCategorySettings();
+  pushBeforeOther(settings.personalIncomeCategories, v); el.value=''; renderPIncomeCategorySettings();
 }
 function addPExpenseCategory(){
   const el = document.getElementById('newPExpenseCategory'); const v = el.value.trim();
   if(!v){ showToast('กรอกชื่อหมวดก่อน'); return; }
-  settings.personalExpenseCategories.push(v); el.value=''; renderPExpenseCategorySettings();
+  pushBeforeOther(settings.personalExpenseCategories, v); el.value=''; renderPExpenseCategorySettings();
 }
 
 // ---- Purchase cost tab ----
@@ -2858,7 +2880,9 @@ async function renderLotList(){
   wrap.innerHTML = billIds.map(bid=>{
     const rows = groups[bid];
     const head = rows[0];
-    const billTotal = rows.reduce((s,l)=>s+lotCostTotal(l),0);
+    const productTotal = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0),0);
+    const transportTotal = rows.reduce((s,l)=>s+Number(l.extra||0),0);
+    const billTotal = productTotal + transportTotal;
     const rowsHtml = rows.map(lot=>{
       const p = PRODUCTS.find(x=>x.id===lot.productId);
       const remain = lotRemaining(lot);
@@ -2896,7 +2920,7 @@ async function renderLotList(){
     return `<div class="card" style="background:var(--surface-2);padding:12px;margin-bottom:10px;">
       <div class="orow" style="background:transparent;border:none;padding:0;">
         <div><div class="name"><b>${head.seller||'ไม่ระบุผู้ขาย'}</b> <span style="color:var(--text-faint);">${formatDDMMYYYY(head.buyDate)}</span></div>
-        <div class="items">รวมบิล ${money(billTotal)} • ${rows.length} รายการสินค้า</div></div>
+        <div class="items">สินค้า ${money(productTotal)}${transportTotal?` + ขนส่ง ${money(transportTotal)}`:''} = รวม ${money(billTotal)} • ${rows.length} รายการสินค้า</div></div>
         <div class="acts"><button class="btn small secondary" data-lotbilldel="${bid}" style="width:auto;">🗑️ ลบทั้งบิล</button></div>
       </div>
       ${rowsHtml}
@@ -3341,7 +3365,7 @@ async function savePurchSellers(){
 function addPurchSeller(){
   const el = document.getElementById('newPurchSeller'); const v = el.value.trim();
   if(!v){ showToast('กรอกชื่อก่อน'); return; }
-  settings.purchaseSellers.push(v); el.value=''; renderPurchSellerSettings();
+  pushBeforeOther(settings.purchaseSellers, v); el.value=''; renderPurchSellerSettings();
 }
 
 // ---- Debts tab ----
@@ -3570,7 +3594,7 @@ function addDebtType(){
   const el = document.getElementById('newDebtType');
   const v = el.value.trim();
   if(!v){ showToast('กรอกชื่อก่อน'); return; }
-  settings.debtTypes.push(v);
+  pushBeforeOther(settings.debtTypes, v);
   el.value='';
   renderDebtTypeSettings();
 }
@@ -4067,11 +4091,9 @@ async function loadForDate(iso){
 }
 
 function initCollapsibleSettings(){
-  // เพิ่มปุ่ม ^ พับ/กางให้ทุกการ์ดในหน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ (เช่นรายชื่อสาขา)
-  const panel = document.getElementById('panel-settings');
-  if(!panel) return;
-  const collapsedByDefaultKeywords = ['รายชื่อสาขา']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด
-  panel.querySelectorAll(':scope > .card').forEach(card=>{
+  // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
+  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
+  document.querySelectorAll('.panel .card').forEach(card=>{
     const h3 = card.querySelector('h3');
     if(!h3 || h3.dataset.collapsibleInit) return;
     h3.dataset.collapsibleInit = '1';

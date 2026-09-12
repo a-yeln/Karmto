@@ -463,6 +463,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="purchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
       <button class="btn" id="addPurchaseBtn" style="margin-top:6px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
+    <div class="card" data-no-collapse="1">
+      <h3>📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
+      <div class="hint">เบิกใช้ล็อตวัตถุดิบที่ซื้อไว้ (ปูจืด/เชอรี่/นางรม ฯลฯ) — ถ้ายังไม่มีล็อตให้เบิก ไปเพิ่มล็อตใหม่ได้ที่หัวข้อ "📦 ล็อตวัตถุดิบ" ด้านล่าง</div>
+      <div id="lotList" class="loading">กำลังโหลด…</div>
+    </div>
     <div class="card">
       <h3>📋 รายการต้นทุนซื้อวันนี้ (รายละเอียดแยกสินค้า)</h3>
       <div class="hint">เช็คว่าที่เพิ่งกรอกไปถูกต้องหรือเปล่า ก่อนไปดูสรุปตามผู้ขาย</div>
@@ -494,10 +499,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
         </div>
         <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
         <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
-      </div>
-      <div class="card">
-        <h3>📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
-        <div id="lotList" class="loading">กำลังโหลด…</div>
       </div>
       <div class="card">
         <h3>🧾 บิลสินค้าล็อต (รอจ่ายผู้ขาย)</h3>
@@ -813,6 +814,19 @@ function todayISO(){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bang
 function addDaysISO(iso, delta){ const [y,m,d] = iso.split('-').map(Number); const dt = new Date(Date.UTC(y, m-1, d)); dt.setUTCDate(dt.getUTCDate()+delta); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`; }
 function formatDDMMYYYY(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function money(n){ const r = Math.round(n); return (r<0?'-':'') + '฿' + Math.abs(r).toLocaleString('th-TH'); }
+// สำหรับรายการต้นทุนซื้อ: ปัดเศษทศนิยมออกให้หมด ยกเว้นหอยนางรม (p7) ที่ให้เหลือทศนิยม 2 ตำแหน่ง
+// เพราะราคา/ต้นทุนของนางรมแปลงหน่วยจากกก. เป็นกระปุกแล้วมักมีเศษที่มีความหมาย (เช่น 1.25 บาท/กระปุก)
+function moneyP(pid, n){
+  if(pid==='p7'){
+    const r = Math.round(Number(n)*100)/100;
+    return (r<0?'-':'') + '฿' + Math.abs(r).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  return money(n);
+}
+function numP(pid, n){
+  if(pid==='p7') return Number(n).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return Math.round(Number(n)).toLocaleString('th-TH');
+}
 function emptyDay(){ return {orders:{}, leftoverOut:{}, billingPaid:{}, billExtra:{}, billNote:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
@@ -1681,6 +1695,9 @@ function renderExpenseCategorySelect(){
   // ตัดม๊ะก๊าด/มนต์ออกจากช่องนี้ — สองรายนี้ไม่เคยจ่ายรวมกับรายจ่ายอื่นๆ (มีแต่พี่พัฒน์ที่จ่ายรวมค่าน้ำแข็ง/ถุงต่างๆ ไปด้วย)
   const payeeOptions = settings.purchaseSellers.filter(s=>s!=='ม๊ะก๊าด' && s!=='มนต์');
   payeeSel.innerHTML = `<option value="">— ไม่ระบุ —</option>` + payeeOptions.map(s=>`<option value="${s}">${s}</option>`).join('');
+  // ล็อกค่าเริ่มต้นเป็นพี่พัฒน์ไว้ก่อนเสมอ เพราะรายจ่ายกิจการส่วนใหญ่ (น้ำแข็ง/ถุง ฯลฯ) จ่ายรวมกับพี่พัฒน์
+  const phatOption = payeeOptions.find(s=>s.includes('พี่พัฒน์'));
+  if(phatOption) payeeSel.value = phatOption;
 }
 let expPayEditingId = null;
 function renderExpenseList(){
@@ -3144,6 +3161,7 @@ async function addPurchase(){
       if(!ok) return;
     }
   }
+  const wasNewEntry = !purchEditingId;
   if(purchEditingId){
     const existing = dayData.purchases.find(x=>x.id===purchEditingId);
     Object.assign(existing, {productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note});
@@ -3159,7 +3177,27 @@ async function addPurchase(){
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   renderPurchaseList();
   renderPurchaseGroups();
+  // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข) ให้เด้งไปสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อให้อัตโนมัติ กันลืมกรอกตกหล่น
+  if(wasNewEntry){
+    const nextPid = await findNextUnrecordedPurchaseProduct();
+    if(nextPid){
+      document.getElementById('purchProduct').value = nextPid;
+      updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
+      const p = PRODUCTS.find(x=>x.id===nextPid);
+      showToast(`ถัดไป: ${p.emoji} ${p.name} (มีออเดอร์แต่ยังไม่ได้กรอกต้นทุน)`);
+    }
+  }
   autofillPurchasePrice();
+}
+// หาสินค้าตัวถัดไปที่มีออเดอร์วันนี้ (ต้องการมากกว่า 0) แต่ยังไม่มีรายการต้นทุนซื้อบันทึกไว้เลย — ใช้เด้งฟอร์มไปให้อัตโนมัติหลังบันทึกแต่ละรายการ
+async function findNextUnrecordedPurchaseProduct(){
+  const purchasedIds = new Set((dayData.purchases||[]).map(e=>e.productId));
+  for(const p of PRODUCTS){
+    if(purchasedIds.has(p.id)) continue;
+    const needed = await computeNeededQtyToday(p.id);
+    if(needed>0) return p.id;
+  }
+  return null;
 }
 function startEditPurchase(id){
   const e = dayData.purchases.find(x=>x.id===id);
@@ -3189,11 +3227,11 @@ function renderPurchaseList(){
       return `<tr>
         <td>${p.emoji} ${p.name}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
         <td class="num num">${e.qty} ${purchaseBuyUnit(e.productId)}</td>
-        <td class="num num">${e.price}</td>
-        <td class="num num">${(e.qty*e.price).toLocaleString('th-TH')}</td>
+        <td class="num num">${numP(e.productId, e.price)}</td>
+        <td class="num num">${numP(e.productId, e.qty*e.price)}</td>
         <td class="num num">${sq} ${purchaseSellUnit(e.productId)}</td>
-        <td class="num num">${money(ct)}</td>
-        <td class="num num" style="color:var(--accent);">${money(cpu)}</td>
+        <td class="num num">${moneyP(e.productId, ct)}</td>
+        <td class="num num" style="color:var(--accent);">${moneyP(e.productId, cpu)}</td>
         <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
         <td><div style="display:flex;gap:4px;">${e.fromLot?'':`<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
@@ -3311,7 +3349,7 @@ function renderPurchaseGroups(){
 }
 function purchaseNoteHint(list){
   const notes = list.filter(e=>e.note).map(e=>`${PRODUCTS.find(p=>p.id===e.productId).name}: ${e.note}`);
-  return notes.length ? notes.join(' • ') : 'ไม่มีหมายเหตุ';
+  return notes.length ? notes.map(n=>`• ${n}`).join('<br>') : 'ไม่มีหมายเหตุ';
 }
 async function computePurchaseMonth(monthVal){
   const listRes = await window.storage.list('day:');
@@ -3339,7 +3377,8 @@ async function renderPurchMonthSummary(){
   el.className='loading'; el.innerHTML = 'กำลังคำนวณ…';
   try{
     const {byProduct, grandTotal} = await computePurchaseMonth(monthVal);
-    const rows = Object.entries(byProduct);
+    // เรียงตามลำดับสินค้าที่ตั้งไว้ (PRODUCTS) ไม่ใช่ตามลำดับที่บันทึกซื้อก่อนหลัง
+    const rows = PRODUCTS.filter(p=>byProduct[p.id]).map(p=>[p.id, byProduct[p.id]]);
     if(rows.length===0){ el.className='empty'; el.innerHTML = 'ยังไม่มีข้อมูลเดือนนี้'; return; }
     el.className='';
     el.innerHTML = `<table class="plain">
@@ -4090,10 +4129,26 @@ async function loadForDate(iso){
   await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
 }
 
+// กันกดบันทึกซ้ำสำหรับปุ่มที่มีผลต่อจำนวน/เงิน — ล็อกปุ่มระหว่างบันทึกจนกว่าจะเสร็จ (ไม่ว่าสำเร็จหรือ error ก็ปลดล็อกให้เสมอ)
+// ไม่ยุ่งกับ textContent ของปุ่ม เพราะบางปุ่มสลับข้อความเองระหว่างโหมดเพิ่ม/แก้ไข (เช่น addPurchaseBtn/addExpenseBtn/addDebtBtn)
+function guardedClick(btnId, fn){
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+  let inFlight = false;
+  btn.addEventListener('click', async ()=>{
+    if(inFlight) return;
+    inFlight = true;
+    btn.disabled = true;
+    try{ await fn(); }
+    catch(e){ console.error(e); }
+    finally{ inFlight = false; btn.disabled = false; }
+  });
+}
 function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
   const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
   document.querySelectorAll('.panel .card').forEach(card=>{
+    if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');
     if(!h3 || h3.dataset.collapsibleInit) return;
     h3.dataset.collapsibleInit = '1';
@@ -4151,9 +4206,9 @@ async function init(){
   });
   document.getElementById('branchSelect').addEventListener('change', renderProductInputs);
   document.getElementById('orderImageInput').addEventListener('change', e=>{ if(e.target.files.length) readOrderImages(e.target.files); });
-  document.getElementById('saveRowBtn').addEventListener('click', saveRow);
+  guardedClick('saveRowBtn', saveRow);
   document.getElementById('clearRowBtn').addEventListener('click', ()=>{ editingCode=null; renderProductInputs(); });
-  document.getElementById('saveLeftoverBtn').addEventListener('click', saveLeftover);
+  guardedClick('saveLeftoverBtn', saveLeftover);
   document.getElementById('noLeftoverBtn').addEventListener('click', confirmNoLeftover);
   document.getElementById('monthInput').addEventListener('change', renderMonthFee);
   document.getElementById('addPriceBtn').addEventListener('click', addPriceHistory);
@@ -4166,7 +4221,7 @@ async function init(){
   document.getElementById('dashBranchSelect').addEventListener('change', e=>renderBranchDetail(e.target.value));
   document.getElementById('plMonthInput').addEventListener('change', renderMonthPL);
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
-  document.getElementById('addExpenseBtn').addEventListener('click', addExpense);
+  guardedClick('addExpenseBtn', addExpense);
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));
@@ -4179,15 +4234,15 @@ async function init(){
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);
   document.getElementById('addExpCategoryBtn').addEventListener('click', addExpenseCategory);
   document.getElementById('saveExpCategoriesBtn').addEventListener('click', saveExpenseCategories);
-  document.getElementById('addDebtBtn').addEventListener('click', addDebt);
+  guardedClick('addDebtBtn', addDebt);
   document.getElementById('cancelDebtEditBtn').addEventListener('click', cancelDebtEdit);
-  document.getElementById('addPIncomeBtn').addEventListener('click', addPersonalIncome);
-  document.getElementById('addPExpenseBtn').addEventListener('click', addPersonalExpense);
+  guardedClick('addPIncomeBtn', addPersonalIncome);
+  guardedClick('addPExpenseBtn', addPersonalExpense);
   document.getElementById('personalMonthInput').addEventListener('change', renderPersonalMonthSummary);
   document.getElementById('addPIncomeCategoryBtn').addEventListener('click', addPIncomeCategory);
   document.getElementById('addPExpenseCategoryBtn').addEventListener('click', addPExpenseCategory);
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
-  document.getElementById('addPurchaseBtn').addEventListener('click', addPurchase);
+  guardedClick('addPurchaseBtn', addPurchase);
   document.getElementById('addLotBtn').addEventListener('click', addLot);
   document.getElementById('addLotItemRowBtn').addEventListener('click', addLotItemRow);
   document.getElementById('lotSectionToggle').addEventListener('click', ()=>{

@@ -1006,33 +1006,38 @@ const dayCache_ = {};
 // (คนละรอบ/รีเฟรชหน้า) ไม่ต้องโหลดประวัติทั้งหมดจาก Apps Script ใหม่ทุกครั้ง — ซึ่งเป็นสาเหตุหลักที่แอปโหลดช้าตอนเปิดครั้งแรก
 // เมื่อมีข้อมูลสะสมหลายเดือน วันเก่าๆ ที่ปิดจบแล้วแทบไม่เปลี่ยน จึงใช้แคชเครื่องนี้ได้เลย ส่วนวันใกล้ๆ (3 วันหลังสุด ที่ยังมีการ
 // อัปเดตสถานะจ่าย/โอนบ่อย) จะโหลดสดจากเซิร์ฟเวอร์เสมอ กันข้อมูลเพี้ยนเวลาใช้งานหลายอุปกรณ์
-const DAY_CACHE_LS_KEY = 'karmto_daycache_v1';
-(function hydrateDayCacheFromLocalStorage_(){
+// (v2) เดิมเก็บแคชทั้งหมดไว้ใต้ localStorage คีย์เดียวเป็นก้อนใหญ่ก้อนเดียว (รวมทุกวันในประวัติ) — พอใช้งานสะสมมาหลายเดือน
+// ก้อนนี้ใหญ่ขึ้นเรื่อยๆ แล้วทุกครั้งที่บันทึกอะไรแม้แค่วันเดียว ต้อง JSON.stringify ก้อนใหญ่ทั้งหมดใหม่ + เขียนทับทั้งก้อนลง
+// localStorage ทุกรอบ และตอนเปิดแอปก็ต้อง JSON.parse ก้อนใหญ่ทั้งหมดทันทีก่อนอย่างอื่นจะทำงานได้เลย — นี่คือสาเหตุหลักที่
+// แอปโหลดช้าลงเรื่อยๆ เมื่อประวัติสะสมเยอะขึ้น เปลี่ยนมาเก็บแยกคีย์ต่อวันแทน (ก้อนเล็กลงมาก) แต่ละบันทึก/โหลดแตะแค่วันเดียว
+// จริงๆ ไม่ต้องแตะก้อนรวม เร็วขึ้นไม่ว่าประวัติจะยาวแค่ไหน
+const DAY_CACHE_LS_PREFIX = 'karmto_dayc2:';
+const DAY_CACHE_LS_KEY_OLD = 'karmto_daycache_v1';
+try{ localStorage.removeItem(DAY_CACHE_LS_KEY_OLD); }catch(e){ /* ไม่มีของเก่าอยู่แล้ว หรือใช้ localStorage ไม่ได้ ก็ไม่เป็นไร */ }
+function readDayFromLocalStorage_(iso){
   try{
-    const raw = localStorage.getItem(DAY_CACHE_LS_KEY);
-    if(!raw) return;
-    Object.assign(dayCache_, JSON.parse(raw));
-  }catch(e){ /* เครื่องนี้ปิด localStorage ไว้ หรือข้อมูลแคชเสีย — ไม่เป็นไร แค่กลับไปโหลดช้าแบบเดิม */ }
-})();
-let persistDayCacheTimer_ = null;
-function schedulePersistDayCache_(){
-  // ดีบาวซ์การเขียนลง localStorage กันเขียนถี่เกินไปตอนโหลดข้อมูลหลายวันรวดเดียว (เช่นตอนเปิดแดชบอร์ด)
-  if(persistDayCacheTimer_) clearTimeout(persistDayCacheTimer_);
-  persistDayCacheTimer_ = setTimeout(()=>{
-    try{ localStorage.setItem(DAY_CACHE_LS_KEY, JSON.stringify(dayCache_)); }
-    catch(e){ /* พื้นที่เต็มหรือใช้ localStorage ไม่ได้ — ข้ามไปเฉยๆ ไม่กระทบการทำงานหลักของแอป */ }
-  }, 500);
+    const raw = localStorage.getItem(DAY_CACHE_LS_PREFIX+iso);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function writeDayToLocalStorage_(iso, data){
+  try{ localStorage.setItem(DAY_CACHE_LS_PREFIX+iso, JSON.stringify(data)); }
+  catch(e){ /* พื้นที่เต็มหรือใช้ localStorage ไม่ได้ — ข้ามไปเฉยๆ ไม่กระทบการทำงานหลักของแอป */ }
 }
 function isRecentDay_(iso){
   return iso >= addDaysISO(todayISO(), -3);
 }
 async function loadDay(iso){
   if(dayCache_[iso] && !isRecentDay_(iso)) return dayCache_[iso];
+  if(!isRecentDay_(iso)){
+    const cached = readDayFromLocalStorage_(iso);
+    if(cached){ const d = normalizeDay_(cached); dayCache_[iso] = d; return d; }
+  }
   try{
     const r = await window.storage.get('day:'+iso);
     const d = normalizeDay_(JSON.parse(r.value));
     dayCache_[iso] = d;
-    schedulePersistDayCache_();
+    writeDayToLocalStorage_(iso, d);
     return d;
   }catch(e){
     const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
@@ -1049,7 +1054,14 @@ async function loadDay(iso){
 async function loadDaysBulk(isoList){
   const result = {};
   const missing = [];
-  isoList.forEach(iso=>{ if(dayCache_[iso] && !isRecentDay_(iso)) result[iso] = dayCache_[iso]; else missing.push(iso); });
+  isoList.forEach(iso=>{
+    if(dayCache_[iso] && !isRecentDay_(iso)){ result[iso] = dayCache_[iso]; return; }
+    if(!isRecentDay_(iso)){
+      const cached = readDayFromLocalStorage_(iso);
+      if(cached){ const d = normalizeDay_(cached); dayCache_[iso] = d; result[iso] = d; return; }
+    }
+    missing.push(iso);
+  });
   if(missing.length===0) return result;
   const keys = missing.map(iso=>'day:'+iso);
   const values = await window.bulkGetStorageImpl(keys);
@@ -1066,14 +1078,14 @@ async function loadDaysBulk(isoList){
     }
     dayCache_[iso] = d;
     result[iso] = d;
+    writeDayToLocalStorage_(iso, d);
   });
-  schedulePersistDayCache_();
   return result;
 }
 async function saveDay(iso, data){
   await window.storage.set('day:'+iso, JSON.stringify(data));
   dayCache_[iso] = data; // keep the cache in sync with what was just saved
-  schedulePersistDayCache_();
+  writeDayToLocalStorage_(iso, data);
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
@@ -1427,16 +1439,18 @@ async function renderLeftover(){
   document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{
     const p=PRODUCTS.find(x=>x.id===id);
     const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, id);
-    const yieldQty = yieldTotals[id]||0, orderedQty = orderedTotals[id]||0;
-    const suggested = Math.round(Math.max(0, yieldQty-orderedQty)*10)/10;
-    const showSuggestHint = !alreadyRecorded && yieldQty>0;
+    const yieldQty = yieldTotals[id]||0, orderedQty = orderedTotals[id]||0, carriedIn = Number(leftIn[id]||0);
+    // ของเหลือที่ต้องเก็บวันนี้ = (ของเหลือที่ยกมาจากเมื่อวาน + ที่ซื้อ/ทำได้เพิ่มวันนี้) - ยอดออเดอร์วันนี้
+    // เดิมลืมบวกของเหลือที่ยกมา ทำให้เวลาซื้อเผื่อเกินความต้องการ ตัวเลขแนะนำต่ำกว่าความเป็นจริง
+    const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
+    const showSuggestHint = !alreadyRecorded && (yieldQty>0 || carriedIn>0);
     const val = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
     return `<div class="lrow" style="flex-direction:column;align-items:stretch;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div class="lname">${p.emoji} ${p.name}</div>
         <div><input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${p.unit}</span></div>
       </div>
-      ${showSuggestHint ? `<div class="hint" style="margin-top:2px;">ระบบคำนวณให้อัตโนมัติ: ทำได้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)</div>` : ''}
+      ${showSuggestHint ? `<div class="hint" style="margin-top:2px;">ระบบคำนวณให้อัตโนมัติ: เหลือยกมา ${carriedIn} + ทำได้วันนี้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -3391,8 +3405,12 @@ async function renderLotTransportList(){
   const wrap = document.getElementById('lotTransportList');
   if(!wrap) return;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
-  const bills = await loadLotTransportBills();
-  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีค่าขนส่งล็อต</div>'; updateBillSummaryVisibility(); return; }
+  const allBills = await loadLotTransportBills();
+  // การ์ดนี้อยู่ใต้ "สรุปบิลวันนี้" เลยโชว์เฉพาะบิลที่ซื้อวันที่กำลังดูอยู่เท่านั้น (เดิมโชว์ทุกบิลค้างจ่ายทุกวันปนกันตลอด ดูแล้วงงว่าทำไมตามไปทุกวัน)
+  const bills = allBills.filter(b=>b.buyDate===currentDate);
+  const otherUnpaid = allBills.filter(b=>b.buyDate!==currentDate && !b.paid);
+  const otherHint = otherUnpaid.length ? `<div class="hint" style="margin-top:8px;">ยังมีค่าขนส่งล็อตค้างจ่ายจากวันอื่นอีก ${otherUnpaid.length} รายการ (รวม ${money(otherUnpaid.reduce((s,b)=>s+Number(b.amount||0),0))}) — ไปที่วันที่ซื้อของบิลนั้นเพื่อจ่ายค่ะ</div>` : '';
+  if(bills.length===0){ wrap.innerHTML = `<div class="empty">ยังไม่มีค่าขนส่งล็อตวันนี้</div>${otherHint}`; updateBillSummaryVisibility(); return; }
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotTransportEditingId===b.id;
@@ -3415,7 +3433,7 @@ async function renderLotTransportList(){
         </div>` : ''}
       </div>
     </div>`;
-  }).join('');
+  }).join('') + otherHint;
   wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lottranspay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lottranspay');
@@ -3480,8 +3498,12 @@ async function renderLotProductBillList(){
   const wrap = document.getElementById('lotProductBillList');
   if(!wrap) return;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
-  const bills = await loadLotProductBills();
-  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีบิลสินค้าล็อต</div>'; updateBillSummaryVisibility(); return; }
+  const allBills = await loadLotProductBills();
+  // การ์ดนี้อยู่ใต้ "สรุปบิลวันนี้" เลยโชว์เฉพาะบิลที่ซื้อวันที่กำลังดูอยู่เท่านั้น (เดิมโชว์ทุกบิลค้างจ่ายทุกวันปนกันตลอด ดูแล้วงงว่าทำไมตามไปทุกวัน)
+  const bills = allBills.filter(b=>b.buyDate===currentDate);
+  const otherUnpaid = allBills.filter(b=>b.buyDate!==currentDate && !b.paid);
+  const otherHint = otherUnpaid.length ? `<div class="hint" style="margin-top:8px;">ยังมีบิลสินค้าล็อตค้างจ่ายจากวันอื่นอีก ${otherUnpaid.length} รายการ (รวม ${money(otherUnpaid.reduce((s,b)=>s+Number(b.amount||0),0))}) — ไปที่วันที่ซื้อของบิลนั้นเพื่อจ่ายค่ะ</div>` : '';
+  if(bills.length===0){ wrap.innerHTML = `<div class="empty">ยังไม่มีบิลสินค้าล็อตวันนี้</div>${otherHint}`; updateBillSummaryVisibility(); return; }
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotProductBillEditingId===b.id;
@@ -3504,7 +3526,7 @@ async function renderLotProductBillList(){
         </div>` : ''}
       </div>
     </div>`;
-  }).join('');
+  }).join('') + otherHint;
   wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lotprodpay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotprodpay');

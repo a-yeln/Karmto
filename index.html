@@ -4761,6 +4761,16 @@ function setCardFoldByH3(titleKeyword, collapsed){
 // พับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" อัตโนมัติถ้าวันนี้กรอกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายละเอียด ไม่ต้องเลื่อนผ่านฟอร์ม)
 function updatePurchaseFormAutoFold(){
   setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', (dayData.purchases||[]).length>0);
+  updateLotListAutoFold();
+}
+// พับการ์ด "ล็อตที่มีอยู่ (แยกตามบิล)" อัตโนมัติถ้าวันนี้บันทึกต้นทุนซื้อไว้แล้วอย่างน้อย 1 รายการ (การ์ดนี้ใช้ปุ่มพับของตัวเอง ไม่ใช่ระบบพับทั่วไป)
+function updateLotListAutoFold(){
+  const body = document.getElementById('lotListBody');
+  const chevron = document.getElementById('lotListChevron');
+  if(!body || !chevron) return;
+  const hasData = (dayData.purchases||[]).length>0;
+  body.style.display = hasData ? 'none' : '';
+  chevron.textContent = hasData ? '▸' : '▾';
 }
 // พับการ์ด "รายจ่ายกิจการวันนี้" อัตโนมัติถ้ากรอกไว้แล้วอย่างน้อย 1 รายการ
 function updateExpenseFormAutoFold(){

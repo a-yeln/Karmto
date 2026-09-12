@@ -369,6 +369,21 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field"><label>เลือกสาขา</label><select id="dashBranchSelect"></select></div>
       <div id="dashBranchDetail" class="empty">เลือกสาขาเพื่อดูรายละเอียด</div>
     </div>
+    <div class="card">
+      <h3>🏆 จัดอันดับสาขา (เทียบกันเป็น %)</h3>
+      <div class="hint">เทียบสาขาไหนสั่งเยอะ/จ่ายเยอะ/สั่งบ่อยสุด ในแต่ละช่วงเวลา</div>
+      <div style="display:flex;gap:6px;margin:10px 0;">
+        <button class="tab active" data-rankperiod="week">สัปดาห์นี้</button>
+        <button class="tab" data-rankperiod="month">เดือนนี้</button>
+        <button class="tab" data-rankperiod="year">ปีนี้</button>
+      </div>
+      <div class="hint" style="margin-bottom:2px;">💰 ยอดรวมจ่ายมากสุด</div>
+      <div id="rankAmtList" class="loading">กำลังโหลด…</div>
+      <div class="hint" style="margin-top:12px;margin-bottom:2px;">🔢 จำนวนครั้งที่สั่งมากสุด (นับเป็นวัน)</div>
+      <div id="rankCountList" class="loading">กำลังโหลด…</div>
+      <div class="field" style="margin-top:12px;"><label>📦 จัดอันดับตามจำนวนสั่งสินค้า</label><select id="rankProductSelect"></select></div>
+      <div id="rankProductList" class="loading">กำลังโหลด…</div>
+    </div>
   </div>
 
   <div class="panel" id="panel-order">
@@ -3848,6 +3863,77 @@ async function computeBranchAggregates(){
   });
   return agg;
 }
+// ---- จัดอันดับสาขา (เทียบยอดสั่ง/ยอดจ่าย/จำนวนครั้ง เป็น % ของทั้งหมด) ----
+let rankPeriod = 'week';
+function getRankPeriodRange(period){
+  const today = todayISO();
+  const d = new Date(today+'T00:00:00Z');
+  if(period==='month'){ return {start: today.slice(0,7)+'-01', end: today}; }
+  if(period==='year'){ return {start: today.slice(0,4)+'-01-01', end: today}; }
+  // สัปดาห์นี้ = จันทร์-อาทิตย์ของสัปดาห์ปัจจุบัน (นับถึงวันนี้)
+  const dow = d.getUTCDay(); // 0=อาทิตย์..6=เสาร์
+  const diffToMon = (dow===0 ? 6 : dow-1);
+  const start = new Date(d); start.setUTCDate(d.getUTCDate()-diffToMon);
+  return {start: start.toISOString().slice(0,10), end: today};
+}
+async function computeBranchLeaderboard(period){
+  const {start, end} = getRankPeriodRange(period);
+  const listRes = await window.storage.list('day:');
+  const keys = (listRes && listRes.keys) ? listRes.keys : [];
+  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso>=start && iso<=end);
+  const dayMap = await loadDaysBulk(isoList);
+  const amtByBranch = {}, countByBranch = {}, qtyByBranchProduct = {};
+  PRODUCTS.forEach(p=>{ qtyByBranchProduct[p.id] = {}; });
+  isoList.forEach(iso=>{
+    const d = dayMap[iso];
+    Object.entries(d.orders||{}).forEach(([code,row])=>{
+      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
+      amtByBranch[code] = (amtByBranch[code]||0) + amt;
+      countByBranch[code] = (countByBranch[code]||0) + 1;
+      PRODUCTS.forEach(p=>{
+        const qty = Number(row[p.id]||0);
+        if(qty>0) qtyByBranchProduct[p.id][code] = (qtyByBranchProduct[p.id][code]||0) + qty;
+      });
+    });
+  });
+  return {amtByBranch, countByBranch, qtyByBranchProduct};
+}
+function rankListHtml(dataMap, formatVal, unit){
+  const entries = Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0) return '<div class="empty">ยังไม่มีข้อมูลในช่วงนี้</div>';
+  const total = entries.reduce((s,[,v])=>s+v,0);
+  const medalFor = i=> i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`;
+  return entries.map(([code,v],i)=>{
+    const pct = total>0 ? Math.round((v/total)*1000)/10 : 0;
+    return `<div class="lrow"><div class="lname">${medalFor(i)} ${branchName(code)}</div><div class="lin num">${formatVal(v)}${unit?' '+unit:''} <span style="color:var(--text-faint);font-size:11px;">(${pct}%)</span></div></div>`;
+  }).join('');
+}
+function populateRankProductSelect(){
+  const sel = document.getElementById('rankProductSelect');
+  if(sel.options.length>0) return;
+  sel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+}
+async function renderBranchLeaderboard(){
+  populateRankProductSelect();
+  const amtEl = document.getElementById('rankAmtList');
+  const countEl = document.getElementById('rankCountList');
+  const prodEl = document.getElementById('rankProductList');
+  amtEl.className='loading'; amtEl.innerHTML='กำลังโหลด…';
+  countEl.className='loading'; countEl.innerHTML='กำลังโหลด…';
+  prodEl.className='loading'; prodEl.innerHTML='กำลังโหลด…';
+  try{
+    const {amtByBranch, countByBranch, qtyByBranchProduct} = await computeBranchLeaderboard(rankPeriod);
+    amtEl.className=''; amtEl.innerHTML = rankListHtml(amtByBranch, v=>money(v));
+    countEl.className=''; countEl.innerHTML = rankListHtml(countByBranch, v=>v, 'ครั้ง');
+    const pid = document.getElementById('rankProductSelect').value || PRODUCTS[0].id;
+    const p = PRODUCTS.find(x=>x.id===pid);
+    prodEl.className=''; prodEl.innerHTML = rankListHtml(qtyByBranchProduct[pid]||{}, v=>Math.round(v*10)/10, p.id==='p7'?'ปุก':p.unit);
+  }catch(e){
+    amtEl.className='empty'; amtEl.innerHTML = 'โหลดข้อมูลไม่สำเร็จ';
+    countEl.className=''; countEl.innerHTML=''; prodEl.className=''; prodEl.innerHTML='';
+  }
+}
 function populateDashBranchSelect(){
   const sel = document.getElementById('dashBranchSelect');
   const cur = sel.value;
@@ -3863,8 +3949,8 @@ function findNearestBillByDate(bills, targetIso, toleranceDays){
   });
   return (best && bestDiff<=toleranceDays) ? best : null;
 }
-// วิเคราะห์พฤติกรรมการสั่งของสาขานี้: เทียบกับบิลก่อนหน้า/สัปดาห์ที่แล้ว/เดือนที่แล้ว/ปีที่แล้ว หาความผิดปกติ และคาดการณ์แนวโน้ม
-// sortedBills ต้องเรียงจากล่าสุดไปเก่าสุด (b[0] = บิลล่าสุด)
+// วิเคราะห์พฤติกรรมการสั่งของสาขานี้ "ต่อจำนวนสินค้าแต่ละอย่าง" (ไม่ใช่ยอดเงิน) — เทียบกับบิลก่อนหน้า/สัปดาห์ที่แล้ว/เดือนที่แล้ว/ปีที่แล้ว
+// และดูความถี่ในการสั่ง (ห่างกันกี่วันต่อครั้ง) เพื่อสังเกตความผิดปกติ — sortedBills ต้องเรียงจากล่าสุดไปเก่าสุด (b[0] = บิลล่าสุด), แต่ละ bill มี .row = จำนวนสั่งแต่ละสินค้า
 function computeBranchOrderAnalysis(sortedBills){
   if(!sortedBills || sortedBills.length===0) return null;
   const latest = sortedBills[0];
@@ -3880,50 +3966,68 @@ function computeBranchOrderAnalysis(sortedBills){
   const monthBill = findNearestBillByDate(rest, monthAgoIso, 4);
   const yearBill = findNearestBillByDate(rest, yearAgoIso, 10);
   const pctChange = (cur,base)=> (base && base>0) ? Math.round(((cur-base)/base)*100) : null;
-  // เฉลี่ย 8 บิลก่อนหน้า (ไม่รวมบิลล่าสุด) ใช้เช็คว่าบิลล่าสุดผิดปกติไปจากปกติของสาขานี้เองมั้ย
-  const recentWindow = rest.slice(0,8);
-  const recentAvg = recentWindow.length ? recentWindow.reduce((s,b)=>s+b.amt,0)/recentWindow.length : null;
-  const anomalyPct = pctChange(latest.amt, recentAvg);
-  const isAnomaly = anomalyPct!==null && Math.abs(anomalyPct)>=40 && recentWindow.length>=3;
-  // แนวโน้ม: เทียบค่าเฉลี่ย 3 บิลล่าสุด กับค่าเฉลี่ย 3 บิลก่อนหน้านั้นอีกที เพื่อดูทิศทาง แล้วใช้ค่าเฉลี่ย 3 บิลล่าสุดเป็นตัวคาดการณ์บิลถัดไปคร่าวๆ
-  const last3 = sortedBills.slice(0,3);
-  const prev3 = sortedBills.slice(3,6);
-  const last3Avg = last3.length ? last3.reduce((s,b)=>s+b.amt,0)/last3.length : null;
-  const prev3Avg = prev3.length ? prev3.reduce((s,b)=>s+b.amt,0)/prev3.length : null;
-  let trendDir = null, trendPct = null;
-  if(last3Avg!=null && prev3Avg!=null && prev3Avg>0){
-    trendPct = Math.round(((last3Avg-prev3Avg)/prev3Avg)*100);
-    trendDir = trendPct>=10 ? 'เพิ่มขึ้น' : trendPct<=-10 ? 'ลดลง' : 'ค่อนข้างคงที่';
+
+  // ระยะห่างระหว่างการสั่งแต่ละครั้ง (วัน) — ไล่จากเก่าไปใหม่เพื่อคำนวณช่วงห่างของทุกคู่บิลที่ติดกัน
+  const ascBills = sortedBills.slice().sort((x,y)=>x.iso.localeCompare(y.iso));
+  const gaps = [];
+  for(let i=1;i<ascBills.length;i++){
+    gaps.push(Math.round((new Date(ascBills[i].iso+'T00:00:00Z') - new Date(ascBills[i-1].iso+'T00:00:00Z'))/86400000));
   }
-  const forecast = last3Avg!=null ? Math.round(last3Avg) : (recentAvg!=null ? Math.round(recentAvg) : latest.amt);
-  const byYear = {};
-  sortedBills.forEach(b=>{ const y = b.iso.slice(0,4); byYear[y] = (byYear[y]||0)+b.amt; });
-  return {latest, prevBill, weekBill, monthBill, yearBill, pctChange, recentAvg, anomalyPct, isAnomaly, trendDir, trendPct, forecast, byYear};
+  const avgGap = gaps.length ? Math.round((gaps.reduce((s,g)=>s+g,0)/gaps.length)*10)/10 : null;
+  const lastGap = gaps.length ? gaps[gaps.length-1] : null;
+  const gapAnomaly = (avgGap!=null && lastGap!=null && avgGap>0) ? Math.round(((lastGap-avgGap)/avgGap)*100) : null;
+
+  // รวมรายชื่อสินค้าทุกตัวที่สาขานี้เคยสั่ง (ไล่ทุกบิลในประวัติ) แล้ววิเคราะห์ทีละสินค้า
+  const qtyOf = (bill, pid)=> (bill && bill.row) ? Number(bill.row[pid]||0) : 0;
+  const usedIds = new Set();
+  sortedBills.forEach(b=>PRODUCTS.forEach(p=>{ if(qtyOf(b,p.id)>0) usedIds.add(p.id); }));
+  const productAnalysis = PRODUCTS.filter(p=>usedIds.has(p.id)).map(p=>{
+    const latestQty = qtyOf(latest, p.id);
+    const prevQty = qtyOf(prevBill, p.id);
+    const weekQty = qtyOf(weekBill, p.id);
+    const monthQty = qtyOf(monthBill, p.id);
+    const yearQty = qtyOf(yearBill, p.id);
+    // ค่าเฉลี่ยตอนที่สั่งสินค้านี้จริง (ไม่นับบิลล่าสุด, ไม่นับบิลที่ไม่ได้สั่งตัวนี้) ใช้เป็นเกณฑ์ "ปกติ" ของสินค้านี้
+    const history = rest.map(b=>qtyOf(b,p.id)).filter(q=>q>0);
+    const avgQty = history.length ? history.reduce((s,q)=>s+q,0)/history.length : null;
+    const anomalyPct = pctChange(latestQty, avgQty);
+    const isAnomaly = anomalyPct!==null && Math.abs(anomalyPct)>=40 && history.length>=3;
+    const orderRate = Math.round((history.length / Math.max(1,rest.length)) * 100); // สั่งสินค้านี้กี่% ของบิลทั้งหมด (ไม่รวมบิลล่าสุด)
+    return {p, latestQty, prevQty, weekQty, monthQty, yearQty, avgQty, anomalyPct, isAnomaly, orderRate};
+  });
+  return {latest, prevBill, weekBill, monthBill, yearBill, avgGap, lastGap, gapAnomaly, productAnalysis};
 }
 function renderBranchAnalysisHtml(sortedBills){
   const a = computeBranchOrderAnalysis(sortedBills);
   if(!a || sortedBills.length<2) return '';
-  const cmpRow = (label, bill)=>{
-    if(!bill) return `<tr><td>${label}</td><td class="num" colspan="2" style="color:var(--text-faint);">ไม่มีข้อมูลเทียบ</td></tr>`;
-    const pct = a.pctChange(a.latest.amt, bill.amt);
-    const pctColor = pct===null ? 'var(--text-faint)' : (pct>0 ? 'var(--danger)' : (pct<0 ? 'var(--success)' : 'var(--text-dim)'));
-    const pctText = pct===null ? '-' : `${pct>0?'+':''}${pct}%`;
-    return `<tr><td>${label}<div style="color:var(--text-faint);font-size:11px;">${formatDDMMYYYY(bill.iso)}</div></td><td class="num num">${money(bill.amt)}</td><td class="num num" style="color:${pctColor};font-weight:600;">${pctText}</td></tr>`;
-  };
-  const yearRows = Object.keys(a.byYear).sort().map(y=>`<div class="lrow"><div class="lname">${y}</div><div class="lin num">${money(a.byYear[y])}</div></div>`).join('');
+  const numCell = (qty, unit)=> qty>0 ? `${qty} ${unit}` : `<span style="color:var(--text-faint);">-</span>`;
+  const rows = a.productAnalysis.map(x=>{
+    const unit = x.p.id==='p7' ? 'ปุก' : x.p.unit;
+    const anomalyStyle = x.isAnomaly ? `color:${x.anomalyPct>0?'var(--danger)':'var(--success)'};font-weight:700;` : '';
+    const anomalyTag = x.isAnomaly ? ` (${x.anomalyPct>0?'+':''}${x.anomalyPct}%)` : '';
+    return `<tr>
+      <td>${x.p.emoji} ${x.p.name}<div style="color:var(--text-faint);font-size:10.5px;">สั่ง ${x.orderRate}% ของบิลที่ผ่านมา</div></td>
+      <td class="num num" style="${anomalyStyle}">${numCell(x.latestQty, unit)}${anomalyTag}</td>
+      <td class="num num">${numCell(x.prevQty, unit)}</td>
+      <td class="num num">${numCell(x.weekQty, unit)}</td>
+      <td class="num num">${numCell(x.monthQty, unit)}</td>
+      <td class="num num">${numCell(x.yearQty, unit)}</td>
+      <td class="num num" style="color:var(--text-dim);">${x.avgQty!=null?Math.round(x.avgQty*10)/10+' '+unit:'-'}</td>
+    </tr>`;
+  }).join('');
+  const anomalyList = a.productAnalysis.filter(x=>x.isAnomaly);
+  const gapText = a.avgGap!=null
+    ? `สั่งเฉลี่ยทุกๆ ${a.avgGap} วัน/ครั้ง — ครั้งล่าสุดห่างจากครั้งก่อนหน้า ${a.lastGap} วัน${(a.gapAnomaly!==null && Math.abs(a.gapAnomaly)>=50) ? ` <b style="color:var(--danger);">(${a.gapAnomaly>0?'ห่างกว่าปกติ':'ถี่กว่าปกติ'} ${Math.abs(a.gapAnomaly)}%)</b>` : ''}`
+    : 'ข้อมูลยังไม่พอสำหรับดูความถี่การสั่ง';
   return `
     <div style="margin-top:12px;padding:12px;border:1px solid var(--accent);border-radius:10px;background:var(--surface-2);">
-      <div style="font-weight:700;font-size:13.5px;color:var(--accent);margin-bottom:8px;">🔎 วิเคราะห์พฤติกรรมการสั่งของสาขานี้</div>
+      <div style="font-weight:700;font-size:13.5px;color:var(--accent);margin-bottom:8px;">🔎 วิเคราะห์พฤติกรรมการสั่งของสาขานี้ (ตามจำนวนสินค้า)</div>
+      <div class="hint" style="margin-bottom:8px;">⏱️ ความถี่การสั่ง: ${gapText}</div>
       <div class="scrollx"><table class="plain">
-        <tr><th>เทียบกับ</th><th class="num">ยอดบิล</th><th class="num">% ต่างจากบิลล่าสุด</th></tr>
-        ${cmpRow('บิลก่อนหน้า', a.prevBill)}
-        ${cmpRow('วันเดียวกัน สัปดาห์ที่แล้ว', a.weekBill)}
-        ${cmpRow('ช่วงเดียวกัน เดือนที่แล้ว', a.monthBill)}
-        ${cmpRow('ช่วงเดียวกัน ปีที่แล้ว', a.yearBill)}
+        <tr><th>สินค้า</th><th class="num">ล่าสุด</th><th class="num">ก่อนหน้า</th><th class="num">สัปดาห์ที่แล้ว</th><th class="num">เดือนที่แล้ว</th><th class="num">ปีที่แล้ว</th><th class="num">เฉลี่ยที่เคยสั่ง</th></tr>
+        ${rows}
       </table></div>
-      ${a.isAnomaly ? `<div class="hint" style="margin-top:8px;color:var(--danger);">⚠️ บิลล่าสุด (${money(a.latest.amt)}) ${a.anomalyPct>0?'สูงกว่า':'ต่ำกว่า'}ค่าเฉลี่ยปกติของสาขานี้ (${money(Math.round(a.recentAvg))}) ถึง ${Math.abs(a.anomalyPct)}% — ลองเช็คว่าสั่งผิดพลาดหรือสาขามีเหตุการณ์พิเศษมั้ย</div>` : ''}
-      <div class="hint" style="margin-top:8px;">📈 แนวโน้มล่าสุด: ${a.trendDir ? `${a.trendDir}${a.trendPct!==null?` (${a.trendPct>0?'+':''}${a.trendPct}%)`:''}` : 'ข้อมูลยังไม่พอสำหรับดูแนวโน้ม'} — คาดว่าบิลถัดไปจะอยู่ราว <b style="color:var(--accent);">${money(a.forecast)}</b> (ประมาณการจากบิลล่าสุด ไม่ใช่ตัวเลขตายตัว)</div>
-      ${yearRows ? `<div style="margin-top:8px;"><div class="hint" style="margin-bottom:4px;">สรุปยอดรวมรายปี</div>${yearRows}</div>` : ''}
+      ${anomalyList.length ? `<div class="hint" style="margin-top:8px;color:var(--danger);">⚠️ ผิดปกติจากค่าเฉลี่ยของสาขานี้เอง: ${anomalyList.map(x=>`${x.p.emoji}${x.p.name} (${x.anomalyPct>0?'สั่งเพิ่มขึ้น':'สั่งลดลง'} ${Math.abs(x.anomalyPct)}%)`).join(', ')} — ลองเช็คว่าสั่งผิดพลาดหรือสาขามีเหตุการณ์พิเศษมั้ย</div>` : ''}
     </div>`;
 }
 async function renderBranchDetail(code, precomputedAgg){
@@ -4220,6 +4324,7 @@ async function renderDashboard(){
 
   populateDashBranchSelect();
   await renderBranchDetail(document.getElementById('dashBranchSelect').value, aggAll);
+  await renderBranchLeaderboard();
 }
 
 // ---- Tab switching / date ----
@@ -4489,6 +4594,12 @@ async function init(){
   document.getElementById('exportDataBtn').addEventListener('click', exportAllData);
   document.getElementById('importDataInput').addEventListener('change', e=>{ if(e.target.files[0]) importAllData(e.target.files[0]); });
   document.getElementById('dashBranchSelect').addEventListener('change', e=>renderBranchDetail(e.target.value));
+  document.querySelectorAll('[data-rankperiod]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    rankPeriod = btn.getAttribute('data-rankperiod');
+    document.querySelectorAll('[data-rankperiod]').forEach(b=>b.classList.toggle('active', b===btn));
+    await renderBranchLeaderboard();
+  }));
+  document.getElementById('rankProductSelect').addEventListener('change', renderBranchLeaderboard);
   document.getElementById('plMonthInput').addEventListener('change', renderMonthPL);
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
   guardedClick('addExpenseBtn', addExpense);

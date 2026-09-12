@@ -999,28 +999,54 @@ function normalizeDay_(d){
 // In-memory cache so revisiting a tab/date already seen this session is instant —
 // no need to re-fetch from Google every single time.
 const dayCache_ = {};
+// เก็บแคชวันที่ลง localStorage ของเครื่องนี้ด้วย (นอกเหนือจากแคชในหน่วยความจำ) เพื่อให้ "เปิดแอปครั้งถัดไป"
+// (คนละรอบ/รีเฟรชหน้า) ไม่ต้องโหลดประวัติทั้งหมดจาก Apps Script ใหม่ทุกครั้ง — ซึ่งเป็นสาเหตุหลักที่แอปโหลดช้าตอนเปิดครั้งแรก
+// เมื่อมีข้อมูลสะสมหลายเดือน วันเก่าๆ ที่ปิดจบแล้วแทบไม่เปลี่ยน จึงใช้แคชเครื่องนี้ได้เลย ส่วนวันใกล้ๆ (3 วันหลังสุด ที่ยังมีการ
+// อัปเดตสถานะจ่าย/โอนบ่อย) จะโหลดสดจากเซิร์ฟเวอร์เสมอ กันข้อมูลเพี้ยนเวลาใช้งานหลายอุปกรณ์
+const DAY_CACHE_LS_KEY = 'karmto_daycache_v1';
+(function hydrateDayCacheFromLocalStorage_(){
+  try{
+    const raw = localStorage.getItem(DAY_CACHE_LS_KEY);
+    if(!raw) return;
+    Object.assign(dayCache_, JSON.parse(raw));
+  }catch(e){ /* เครื่องนี้ปิด localStorage ไว้ หรือข้อมูลแคชเสีย — ไม่เป็นไร แค่กลับไปโหลดช้าแบบเดิม */ }
+})();
+let persistDayCacheTimer_ = null;
+function schedulePersistDayCache_(){
+  // ดีบาวซ์การเขียนลง localStorage กันเขียนถี่เกินไปตอนโหลดข้อมูลหลายวันรวดเดียว (เช่นตอนเปิดแดชบอร์ด)
+  if(persistDayCacheTimer_) clearTimeout(persistDayCacheTimer_);
+  persistDayCacheTimer_ = setTimeout(()=>{
+    try{ localStorage.setItem(DAY_CACHE_LS_KEY, JSON.stringify(dayCache_)); }
+    catch(e){ /* พื้นที่เต็มหรือใช้ localStorage ไม่ได้ — ข้ามไปเฉยๆ ไม่กระทบการทำงานหลักของแอป */ }
+  }, 500);
+}
+function isRecentDay_(iso){
+  return iso >= addDaysISO(todayISO(), -3);
+}
 async function loadDay(iso){
-  if(dayCache_[iso]) return dayCache_[iso];
+  if(dayCache_[iso] && !isRecentDay_(iso)) return dayCache_[iso];
   try{
     const r = await window.storage.get('day:'+iso);
     const d = normalizeDay_(JSON.parse(r.value));
     dayCache_[iso] = d;
+    schedulePersistDayCache_();
     return d;
   }catch(e){
     const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
     if(isNotFound){ const d = emptyDay(); dayCache_[iso] = d; return d; }
-    // Network/connection error — do NOT silently pretend this day is empty, since saving afterward
-    // would overwrite real data with nothing. Surface the failure instead.
+    // เน็ตมีปัญหา — ถ้ามีแคชเก่าในเครื่องอยู่แล้วใช้ไปก่อนดีกว่าค้าง ถ้าไม่มีเลยค่อย throw ให้ผู้ใช้เห็นว่าโหลดไม่สำเร็จ
+    // (กันบันทึกทับข้อมูลจริงด้วยของว่างเปล่าโดยไม่ตั้งใจ)
+    if(dayCache_[iso]) return dayCache_[iso];
     throw e;
   }
 }
 // Fetches many days in ONE network round-trip instead of one-at-a-time — used anywhere that
 // needs to scan a whole month/year of history (dashboard, monthly P&L, annual summary, etc.)
-// Anything already cached this session is served instantly with no network call at all.
+// วันที่เคยแคชไว้แล้ว (และไม่ใช่วันใกล้ๆ ที่ยังเปลี่ยนบ่อย) ใช้ของในเครื่องได้เลยไม่ต้องยิงเน็ตซ้ำ
 async function loadDaysBulk(isoList){
   const result = {};
   const missing = [];
-  isoList.forEach(iso=>{ if(dayCache_[iso]) result[iso] = dayCache_[iso]; else missing.push(iso); });
+  isoList.forEach(iso=>{ if(dayCache_[iso] && !isRecentDay_(iso)) result[iso] = dayCache_[iso]; else missing.push(iso); });
   if(missing.length===0) return result;
   const keys = missing.map(iso=>'day:'+iso);
   const values = await window.bulkGetStorageImpl(keys);
@@ -1030,17 +1056,21 @@ async function loadDaysBulk(isoList){
     if(raw){
       try{ d = normalizeDay_(JSON.parse(raw)); }
       catch(e){ d = emptyDay(); }
+    }else if(dayCache_[iso]){
+      d = dayCache_[iso]; // โหลดสดไม่ได้ (เช่นเน็ตมีปัญหาเฉพาะคีย์นี้) แต่มีแคชเก่าในเครื่อง ใช้ของเก่าไปก่อน
     }else{
       d = emptyDay();
     }
     dayCache_[iso] = d;
     result[iso] = d;
   });
+  schedulePersistDayCache_();
   return result;
 }
 async function saveDay(iso, data){
   await window.storage.set('day:'+iso, JSON.stringify(data));
   dayCache_[iso] = data; // keep the cache in sync with what was just saved
+  schedulePersistDayCache_();
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }

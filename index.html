@@ -1873,7 +1873,7 @@ function renderExpenseList(){
       e.paid = false; e.paidDate = null;
       await saveDay(currentDate, dayData);
       renderExpenseList();
-      await renderAllExpenseList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }else{
       expPayEditingId = id;
       renderExpenseList();
@@ -1889,7 +1889,7 @@ function renderExpenseList(){
     expPayEditingId = null;
     await saveDay(currentDate, dayData);
     renderExpenseList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-expcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     expPayEditingId = null;
@@ -1901,7 +1901,7 @@ function renderExpenseList(){
     await saveDay(currentDate, dayData);
     renderExpenseList();
     showToast('ลบรายจ่ายแล้ว');
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-expedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditExpense(btn.getAttribute('data-expedit'))));
   updateBillSummaryVisibility();
@@ -1929,7 +1929,7 @@ async function addExpense(){
   document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
   renderExpenseList();
   renderStats();
-  await renderAllExpenseList();
+  renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
 }
 function startEditExpense(id){
   const e = dayData.expenses.find(x=>x.id===id);
@@ -2308,7 +2308,10 @@ async function renderYearSummary(){
 }
 let expenseFilterMode = 'all';
 let expSellerFilterValue = '';
+// กันเรนเดอร์ซ้อนกัน (เช่น กดเปลี่ยนสถานะรัวๆ ที่แต่ละครั้ง trigger ให้เรียกซ้ำ) ไม่ให้ผลลัพธ์เก่าที่โหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
+let allExpenseRenderSeq_ = 0;
 async function renderAllExpenseList(){
+  const mySeq = ++allExpenseRenderSeq_;
   const container = document.getElementById('allExpenseList');
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   const sellerSel = document.getElementById('expSellerFilter');
@@ -2318,9 +2321,11 @@ async function renderAllExpenseList(){
   }
   try{
     const listRes = await window.storage.list('day:');
+    if(mySeq !== allExpenseRenderSeq_) return;
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
     const isoList = keys.map(k=>k.slice(4));
     const dayMap = await loadDaysBulk(isoList);
+    if(mySeq !== allExpenseRenderSeq_) return;
     const today = todayISO();
     // เลือกข้ามรายการตามแท็บที่กรองอยู่: ทั้งหมด / เฉพาะค้างจ่าย(ไม่เอาที่จ่ายแล้ว) / จ่ายแล้ว(ไม่เอาที่ยังค้าง)
     const skipByFilter = (paid)=> (expenseFilterMode==='unpaid' && paid) || (expenseFilterMode==='paid' && !paid);
@@ -2376,9 +2381,10 @@ async function renderAllExpenseList(){
     }else{
       totalEl.innerHTML = '';
     }
+    if(mySeq !== allExpenseRenderSeq_) return;
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการ</div>'; return; }
     container.innerHTML = rows.map(r=>`<div class="delayrow"><div><div>${r.label}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amount)}</div></div><span class="badge-delay" style="${r.paid?'background:var(--success-soft);color:var(--success);':''}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</span></div>`).join('');
-  }catch(e){ container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
+  }catch(e){ if(mySeq === allExpenseRenderSeq_) container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
 async function computeAllExpensePayables(){
   const listRes = await window.storage.list('day:');
@@ -2942,18 +2948,25 @@ async function loadRawLots(){
 }
 async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); }
 // บิลค่าขนส่งของล็อต — เก็บแยกจากล็อตสินค้า เพราะจ่ายให้คนละคน/คนละเวลากับบิลสินค้า ต้องมีสถานะจ่าย/รอจ่ายของตัวเอง
+// แคชไว้ในหน่วยความจำกันโหลดซ้ำจากเซิร์ฟเวอร์ทุกครั้งที่กดเปลี่ยนสถานะ (เดิมทำให้กดแล้วหน่วง/จอกระตุก)
+let lotTransportBillsCache_ = null;
 async function loadLotTransportBills(){
-  try{ const r = await window.storage.get('lotTransportBills'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
-  catch(e){ return []; }
+  if(lotTransportBillsCache_) return lotTransportBillsCache_;
+  try{ const r = await window.storage.get('lotTransportBills'); const v = JSON.parse(r.value); lotTransportBillsCache_ = Array.isArray(v)?v:[]; }
+  catch(e){ lotTransportBillsCache_ = []; }
+  return lotTransportBillsCache_;
 }
-async function saveLotTransportBills(bills){ await window.storage.set('lotTransportBills', JSON.stringify(bills)); }
+async function saveLotTransportBills(bills){ await window.storage.set('lotTransportBills', JSON.stringify(bills)); lotTransportBillsCache_ = bills; }
 // บิลต้นทุนสินค้าของล็อต (ไม่รวมขนส่ง) — เก็บแยกไว้ให้มีสถานะจ่าย/รอจ่ายของตัวเอง เหมือนกับค่าขนส่ง
 // เพื่อให้โชว์ในหน้า "กรองเฉพาะคู่ค้า" และยอดรอจ่ายรวมของแดชบอร์ดได้ถูกต้อง
+let lotProductBillsCache_ = null;
 async function loadLotProductBills(){
-  try{ const r = await window.storage.get('lotProductBills'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
-  catch(e){ return []; }
+  if(lotProductBillsCache_) return lotProductBillsCache_;
+  try{ const r = await window.storage.get('lotProductBills'); const v = JSON.parse(r.value); lotProductBillsCache_ = Array.isArray(v)?v:[]; }
+  catch(e){ lotProductBillsCache_ = []; }
+  return lotProductBillsCache_;
 }
-async function saveLotProductBills(bills){ await window.storage.set('lotProductBills', JSON.stringify(bills)); }
+async function saveLotProductBills(bills){ await window.storage.set('lotProductBills', JSON.stringify(bills)); lotProductBillsCache_ = bills; }
 function lotCostTotal(lot){ return Number(lot.qtyTotal||0)*Number(lot.pricePerKg||0) + Number(lot.extra||0); }
 function lotCostPerKg(lot){ const q = Number(lot.qtyTotal||0); return q>0 ? lotCostTotal(lot)/q : 0; }
 function lotDrawnQty(lot){ const s = (lot.draws||[]).reduce((s,d)=>s+Number(d.qtyUsed||0), 0); return Math.round(s*100)/100; }
@@ -2999,7 +3012,7 @@ async function deleteWholeBill(billId){
   await renderLotList();
   await renderLotProductBillList();
   await renderLotTransportList();
-  await renderAllExpenseList();
+  renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
 }
 // ---- ฟอร์มซื้อล็อตแบบหลายสินค้าในบิลเดียว (ค่าขนส่งแยกจากบิลสินค้า แบ่งตามน้ำหนักอัตโนมัติ) ----
 let lotFormRows = [{rid:1, productId:'p4', qty:'', price:''}];
@@ -3100,7 +3113,7 @@ async function addLot(){
     await renderLotProductBillList();
     await renderLotTransportList();
     await renderLotList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   } finally {
     addLotInFlight = false;
     btn.disabled = false; btn.textContent = btnOrigText;
@@ -3289,7 +3302,7 @@ async function renderLotTransportList(){
       b.paid = false; b.paidDate = null;
       await saveLotTransportBills(bills2);
       await renderLotTransportList();
-      await renderAllExpenseList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }else{
       lotTransportEditingId = id;
       await renderLotTransportList();
@@ -3302,7 +3315,7 @@ async function renderLotTransportList(){
     await saveLotTransportBills(bills2.filter(x=>x.id!==id));
     showToast('ลบแล้ว');
     await renderLotTransportList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-lottransconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lottransconfirm');
@@ -3315,7 +3328,7 @@ async function renderLotTransportList(){
     lotTransportEditingId = null;
     await saveLotTransportBills(bills2);
     await renderLotTransportList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-lottranscancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotTransportEditingId = null;
@@ -3363,7 +3376,7 @@ async function renderLotProductBillList(){
       b.paid = false; b.paidDate = null;
       await saveLotProductBills(bills2);
       await renderLotProductBillList();
-      await renderAllExpenseList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }else{
       lotProductBillEditingId = id;
       await renderLotProductBillList();
@@ -3376,7 +3389,7 @@ async function renderLotProductBillList(){
     await saveLotProductBills(bills2.filter(x=>x.id!==id));
     showToast('ลบแล้ว');
     await renderLotProductBillList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-lotprodconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotprodconfirm');
@@ -3389,7 +3402,7 @@ async function renderLotProductBillList(){
     lotProductBillEditingId = null;
     await saveLotProductBills(bills2);
     await renderLotProductBillList();
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   wrap.querySelectorAll('[data-lotprodcancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotProductBillEditingId = null;
@@ -3547,7 +3560,7 @@ function renderPurchaseList(){
     }
     renderPurchaseList();
     showToast('ลบแล้ว');
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     renderPurchaseGroups();
   }));
   updatePurchaseFormAutoFold();
@@ -4906,11 +4919,11 @@ async function init(){
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   document.getElementById('expSellerFilter').addEventListener('change', async (e)=>{
     expSellerFilterValue = e.target.value;
-    await renderAllExpenseList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   });
   document.getElementById('outstandingBranchFilter').addEventListener('change', async (e)=>{
     outstandingBranchFilterValue = e.target.value;

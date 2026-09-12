@@ -473,10 +473,27 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint">เช็คว่าที่เพิ่งกรอกไปถูกต้องหรือเปล่า ก่อนไปดูสรุปตามผู้ขาย</div>
       <div id="purchaseList" class="loading">กำลังโหลด…</div>
     </div>
-    <div class="card">
-      <h3>🧾 สรุปบิลตามผู้ขายวันนี้ (จ่ายรวมเป็นบิลเดียว)</h3>
-      <div class="hint">รวมยอดที่ซื้อจากผู้ขายรายเดียวกันในวันนี้เป็นบิลเดียว ใส่ค่าใช้จ่ายเพิ่มเติมให้ยอดตรงกับสลิปโอนจริง แล้วกดยืนยันพร้อมวันที่จ่ายทีเดียว</div>
-      <div id="purchaseGroups" style="margin-top:10px;" class="loading">กำลังโหลด…</div>
+    <div class="card" data-no-collapse="1">
+      <h3>🧾 สรุปบิลวันนี้ (รอจ่าย/จ่ายแล้ว)</h3>
+      <div class="hint">รวมทุกอย่างที่ต้องจ่ายวันนี้ไว้ที่เดียว กดปุ่มสถานะเพื่อเปลี่ยนรอจ่าย/จ่ายแล้วได้เลย — โชว์เฉพาะหมวดที่มีรายการจริง</div>
+      <div id="billSummaryEmpty" class="empty" style="margin-top:10px;">ยังไม่มีรายการที่ต้องจ่ายวันนี้</div>
+      <div id="billSecSeller" style="margin-top:12px;">
+        <div style="font-weight:700;font-size:13.5px;color:var(--accent);">👤 ผู้ขายวันนี้ (จ่ายรวมบิล)</div>
+        <div class="hint" style="margin-top:2px;">รวมยอดที่ซื้อจากผู้ขายรายเดียวกันในวันนี้เป็นบิลเดียว ใส่ค่าใช้จ่ายเพิ่มเติมให้ยอดตรงกับสลิปโอนจริง แล้วกดยืนยันพร้อมวันที่จ่ายทีเดียว</div>
+        <div id="purchaseGroups" style="margin-top:8px;" class="loading">กำลังโหลด…</div>
+      </div>
+      <div id="billSecLotProduct" style="margin-top:14px;">
+        <div style="font-weight:700;font-size:13.5px;color:var(--accent);">📦 บิลสินค้าล็อต</div>
+        <div id="lotProductBillList" class="loading" style="margin-top:8px;">กำลังโหลด…</div>
+      </div>
+      <div id="billSecLotTransport" style="margin-top:14px;">
+        <div style="font-weight:700;font-size:13.5px;color:var(--accent);">🚚 ค่าขนส่งล็อต</div>
+        <div id="lotTransportList" class="loading" style="margin-top:8px;">กำลังโหลด…</div>
+      </div>
+      <div id="billSecExpense" style="margin-top:14px;">
+        <div style="font-weight:700;font-size:13.5px;color:var(--accent);">💸 รายจ่ายกิจการ</div>
+        <div class="rowlist" id="expenseList" style="margin-top:8px;"></div>
+      </div>
     </div>
     <div class="card" id="lotSectionToggle" style="border-color:var(--accent);cursor:pointer;" data-lotsectiontoggle="1">
       <div class="hint" style="color:var(--accent);font-size:12.5px;display:flex;justify-content:space-between;align-items:center;">
@@ -500,14 +517,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
         <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
       </div>
-      <div class="card">
-        <h3>🧾 บิลสินค้าล็อต (รอจ่ายผู้ขาย)</h3>
-        <div id="lotProductBillList" class="loading">กำลังโหลด…</div>
-      </div>
-      <div class="card">
-        <h3>🚚 ค่าขนส่งล็อต (จ่ายแยกกับบิลสินค้า)</h3>
-        <div id="lotTransportList" class="loading">กำลังโหลด…</div>
-      </div>
     </div>
     <div class="card" style="border-color:var(--accent);">
       <div class="hint" style="color:var(--accent);font-size:12.5px;">💸 รายจ่ายอื่นๆ ของกิจการ (ไม่ใช่การซื้อสินค้า)</div>
@@ -522,7 +531,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="expNote" placeholder="เช่น น้ำแข็ง 5 ถุง"></div>
       <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="expAmount" placeholder="0"></div>
       <button class="btn secondary" id="addExpenseBtn">+ เพิ่มรายจ่าย</button>
-      <div class="rowlist" id="expenseList" style="margin-top:12px;"></div>
+      <div class="hint" style="margin-top:8px;">รายการที่บันทึกแล้ว ดูและเปลี่ยนสถานะจ่าย/รอจ่ายได้ที่การ์ด "สรุปบิลวันนี้" ด้านบน</div>
     </div>
     <div class="card" style="border-color:var(--accent);">
       <div class="hint" style="color:var(--accent);font-size:12.5px;">📊 รายงาน/สรุปภาพรวม (ไม่ใช่การกรอกข้อมูล)</div>
@@ -552,6 +561,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card">
       <h3>⏳ รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
+      <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <div id="outstandingList" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -624,7 +634,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
   <div class="panel" id="panel-settings">
     <div class="card">
-      <h3>💲 ประวัติราคาสินค้า (รองรับกรอกย้อนหลัง)</h3>
+      <h3>💲 ประวัติราคาขายสินค้า (รองรับกรอกย้อนหลัง)</h3>
       <div class="field">
         <label>เลือกสินค้า</label>
         <select id="priceProductSelect"></select>
@@ -1072,6 +1082,12 @@ async function saveRow(){
   await saveDay(currentDate, dayData);
   editingCode = null;
   refreshOrderTab(); renderStats();
+  // บันทึกสาขานี้เสร็จแล้ว วิ่งไปสาขาถัดไปที่ยังไม่มีออเดอร์อัตโนมัติเลย ไม่ต้องค้างอยู่ที่เดิม (ค้างที่ธงเฉพาะตอนเปิดแท็บครั้งแรกเท่านั้น)
+  const nextCode = findNextUnrecordedBranch(code);
+  if(nextCode){
+    document.getElementById('branchSelect').value = nextCode;
+    renderProductInputs();
+  }
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
 function renderOrderMissingList(){
@@ -1088,7 +1104,7 @@ function renderOrderMissingList(){
     });
   });
 }
-function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); }
+function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); updateOrderFormAutoFold(); }
 
 // ---- Read order from photo (Claude vision) ----
 function fileToBase64(file){
@@ -1287,7 +1303,7 @@ async function renderLeftover(){
   document.getElementById('leftoverInHeader').textContent = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} (จากวันที่ ${formatDDMMYYYY(prevIso)})`;
   document.getElementById('leftoverOutHeader').textContent = `ของเหลือที่ต้องเก็บจากวันที่ ${formatDDMMYYYY(currentDate)} (จะหักออกจากออเดอร์วันที่ ${formatDDMMYYYY(nextIso)})`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
-  document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><input type="number" min="0" step="1" inputmode="numeric" data-lpid="${id}" value="${dayData.leftoverOut[id]||''}" placeholder="0"></div>`; }).join('');
+  document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${dayData.leftoverOut[id]||''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${p.unit}</span></div>`; }).join('');
 }
 async function saveLeftover(){
   document.querySelectorAll('[data-lpid]').forEach(inp=>{ dayData.leftoverOut[inp.getAttribute('data-lpid')] = Number(inp.value||0); });
@@ -1703,7 +1719,7 @@ let expPayEditingId = null;
 function renderExpenseList(){
   const wrap = document.getElementById('expenseList');
   const list = dayData.expenses || [];
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; return; }
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); return; }
   wrap.innerHTML = list.map(e=>{
     const showDatePicker = expPayEditingId===e.id;
     return `
@@ -1761,6 +1777,7 @@ function renderExpenseList(){
     await renderAllExpenseList();
   }));
   wrap.querySelectorAll('[data-expedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditExpense(btn.getAttribute('data-expedit'))));
+  updateBillSummaryVisibility();
 }
 let expEditingId = null;
 async function addExpense(){
@@ -2185,17 +2202,27 @@ async function renderAllExpenseList(){
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||''});
       });
-      (d.purchases||[]).forEach(e=>{
-        if(expenseFilterMode==='unpaid' && e.paid) return;
-        const p = PRODUCTS.find(x=>x.id===e.productId);
-        const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:`ต้นทุนซื้อ: ${p?p.emoji+' '+p.name:e.productId}${e.seller?` (${e.seller})`:''}`, amount:purchaseCostTotal(e), paid:e.paid, delay, seller:e.seller||''});
+      // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
+      // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
+      const sellerGroups = {};
+      (d.purchases||[]).filter(e=>!e.fromLot).forEach(e=>{
+        const seller = e.seller || 'ไม่ระบุ';
+        if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:true, items:[]};
+        sellerGroups[seller].amount += purchaseCostTotal(e);
+        sellerGroups[seller].items.push(e);
+        if(!e.paid) sellerGroups[seller].paid = false;
       });
       Object.entries(d.purchaseGroupPayment||{}).forEach(([seller,g])=>{
         if(!g.extra) return;
+        if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:g.paid, items:[]};
+        sellerGroups[seller].amount += Number(g.extra||0);
+        sellerGroups[seller].paid = g.paid; // สถานะจ่ายยึดตามปุ่ม "รวมบิล" เป็นหลัก เพราะกดทีเดียวจ่ายทั้งบิล
+      });
+      Object.entries(sellerGroups).forEach(([seller,g])=>{
         if(expenseFilterMode==='unpaid' && g.paid) return;
         const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:`ค่าใช้จ่ายเพิ่มเติมบิล ${seller}${g.note?` — ${g.note}`:''}`, amount:g.extra, paid:g.paid, delay, seller});
+        const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
+        rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller});
       });
     }
     const transportBills = await loadLotTransportBills();
@@ -2241,9 +2268,16 @@ async function computeAllExpensePayables(){
   productBills.forEach(b=>{ if(!b.paid){ total += Number(b.amount||0); count++; } });
   return {total, count};
 }
+let outstandingBranchFilterValue = '';
+let outstandingPayEditingKey = null; // "iso|code" ของแถวที่กำลังเลือกวันที่โอนอยู่
 async function renderOutstanding(){
   const container = document.getElementById('outstandingList');
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const branchSel = document.getElementById('outstandingBranchFilter');
+  if(branchSel && branchSel.options.length<=1){
+    branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('');
+    branchSel.value = outstandingBranchFilterValue;
+  }
   try{
     const listRes = await window.storage.list('day:');
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
@@ -2254,6 +2288,7 @@ async function renderOutstanding(){
     for(const iso of isoList){
       const d = dayMap[iso];
       Object.entries(d.orders).forEach(([code,row])=>{
+        if(outstandingBranchFilterValue && code!==outstandingBranchFilterValue) return;
         const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
         if(amt>0 && !d.billingPaid[code]){
           const delay = Math.round((new Date(today)-new Date(iso))/86400000);
@@ -2263,7 +2298,52 @@ async function renderOutstanding(){
     }
     rows.sort((a,b)=>b.delay-a.delay);
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>'; return; }
-    container.innerHTML = rows.map(r=>`<div class="delayrow"><div><div>${branchName(r.code)}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amt)}</div></div><span class="badge-delay">${r.delay} วัน</span></div>`).join('');
+    container.innerHTML = rows.map(r=>{
+      const key = `${r.iso}|${r.code}`;
+      const showDatePicker = outstandingPayEditingKey===key;
+      return `<div class="branchbill">
+        <div class="toprow">
+          <div class="left"><div class="n">${branchName(r.code)}</div><div class="amt num">${money(r.amt)}</div><div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${formatDDMMYYYY(r.iso)}</div></div>
+          <div class="acts2">
+            <span class="badge-delay">${r.delay} วัน</span>
+            <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
+            <button class="paytoggle unpaid" data-outstandingpay="${key}">รอโอน</button>
+          </div>
+        </div>
+        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+          <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-outstandingcancel="1" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
+        <div id="bdreceipt-${r.code}-${r.iso}"></div>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('[data-outstandingbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const [iso, code] = btn.getAttribute('data-outstandingbill').split('|');
+      await toggleBranchDetailReceipt(iso, code); // เปิดดู/ทำรายการบิลฝังอยู่ตรงนี้เลย ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป
+    }));
+    container.querySelectorAll('[data-outstandingpay]').forEach(btn=>btn.addEventListener('click', ()=>{
+      outstandingPayEditingKey = btn.getAttribute('data-outstandingpay');
+      renderOutstanding();
+    }));
+    container.querySelectorAll('[data-outstandingcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+      outstandingPayEditingKey = null;
+      renderOutstanding();
+    }));
+    container.querySelectorAll('[data-outstandingconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const [iso, code] = btn.getAttribute('data-outstandingconfirm').split('|');
+      const dateInput = document.getElementById(`outpaydate-${iso}-${code}`);
+      const paidDate = dateInput.value || todayISO();
+      lastUsedPayDate = paidDate;
+      const d = await loadDay(iso);
+      d.billingPaid[code] = {paid:true, paidDate};
+      await saveDay(iso, d);
+      if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
+      outstandingPayEditingKey = null;
+      showToast('บันทึกว่าโอนแล้ว');
+      await renderOutstanding();
+      renderStats();
+    }));
   }catch(e){ container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
 
@@ -3009,7 +3089,7 @@ async function renderLotTransportList(){
   if(!wrap) return;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   const bills = await loadLotTransportBills();
-  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีค่าขนส่งล็อต</div>'; return; }
+  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีค่าขนส่งล็อต</div>'; updateBillSummaryVisibility(); return; }
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotTransportEditingId===b.id;
@@ -3069,6 +3149,7 @@ async function renderLotTransportList(){
     lotTransportEditingId = null;
     await renderLotTransportList();
   }));
+  updateBillSummaryVisibility();
 }
 let lotProductBillEditingId = null;
 async function renderLotProductBillList(){
@@ -3076,7 +3157,7 @@ async function renderLotProductBillList(){
   if(!wrap) return;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   const bills = await loadLotProductBills();
-  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีบิลสินค้าล็อต</div>'; return; }
+  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีบิลสินค้าล็อต</div>'; updateBillSummaryVisibility(); return; }
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotProductBillEditingId===b.id;
@@ -3136,6 +3217,7 @@ async function renderLotProductBillList(){
     lotProductBillEditingId = null;
     await renderLotProductBillList();
   }));
+  updateBillSummaryVisibility();
 }
 
 // คำนวณจำนวนที่ "ควรจะซื้อ" ของสินค้านี้วันนี้ จากยอดออเดอร์ (หักของเหลือที่มีจากเมื่อวานถ้าเป็นสินค้าที่มีของเหลือ)
@@ -3224,7 +3306,7 @@ function startEditPurchase(id){
 function renderPurchaseList(){
   const wrap = document.getElementById('purchaseList');
   const list = dayData.purchases || [];
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายการต้นทุนซื้อวันนี้</div>'; return; }
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายการต้นทุนซื้อวันนี้</div>'; updatePurchaseFormAutoFold(); return; }
   const totalCost = list.reduce((s,e)=>s+purchaseCostTotal(e),0);
   wrap.innerHTML = `<div class="scrollx"><table class="plain">
     <tr><th>สินค้า</th><th>ผู้ขาย</th><th class="num">ซื้อ</th><th class="num">ราคา/หน่วย</th><th class="num">ค่าสินค้า</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th>สถานะ</th><th></th></tr>
@@ -3272,12 +3354,13 @@ function renderPurchaseList(){
     await renderAllExpenseList();
     renderPurchaseGroups();
   }));
+  updatePurchaseFormAutoFold();
 }
 let purchGroupEditingSeller = null;
 function renderPurchaseGroups(){
   const wrap = document.getElementById('purchaseGroups');
   const list = (dayData.purchases || []).filter(e=>!e.fromLot); // เบิกจากล็อตจ่ายเงินไปตอนซื้อล็อตแล้ว ไม่ต้องมารวมเป็นบิลรอจ่ายอีก
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ไม่มีรายการที่ต้องรวมบิล (ถ้ามีแต่รายการจากล็อต จ่ายไปแล้วตอนซื้อล็อต)</div>'; return; }
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ไม่มีรายการที่ต้องรวมบิล (ถ้ามีแต่รายการจากล็อต จ่ายไปแล้วตอนซื้อล็อต)</div>'; updateBillSummaryVisibility(); return; }
   const sellers = [...new Set(list.map(e=>e.seller||'ไม่ระบุ'))];
   dayData.purchaseGroupPayment = dayData.purchaseGroupPayment || {};
   wrap.innerHTML = sellers.map(seller=>{
@@ -3353,6 +3436,7 @@ function renderPurchaseGroups(){
     purchGroupEditingSeller = null;
     renderPurchaseGroups();
   }));
+  updateBillSummaryVisibility();
 }
 function purchaseNoteHint(list){
   const notes = list.filter(e=>e.note).map(e=>`${PRODUCTS.find(p=>p.id===e.productId).name}: ${e.note}`);
@@ -3742,7 +3826,7 @@ async function computeBranchAggregates(){
       const a = agg[code];
       a.allTimeTotal += amt; a.orderCount += 1; a.lastOrderIso = iso;
       const paid = !!d.billingPaid[code];
-      a.allBillsList.push({iso, amt, paid});
+      a.allBillsList.push({iso, amt, paid, row});
       if(paid) a.paidTotal += amt;
       else {
         const delay = Math.max(0, Math.round((new Date(today)-new Date(iso))/86400000));
@@ -3761,6 +3845,78 @@ function populateDashBranchSelect(){
   const cur = sel.value;
   sel.innerHTML = `<option value="">— เลือกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('');
   sel.value = cur;
+}
+// หาบิลที่ใกล้วันที่เป้าหมายที่สุดในประวัติของสาขานั้น (ใช้เทียบ "สัปดาห์ที่แล้ว/เดือนที่แล้ว/ปีที่แล้ว" เพราะบางสาขาไม่ได้สั่งทุกวันตรงเป๊ะ จึงหาบิลที่ใกล้ที่สุดในช่วงที่ยอมรับได้แทน)
+function findNearestBillByDate(bills, targetIso, toleranceDays){
+  let best = null, bestDiff = Infinity;
+  bills.forEach(b=>{
+    const diff = Math.abs((new Date(b.iso+'T00:00:00Z') - new Date(targetIso+'T00:00:00Z'))/86400000);
+    if(diff < bestDiff){ bestDiff = diff; best = b; }
+  });
+  return (best && bestDiff<=toleranceDays) ? best : null;
+}
+// วิเคราะห์พฤติกรรมการสั่งของสาขานี้: เทียบกับบิลก่อนหน้า/สัปดาห์ที่แล้ว/เดือนที่แล้ว/ปีที่แล้ว หาความผิดปกติ และคาดการณ์แนวโน้ม
+// sortedBills ต้องเรียงจากล่าสุดไปเก่าสุด (b[0] = บิลล่าสุด)
+function computeBranchOrderAnalysis(sortedBills){
+  if(!sortedBills || sortedBills.length===0) return null;
+  const latest = sortedBills[0];
+  const rest = sortedBills.slice(1);
+  const prevBill = rest[0] || null;
+  const weekAgoIso = addDaysISO(latest.iso, -7);
+  const d1 = new Date(latest.iso+'T00:00:00Z');
+  const monthAgo = new Date(d1); monthAgo.setUTCMonth(monthAgo.getUTCMonth()-1);
+  const monthAgoIso = monthAgo.toISOString().slice(0,10);
+  const yearAgo = new Date(d1); yearAgo.setUTCFullYear(yearAgo.getUTCFullYear()-1);
+  const yearAgoIso = yearAgo.toISOString().slice(0,10);
+  const weekBill = findNearestBillByDate(rest, weekAgoIso, 2);
+  const monthBill = findNearestBillByDate(rest, monthAgoIso, 4);
+  const yearBill = findNearestBillByDate(rest, yearAgoIso, 10);
+  const pctChange = (cur,base)=> (base && base>0) ? Math.round(((cur-base)/base)*100) : null;
+  // เฉลี่ย 8 บิลก่อนหน้า (ไม่รวมบิลล่าสุด) ใช้เช็คว่าบิลล่าสุดผิดปกติไปจากปกติของสาขานี้เองมั้ย
+  const recentWindow = rest.slice(0,8);
+  const recentAvg = recentWindow.length ? recentWindow.reduce((s,b)=>s+b.amt,0)/recentWindow.length : null;
+  const anomalyPct = pctChange(latest.amt, recentAvg);
+  const isAnomaly = anomalyPct!==null && Math.abs(anomalyPct)>=40 && recentWindow.length>=3;
+  // แนวโน้ม: เทียบค่าเฉลี่ย 3 บิลล่าสุด กับค่าเฉลี่ย 3 บิลก่อนหน้านั้นอีกที เพื่อดูทิศทาง แล้วใช้ค่าเฉลี่ย 3 บิลล่าสุดเป็นตัวคาดการณ์บิลถัดไปคร่าวๆ
+  const last3 = sortedBills.slice(0,3);
+  const prev3 = sortedBills.slice(3,6);
+  const last3Avg = last3.length ? last3.reduce((s,b)=>s+b.amt,0)/last3.length : null;
+  const prev3Avg = prev3.length ? prev3.reduce((s,b)=>s+b.amt,0)/prev3.length : null;
+  let trendDir = null, trendPct = null;
+  if(last3Avg!=null && prev3Avg!=null && prev3Avg>0){
+    trendPct = Math.round(((last3Avg-prev3Avg)/prev3Avg)*100);
+    trendDir = trendPct>=10 ? 'เพิ่มขึ้น' : trendPct<=-10 ? 'ลดลง' : 'ค่อนข้างคงที่';
+  }
+  const forecast = last3Avg!=null ? Math.round(last3Avg) : (recentAvg!=null ? Math.round(recentAvg) : latest.amt);
+  const byYear = {};
+  sortedBills.forEach(b=>{ const y = b.iso.slice(0,4); byYear[y] = (byYear[y]||0)+b.amt; });
+  return {latest, prevBill, weekBill, monthBill, yearBill, pctChange, recentAvg, anomalyPct, isAnomaly, trendDir, trendPct, forecast, byYear};
+}
+function renderBranchAnalysisHtml(sortedBills){
+  const a = computeBranchOrderAnalysis(sortedBills);
+  if(!a || sortedBills.length<2) return '';
+  const cmpRow = (label, bill)=>{
+    if(!bill) return `<tr><td>${label}</td><td class="num" colspan="2" style="color:var(--text-faint);">ไม่มีข้อมูลเทียบ</td></tr>`;
+    const pct = a.pctChange(a.latest.amt, bill.amt);
+    const pctColor = pct===null ? 'var(--text-faint)' : (pct>0 ? 'var(--danger)' : (pct<0 ? 'var(--success)' : 'var(--text-dim)'));
+    const pctText = pct===null ? '-' : `${pct>0?'+':''}${pct}%`;
+    return `<tr><td>${label}<div style="color:var(--text-faint);font-size:11px;">${formatDDMMYYYY(bill.iso)}</div></td><td class="num num">${money(bill.amt)}</td><td class="num num" style="color:${pctColor};font-weight:600;">${pctText}</td></tr>`;
+  };
+  const yearRows = Object.keys(a.byYear).sort().map(y=>`<div class="lrow"><div class="lname">${y}</div><div class="lin num">${money(a.byYear[y])}</div></div>`).join('');
+  return `
+    <div style="margin-top:12px;padding:12px;border:1px solid var(--accent);border-radius:10px;background:var(--surface-2);">
+      <div style="font-weight:700;font-size:13.5px;color:var(--accent);margin-bottom:8px;">🔎 วิเคราะห์พฤติกรรมการสั่งของสาขานี้</div>
+      <div class="scrollx"><table class="plain">
+        <tr><th>เทียบกับ</th><th class="num">ยอดบิล</th><th class="num">% ต่างจากบิลล่าสุด</th></tr>
+        ${cmpRow('บิลก่อนหน้า', a.prevBill)}
+        ${cmpRow('วันเดียวกัน สัปดาห์ที่แล้ว', a.weekBill)}
+        ${cmpRow('ช่วงเดียวกัน เดือนที่แล้ว', a.monthBill)}
+        ${cmpRow('ช่วงเดียวกัน ปีที่แล้ว', a.yearBill)}
+      </table></div>
+      ${a.isAnomaly ? `<div class="hint" style="margin-top:8px;color:var(--danger);">⚠️ บิลล่าสุด (${money(a.latest.amt)}) ${a.anomalyPct>0?'สูงกว่า':'ต่ำกว่า'}ค่าเฉลี่ยปกติของสาขานี้ (${money(Math.round(a.recentAvg))}) ถึง ${Math.abs(a.anomalyPct)}% — ลองเช็คว่าสั่งผิดพลาดหรือสาขามีเหตุการณ์พิเศษมั้ย</div>` : ''}
+      <div class="hint" style="margin-top:8px;">📈 แนวโน้มล่าสุด: ${a.trendDir ? `${a.trendDir}${a.trendPct!==null?` (${a.trendPct>0?'+':''}${a.trendPct}%)`:''}` : 'ข้อมูลยังไม่พอสำหรับดูแนวโน้ม'} — คาดว่าบิลถัดไปจะอยู่ราว <b style="color:var(--accent);">${money(a.forecast)}</b> (ประมาณการจากบิลล่าสุด ไม่ใช่ตัวเลขตายตัว)</div>
+      ${yearRows ? `<div style="margin-top:8px;"><div class="hint" style="margin-bottom:4px;">สรุปยอดรวมรายปี</div>${yearRows}</div>` : ''}
+    </div>`;
 }
 async function renderBranchDetail(code, precomputedAgg){
   const detailEl = document.getElementById('dashBranchDetail');
@@ -3790,6 +3946,7 @@ async function renderBranchDetail(code, precomputedAgg){
     </div>
     <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง</div>
     ${trendHtml}
+    ${renderBranchAnalysisHtml(sortedBills)}
     <div style="display:flex;gap:6px;margin:8px 0;">
       <button class="tab active" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
       <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
@@ -4065,7 +4222,7 @@ async function switchTab(name){
   if(name==='messages') await renderMessages();
   if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
   if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-  if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotProductBillList(); await renderLotTransportList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+  if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
   if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
   if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
   if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
@@ -4149,6 +4306,73 @@ async function loadForDate(iso){
   await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
 }
 
+// ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
+function isListEmpty(elId){
+  const el = document.getElementById(elId);
+  if(!el) return true;
+  const first = el.firstElementChild;
+  return !!(first && first.classList && first.classList.contains('empty'));
+}
+function updateBillSummaryVisibility(){
+  const sections = [
+    {wrapId:'billSecSeller', listId:'purchaseGroups'},
+    {wrapId:'billSecLotProduct', listId:'lotProductBillList'},
+    {wrapId:'billSecLotTransport', listId:'lotTransportList'},
+    {wrapId:'billSecExpense', listId:'expenseList'}
+  ];
+  let anyVisible = false;
+  sections.forEach(s=>{
+    const wrap = document.getElementById(s.wrapId);
+    if(!wrap) return;
+    const empty = isListEmpty(s.listId);
+    wrap.style.display = empty ? 'none' : '';
+    if(!empty) anyVisible = true;
+  });
+  const emptyMsg = document.getElementById('billSummaryEmpty');
+  if(emptyMsg) emptyMsg.style.display = anyVisible ? 'none' : '';
+}
+// พับ/กางการ์ดที่มีหัวข้อ (h3) ตรงกับคำที่ระบุ ใช้ตั้งค่าพับอัตโนมัติตามสถานะข้อมูล (เช่น กรอกครบแล้วให้พับฟอร์มไว้)
+// ต้องรันหลัง initCollapsibleSettings() เท่านั้น เพราะอาศัย class collapsible/card-body ที่ตัวนั้นสร้างไว้ให้
+function setCardFoldByH3(titleKeyword, collapsed){
+  document.querySelectorAll('.panel .card h3.collapsible').forEach(h3=>{
+    if(!h3.textContent.includes(titleKeyword)) return;
+    const body = h3.closest('.card').querySelector('.card-body');
+    if(!body) return;
+    body.classList.toggle('collapsed', collapsed);
+    h3.classList.toggle('open', !collapsed);
+  });
+}
+// พับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" อัตโนมัติถ้าวันนี้กรอกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายละเอียด ไม่ต้องเลื่อนผ่านฟอร์ม)
+function updatePurchaseFormAutoFold(){
+  setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', (dayData.purchases||[]).length>0);
+}
+// กางหัวข้อล็อตวัตถุดิบอัตโนมัติถ้ามีบิล/ค่าขนส่งค้างอยู่ (จะได้เห็นเลยไม่ต้องกดกาง) แต่พับฟอร์ม "เพิ่มล็อตใหม่" ไว้เสมอ
+// ถ้าไม่มีข้อมูลอะไรเลยก็พับทั้งหมดไว้เหมือนเดิม
+async function updateLotSectionAutoFold(){
+  const [lots, productBills, transportBills] = await Promise.all([loadRawLots(), loadLotProductBills(), loadLotTransportBills()]);
+  const hasData = lots.length>0 || productBills.length>0 || transportBills.length>0;
+  const body = document.getElementById('lotSectionBody');
+  const chevron = document.getElementById('lotSectionChevron');
+  if(body){ body.style.display = hasData ? '' : 'none'; }
+  if(chevron){ chevron.textContent = hasData ? '▾' : '▸'; }
+}
+// พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
+function updateOrderFormAutoFold(){
+  const hasData = Object.values(dayData.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  setCardFoldByH3('อ่านออเดอร์จากรูปภาพ', hasData);
+  setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
+}
+// หาสาขาถัดไปที่ยังไม่มีออเดอร์วันนี้ ไล่ต่อจากสาขาที่เพิ่งบันทึกเสร็จ (วนกลับไปต้นรายชื่อถ้าไล่จนสุด) เพื่อบันทึกต่อเนื่องได้เลยไม่ต้องเลือกเอง
+function findNextUnrecordedBranch(afterCode){
+  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
+  const branches = settings.branches;
+  const idx = branches.findIndex(b=>b.code===afterCode);
+  for(let i=1;i<=branches.length;i++){
+    const b = branches[(idx+i+branches.length)%branches.length];
+    if(!orderedCodes.has(b.code)) return b.code;
+  }
+  return null;
+}
 // กันกดบันทึกซ้ำสำหรับปุ่มที่มีผลต่อจำนวน/เงิน — ล็อกปุ่มระหว่างบันทึกจนกว่าจะเสร็จ (ไม่ว่าสำเร็จหรือ error ก็ปลดล็อกให้เสมอ)
 // ไม่ยุ่งกับ textContent ของปุ่ม เพราะบางปุ่มสลับข้อความเองระหว่างโหมดเพิ่ม/แก้ไข (เช่น addPurchaseBtn/addExpenseBtn/addDebtBtn)
 function guardedClick(btnId, fn){
@@ -4166,7 +4390,7 @@ function guardedClick(btnId, fn){
 }
 function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
-  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
+  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล', 'เพิ่มล็อตใหม่', 'บันทึกด่วน', 'ประวัติราคาขายสินค้า']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
   document.querySelectorAll('.panel .card').forEach(card=>{
     if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');
@@ -4250,6 +4474,10 @@ async function init(){
   document.getElementById('expSellerFilter').addEventListener('change', async (e)=>{
     expSellerFilterValue = e.target.value;
     await renderAllExpenseList();
+  });
+  document.getElementById('outstandingBranchFilter').addEventListener('change', async (e)=>{
+    outstandingBranchFilterValue = e.target.value;
+    await renderOutstanding();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);
   document.getElementById('addExpCategoryBtn').addEventListener('click', addExpenseCategory);

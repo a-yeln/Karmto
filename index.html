@@ -272,12 +272,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
 <body>
 <div class="app">
   <div class="topbar">
-    <div id="topbarHeadRow" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0;">
-      <span id="topbarToggleLabel" style="font-size:12.5px;color:var(--accent);font-weight:600;">▾ พับส่วนหัว</span>
-      <span id="topbarCollapsedDate" class="num" style="display:none;font-size:13px;color:var(--text);font-weight:700;"></span>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h1 style="margin:0;">🦀 KARMTO</h1>
+      <div id="topbarHeadRow" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <span id="topbarCollapsedDate" class="num" style="display:none;font-size:13px;color:var(--text);font-weight:700;"></span>
+        <span id="topbarToggleLabel" style="font-size:16px;color:var(--accent);font-weight:600;">▾</span>
+      </div>
     </div>
     <div id="topbarBody">
-    <h1>🦀 KARMTO</h1>
     <div class="sub">ระบบสั่งของรายวัน • ทวีโชคหมูกะทะ x อาหารทะเล</div>
     <div class="daterow">
       <button id="prevDay" aria-label="วันก่อนหน้า">‹</button>
@@ -4324,7 +4326,7 @@ function toggleTopbarCollapse(){
   const label = document.getElementById('topbarToggleLabel');
   const dateLabel = document.getElementById('topbarCollapsedDate');
   body.style.display = topbarCollapsed ? 'none' : '';
-  label.textContent = topbarCollapsed ? '▸ กางส่วนหัว' : '▾ พับส่วนหัว';
+  label.textContent = topbarCollapsed ? '▸' : '▾';
   dateLabel.style.display = topbarCollapsed ? '' : 'none';
   updateTopbarCollapsedDate();
 }

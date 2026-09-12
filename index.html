@@ -272,6 +272,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
 <body>
 <div class="app">
   <div class="topbar">
+    <div id="topbarHeadRow" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0;">
+      <span id="topbarToggleLabel" style="font-size:12.5px;color:var(--accent);font-weight:600;">▾ พับส่วนหัว</span>
+      <span id="topbarCollapsedDate" class="num" style="display:none;font-size:13px;color:var(--text);font-weight:700;"></span>
+    </div>
+    <div id="topbarBody">
     <h1>🦀 KARMTO</h1>
     <div class="sub">ระบบสั่งของรายวัน • ทวีโชคหมูกะทะ x อาหารทะเล</div>
     <div class="daterow">
@@ -295,6 +300,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="statrow" id="statRow"></div>
+    </div>
     <div class="tabs" id="tabs">
       <button class="tab active" data-tab="dashboard">📊 แดชบอร์ด</button>
       <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
@@ -4303,7 +4309,24 @@ async function loadForDate(iso){
   }
   editingCode = null;
   renderStats(); refreshOrderTab();
+  updateTopbarCollapsedDate();
   await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
+}
+// พับ/กางส่วนหัวสุดของเว็บ (โลโก้ + แถบวันที่ + สรุปย่อ) เพื่อให้เหลือพื้นที่จอดูเนื้อหาได้เยอะขึ้น — ตอนพับจะโชว์แค่วันที่ปัจจุบันตัวเล็กๆ มุมขวาแทน
+let topbarCollapsed = false;
+function updateTopbarCollapsedDate(){
+  const dateLabel = document.getElementById('topbarCollapsedDate');
+  if(dateLabel && topbarCollapsed) dateLabel.textContent = formatDDMMYYYY(currentDate);
+}
+function toggleTopbarCollapse(){
+  topbarCollapsed = !topbarCollapsed;
+  const body = document.getElementById('topbarBody');
+  const label = document.getElementById('topbarToggleLabel');
+  const dateLabel = document.getElementById('topbarCollapsedDate');
+  body.style.display = topbarCollapsed ? 'none' : '';
+  label.textContent = topbarCollapsed ? '▸ กางส่วนหัว' : '▾ พับส่วนหัว';
+  dateLabel.style.display = topbarCollapsed ? '' : 'none';
+  updateTopbarCollapsedDate();
 }
 
 // ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
@@ -4430,6 +4453,7 @@ async function init(){
   document.getElementById('prevDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,-1)));
   document.getElementById('nextDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,1)));
   document.getElementById('todayBtn').addEventListener('click', ()=>loadForDate(todayISO()));
+  document.getElementById('topbarHeadRow').addEventListener('click', toggleTopbarCollapse);
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');

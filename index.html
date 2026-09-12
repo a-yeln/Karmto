@@ -361,7 +361,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="dashTrend" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>⚠️ สาขาที่ต้องติดตามด่วน (เรียงตาม Delay สูงสุด)</h3>
+      <h3>⚠️ สาขาที่ต้องติดตามด่วน (กดหัวตารางเพื่อเรียงลำดับ)</h3>
       <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
@@ -487,9 +487,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn" id="addPurchaseBtn" style="margin-top:6px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
     <div class="card" data-no-collapse="1">
-      <h3>📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
-      <div class="hint">เบิกใช้ล็อตวัตถุดิบที่ซื้อไว้ (ปูจืด/เชอรี่/นางรม ฯลฯ) — ถ้ายังไม่มีล็อตให้เบิก ไปเพิ่มล็อตใหม่ได้ที่หัวข้อ "📦 ล็อตวัตถุดิบ" ด้านล่าง</div>
-      <div id="lotList" class="loading">กำลังโหลด…</div>
+      <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <h3 style="margin:0;">📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
+        <span id="lotListChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
+      </div>
+      <div id="lotListBody">
+        <div class="hint">เบิกใช้ล็อตวัตถุดิบที่ซื้อไว้ (ปูจืด/เชอรี่/นางรม ฯลฯ) — ถ้ายังไม่มีล็อตให้เบิก ไปเพิ่มล็อตใหม่ได้ที่หัวข้อ "📦 ล็อตวัตถุดิบ" ด้านล่าง</div>
+        <div id="lotList" class="loading">กำลังโหลด…</div>
+      </div>
     </div>
     <div class="card">
       <h3>📋 รายการต้นทุนซื้อวันนี้ (รายละเอียดแยกสินค้า)</h3>
@@ -1326,7 +1331,26 @@ async function renderLeftover(){
   document.getElementById('leftoverInHeader').textContent = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} (จากวันที่ ${formatDDMMYYYY(prevIso)})`;
   document.getElementById('leftoverOutHeader').textContent = `ของเหลือที่ต้องเก็บจากวันที่ ${formatDDMMYYYY(currentDate)} (จะหักออกจากออเดอร์วันที่ ${formatDDMMYYYY(nextIso)})`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
-  document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${dayData.leftoverOut[id]||''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${p.unit}</span></div>`; }).join('');
+  // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
+  // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ)
+  const orderedTotals = computeTotals(dayData.orders);
+  const yieldTotals = {};
+  (dayData.purchases||[]).forEach(e=>{ yieldTotals[e.productId] = (yieldTotals[e.productId]||0) + purchaseSellableQty(e); });
+  document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{
+    const p=PRODUCTS.find(x=>x.id===id);
+    const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, id);
+    const yieldQty = yieldTotals[id]||0, orderedQty = orderedTotals[id]||0;
+    const suggested = Math.round(Math.max(0, yieldQty-orderedQty)*10)/10;
+    const showSuggestHint = !alreadyRecorded && yieldQty>0;
+    const val = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
+    return `<div class="lrow" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div class="lname">${p.emoji} ${p.name}</div>
+        <div><input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${p.unit}</span></div>
+      </div>
+      ${showSuggestHint ? `<div class="hint" style="margin-top:2px;">ระบบคำนวณให้อัตโนมัติ: ทำได้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)</div>` : ''}
+    </div>`;
+  }).join('');
 }
 async function saveLeftover(){
   document.querySelectorAll('[data-lpid]').forEach(inp=>{ dayData.leftoverOut[inp.getAttribute('data-lpid')] = Number(inp.value||0); });
@@ -1411,6 +1435,19 @@ async function renderMonthFee(){
 // ---- Billing tab ----
 let payDateEditingCode = null;
 let lastUsedPayDate = todayISO();
+// แสดงส่วนต่างโอนขาด/โอนเกิน + ป้ายว่าจ่ายรวมกับบิลอื่นมั้ย (ใช้ร่วมกันหลายจุดที่โชว์สถานะจ่ายแล้ว)
+function billPaidDiffHtml(payInfo, billedAmt){
+  if(!payInfo || typeof payInfo!=='object') return '';
+  const tAmt = payInfo.transferAmount;
+  if(tAmt===undefined || tAmt===null || tAmt==='') return '';
+  const base = (payInfo.billedAmount!=null) ? payInfo.billedAmount : billedAmt;
+  const diff = Math.round(Number(tAmt) - Number(base||0));
+  let diffHtml = '';
+  if(diff>0) diffHtml = ` <span style="color:var(--success);font-weight:600;">🔺โอนเกิน ${money(diff)}</span>`;
+  else if(diff<0) diffHtml = ` <span style="color:var(--danger);font-weight:600;">🔻โอนขาด ${money(Math.abs(diff))}</span>`;
+  const batchHtml = payInfo.batchId ? ` <span style="color:var(--accent);">(โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริง ${money(tAmt)})</span>` : '';
+  return diffHtml + batchHtml;
+}
 function renderBillingList(){
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
@@ -1424,7 +1461,7 @@ function renderBillingList(){
     let delayInfo = '';
     if(paid && paidDate){
       const delay = Math.round((new Date(paidDate+'T00:00:00Z')-new Date(currentDate+'T00:00:00Z'))/86400000);
-      delayInfo = `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">โอน ${formatDDMMYYYY(paidDate)} • ดีเลย์ ${delay} วัน</div>`;
+      delayInfo = `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">โอน ${formatDDMMYYYY(paidDate)} • ดีเลย์ ${delay} วัน${billPaidDiffHtml(payInfo, amt)}</div>`;
     }
     const showDatePicker = payDateEditingCode===code;
     return `<div class="branchbill" id="bb-${code}">
@@ -1435,10 +1472,19 @@ function renderBillingList(){
           <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
         </div>
       </div>
-      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-        <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
-        <button class="btn small" data-confirmpay="${code}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-cancelpay="${code}" style="width:auto;">ยกเลิก</button>
+      ${showDatePicker ? `<div style="margin-top:8px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+          <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+          <input type="number" step="1" id="payamt-${code}" value="${amt}" placeholder="${amt}" style="flex:1;">
+        </div>
+        <div class="hint" style="margin-top:4px;">ถ้าโอนไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "โอนจริง" ให้ตรงกับที่ได้รับจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button class="btn small" data-confirmpay="${code}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-cancelpay="${code}" style="width:auto;">ยกเลิก</button>
+        </div>
       </div>` : ''}
       <div id="receipt-${code}"></div>
     </div>`;
@@ -1463,7 +1509,10 @@ function renderBillingList(){
       const dateInput = document.getElementById(`paydate-${code}`);
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
-      dayData.billingPaid[code] = {paid:true, paidDate};
+      const amtInput = document.getElementById(`payamt-${code}`);
+      const billedAmt = branchBillAmount(dayData.orders[code], currentDate) + Number(dayData.billExtra[code]||0);
+      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
+      dayData.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       payDateEditingCode = null;
       await saveDay(currentDate, dayData);
       renderBillingList();
@@ -1742,7 +1791,7 @@ let expPayEditingId = null;
 function renderExpenseList(){
   const wrap = document.getElementById('expenseList');
   const list = dayData.expenses || [];
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); return; }
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); updateExpenseFormAutoFold(); return; }
   wrap.innerHTML = list.map(e=>{
     const showDatePicker = expPayEditingId===e.id;
     return `
@@ -1801,6 +1850,7 @@ function renderExpenseList(){
   }));
   wrap.querySelectorAll('[data-expedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditExpense(btn.getAttribute('data-expedit'))));
   updateBillSummaryVisibility();
+  updateExpenseFormAutoFold();
 }
 let expEditingId = null;
 async function addExpense(){
@@ -2324,19 +2374,25 @@ async function renderOutstanding(){
     container.innerHTML = rows.map(r=>{
       const key = `${r.iso}|${r.code}`;
       const showDatePicker = outstandingPayEditingKey===key;
-      return `<div class="branchbill">
+      return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;">
         <div class="toprow">
-          <div class="left"><div class="n">${branchName(r.code)}</div><div class="amt num">${money(r.amt)}</div><div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${formatDDMMYYYY(r.iso)}</div></div>
+          <div class="left"><div class="n">${branchName(r.code)}</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:2px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div></div>
           <div class="acts2">
             <span class="badge-delay">${r.delay} วัน</span>
             <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
             <button class="paytoggle unpaid" data-outstandingpay="${key}">รอโอน</button>
           </div>
         </div>
-        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-          <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="flex:1;">
-          <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
-          <button class="btn small secondary" data-outstandingcancel="1" style="width:auto;">ยกเลิก</button>
+        ${showDatePicker ? `<div style="margin-top:8px;">
+          <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
+          <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+            <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+            <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
+            <button class="btn small secondary" data-outstandingcancel="1" style="width:auto;">ยกเลิก</button>
+          </div>
         </div>` : ''}
         <div id="bdreceipt-${r.code}-${r.iso}"></div>
       </div>`;
@@ -2359,7 +2415,10 @@ async function renderOutstanding(){
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
       const d = await loadDay(iso);
-      d.billingPaid[code] = {paid:true, paidDate};
+      const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
+      const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
+      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
+      d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       await saveDay(iso, d);
       if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
       outstandingPayEditingKey = null;
@@ -3849,7 +3908,7 @@ async function computeBranchAggregates(){
       const a = agg[code];
       a.allTimeTotal += amt; a.orderCount += 1; a.lastOrderIso = iso;
       const paid = !!d.billingPaid[code];
-      a.allBillsList.push({iso, amt, paid, row});
+      a.allBillsList.push({iso, amt, paid, row, payInfo: d.billingPaid[code]||null});
       if(paid) a.paidTotal += amt;
       else {
         const delay = Math.max(0, Math.round((new Date(today)-new Date(iso))/86400000));
@@ -3862,6 +3921,50 @@ async function computeBranchAggregates(){
     a.maxDelay = a.delays.length ? Math.max(...a.delays) : 0;
   });
   return agg;
+}
+// ตาราง "สาขาที่ต้องติดตามด่วน" — กดหัวตารางเพื่อเรียงลำดับใหม่ได้ (ยอดค้างสูงสุด/จำนวนรายมากสุด/ดีเลย์เฉลี่ย/ดีเลย์สูงสุด) แคช agg ไว้ใน lastTopOutstandingAgg กันโหลดซ้ำตอนแค่เปลี่ยนการเรียงลำดับ
+let topOutstandingSort = 'maxDelay';
+let lastTopOutstandingAgg = null;
+function renderTopOutstandingTable(){
+  const outEl = document.getElementById('dashTopOutstanding');
+  const agg = lastTopOutstandingAgg;
+  if(!outEl || !agg) return;
+  const sortFns = {
+    unpaidTotal: (a,b)=>b.unpaidTotal-a.unpaidTotal || b.maxDelay-a.maxDelay,
+    unpaidCount: (a,b)=>b.unpaidCount-a.unpaidCount || b.maxDelay-a.maxDelay,
+    avgDelay: (a,b)=>b.avgDelay-a.avgDelay || b.unpaidTotal-a.unpaidTotal,
+    maxDelay: (a,b)=>b.maxDelay-a.maxDelay || b.unpaidTotal-a.unpaidTotal,
+  };
+  const topList = Object.entries(agg).map(([code,a])=>({code,...a})).filter(a=>a.unpaidTotal>0).sort(sortFns[topOutstandingSort]).slice(0,12);
+  const sortTh = (key, label)=>{
+    const active = topOutstandingSort===key;
+    return `<th class="num" data-sorttopoutstanding="${key}" style="cursor:pointer;${active?'color:var(--accent);':''}">${label}${active?' ▾':''}</th>`;
+  };
+  outEl.className='';
+  outEl.innerHTML = topList.length ? `<div class="scrollx"><table class="plain">
+    <tr><th>สาขา</th>${sortTh('unpaidTotal','ยอดค้าง')}${sortTh('unpaidCount','รายการ')}${sortTh('avgDelay','Delay เฉลี่ย')}${sortTh('maxDelay','Delay สูงสุด')}<th>สถานะ</th></tr>
+    ${topList.map(a=>{
+      let status, statusStyle;
+      if(a.maxDelay>=14){ status='เร่งด่วน'; statusStyle='background:var(--danger-soft);color:var(--danger);'; }
+      else if(a.maxDelay>=7){ status='ควรติดตาม'; statusStyle='background:var(--accent-soft);color:var(--accent);'; }
+      else { status='ปกติ'; statusStyle='background:var(--success-soft);color:var(--success);'; }
+      return `<tr data-toplinkcode="${a.code}" style="cursor:pointer;"><td>${branchName(a.code)}</td><td class="num num">${money(a.unpaidTotal)}</td><td class="num num">${a.unpaidCount}</td><td class="num num">${a.avgDelay} วัน</td><td class="num num">${a.maxDelay} วัน</td><td><span class="badge-delay" style="${statusStyle}">${status}</span></td></tr>`;
+    }).join('')}
+  </table></div>` : '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
+  outEl.querySelectorAll('[data-toplinkcode]').forEach(row=>{
+    row.addEventListener('click', async ()=>{
+      const code = row.getAttribute('data-toplinkcode');
+      document.getElementById('dashBranchSelect').value = code;
+      await renderBranchDetail(code);
+      document.getElementById('dashBranchDetail').scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+  outEl.querySelectorAll('[data-sorttopoutstanding]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      topOutstandingSort = th.getAttribute('data-sorttopoutstanding');
+      renderTopOutstandingTable();
+    });
+  });
 }
 // ---- จัดอันดับสาขา (เทียบยอดสั่ง/ยอดจ่าย/จำนวนครั้ง เป็น % ของทั้งหมด) ----
 let rankPeriod = 'week';
@@ -4056,14 +4159,15 @@ async function renderBranchDetail(code, precomputedAgg){
       <div class="dash-metric"><div class="dm-label">สั่งไปแล้วทั้งหมด</div><div class="dm-value num">${a.orderCount} ครั้ง</div></div>
       <div class="dash-metric"><div class="dm-label">ยอดสะสมทั้งหมด</div><div class="dm-value num">${money(a.allTimeTotal)}</div></div>
     </div>
-    <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง</div>
-    ${trendHtml}
-    ${renderBranchAnalysisHtml(sortedBills)}
-    <div style="display:flex;gap:6px;margin:8px 0;">
+    <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง เลือกได้หลายรายการเพื่อบันทึกว่าโอนรวมกันทีเดียว</div>
+    <div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;">
       <button class="tab active" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
       <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
+      <button class="tab" data-branchbillfilter="paid">โอนแล้ว (${sortedBills.length-a.unpaidCount})</button>
     </div>
     <div id="branchBillListInner"></div>
+    ${trendHtml}
+    ${renderBranchAnalysisHtml(sortedBills)}
   `;
   if(monthKeys.length>1){
     const branchTrendValueEl = document.getElementById('branchTrendValue');
@@ -4076,27 +4180,90 @@ async function renderBranchDetail(code, precomputedAgg){
       });
     });
   }
+  const branchPaySelection = new Set(); // เลือกได้หลายบิล(ข้ามวัน)ของสาขานี้ เพื่อบันทึกว่าโอนรวมกันทีเดียว — รีเซ็ตทุกครั้งที่เปิด/รีเฟรชหน้านี้
+  function updateBranchPayBar(){
+    const bar = document.getElementById('branchPayBar');
+    if(!bar) return;
+    const n = branchPaySelection.size;
+    bar.style.display = n>0 ? '' : 'none';
+    if(n===0) return;
+    const sum = Array.from(branchPaySelection).reduce((s,iso)=>{ const b = sortedBills.find(x=>x.iso===iso); return s + (b?b.amt:0); },0);
+    document.getElementById('branchPaySelCount').textContent = n;
+    document.getElementById('branchPaySelSum').textContent = money(sum);
+    document.getElementById('branchPayAmount').value = sum;
+  }
   function renderBranchBillList(filter){
     const wrap = document.getElementById('branchBillListInner');
-    const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : sortedBills;
-    if(rows.length===0){ wrap.innerHTML = filter==='unpaid' ? '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>' : '<div class="empty">ยังไม่มีบิล</div>'; return; }
-    wrap.innerHTML = rows.map(u=>`
+    branchPaySelection.clear();
+    const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : filter==='paid' ? sortedBills.filter(b=>b.paid) : sortedBills;
+    if(rows.length===0){ wrap.innerHTML = filter==='unpaid' ? '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>' : (filter==='paid' ? '<div class="empty">ยังไม่มีบิลที่โอนแล้ว</div>' : '<div class="empty">ยังไม่มีบิล</div>'); return; }
+    wrap.innerHTML = `
+      <div id="branchPayBar" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--accent);border-radius:8px;background:var(--surface-2);">
+        <div class="hint">เลือกแล้ว <b id="branchPaySelCount">0</b> บิล ยอดบิลรวม <b id="branchPaySelSum">฿0</b></div>
+        <input type="date" id="branchPayDate" value="${lastUsedPayDate}" style="margin-top:8px;width:100%;">
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+          <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+          <input type="number" step="1" id="branchPayAmount" style="flex:1;">
+        </div>
+        <div class="hint" style="margin-top:4px;">ถ้าโอนไม่ตรงยอดบิลรวม (ขาด/เกิน) หรือโอนรวมหลายบิลมาทีเดียว แก้ตัวเลขช่อง "โอนจริง" ให้ตรงกับที่ได้รับจริงได้เลย</div>
+        <input type="text" id="branchPayNote" placeholder="+ หมายเหตุ (ถ้ามี)" style="margin-top:6px;">
+        <button class="btn small" id="branchPayConfirmBtn" style="margin-top:8px;width:auto;">ยืนยันว่าชำระแล้ว</button>
+      </div>
+      ${rows.map(u=>`
       <div class="branchbill">
         <div class="toprow">
-          <div class="left"><div class="n">${formatDDMMYYYY(u.iso)}</div><div class="amt num">${money(u.amt)}</div></div>
+          <div class="left" style="display:flex;align-items:flex-start;gap:8px;">
+            ${!u.paid ? `<input type="checkbox" data-billselect="${u.iso}" style="margin-top:4px;">` : ''}
+            <div>
+              <div class="n">${formatDDMMYYYY(u.iso)}</div>
+              <div class="amt num">${money(u.amt)}</div>
+              ${u.paid ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">โอน ${u.payInfo&&u.payInfo.paidDate?formatDDMMYYYY(u.payInfo.paidDate):'-'}${billPaidDiffHtml(u.payInfo, u.amt)}</div>` : ''}
+            </div>
+          </div>
           <div class="acts2">
             <button class="iconbtn" data-viewdetailbill="${u.iso}" aria-label="ดูบิล">🧾</button>
-            <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
+            ${u.paid ? `<button class="paytoggle paid" data-quickpay="${u.iso}">โอนแล้ว</button>` : ''}
           </div>
         </div>
         <div id="bdreceipt-${code}-${u.iso}"></div>
-      </div>`).join('');
+      </div>`).join('')}`;
     wrap.querySelectorAll('[data-viewdetailbill]').forEach(btn=>{
       btn.addEventListener('click', ()=>toggleBranchDetailReceipt(btn.getAttribute('data-viewdetailbill'), code));
     });
     wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
+      // ตรงนี้เฉพาะบิลที่ "โอนแล้ว" อยู่ก่อน กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — บิลที่ยังไม่จ่ายให้ติ๊กเลือกแล้วกดยืนยันในแถบด้านบนแทน
       btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code));
     });
+    wrap.querySelectorAll('[data-billselect]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const iso = cb.getAttribute('data-billselect');
+        if(cb.checked) branchPaySelection.add(iso); else branchPaySelection.delete(iso);
+        updateBranchPayBar();
+      });
+    });
+    const confirmBtn = document.getElementById('branchPayConfirmBtn');
+    if(confirmBtn) confirmBtn.addEventListener('click', async ()=>{
+      const isos = Array.from(branchPaySelection);
+      if(isos.length===0) return;
+      const paidDate = document.getElementById('branchPayDate').value || todayISO();
+      lastUsedPayDate = paidDate;
+      const billedSum = isos.reduce((s,iso)=>{ const b = sortedBills.find(x=>x.iso===iso); return s + (b?b.amt:0); },0);
+      const amtInput = document.getElementById('branchPayAmount');
+      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedSum;
+      const note = document.getElementById('branchPayNote').value || '';
+      const batchId = isos.length>1 ? ('batch'+Date.now()) : null;
+      for(const iso of isos){
+        const d = await loadDay(iso);
+        d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};
+        await saveDay(iso, d);
+        if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
+      }
+      showToast(isos.length>1 ? `บันทึกชำระรวม ${isos.length} บิลแล้ว` : 'บันทึกว่าโอนแล้ว');
+      renderStats();
+      const dashSelectEl = document.getElementById('dashBranchSelect');
+      if(dashSelectEl) await renderBranchDetail(dashSelectEl.value);
+    });
+    updateBranchPayBar();
   }
   detailEl.querySelectorAll('[data-branchbillfilter]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -4300,27 +4467,8 @@ async function renderDashboard(){
     });
   });
 
-  const agg = aggAll;
-  const topList = Object.entries(agg).map(([code,a])=>({code,...a})).filter(a=>a.unpaidTotal>0).sort((a,b)=>b.maxDelay-a.maxDelay || b.unpaidTotal-a.unpaidTotal).slice(0,12);
-  outEl.className='';
-  outEl.innerHTML = topList.length ? `<div class="scrollx"><table class="plain">
-    <tr><th>สาขา</th><th class="num">ยอดค้าง</th><th class="num">รายการ</th><th class="num">Delay เฉลี่ย</th><th class="num">Delay สูงสุด</th><th>สถานะ</th></tr>
-    ${topList.map(a=>{
-      let status, statusStyle;
-      if(a.maxDelay>=14){ status='เร่งด่วน'; statusStyle='background:var(--danger-soft);color:var(--danger);'; }
-      else if(a.maxDelay>=7){ status='ควรติดตาม'; statusStyle='background:var(--accent-soft);color:var(--accent);'; }
-      else { status='ปกติ'; statusStyle='background:var(--success-soft);color:var(--success);'; }
-      return `<tr data-toplinkcode="${a.code}" style="cursor:pointer;"><td>${branchName(a.code)}</td><td class="num num">${money(a.unpaidTotal)}</td><td class="num num">${a.unpaidCount}</td><td class="num num">${a.avgDelay} วัน</td><td class="num num">${a.maxDelay} วัน</td><td><span class="badge-delay" style="${statusStyle}">${status}</span></td></tr>`;
-    }).join('')}
-  </table></div>` : '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
-  outEl.querySelectorAll('[data-toplinkcode]').forEach(row=>{
-    row.addEventListener('click', async ()=>{
-      const code = row.getAttribute('data-toplinkcode');
-      document.getElementById('dashBranchSelect').value = code;
-      await renderBranchDetail(code);
-      document.getElementById('dashBranchDetail').scrollIntoView({behavior:'smooth', block:'start'});
-    });
-  });
+  lastTopOutstandingAgg = aggAll;
+  renderTopOutstandingTable();
 
   populateDashBranchSelect();
   await renderBranchDetail(document.getElementById('dashBranchSelect').value, aggAll);
@@ -4475,6 +4623,10 @@ function setCardFoldByH3(titleKeyword, collapsed){
 // พับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" อัตโนมัติถ้าวันนี้กรอกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายละเอียด ไม่ต้องเลื่อนผ่านฟอร์ม)
 function updatePurchaseFormAutoFold(){
   setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', (dayData.purchases||[]).length>0);
+}
+// พับการ์ด "รายจ่ายกิจการวันนี้" อัตโนมัติถ้ากรอกไว้แล้วอย่างน้อย 1 รายการ
+function updateExpenseFormAutoFold(){
+  setCardFoldByH3('รายจ่ายกิจการวันนี้', (dayData.expenses||[]).length>0);
 }
 // กางหัวข้อล็อตวัตถุดิบอัตโนมัติถ้ามีบิล/ค่าขนส่งค้างอยู่ (จะได้เห็นเลยไม่ต้องกดกาง) แต่พับฟอร์ม "เพิ่มล็อตใหม่" ไว้เสมอ
 // ถ้าไม่มีข้อมูลอะไรเลยก็พับทั้งหมดไว้เหมือนเดิม
@@ -4633,6 +4785,14 @@ async function init(){
   document.getElementById('lotSectionToggle').addEventListener('click', ()=>{
     const body = document.getElementById('lotSectionBody');
     const chevron = document.getElementById('lotSectionChevron');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    chevron.textContent = open ? '▸' : '▾';
+  });
+  // พับ/กางการ์ด "ล็อตที่มีอยู่" ด้วยปุ่มของตัวเอง (ไม่ใช้ระบบพับอัตโนมัติทั่วไป เพราะการ์ดนี้เนื้อหาเปลี่ยนบ่อยตอนกดเบิก การพับ/กางแบบนี้ยึดที่ #lotListBody ตรงๆ เลยไม่หลุดเวลา renderLotList() รีเฟรชแค่เนื้อหาข้างใน)
+  document.getElementById('lotListToggle').addEventListener('click', ()=>{
+    const body = document.getElementById('lotListBody');
+    const chevron = document.getElementById('lotListChevron');
     const open = body.style.display !== 'none';
     body.style.display = open ? 'none' : '';
     chevron.textContent = open ? '▸' : '▾';

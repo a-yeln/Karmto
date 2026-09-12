@@ -4557,7 +4557,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
           </div>
           <div class="acts2">
             <button class="iconbtn" data-viewdetailbill="${u.iso}" aria-label="ดูบิล">🧾</button>
-            ${u.paid ? `<button class="paytoggle paid" data-quickpay="${u.iso}">โอนแล้ว</button>` : ''}
+            ${u.paid ? `<button class="paytoggle paid" data-quickpay="${u.iso}">โอนแล้ว</button>` : `<span class="paytoggle unpaid" style="cursor:default;" title="ติ๊กช่องด้านซ้ายแล้วกดยืนยันด้านบนเพื่อบันทึกว่าโอนแล้ว">รอโอน</span>`}
           </div>
         </div>
         <div id="bdreceipt-${code}-${u.iso}"></div>

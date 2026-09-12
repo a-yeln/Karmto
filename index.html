@@ -192,6 +192,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .branchbill .left .n{font-size:13.5px;}
 .branchbill .left .amt{font-size:12px;color:var(--text-dim);margin-top:2px;}
 .branchbill .acts2{display:flex;gap:6px;flex:none;}
+.billrow{margin-bottom:4px;}
+.billrow-body{border-top:1px solid var(--border-soft);margin-top:8px;padding-top:8px;}
 .paytoggle{flex:none;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;border:1px solid;font-family:inherit;font-weight:600;}
 .paytoggle.paid{background:var(--success-soft);border-color:var(--success);color:var(--success);}
 .paytoggle.unpaid{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
@@ -502,7 +504,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="purchaseList" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card" data-no-collapse="1">
-      <h3>🧾 สรุปบิลวันนี้ (รอจ่าย/จ่ายแล้ว)</h3>
+      <div id="billSummaryToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <h3 style="margin:0;">🧾 สรุปบิลวันนี้ (รอจ่าย/จ่ายแล้ว)</h3>
+        <span id="billSummaryChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
+      </div>
+      <div id="billSummaryBody">
       <div class="hint">รวมทุกอย่างที่ต้องจ่ายวันนี้ไว้ที่เดียว กดปุ่มสถานะเพื่อเปลี่ยนรอจ่าย/จ่ายแล้วได้เลย — โชว์เฉพาะหมวดที่มีรายการจริง</div>
       <div id="billSummaryEmpty" class="empty" style="margin-top:10px;">ยังไม่มีรายการที่ต้องจ่ายวันนี้</div>
       <div id="billSecSeller" style="margin-top:12px;">
@@ -520,7 +526,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
       <div id="billSecExpense" style="margin-top:14px;">
         <div style="font-weight:700;font-size:13.5px;color:var(--accent);">💸 รายจ่ายกิจการ</div>
-        <div class="rowlist" id="expenseList" style="margin-top:8px;"></div>
+        <div class="rowlist" id="expenseList" style="margin-top:8px;gap:4px;"></div>
+      </div>
       </div>
     </div>
     <div class="card" id="lotSectionToggle" style="border-color:var(--accent);cursor:pointer;" data-lotsectiontoggle="1">
@@ -546,11 +553,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
       </div>
     </div>
-    <div class="card" style="border-color:var(--accent);">
-      <div class="hint" style="color:var(--accent);font-size:12.5px;">💸 รายจ่ายอื่นๆ ของกิจการ (ไม่ใช่การซื้อสินค้า)</div>
-    </div>
     <div class="card">
-      <h3>💸 รายจ่ายกิจการวันนี้ (จ่ายให้ซัพพลายเออร์/อื่นๆ)</h3>
+      <h3>💸 รายจ่ายกิจการวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</span></h3>
       <div class="field">
         <label>หมวด</label>
         <select id="expCategory"></select>
@@ -561,11 +565,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="addExpenseBtn">+ เพิ่มรายจ่าย</button>
       <div class="hint" style="margin-top:8px;">รายการที่บันทึกแล้ว ดูและเปลี่ยนสถานะจ่าย/รอจ่ายได้ที่การ์ด "สรุปบิลวันนี้" ด้านบน</div>
     </div>
-    <div class="card" style="border-color:var(--accent);">
-      <div class="hint" style="color:var(--accent);font-size:12.5px;">📊 รายงาน/สรุปภาพรวม (ไม่ใช่การกรอกข้อมูล)</div>
-    </div>
     <div class="card">
-      <h3>📊 สรุปต้นทุนรายเดือน (แยกตามสินค้า)</h3>
+      <h3>📊 สรุปต้นทุนรายเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">แยกตามสินค้า — รายงาน/สรุปภาพรวม ไม่ใช่การกรอกข้อมูล</span></h3>
       <div class="field"><label>เดือน</label><input type="month" id="purMonthInput"></div>
       <div id="purMonthSummary" class="loading">กำลังโหลด…</div>
     </div>
@@ -574,6 +575,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button class="tab active" data-expfilter="all">ทั้งหมด</button>
         <button class="tab" data-expfilter="unpaid">เฉพาะค้างจ่าย</button>
+        <button class="tab" data-expfilter="paid">จ่ายแล้ว</button>
       </div>
       <div class="field"><label>กรองเฉพาะคู่ค้า (เช็คยอดค้างแต่ละราย)</label><select id="expSellerFilter"><option value="">— ทุกคู่ค้า —</option></select></div>
       <div id="expSellerTotal" class="hint" style="margin-bottom:6px;"></div>
@@ -590,6 +592,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card">
       <h3>⏳ รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
       <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
+      <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
       <div id="outstandingList" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -1436,6 +1439,19 @@ async function renderMonthFee(){
 let payDateEditingCode = null;
 let lastUsedPayDate = todayISO();
 // แสดงส่วนต่างโอนขาด/โอนเกิน + ป้ายว่าจ่ายรวมกับบิลอื่นมั้ย (ใช้ร่วมกันหลายจุดที่โชว์สถานะจ่ายแล้ว)
+// แถวสรุปบิลแบบพับ (พับไว้ก่อนเสมอ โชว์แค่ชื่อ+ยอด+สถานะ) — กดที่ชื่อ/ปุ่ม▾ เพื่อกาง ดูรายละเอียดของรายการนั้นได้
+// ใช้ร่วมกันในทุกหมวดของการ์ด "สรุปบิลวันนี้" (ผู้ขายวันนี้/บิลสินค้าล็อต/ค่าขนส่ง/รายจ่ายกิจการ)
+function wireBillRowToggles(wrap){
+  wrap.querySelectorAll('[data-billrowtoggle]').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const key = el.getAttribute('data-billrowtoggle');
+      const body = document.getElementById('billrowbody-'+key);
+      if(!body) return;
+      body.style.display = body.style.display==='none' ? '' : 'none';
+    });
+  });
+}
 function billPaidDiffHtml(payInfo, billedAmt){
   if(!payInfo || typeof payInfo!=='object') return '';
   const tAmt = payInfo.transferAmount;
@@ -1794,23 +1810,32 @@ function renderExpenseList(){
   if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); updateExpenseFormAutoFold(); return; }
   wrap.innerHTML = list.map(e=>{
     const showDatePicker = expPayEditingId===e.id;
+    const rowKey = 'exp-'+e.id;
     return `
-    <div class="orow" style="flex-direction:column;align-items:stretch;">
+    <div class="orow billrow" style="flex-direction:column;align-items:stretch;padding:8px 10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div><div class="name">${e.category}${e.seller?` — ${e.seller}`:''}${e.note?` (${e.note})`:''}</div><div class="items num">${money(e.amount)}${e.paid && e.paidDate?` <span style="color:var(--text-faint);">• จ่าย ${formatDDMMYYYY(e.paidDate)}</span>`:''}</div></div>
+        <div style="cursor:pointer;" data-billrowtoggle="${rowKey}"><div class="name">${e.category}${e.seller?` — ${e.seller}`:''}</div><div class="items num">${money(e.amount)}${e.paid?' <span style="color:var(--text-faint);font-size:11.5px;">• จ่ายแล้ว</span>':''}</div></div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
-          <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎</button>
-          <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕</button>
+          <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>
         </div>
       </div>
-      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="date" id="expdate-${e.id}" value="${lastUsedPayDate}" style="flex:1;">
-        <button class="btn small" data-expconfirm="${e.id}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-expcancel="${e.id}" style="width:auto;">ยกเลิก</button>
-      </div>` : ''}
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+        ${e.note? `<div class="hint" style="margin-top:6px;">หมายเหตุ: ${e.note}</div>`:''}
+        ${e.paid && e.paidDate? `<div class="hint" style="margin-top:4px;color:var(--text-faint);">จ่ายแล้ว ${formatDDMMYYYY(e.paidDate)}</div>`:''}
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎ แก้ไข</button>
+          <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕ ลบ</button>
+        </div>
+        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="date" id="expdate-${e.id}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-expconfirm="${e.id}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-expcancel="${e.id}" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
+      </div>
     </div>`;
   }).join('');
+  wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-exppay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-exppay');
     const e = dayData.expenses.find(x=>x.id===id);
@@ -2267,11 +2292,13 @@ async function renderAllExpenseList(){
     const isoList = keys.map(k=>k.slice(4));
     const dayMap = await loadDaysBulk(isoList);
     const today = todayISO();
+    // เลือกข้ามรายการตามแท็บที่กรองอยู่: ทั้งหมด / เฉพาะค้างจ่าย(ไม่เอาที่จ่ายแล้ว) / จ่ายแล้ว(ไม่เอาที่ยังค้าง)
+    const skipByFilter = (paid)=> (expenseFilterMode==='unpaid' && paid) || (expenseFilterMode==='paid' && !paid);
     let rows = [];
     for(const iso of isoList){
       const d = dayMap[iso];
       (d.expenses||[]).forEach(e=>{
-        if(expenseFilterMode==='unpaid' && e.paid) return;
+        if(skipByFilter(e.paid)) return;
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||''});
       });
@@ -2292,7 +2319,7 @@ async function renderAllExpenseList(){
         sellerGroups[seller].paid = g.paid; // สถานะจ่ายยึดตามปุ่ม "รวมบิล" เป็นหลัก เพราะกดทีเดียวจ่ายทั้งบิล
       });
       Object.entries(sellerGroups).forEach(([seller,g])=>{
-        if(expenseFilterMode==='unpaid' && g.paid) return;
+        if(skipByFilter(g.paid)) return;
         const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
         rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller});
@@ -2300,13 +2327,13 @@ async function renderAllExpenseList(){
     }
     const transportBills = await loadLotTransportBills();
     transportBills.forEach(b=>{
-      if(expenseFilterMode==='unpaid' && b.paid) return;
+      if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
       rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||''});
     });
     const productBills = await loadLotProductBills();
     productBills.forEach(b=>{
-      if(expenseFilterMode==='unpaid' && b.paid) return;
+      if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
       rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||''});
     });
@@ -2345,12 +2372,22 @@ let outstandingBranchFilterValue = '';
 let outstandingPayEditingKey = null; // "iso|code" ของแถวที่กำลังเลือกวันที่โอนอยู่
 async function renderOutstanding(){
   const container = document.getElementById('outstandingList');
-  container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const branchDetailEl = document.getElementById('outstandingBranchDetail');
   const branchSel = document.getElementById('outstandingBranchFilter');
   if(branchSel && branchSel.options.length<=1){
     branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('');
     branchSel.value = outstandingBranchFilterValue;
   }
+  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา
+  if(outstandingBranchFilterValue){
+    container.style.display = 'none';
+    branchDetailEl.style.display = '';
+    await renderBranchDetail(outstandingBranchFilterValue, null, 'outstandingBranchDetail');
+    return;
+  }
+  branchDetailEl.style.display = 'none';
+  container.style.display = '';
+  container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   try{
     const listRes = await window.storage.list('day:');
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
@@ -2378,7 +2415,7 @@ async function renderOutstanding(){
         <div class="toprow">
           <div class="left"><div class="n">${branchName(r.code)}</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:2px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div></div>
           <div class="acts2">
-            <span class="badge-delay">${r.delay} วัน</span>
+            <span class="badge-delay" style="display:inline-block;text-align:center;min-width:44px;">${r.delay} วัน</span>
             <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
             <button class="paytoggle unpaid" data-outstandingpay="${key}">รอโอน</button>
           </div>
@@ -3175,21 +3212,27 @@ async function renderLotTransportList(){
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotTransportEditingId===b.id;
-    return `<div class="branchbill">
+    const rowKey = 'lottrans-'+b.id;
+    return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left"><div class="n">${b.payee||'ไม่ระบุผู้รับ'}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.payee||'ไม่ระบุผู้รับ'}</div>
           <div class="amt num">${money(b.amount)}</div>
-          <div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}${b.paid && b.paidDate?` • จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}`:''}</div>
+          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}</div>`:''}
         </div>
-        <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lottranspay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕</button></div>
+        <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lottranspay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
-      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
-        <button class="btn small" data-lottransconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-lottranscancel="${b.id}" style="width:auto;">ยกเลิก</button>
-      </div>` : ''}
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+        <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
+        <div style="margin-top:8px;"><button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button></div>
+        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-lottransconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-lottranscancel="${b.id}" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
+      </div>
     </div>`;
   }).join('');
+  wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lottranspay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lottranspay');
     const bills2 = await loadLotTransportBills();
@@ -3243,21 +3286,27 @@ async function renderLotProductBillList(){
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotProductBillEditingId===b.id;
-    return `<div class="branchbill">
+    const rowKey = 'lotprod-'+b.id;
+    return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left"><div class="n">${b.seller||'ไม่ระบุผู้ขาย'}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.seller||'ไม่ระบุผู้ขาย'}</div>
           <div class="amt num">${money(b.amount)}</div>
-          <div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}${b.paid && b.paidDate?` • จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}`:''}</div>
+          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}</div>`:''}
         </div>
-        <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lotprodpay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕</button></div>
+        <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lotprodpay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
-      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="date" id="lotproddate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
-        <button class="btn small" data-lotprodconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-lotprodcancel="${b.id}" style="width:auto;">ยกเลิก</button>
-      </div>` : ''}
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+        <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
+        <div style="margin-top:8px;"><button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button></div>
+        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="date" id="lotproddate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-lotprodconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-lotprodcancel="${b.id}" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
+      </div>
     </div>`;
   }).join('');
+  wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lotprodpay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotprodpay');
     const bills2 = await loadLotProductBills();
@@ -3452,28 +3501,33 @@ function renderPurchaseGroups(){
     const total = subtotal + Number(info.extra||0);
     const showDatePicker = purchGroupEditingSeller===seller;
     const itemsText = items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return `${p.emoji}${p.name} ${e.qty}${purchaseBuyUnit(e.productId)}×${e.price}`; }).join(' • ');
-    return `<div class="branchbill">
+    const rowKey = 'pg-'+seller.replace(/[^a-zA-Z0-9ก-๙]/g,'');
+    return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left"><div class="n">${seller}</div><div class="amt num">${money(total)}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${seller}</div><div class="amt num">${money(total)}</div>
           ${info.paid && info.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(info.paidDate)}</div>`:''}
         </div>
         <div class="acts2">
           <button class="paytoggle ${info.paid?'paid':'unpaid'}" data-grouppay="${seller}">${info.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
+          <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>
         </div>
       </div>
-      <div class="hint" style="margin-top:6px;">${itemsText}</div>
-      <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-        <label style="flex:none;font-size:12px;color:var(--text-dim);">ค่าใช้จ่ายเพิ่มเติม(+/-)</label>
-        <input type="number" step="1" data-groupextra="${seller}" value="${info.extra||''}" placeholder="0 = ยอดตรงกับรายการด้านบน">
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+        <div class="hint" style="margin-top:6px;">${itemsText}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+          <label style="flex:none;font-size:12px;color:var(--text-dim);">ค่าใช้จ่ายเพิ่มเติม(+/-)</label>
+          <input type="number" step="1" data-groupextra="${seller}" value="${info.extra||''}" placeholder="0 = ยอดตรงกับรายการด้านบน">
+        </div>
+        <input type="text" data-groupnote="${seller}" value="${info.note||''}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
+        ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="date" id="groupdate-${seller}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-groupconfirm="${seller}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-groupcancel="${seller}" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
       </div>
-      <input type="text" data-groupnote="${seller}" value="${info.note||''}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
-      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="date" id="groupdate-${seller}" value="${lastUsedPayDate}" style="flex:1;">
-        <button class="btn small" data-groupconfirm="${seller}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-groupcancel="${seller}" style="width:auto;">ยกเลิก</button>
-      </div>` : ''}
     </div>`;
   }).join('');
+  wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-groupextra]').forEach(inp=>inp.addEventListener('change', async ()=>{
     const seller = inp.getAttribute('data-groupextra');
     dayData.purchaseGroupPayment[seller] = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
@@ -4133,8 +4187,8 @@ function renderBranchAnalysisHtml(sortedBills){
       ${anomalyList.length ? `<div class="hint" style="margin-top:8px;color:var(--danger);">⚠️ ผิดปกติจากค่าเฉลี่ยของสาขานี้เอง: ${anomalyList.map(x=>`${x.p.emoji}${x.p.name} (${x.anomalyPct>0?'สั่งเพิ่มขึ้น':'สั่งลดลง'} ${Math.abs(x.anomalyPct)}%)`).join(', ')} — ลองเช็คว่าสั่งผิดพลาดหรือสาขามีเหตุการณ์พิเศษมั้ย</div>` : ''}
     </div>`;
 }
-async function renderBranchDetail(code, precomputedAgg){
-  const detailEl = document.getElementById('dashBranchDetail');
+async function renderBranchDetail(code, precomputedAgg, containerId){
+  const detailEl = document.getElementById(containerId || 'dashBranchDetail');
   if(!code){ detailEl.className='empty'; detailEl.innerHTML = 'เลือกสาขาเพื่อดูรายละเอียด'; return; }
   detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…';
   const agg = precomputedAgg || await computeBranchAggregates();
@@ -4170,30 +4224,30 @@ async function renderBranchDetail(code, precomputedAgg){
     ${renderBranchAnalysisHtml(sortedBills)}
   `;
   if(monthKeys.length>1){
-    const branchTrendValueEl = document.getElementById('branchTrendValue');
-    document.querySelectorAll('#branchTrendChart [data-bmonthidx]').forEach(el=>{
+    const branchTrendValueEl = detailEl.querySelector('#branchTrendValue');
+    detailEl.querySelectorAll('#branchTrendChart [data-bmonthidx]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const mv = monthKeys[Number(el.getAttribute('data-bmonthidx'))];
         branchTrendValueEl.innerHTML = `<b style="color:var(--accent);">${mv}: ${money(byMonth[mv])}</b>`;
-        document.querySelectorAll('#branchTrendChart .tbar').forEach(bar=>bar.style.opacity='0.45');
+        detailEl.querySelectorAll('#branchTrendChart .tbar').forEach(bar=>bar.style.opacity='0.45');
         el.querySelector('.tbar').style.opacity='1';
       });
     });
   }
   const branchPaySelection = new Set(); // เลือกได้หลายบิล(ข้ามวัน)ของสาขานี้ เพื่อบันทึกว่าโอนรวมกันทีเดียว — รีเซ็ตทุกครั้งที่เปิด/รีเฟรชหน้านี้
   function updateBranchPayBar(){
-    const bar = document.getElementById('branchPayBar');
+    const bar = detailEl.querySelector('#branchPayBar');
     if(!bar) return;
     const n = branchPaySelection.size;
     bar.style.display = n>0 ? '' : 'none';
     if(n===0) return;
     const sum = Array.from(branchPaySelection).reduce((s,iso)=>{ const b = sortedBills.find(x=>x.iso===iso); return s + (b?b.amt:0); },0);
-    document.getElementById('branchPaySelCount').textContent = n;
-    document.getElementById('branchPaySelSum').textContent = money(sum);
-    document.getElementById('branchPayAmount').value = sum;
+    detailEl.querySelector('#branchPaySelCount').textContent = n;
+    detailEl.querySelector('#branchPaySelSum').textContent = money(sum);
+    detailEl.querySelector('#branchPayAmount').value = sum;
   }
   function renderBranchBillList(filter){
-    const wrap = document.getElementById('branchBillListInner');
+    const wrap = detailEl.querySelector('#branchBillListInner');
     branchPaySelection.clear();
     const rows = filter==='unpaid' ? sortedBills.filter(b=>!b.paid) : filter==='paid' ? sortedBills.filter(b=>b.paid) : sortedBills;
     if(rows.length===0){ wrap.innerHTML = filter==='unpaid' ? '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>' : (filter==='paid' ? '<div class="empty">ยังไม่มีบิลที่โอนแล้ว</div>' : '<div class="empty">ยังไม่มีบิล</div>'); return; }
@@ -4241,16 +4295,16 @@ async function renderBranchDetail(code, precomputedAgg){
         updateBranchPayBar();
       });
     });
-    const confirmBtn = document.getElementById('branchPayConfirmBtn');
+    const confirmBtn = detailEl.querySelector('#branchPayConfirmBtn');
     if(confirmBtn) confirmBtn.addEventListener('click', async ()=>{
       const isos = Array.from(branchPaySelection);
       if(isos.length===0) return;
-      const paidDate = document.getElementById('branchPayDate').value || todayISO();
+      const paidDate = detailEl.querySelector('#branchPayDate').value || todayISO();
       lastUsedPayDate = paidDate;
       const billedSum = isos.reduce((s,iso)=>{ const b = sortedBills.find(x=>x.iso===iso); return s + (b?b.amt:0); },0);
-      const amtInput = document.getElementById('branchPayAmount');
+      const amtInput = detailEl.querySelector('#branchPayAmount');
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedSum;
-      const note = document.getElementById('branchPayNote').value || '';
+      const note = detailEl.querySelector('#branchPayNote').value || '';
       const batchId = isos.length>1 ? ('batch'+Date.now()) : null;
       for(const iso of isos){
         const d = await loadDay(iso);
@@ -4260,8 +4314,10 @@ async function renderBranchDetail(code, precomputedAgg){
       }
       showToast(isos.length>1 ? `บันทึกชำระรวม ${isos.length} บิลแล้ว` : 'บันทึกว่าโอนแล้ว');
       renderStats();
+      // รีเฟรชทุกที่ๆ อาจกำลังแสดงรายละเอียดสาขานี้อยู่ (แดชบอร์ด และ/หรือ หน้าบิลโอนเงิน)
       const dashSelectEl = document.getElementById('dashBranchSelect');
-      if(dashSelectEl) await renderBranchDetail(dashSelectEl.value);
+      if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
+      if(outstandingBranchFilterValue===code) await renderOutstanding();
     });
     updateBranchPayBar();
   }
@@ -4370,7 +4426,8 @@ async function toggleBranchBillPaidQuick(iso, code){
   await saveDay(iso, d);
   showToast(d.billingPaid[code] ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
   const dashSelectEl = document.getElementById('dashBranchSelect');
-  if(dashSelectEl) await renderBranchDetail(dashSelectEl.value);
+  if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
+  if(outstandingBranchFilterValue===code) await renderOutstanding();
 }
 async function jumpToLongestOverdue(){
   const agg = await computeBranchAggregates();
@@ -4447,7 +4504,7 @@ async function renderDashboard(){
   const day14Map = await loadDaysBulk(days14);
 
   const totalUnpaidCount = Object.values(aggAll).reduce((s,a)=>s+a.unpaidCount,0);
-  document.getElementById('dashUnpaid').textContent = `${totalUnpaidCount} บิล (ทุกวัน)`;
+  document.getElementById('dashUnpaid').innerHTML = `${totalUnpaidCount} บิล <span style="font-size:10.5px;font-weight:400;color:var(--text-faint);">(ทุกวัน)</span>`;
   document.getElementById('dashPayableToday').textContent = money(payables.total);
 
   const trendData = days14.map(iso=>({iso, fee: computeFee(computeFeeTotals(day14Map[iso].orders)).total}));
@@ -4672,7 +4729,7 @@ function guardedClick(btnId, fn){
 }
 function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
-  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล', 'เพิ่มล็อตใหม่', 'บันทึกด่วน', 'ประวัติราคาขายสินค้า']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
+  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล', 'เพิ่มล็อตใหม่', 'บันทึกด่วน', 'ประวัติราคาขายสินค้า', 'จัดอันดับสาขา']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
   document.querySelectorAll('.panel .card').forEach(card=>{
     if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');
@@ -4793,6 +4850,14 @@ async function init(){
   document.getElementById('lotListToggle').addEventListener('click', ()=>{
     const body = document.getElementById('lotListBody');
     const chevron = document.getElementById('lotListChevron');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    chevron.textContent = open ? '▸' : '▾';
+  });
+  // พับ/กางการ์ด "สรุปบิลวันนี้" ด้วยปุ่มของตัวเอง (เหตุผลเดียวกับล็อตที่มีอยู่ — เนื้อหาข้างในรีเฟรชบ่อย)
+  document.getElementById('billSummaryToggle').addEventListener('click', ()=>{
+    const body = document.getElementById('billSummaryBody');
+    const chevron = document.getElementById('billSummaryChevron');
     const open = body.style.display !== 'none';
     body.style.display = open ? 'none' : '';
     chevron.textContent = open ? '▸' : '▾';

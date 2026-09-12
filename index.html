@@ -2399,8 +2399,10 @@ async function computeAllExpensePayables(){
   return {total, count};
 }
 let outstandingBranchFilterValue = '';
-let outstandingPayEditingKey = null; // "iso|code" ของแถวที่กำลังเลือกวันที่โอนอยู่
+// กันเรนเดอร์ซ้อนกัน (เช่น กดสลับสาขาถี่ๆ หรือกดปุ่มสถานะรัวๆ) ไม่ให้ผลลัพธ์เก่าที่เพิ่งโหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
+let outstandingRenderSeq_ = 0;
 async function renderOutstanding(){
+  const mySeq = ++outstandingRenderSeq_;
   const container = document.getElementById('outstandingList');
   const branchDetailEl = document.getElementById('outstandingBranchDetail');
   const branchSel = document.getElementById('outstandingBranchFilter');
@@ -2420,9 +2422,11 @@ async function renderOutstanding(){
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   try{
     const listRes = await window.storage.list('day:');
+    if(mySeq !== outstandingRenderSeq_) return; // มีการเรียกเรนเดอร์รอบใหม่มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
     const isoList = keys.map(k=>k.slice(4));
     const dayMap = await loadDaysBulk(isoList);
+    if(mySeq !== outstandingRenderSeq_) return;
     const today = todayISO();
     let rows = [];
     for(const iso of isoList){
@@ -2438,10 +2442,11 @@ async function renderOutstanding(){
     }
     rows.sort((a,b)=>b.delay-a.delay);
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>'; return; }
+    // ช่องกรอกวันที่/ยอดโอนจริง ทำเป็นซ่อนไว้ในทุกแถวตั้งแต่แรก (ไม่ใช่สร้างใหม่ตอนกด) แล้วกดโชว์/ซ่อนด้วย JS ตรงๆ
+    // แทนที่จะเรนเดอร์ใหม่ทั้งลิสต์ทุกครั้งที่กด — กันจอกระตุก/เด้งไปเด้งมาเวลากดสถานะถี่ๆ
     container.innerHTML = rows.map(r=>{
       const key = `${r.iso}|${r.code}`;
-      const showDatePicker = outstandingPayEditingKey===key;
-      return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;">
+      return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
         <div class="toprow">
           <div class="left"><div class="n">${branchName(r.code)}</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:2px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div></div>
           <div class="acts2">
@@ -2450,7 +2455,7 @@ async function renderOutstanding(){
             <button class="paytoggle unpaid" data-outstandingpay="${key}">รอโอน</button>
           </div>
         </div>
-        ${showDatePicker ? `<div style="margin-top:8px;">
+        <div style="margin-top:8px;display:none;" data-outstandingeditor="${key}">
           <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
           <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
             <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
@@ -2458,42 +2463,54 @@ async function renderOutstanding(){
           </div>
           <div style="display:flex;gap:6px;margin-top:6px;">
             <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
-            <button class="btn small secondary" data-outstandingcancel="1" style="width:auto;">ยกเลิก</button>
+            <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
           </div>
-        </div>` : ''}
+        </div>
         <div id="bdreceipt-${r.code}-${r.iso}"></div>
       </div>`;
     }).join('');
+    const findEditor = (key)=> container.querySelector(`[data-outstandingeditor="${CSS.escape(key)}"]`);
     container.querySelectorAll('[data-outstandingbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const [iso, code] = btn.getAttribute('data-outstandingbill').split('|');
       await toggleBranchDetailReceipt(iso, code); // เปิดดู/ทำรายการบิลฝังอยู่ตรงนี้เลย ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป
     }));
     container.querySelectorAll('[data-outstandingpay]').forEach(btn=>btn.addEventListener('click', ()=>{
-      outstandingPayEditingKey = btn.getAttribute('data-outstandingpay');
-      renderOutstanding();
+      // แค่โชว์/ซ่อนช่องกรอกของแถวนี้เฉยๆ ไม่ต้องโหลดข้อมูลใหม่ ทำทันทีไม่มีหน่วง
+      const editor = findEditor(btn.getAttribute('data-outstandingpay'));
+      if(editor) editor.style.display = editor.style.display==='none' ? '' : 'none';
     }));
     container.querySelectorAll('[data-outstandingcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
-      outstandingPayEditingKey = null;
-      renderOutstanding();
+      const editor = findEditor(btn.getAttribute('data-outstandingcancel'));
+      if(editor) editor.style.display = 'none';
     }));
     container.querySelectorAll('[data-outstandingconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const [iso, code] = btn.getAttribute('data-outstandingconfirm').split('|');
+      const key = btn.getAttribute('data-outstandingconfirm');
+      const [iso, code] = key.split('|');
+      // ตอบสนองทันทีก่อนรอบันทึกเสร็จ กันรู้สึกว่ากดแล้วไม่ขยับ/ต้องกดซ้ำ
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
       const dateInput = document.getElementById(`outpaydate-${iso}-${code}`);
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
-      const d = await loadDay(iso);
-      const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
-      const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
-      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
-      d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
-      await saveDay(iso, d);
-      if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
-      outstandingPayEditingKey = null;
-      showToast('บันทึกว่าโอนแล้ว');
-      await renderOutstanding();
-      renderStats();
+      try{
+        const d = await loadDay(iso);
+        const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
+        const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
+        const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
+        d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
+        await saveDay(iso, d);
+        if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
+        showToast('บันทึกว่าโอนแล้ว');
+        // บันทึกสำเร็จแล้ว แค่เอาแถวนี้ออกจากลิสต์ค้างโอนไปเลย ไม่ต้องโหลด/คำนวณทั้งลิสต์ใหม่ทั้งหมด
+        const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
+        if(rowEl) rowEl.remove();
+        if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
+        renderStats();
+      }catch(e){
+        showToast('บันทึกไม่สำเร็จ เช็คอินเทอร์เน็ตแล้วลองใหม่');
+        btn.disabled = false; btn.textContent = 'ยืนยัน';
+      }
     }));
-  }catch(e){ container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
+  }catch(e){ if(mySeq === outstandingRenderSeq_) container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
 
 // ---- Settings tab ----
@@ -3469,11 +3486,21 @@ function renderPurchaseList(){
   const list = dayData.purchases || [];
   if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายการต้นทุนซื้อวันนี้</div>'; updatePurchaseFormAutoFold(); return; }
   const totalCost = list.reduce((s,e)=>s+purchaseCostTotal(e),0);
+  const totalProfit = list.reduce((s,e)=>{
+    const sellPrice = priceOnDate(e.productId, currentDate);
+    const sq = purchaseSellableQty(e);
+    return s + (sellPrice - purchaseCostPerUnit(e)) * sq;
+  }, 0);
   wrap.innerHTML = `<div class="scrollx"><table class="plain">
-    <tr><th>สินค้า</th><th>ผู้ขาย</th><th class="num">ซื้อ</th><th class="num">ราคา/หน่วย</th><th class="num">ค่าสินค้า</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th>สถานะ</th><th></th></tr>
+    <tr><th>สินค้า</th><th>ผู้ขาย</th><th class="num">ซื้อ</th><th class="num">ราคา/หน่วย</th><th class="num">ค่าสินค้า</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th class="num">ราคาขาย/หน่วย</th><th class="num">กำไร/หน่วย</th><th class="num">กำไรรวม</th><th>สถานะ</th><th></th></tr>
     ${list.map(e=>{
       const p = PRODUCTS.find(x=>x.id===e.productId);
       const ct = purchaseCostTotal(e); const sq = purchaseSellableQty(e); const cpu = purchaseCostPerUnit(e);
+      // กำไร = ราคาขาย/หน่วย (ตามประวัติราคาขายของวันนี้) หัก ต้นทุน/หน่วยขาย — คูณด้วยจำนวนที่ "ทำได้" (ยังไม่หักของเหลือค้าง/ของเสีย)
+      const sellPrice = priceOnDate(e.productId, currentDate);
+      const profitPerUnit = sellPrice - cpu;
+      const profitTotal = profitPerUnit * sq;
+      const profitColor = profitTotal>=0 ? 'var(--success)' : 'var(--danger)';
       return `<tr>
         <td>${p.emoji} ${p.name}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
         <td class="num num">${e.qty} ${purchaseBuyUnit(e.productId)}</td>
@@ -3482,6 +3509,9 @@ function renderPurchaseList(){
         <td class="num num">${sq} ${purchaseSellUnit(e.productId)}</td>
         <td class="num num">${moneyP(e.productId, ct)}</td>
         <td class="num num" style="color:var(--accent);">${moneyP(e.productId, cpu)}</td>
+        <td class="num num">${moneyP(e.productId, sellPrice)}</td>
+        <td class="num num" style="color:${profitColor};">${moneyP(e.productId, profitPerUnit)}</td>
+        <td class="num num" style="color:${profitColor};font-weight:600;">${moneyP(e.productId, profitTotal)}</td>
         <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
         <td><div style="display:flex;gap:4px;">${e.fromLot?'':`<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
@@ -3489,9 +3519,14 @@ function renderPurchaseList(){
   </table></div>
   <div class="hint" style="margin-top:8px;">${purchaseNoteHint(list)}</div>
   <div class="hint" style="margin-top:4px;">สถานะจ่าย/รอจ่ายจัดการรวมเป็นบิลได้ที่การ์ด "สรุปบิลตามผู้ขายวันนี้" ด้านบน — รายการที่มี 📦 คือเบิกจากล็อตวัตถุดิบ จ่ายเงินไปตอนซื้อล็อตแล้ว แก้ไข/ลบได้ที่การ์ด "ล็อตที่มีอยู่" ด้านบนแทน</div>
+  <div class="hint" style="margin-top:4px;">กำไรคำนวณจาก (ราคาขาย/หน่วย ณ วันนี้ − ต้นทุน/หน่วยขาย) × จำนวนที่ "ทำได้" — เป็นกำไรตามจำนวนที่ผลิตได้จริง ยังไม่ได้หักของเหลือค้าง/ของเสียที่ขายไม่หมด</div>
   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
     <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมวันนี้</span>
     <span class="feebig" style="font-size:20px;">${money(totalCost)}</span>
+  </div>
+  <div style="margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;align-items:baseline;">
+    <span style="color:var(--text-dim);font-size:13px;">กำไรรวมโดยประมาณวันนี้ (จากรายการซื้อข้างต้น)</span>
+    <span class="feebig" style="font-size:20px;color:${totalProfit>=0?'var(--success)':'var(--danger)'};">${money(totalProfit)}</span>
   </div>`;
   wrap.querySelectorAll('[data-purchedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditPurchase(btn.getAttribute('data-purchedit'))));
   wrap.querySelectorAll('[data-purchdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -3615,36 +3650,47 @@ async function computePurchaseMonth(monthVal){
   const dayMap = await loadDaysBulk(isoList);
   const byProduct = {};
   let grandTotal = 0;
+  let grandProfit = 0;
   for(const iso of isoList){
     const d = dayMap[iso];
     (d.purchases||[]).forEach(e=>{
       const ct = purchaseCostTotal(e);
+      const sq = purchaseSellableQty(e);
+      // กำไรคิดตามราคาขาย ณ วันที่ซื้อ/ทำนั้นๆ (ราคาขายอาจเปลี่ยนระหว่างเดือน) หักต้นทุนของรายการนั้น
+      const profit = (priceOnDate(e.productId, iso) - purchaseCostPerUnit(e)) * sq;
       grandTotal += ct;
-      if(!byProduct[e.productId]) byProduct[e.productId] = {qty:0, sellQty:0, cost:0};
+      grandProfit += profit;
+      if(!byProduct[e.productId]) byProduct[e.productId] = {qty:0, sellQty:0, cost:0, profit:0};
       byProduct[e.productId].qty += Number(e.qty||0);
-      byProduct[e.productId].sellQty += purchaseSellableQty(e);
+      byProduct[e.productId].sellQty += sq;
       byProduct[e.productId].cost += ct;
+      byProduct[e.productId].profit += profit;
     });
   }
-  return {byProduct, grandTotal};
+  return {byProduct, grandTotal, grandProfit};
 }
 async function renderPurchMonthSummary(){
   const monthVal = document.getElementById('purMonthInput').value;
   const el = document.getElementById('purMonthSummary');
   el.className='loading'; el.innerHTML = 'กำลังคำนวณ…';
   try{
-    const {byProduct, grandTotal} = await computePurchaseMonth(monthVal);
+    const {byProduct, grandTotal, grandProfit} = await computePurchaseMonth(monthVal);
     // เรียงตามลำดับสินค้าที่ตั้งไว้ (PRODUCTS) ไม่ใช่ตามลำดับที่บันทึกซื้อก่อนหลัง
     const rows = PRODUCTS.filter(p=>byProduct[p.id]).map(p=>[p.id, byProduct[p.id]]);
     if(rows.length===0){ el.className='empty'; el.innerHTML = 'ยังไม่มีข้อมูลเดือนนี้'; return; }
     el.className='';
     el.innerHTML = `<table class="plain">
-      <tr><th>สินค้า</th><th class="num">ซื้อ</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th></tr>
-      ${rows.map(([pid,v])=>{ const p = PRODUCTS.find(x=>x.id===pid); const cpu = v.sellQty>0 ? v.cost/v.sellQty : 0; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${v.qty.toLocaleString('th-TH')} ${purchaseBuyUnit(pid)}</td><td class="num num">${v.sellQty.toLocaleString('th-TH')} ${purchaseSellUnit(pid)}</td><td class="num num">${money(v.cost)}</td><td class="num num" style="color:var(--accent);">${money(cpu)}</td></tr>`; }).join('')}
+      <tr><th>สินค้า</th><th class="num">ซื้อ</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th class="num">กำไรรวม</th></tr>
+      ${rows.map(([pid,v])=>{ const p = PRODUCTS.find(x=>x.id===pid); const cpu = v.sellQty>0 ? v.cost/v.sellQty : 0; const profitColor = v.profit>=0 ? 'var(--success)' : 'var(--danger)'; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${v.qty.toLocaleString('th-TH')} ${purchaseBuyUnit(pid)}</td><td class="num num">${v.sellQty.toLocaleString('th-TH')} ${purchaseSellUnit(pid)}</td><td class="num num">${money(v.cost)}</td><td class="num num" style="color:var(--accent);">${money(cpu)}</td><td class="num num" style="color:${profitColor};font-weight:600;">${money(v.profit)}</td></tr>`; }).join('')}
       </table>
+      <div class="hint" style="margin-top:8px;">กำไรคิดจาก (ราคาขาย ณ วันที่ซื้อ/ทำ − ต้นทุน/หน่วยขาย) × จำนวนที่ "ทำได้" ของแต่ละรายการซื้อ ยังไม่ได้หักของเหลือค้าง/ของเสียที่ขายไม่หมด</div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
         <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมทั้งเดือน</span>
         <span class="feebig" style="font-size:20px;">${money(grandTotal)}</span>
+      </div>
+      <div style="margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="color:var(--text-dim);font-size:13px;">กำไรรวมโดยประมาณทั้งเดือน</span>
+        <span class="feebig" style="font-size:20px;color:${grandProfit>=0?'var(--success)':'var(--danger)'};">${money(grandProfit)}</span>
       </div>`;
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
 }
@@ -4217,11 +4263,16 @@ function renderBranchAnalysisHtml(sortedBills){
       ${anomalyList.length ? `<div class="hint" style="margin-top:8px;color:var(--danger);">⚠️ ผิดปกติจากค่าเฉลี่ยของสาขานี้เอง: ${anomalyList.map(x=>`${x.p.emoji}${x.p.name} (${x.anomalyPct>0?'สั่งเพิ่มขึ้น':'สั่งลดลง'} ${Math.abs(x.anomalyPct)}%)`).join(', ')} — ลองเช็คว่าสั่งผิดพลาดหรือสาขามีเหตุการณ์พิเศษมั้ย</div>` : ''}
     </div>`;
 }
+// กันเรนเดอร์ซ้อนกันต่อ container เดียวกัน (เช่น สลับสาขาถี่ๆ หรือมีการกดบันทึกที่ trigger ให้เรียกซ้ำ) ไม่ให้ผลลัพธ์เก่าที่โหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
+const branchDetailRenderSeq_ = {};
 async function renderBranchDetail(code, precomputedAgg, containerId){
-  const detailEl = document.getElementById(containerId || 'dashBranchDetail');
+  const cId = containerId || 'dashBranchDetail';
+  const mySeq = (branchDetailRenderSeq_[cId] = (branchDetailRenderSeq_[cId]||0) + 1);
+  const detailEl = document.getElementById(cId);
   if(!code){ detailEl.className='empty'; detailEl.innerHTML = 'เลือกสาขาเพื่อดูรายละเอียด'; return; }
   detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…';
   const agg = precomputedAgg || await computeBranchAggregates();
+  if(mySeq !== branchDetailRenderSeq_[cId]) return; // มีการเรียกเรนเดอร์รอบใหม่ของ container นี้มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
   const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
   const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=>y.iso.localeCompare(x.iso));
   // สรุปยอดขายรายเดือนของสาขานี้ (ไม่ต้องดึงข้อมูลเพิ่ม ใช้ข้อมูลที่โหลดมาแล้วจาก allBillsList)

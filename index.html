@@ -191,7 +191,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .branchbill .toprow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .branchbill .left .n{font-size:13.5px;}
 .branchbill .left .amt{font-size:12px;color:var(--text-dim);margin-top:2px;}
-.branchbill .acts2{display:flex;gap:6px;flex:none;}
+.branchbill .acts2{display:flex;gap:6px;flex:none;align-items:center;}
 .billrow{margin-bottom:4px;}
 .billrow-body{border-top:1px solid var(--border-soft);margin-top:8px;padding-top:8px;}
 .paytoggle{flex:none;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;border:1px solid;font-family:inherit;font-weight:600;}
@@ -592,6 +592,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card">
       <h3>⏳ รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
       <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
+      <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
       <div id="outstandingList" class="loading">กำลังโหลด…</div>
     </div>
@@ -2405,6 +2406,7 @@ async function computeAllExpensePayables(){
   return {total, count};
 }
 let outstandingBranchFilterValue = '';
+let outstandingSortDir = 'desc'; // 'desc' = ดีเลย์มาก→น้อย (ค่าเริ่มต้น), 'asc' = ดีเลย์น้อย→มาก
 // กันเรนเดอร์ซ้อนกัน (เช่น กดสลับสาขาถี่ๆ หรือกดปุ่มสถานะรัวๆ) ไม่ให้ผลลัพธ์เก่าที่เพิ่งโหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
 let outstandingRenderSeq_ = 0;
 async function renderOutstanding(){
@@ -2412,19 +2414,22 @@ async function renderOutstanding(){
   const container = document.getElementById('outstandingList');
   const branchDetailEl = document.getElementById('outstandingBranchDetail');
   const branchSel = document.getElementById('outstandingBranchFilter');
+  const sortBtn = document.getElementById('outstandingSortToggle');
   if(branchSel && branchSel.options.length<=1){
     branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('');
     branchSel.value = outstandingBranchFilterValue;
   }
-  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา
+  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา — ปุ่มเรียงดีเลย์ใช้ไม่ได้ในมุมมองนี้เลยซ่อนไว้
   if(outstandingBranchFilterValue){
     container.style.display = 'none';
     branchDetailEl.style.display = '';
+    if(sortBtn) sortBtn.style.display = 'none';
     await renderBranchDetail(outstandingBranchFilterValue, null, 'outstandingBranchDetail');
     return;
   }
   branchDetailEl.style.display = 'none';
   container.style.display = '';
+  if(sortBtn) sortBtn.style.display = '';
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   try{
     const listRes = await window.storage.list('day:');
@@ -2446,7 +2451,7 @@ async function renderOutstanding(){
         }
       });
     }
-    rows.sort((a,b)=>b.delay-a.delay);
+    rows.sort((a,b)=> outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay);
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>'; return; }
     // ช่องกรอกวันที่/ยอดโอนจริง ทำเป็นซ่อนไว้ในทุกแถวตั้งแต่แรก (ไม่ใช่สร้างใหม่ตอนกด) แล้วกดโชว์/ซ่อนด้วย JS ตรงๆ
     // แทนที่จะเรนเดอร์ใหม่ทั้งลิสต์ทุกครั้งที่กด — กันจอกระตุก/เด้งไปเด้งมาเวลากดสถานะถี่ๆ
@@ -2456,7 +2461,7 @@ async function renderOutstanding(){
         <div class="toprow">
           <div class="left"><div class="n">${branchName(r.code)}</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:2px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div></div>
           <div class="acts2">
-            <span class="badge-delay" style="display:inline-block;text-align:center;min-width:44px;">${r.delay} วัน</span>
+            <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:44px;">${r.delay} วัน</span>
             <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
             <button class="paytoggle unpaid" data-outstandingpay="${key}">รอโอน</button>
           </div>
@@ -4927,6 +4932,11 @@ async function init(){
   });
   document.getElementById('outstandingBranchFilter').addEventListener('change', async (e)=>{
     outstandingBranchFilterValue = e.target.value;
+    await renderOutstanding();
+  });
+  document.getElementById('outstandingSortToggle').addEventListener('click', async (e)=>{
+    outstandingSortDir = outstandingSortDir==='desc' ? 'asc' : 'desc';
+    e.target.textContent = outstandingSortDir==='desc' ? '⇅ ดีเลย์มาก→น้อย' : '⇅ ดีเลย์น้อย→มาก';
     await renderOutstanding();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);

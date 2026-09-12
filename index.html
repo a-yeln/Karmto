@@ -329,13 +329,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="dash-grid">
         <div class="dash-metric info" data-goto="billing" style="cursor:pointer;"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranches">0</div></div>
         <div class="dash-metric success"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenue">฿0</div></div>
-        <div class="dash-metric danger" data-goto="purchase" style="cursor:pointer;"><div class="dm-label">🛒 ต้นทุนวันนี้ ›</div><div class="dm-value num" id="dashCogsToday">฿0</div></div>
+        <div class="dash-metric danger" data-goto="purchase" style="cursor:pointer;"><div class="dm-label">🛒 ต้นทุนรวมวันนี้ ›</div><div class="dm-value num" id="dashCogsToday">฿0</div></div>
         <div class="dash-metric" id="dashProfitCard"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitToday">฿0</div></div>
         <div class="dash-metric accent" data-goto="fee" style="cursor:pointer;"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFee">฿0</div></div>
         <div class="dash-metric danger" data-action="jumpLongestOverdue" style="cursor:pointer;"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaid">0 บิล</div></div>
         <div class="dash-metric danger" data-goto="billing" style="cursor:pointer;"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableToday">฿0</div></div>
       </div>
-      <div class="hint">ต้นทุน/กำไรวันนี้ นับเฉพาะรายการที่บันทึกไว้ในแท็บต้นทุนซื้อของวันนี้ ถ้ายังกรอกไม่ครบตัวเลขจะดูดีเกินจริง</div>
+      <div id="dashCostBreakdown" class="hint" style="margin-top:8px;"></div>
+      <div class="hint" style="margin-top:4px;">ต้นทุน/กำไรวันนี้ นับเฉพาะรายการที่บันทึกไว้ในแท็บต้นทุนซื้อของวันนี้ ถ้ายังกรอกไม่ครบตัวเลขจะดูดีเกินจริง — "ต้นทุนรวมวันนี้" รวมทั้งต้นทุนซื้อสินค้าและรายจ่ายกิจการอื่นๆ เข้าด้วยกัน</div>
     </div>
     <div class="card">
       <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
@@ -869,7 +870,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, billingPaid:{}, billExtra:{}, billNote:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, billingPaid:{}, billExtra:{}, billNote:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -995,6 +996,7 @@ function normalizeDay_(d){
   d.personalIncome = d.personalIncome || []; d.personalExpense = d.personalExpense || [];
   d.purchases = d.purchases || [];
   d.purchaseGroupPayment = d.purchaseGroupPayment || {};
+  d.messageOverrides = d.messageOverrides || {}; // ข้อความหน้า "ข้อความส่ง" ที่แก้ไข/เพิ่มเติมเองรายวัน (ถ้ามี จะโชว์แทนข้อความที่ระบบสร้างอัตโนมัติ)
   return d;
 }
 // In-memory cache so revisiting a tab/date already seen this session is instant —
@@ -1131,9 +1133,15 @@ function renderOrderList(){
   }));
   list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     const code = b.getAttribute('data-del');
+    const prevRow = dayData.orders[code];
     delete dayData.orders[code];
-    await saveDay(currentDate, dayData);
-    refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
+    try{
+      await saveDay(currentDate, dayData);
+      refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
+    }catch(e){
+      dayData.orders[code] = prevRow;
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
 }
 async function saveRow(){
@@ -1324,18 +1332,36 @@ async function renderMessages(){
   const phatLines = [`🚩พี่พัฒน์`, '', `• เชอรี่ ${totals.p6}`, `• เหลือออก ${leftoverOutList || '-'}`];
   const debtRows = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0])).map(([code,row])=>`${branchShortLabel(code)} : ${Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0))}`);
   const debtLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...debtRows];
+  const overrides = dayData.messageOverrides || {};
+  // ถ้าเคยกดแก้ไข/เพิ่มเติมข้อความส่วนไหนไว้ของวันนี้แล้ว ให้โชว์ข้อความที่แก้ไว้แทนข้อความที่ระบบสร้างอัตโนมัติ
+  // (เผื่อกรณีสั่งเองไม่ต้องสั่งมนต์/พี่พัฒน์ หรืออยากเพิ่มข้อความอื่นเข้าไปในข้อความที่จะส่ง)
   const blocks = [
-    {tag:'all', label:'สรุปยอดรวมทั้งหมด', text:summaryLines.join('\n')},
-    {tag:'mahkard', label:'ข้อความสั่งม๊ะก๊าด', text:mahkardLines.join('\n')},
-    {tag:'monk', label:'ข้อความสั่งมนต์', text:monkLines.join('\n')},
-    {tag:'phat', label:'ข้อความถึงพี่พัฒน์', text:phatLines.join('\n')},
-    {tag:'debt', label:'ข้อความแจ้งหนี้', text:debtLines.join('\n')},
-  ];
+    {tag:'all', label:'สรุปยอดรวมทั้งหมด', autoText:summaryLines.join('\n')},
+    {tag:'mahkard', label:'ข้อความสั่งม๊ะก๊าด', autoText:mahkardLines.join('\n')},
+    {tag:'monk', label:'ข้อความสั่งมนต์', autoText:monkLines.join('\n')},
+    {tag:'phat', label:'ข้อความถึงพี่พัฒน์', autoText:phatLines.join('\n')},
+    {tag:'debt', label:'ข้อความแจ้งหนี้', autoText:debtLines.join('\n')},
+  ].map(b=>({...b, text: Object.prototype.hasOwnProperty.call(overrides,b.tag) ? overrides[b.tag] : b.autoText, edited: Object.prototype.hasOwnProperty.call(overrides,b.tag)}));
   const area = document.getElementById('messagesArea');
   const MSG_SEP = '\n\n————————————————————\n\n'; // คั่นระหว่างส่วนตอน "คัดลอกทั้งหมด" — เอาเฉพาะเนื้อหา ไม่รวมหัวข้อ/แท็ก
   const copyAllText = blocks.map(b=>b.text).join(MSG_SEP);
   area.innerHTML = `<button class="btn secondary" id="copyAllMsgBtn" style="margin-bottom:12px;">📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)</button>` +
-    blocks.map((b,i)=>`<div class="msgblock"><span class="tag ${b.tag}">${b.label}</span><pre class="msgtext">${b.text}</pre><button class="copybtn" data-copy="${i}">คัดลอกข้อความ</button></div>`).join('');
+    blocks.map((b,i)=>`<div class="msgblock">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span class="tag ${b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
+        <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้">✎</button>
+      </div>
+      <pre class="msgtext" id="msgview-${i}">${b.text}</pre>
+      <div id="msgeditwrap-${i}" style="display:none;margin-top:6px;">
+        <textarea id="msgeditarea-${i}" style="width:100%;min-height:120px;font-family:inherit;font-size:13px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;">${b.text}</textarea>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+          <button class="btn small" data-msgsave="${i}" style="width:auto;">บันทึก</button>
+          <button class="btn small secondary" data-msgcancel="${i}" style="width:auto;">ยกเลิก</button>
+          ${b.edited?`<button class="btn small secondary" data-msgreset="${i}" style="width:auto;">รีเซ็ตเป็นข้อความอัตโนมัติ</button>`:''}
+        </div>
+      </div>
+      <button class="copybtn" data-copy="${i}">คัดลอกข้อความ</button>
+    </div>`).join('');
   document.getElementById('copyAllMsgBtn').addEventListener('click', async (e)=>{
     const btn = e.currentTarget;
     try{ await navigator.clipboard.writeText(copyAllText); }
@@ -1353,6 +1379,34 @@ async function renderMessages(){
       setTimeout(()=>{ btn.textContent='คัดลอกข้อความ'; btn.classList.remove('copied'); }, 1500);
     });
   });
+  area.querySelectorAll('[data-msgedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const idx = btn.getAttribute('data-msgedit');
+    document.getElementById(`msgview-${idx}`).style.display = 'none';
+    document.getElementById(`msgeditwrap-${idx}`).style.display = '';
+  }));
+  area.querySelectorAll('[data-msgcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const idx = btn.getAttribute('data-msgcancel');
+    document.getElementById(`msgview-${idx}`).style.display = '';
+    document.getElementById(`msgeditwrap-${idx}`).style.display = 'none';
+  }));
+  area.querySelectorAll('[data-msgsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const idx = Number(btn.getAttribute('data-msgsave'));
+    const tag = blocks[idx].tag;
+    const newText = document.getElementById(`msgeditarea-${idx}`).value;
+    dayData.messageOverrides = dayData.messageOverrides || {};
+    dayData.messageOverrides[tag] = newText;
+    await saveDay(currentDate, dayData);
+    showToast('บันทึกข้อความแล้ว');
+    renderMessages();
+  }));
+  area.querySelectorAll('[data-msgreset]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const idx = Number(btn.getAttribute('data-msgreset'));
+    const tag = blocks[idx].tag;
+    if(dayData.messageOverrides) delete dayData.messageOverrides[tag];
+    await saveDay(currentDate, dayData);
+    showToast('รีเซ็ตเป็นข้อความอัตโนมัติแล้ว');
+    renderMessages();
+  }));
 }
 
 // ---- Leftover tab ----
@@ -1540,10 +1594,18 @@ function renderBillingList(){
     btn.addEventListener('click', async ()=>{
       const code = btn.getAttribute('data-pay');
       if(dayData.billingPaid[code]){
+        btn.disabled = true;
+        const prev = dayData.billingPaid[code];
         dayData.billingPaid[code] = false;
-        await saveDay(currentDate, dayData);
-        renderBillingList();
-        renderStats();
+        try{
+          await saveDay(currentDate, dayData);
+          renderBillingList();
+          renderStats();
+        }catch(e){
+          dayData.billingPaid[code] = prev;
+          showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+          btn.disabled = false;
+        }
       }else{
         payDateEditingCode = code;
         renderBillingList();
@@ -1559,11 +1621,19 @@ function renderBillingList(){
       const amtInput = document.getElementById(`payamt-${code}`);
       const billedAmt = branchBillAmount(dayData.orders[code], currentDate) + Number(dayData.billExtra[code]||0);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
+      const prev = dayData.billingPaid[code];
       dayData.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
-      payDateEditingCode = null;
-      await saveDay(currentDate, dayData);
-      renderBillingList();
-      renderStats();
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+      try{
+        await saveDay(currentDate, dayData);
+        payDateEditingCode = null;
+        renderBillingList();
+        renderStats();
+      }catch(e){
+        dayData.billingPaid[code] = prev;
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false; btn.textContent = 'ยืนยัน';
+      }
     });
   });
   wrap.querySelectorAll('[data-cancelpay]').forEach(btn=>{
@@ -1871,10 +1941,18 @@ function renderExpenseList(){
     const id = btn.getAttribute('data-exppay');
     const e = dayData.expenses.find(x=>x.id===id);
     if(e.paid){
+      btn.disabled = true;
+      const prevPaid = e.paid, prevDate = e.paidDate;
       e.paid = false; e.paidDate = null;
-      await saveDay(currentDate, dayData);
-      renderExpenseList();
-      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      try{
+        await saveDay(currentDate, dayData);
+        renderExpenseList();
+        renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      }catch(err){
+        e.paid = prevPaid; e.paidDate = prevDate;
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false;
+      }
     }else{
       expPayEditingId = id;
       renderExpenseList();
@@ -1886,11 +1964,19 @@ function renderExpenseList(){
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
     const e = dayData.expenses.find(x=>x.id===id);
+    const prevPaid = e.paid, prevDate = e.paidDate;
     e.paid = true; e.paidDate = paidDate;
-    expPayEditingId = null;
-    await saveDay(currentDate, dayData);
-    renderExpenseList();
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      await saveDay(currentDate, dayData);
+      expPayEditingId = null;
+      renderExpenseList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(err){
+      e.paid = prevPaid; e.paidDate = prevDate;
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+      btn.disabled = false; btn.textContent = 'ยืนยัน';
+    }
   }));
   wrap.querySelectorAll('[data-expcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     expPayEditingId = null;
@@ -1898,11 +1984,18 @@ function renderExpenseList(){
   }));
   wrap.querySelectorAll('[data-expdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-expdel');
+    const removed = dayData.expenses.find(x=>x.id===id);
+    const removedIdx = dayData.expenses.indexOf(removed);
     dayData.expenses = dayData.expenses.filter(x=>x.id!==id);
-    await saveDay(currentDate, dayData);
-    renderExpenseList();
-    showToast('ลบรายจ่ายแล้ว');
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    try{
+      await saveDay(currentDate, dayData);
+      renderExpenseList();
+      showToast('ลบรายจ่ายแล้ว');
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(err){
+      if(removed && removedIdx>=0) dayData.expenses.splice(removedIdx, 0, removed);
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
   wrap.querySelectorAll('[data-expedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditExpense(btn.getAttribute('data-expedit'))));
   updateBillSummaryVisibility();
@@ -2746,10 +2839,16 @@ function renderPersonalLists(){
     </div>`).join('') : '<div class="empty">ยังไม่มีรายรับส่วนตัววันนี้</div>';
   incWrap.querySelectorAll('[data-pincdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pincdel');
+    const prevList = dayData.personalIncome;
     dayData.personalIncome = dayData.personalIncome.filter(x=>x.id!==id);
-    await saveDay(currentDate, dayData);
-    renderPersonalLists();
-    showToast('ลบแล้ว');
+    try{
+      await saveDay(currentDate, dayData);
+      renderPersonalLists();
+      showToast('ลบแล้ว');
+    }catch(e){
+      dayData.personalIncome = prevList;
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
 
   const expWrap = document.getElementById('pExpenseList');
@@ -2761,10 +2860,16 @@ function renderPersonalLists(){
     </div>`).join('') : '<div class="empty">ยังไม่มีรายจ่ายส่วนตัววันนี้</div>';
   expWrap.querySelectorAll('[data-pexpdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pexpdel');
+    const prevList = dayData.personalExpense;
     dayData.personalExpense = dayData.personalExpense.filter(x=>x.id!==id);
-    await saveDay(currentDate, dayData);
-    renderPersonalLists();
-    showToast('ลบแล้ว');
+    try{
+      await saveDay(currentDate, dayData);
+      renderPersonalLists();
+      showToast('ลบแล้ว');
+    }catch(e){
+      dayData.personalExpense = prevList;
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
 }
 async function addPersonalIncome(){
@@ -2956,20 +3061,24 @@ async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.strin
 // แคชไว้ในหน่วยความจำกันโหลดซ้ำจากเซิร์ฟเวอร์ทุกครั้งที่กดเปลี่ยนสถานะ (เดิมทำให้กดแล้วหน่วง/จอกระตุก)
 let lotTransportBillsCache_ = null;
 async function loadLotTransportBills(){
-  if(lotTransportBillsCache_) return lotTransportBillsCache_;
-  try{ const r = await window.storage.get('lotTransportBills'); const v = JSON.parse(r.value); lotTransportBillsCache_ = Array.isArray(v)?v:[]; }
-  catch(e){ lotTransportBillsCache_ = []; }
-  return lotTransportBillsCache_;
+  if(!lotTransportBillsCache_){
+    try{ const r = await window.storage.get('lotTransportBills'); const v = JSON.parse(r.value); lotTransportBillsCache_ = Array.isArray(v)?v:[]; }
+    catch(e){ lotTransportBillsCache_ = []; }
+  }
+  // คืนค่าสำเนา (deep clone) ทุกครั้ง ไม่ใช่ตัวแคชตรงๆ — กันปัญหาแก้ไข object ในแคชไปเลยก่อนบันทึกจริงสำเร็จ
+  // (ถ้าบันทึกขึ้นเซิร์ฟเวอร์ล้มเหลว เช่นเน็ตมีปัญหา จะได้ไม่ทำให้แคชในเครื่องเพี้ยนไปจากเซิร์ฟเวอร์แบบไม่รู้ตัว)
+  return JSON.parse(JSON.stringify(lotTransportBillsCache_));
 }
 async function saveLotTransportBills(bills){ await window.storage.set('lotTransportBills', JSON.stringify(bills)); lotTransportBillsCache_ = bills; }
 // บิลต้นทุนสินค้าของล็อต (ไม่รวมขนส่ง) — เก็บแยกไว้ให้มีสถานะจ่าย/รอจ่ายของตัวเอง เหมือนกับค่าขนส่ง
 // เพื่อให้โชว์ในหน้า "กรองเฉพาะคู่ค้า" และยอดรอจ่ายรวมของแดชบอร์ดได้ถูกต้อง
 let lotProductBillsCache_ = null;
 async function loadLotProductBills(){
-  if(lotProductBillsCache_) return lotProductBillsCache_;
-  try{ const r = await window.storage.get('lotProductBills'); const v = JSON.parse(r.value); lotProductBillsCache_ = Array.isArray(v)?v:[]; }
-  catch(e){ lotProductBillsCache_ = []; }
-  return lotProductBillsCache_;
+  if(!lotProductBillsCache_){
+    try{ const r = await window.storage.get('lotProductBills'); const v = JSON.parse(r.value); lotProductBillsCache_ = Array.isArray(v)?v:[]; }
+    catch(e){ lotProductBillsCache_ = []; }
+  }
+  return JSON.parse(JSON.stringify(lotProductBillsCache_));
 }
 async function saveLotProductBills(bills){ await window.storage.set('lotProductBills', JSON.stringify(bills)); lotProductBillsCache_ = bills; }
 function lotCostTotal(lot){ return Number(lot.qtyTotal||0)*Number(lot.pricePerKg||0) + Number(lot.extra||0); }
@@ -3008,16 +3117,20 @@ async function deleteWholeBill(billId){
     ? 'บิลนี้มีล็อตที่เบิกใช้ไปแล้ว การลบบิลจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบทั้งบิลนี้ไหม?'
     : 'ต้องการลบทั้งบิลนี้ไหม? (ล็อตสินค้าทุกรายการ + บิลต้นทุนสินค้า + ค่าขนส่งของบิลนี้)';
   if(!confirm(msg)) return;
-  await saveRawLots(lots.filter(l=>(l.billId||l.id)!==billId));
-  const productBills = await loadLotProductBills();
-  await saveLotProductBills(productBills.filter(b=>b.billId!==billId));
-  const transportBills = await loadLotTransportBills();
-  await saveLotTransportBills(transportBills.filter(b=>b.billId!==billId));
-  showToast('ลบทั้งบิลแล้ว');
-  await renderLotList();
-  await renderLotProductBillList();
-  await renderLotTransportList();
-  renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+  try{
+    await saveRawLots(lots.filter(l=>(l.billId||l.id)!==billId));
+    const productBills = await loadLotProductBills();
+    await saveLotProductBills(productBills.filter(b=>b.billId!==billId));
+    const transportBills = await loadLotTransportBills();
+    await saveLotTransportBills(transportBills.filter(b=>b.billId!==billId));
+    showToast('ลบทั้งบิลแล้ว');
+    await renderLotList();
+    await renderLotProductBillList();
+    await renderLotTransportList();
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+  }catch(e){
+    showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — บางส่วนอาจลบไปแล้ว ลองรีเฟรชแล้วเช็คอีกครั้ง');
+  }
 }
 // ---- ฟอร์มซื้อล็อตแบบหลายสินค้าในบิลเดียว (ค่าขนส่งแยกจากบิลสินค้า แบ่งตามน้ำหนักอัตโนมัติ) ----
 let lotFormRows = [{rid:1, productId:'p4', qty:'', price:''}];
@@ -3217,9 +3330,13 @@ async function renderLotList(){
     const lots2 = await loadRawLots();
     const lot = lots2.find(x=>x.id===id);
     if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
-    await saveRawLots(lots2.filter(x=>x.id!==id));
-    showToast('ลบล็อตแล้ว');
-    await renderLotList();
+    try{
+      await saveRawLots(lots2.filter(x=>x.id!==id));
+      showToast('ลบล็อตแล้ว');
+      await renderLotList();
+    }catch(e){
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
   wrap.querySelectorAll('[data-lotdraw]').forEach(btn=>btn.addEventListener('click', ()=>{
     lotDrawOpenId = btn.getAttribute('data-lotdraw');
@@ -3264,6 +3381,8 @@ async function renderLotList(){
     showToast('บันทึกการเบิกใช้แล้ว');
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
     await renderLotList();
+    } catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
     } finally { lotDrawConfirmInFlight = false; btn.disabled = false; }
   }));
 }
@@ -3304,10 +3423,16 @@ async function renderLotTransportList(){
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      btn.disabled = true;
       b.paid = false; b.paidDate = null;
-      await saveLotTransportBills(bills2);
-      await renderLotTransportList();
-      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      try{
+        await saveLotTransportBills(bills2);
+        await renderLotTransportList();
+        renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      }catch(e){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false;
+      }
     }else{
       lotTransportEditingId = id;
       await renderLotTransportList();
@@ -3316,24 +3441,33 @@ async function renderLotTransportList(){
   wrap.querySelectorAll('[data-lottransdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(!confirm('ลบรายการค่าขนส่งนี้?')) return;
     const id = btn.getAttribute('data-lottransdel');
-    const bills2 = await loadLotTransportBills();
-    await saveLotTransportBills(bills2.filter(x=>x.id!==id));
-    showToast('ลบแล้ว');
-    await renderLotTransportList();
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    try{
+      const bills2 = await loadLotTransportBills();
+      await saveLotTransportBills(bills2.filter(x=>x.id!==id));
+      showToast('ลบแล้ว');
+      await renderLotTransportList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
   }));
   wrap.querySelectorAll('[data-lottransconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lottransconfirm');
     const dateInput = document.getElementById(`lottransdate-${id}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
-    const bills2 = await loadLotTransportBills();
-    const b = bills2.find(x=>x.id===id);
-    if(b){ b.paid = true; b.paidDate = paidDate; }
-    lotTransportEditingId = null;
-    await saveLotTransportBills(bills2);
-    await renderLotTransportList();
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      const bills2 = await loadLotTransportBills();
+      const b = bills2.find(x=>x.id===id);
+      if(b){ b.paid = true; b.paidDate = paidDate; }
+      await saveLotTransportBills(bills2);
+      lastUsedPayDate = paidDate;
+      lotTransportEditingId = null;
+      await renderLotTransportList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+      btn.disabled = false; btn.textContent = 'ยืนยัน';
+    }
   }));
   wrap.querySelectorAll('[data-lottranscancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotTransportEditingId = null;
@@ -3378,10 +3512,16 @@ async function renderLotProductBillList(){
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      btn.disabled = true;
       b.paid = false; b.paidDate = null;
-      await saveLotProductBills(bills2);
-      await renderLotProductBillList();
-      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      try{
+        await saveLotProductBills(bills2);
+        await renderLotProductBillList();
+        renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      }catch(e){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false;
+      }
     }else{
       lotProductBillEditingId = id;
       await renderLotProductBillList();
@@ -3390,24 +3530,32 @@ async function renderLotProductBillList(){
   wrap.querySelectorAll('[data-lotproddel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(!confirm('ลบรายการบิลสินค้าล็อตนี้? (ไม่ลบล็อตสินค้า ลบเฉพาะรายการรอจ่ายนี้)')) return;
     const id = btn.getAttribute('data-lotproddel');
-    const bills2 = await loadLotProductBills();
-    await saveLotProductBills(bills2.filter(x=>x.id!==id));
-    showToast('ลบแล้ว');
-    await renderLotProductBillList();
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    try{
+      const bills2 = await loadLotProductBills();
+      await saveLotProductBills(bills2.filter(x=>x.id!==id));
+      showToast('ลบแล้ว');
+      await renderLotProductBillList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
   }));
   wrap.querySelectorAll('[data-lotprodconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotprodconfirm');
     const dateInput = document.getElementById(`lotproddate-${id}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
-    const bills2 = await loadLotProductBills();
-    const b = bills2.find(x=>x.id===id);
-    if(b){ b.paid = true; b.paidDate = paidDate; }
-    lotProductBillEditingId = null;
-    await saveLotProductBills(bills2);
-    await renderLotProductBillList();
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      const bills2 = await loadLotProductBills();
+      const b = bills2.find(x=>x.id===id);
+      if(b){ b.paid = true; b.paidDate = paidDate; }
+      await saveLotProductBills(bills2);
+      lotProductBillEditingId = null;
+      await renderLotProductBillList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+      btn.disabled = false; btn.textContent = 'ยืนยัน';
+    }
   }));
   wrap.querySelectorAll('[data-lotprodcancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotProductBillEditingId = null;
@@ -3550,8 +3698,15 @@ function renderPurchaseList(){
   wrap.querySelectorAll('[data-purchdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-purchdel');
     const entry = dayData.purchases.find(x=>x.id===id);
+    const prevList = dayData.purchases;
     dayData.purchases = dayData.purchases.filter(x=>x.id!==id);
-    await saveDay(currentDate, dayData);
+    try{
+      await saveDay(currentDate, dayData);
+    }catch(e){
+      dayData.purchases = prevList;
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      return;
+    }
     if(entry && entry.fromLot){
       const lots2 = await loadRawLots();
       const lot = lots2.find(x=>x.id===entry.fromLot);
@@ -3628,11 +3783,21 @@ function renderPurchaseGroups(){
     const seller = btn.getAttribute('data-grouppay');
     const info = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
     if(info.paid){
+      btn.disabled = true;
+      const prevPaid = info.paid, prevDate = info.paidDate;
+      const prevItemPaid = (dayData.purchases||[]).filter(e=>(e.seller||'ไม่ระบุ')===seller).map(e=>({e, paid:e.paid}));
       info.paid = false; info.paidDate = null;
       dayData.purchaseGroupPayment[seller] = info;
       (dayData.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===seller) e.paid = false; });
-      await saveDay(currentDate, dayData);
-      renderPurchaseGroups(); renderPurchaseList(); await renderAllExpenseList();
+      try{
+        await saveDay(currentDate, dayData);
+        renderPurchaseGroups(); renderPurchaseList(); renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      }catch(err){
+        info.paid = prevPaid; info.paidDate = prevDate;
+        prevItemPaid.forEach(({e,paid})=>{ e.paid = paid; });
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false;
+      }
     }else{
       purchGroupEditingSeller = seller;
       renderPurchaseGroups();
@@ -3644,12 +3809,22 @@ function renderPurchaseGroups(){
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
     const info = dayData.purchaseGroupPayment[seller] || {extra:0, note:''};
+    const prevPaid = info.paid, prevDate = info.paidDate;
+    const prevItemPaid = (dayData.purchases||[]).filter(e=>(e.seller||'ไม่ระบุ')===seller).map(e=>({e, paid:e.paid}));
     info.paid = true; info.paidDate = paidDate;
     dayData.purchaseGroupPayment[seller] = info;
     (dayData.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===seller) e.paid = true; });
-    purchGroupEditingSeller = null;
-    await saveDay(currentDate, dayData);
-    renderPurchaseGroups(); renderPurchaseList(); await renderAllExpenseList();
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      await saveDay(currentDate, dayData);
+      purchGroupEditingSeller = null;
+      renderPurchaseGroups(); renderPurchaseList(); renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(err){
+      info.paid = prevPaid; info.paidDate = prevDate;
+      prevItemPaid.forEach(({e,paid})=>{ e.paid = paid; });
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+      btn.disabled = false; btn.textContent = 'ยืนยัน';
+    }
   }));
   wrap.querySelectorAll('[data-groupcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     purchGroupEditingSeller = null;
@@ -3839,11 +4014,16 @@ async function renderDebts(){
     window.scrollTo({top:0, behavior:'smooth'});
   }));
   listEl.querySelectorAll('[data-debtdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(!confirm('ลบรายการหนี้นี้? (ประวัติการจ่ายที่บันทึกไปแล้วจะหายไปด้วย)')) return;
     const id = btn.getAttribute('data-debtdel');
-    const all = await loadDebts();
-    await saveDebts(all.filter(d=>d.id!==id));
-    renderDebts();
-    showToast('ลบหนี้แล้ว');
+    try{
+      const all = await loadDebts();
+      await saveDebts(all.filter(d=>d.id!==id));
+      renderDebts();
+      showToast('ลบหนี้แล้ว');
+    }catch(e){
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    }
   }));
   listEl.querySelectorAll('[data-addpayment]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(debtPaymentInFlight) return; // กันบันทึกชำระหนี้ซ้ำถ้ากดรัวๆ/เน็ตช้า
@@ -3879,6 +4059,8 @@ async function renderDebts(){
     }
     renderDebts();
     showToast(d.owner==='ก้ามโต' ? 'บันทึกการจ่ายแล้ว (ชำระหนี้องค์กร)' : `บันทึกการจ่ายแล้ว (ลงรายจ่ายส่วนตัวของ ${d.owner} ให้ด้วย)`);
+    } catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การจ่ายยังไม่ถูกบันทึก');
     } finally { debtPaymentInFlight = false; btn.disabled = false; }
   }));
 }
@@ -4385,7 +4567,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
     });
     wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
       // ตรงนี้เฉพาะบิลที่ "โอนแล้ว" อยู่ก่อน กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — บิลที่ยังไม่จ่ายให้ติ๊กเลือกแล้วกดยืนยันในแถบด้านบนแทน
-      btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code));
+      btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code, btn));
     });
     wrap.querySelectorAll('[data-billselect]').forEach(cb=>{
       cb.addEventListener('change', ()=>{
@@ -4515,18 +4697,26 @@ async function jumpToBillReceipt(iso, code){
 }
 // สลับสถานะโอนแล้ว/รอโอน ของบิลวันไหนก็ได้ โดยไม่ต้องออกจากหน้าเช็คยอดรายสาขา
 // (ใช้วันนี้เป็นวันที่โอนโดยอัตโนมัติเวลากดยืนยันจ่าย — ถ้าอยากระบุวันที่โอนเอง ให้กดไอคอนบิล 🧾 แล้วไปทำที่หน้าบิลโอนเงินแทน)
-async function toggleBranchBillPaidQuick(iso, code){
+async function toggleBranchBillPaidQuick(iso, code, btn){
+  if(btn) btn.disabled = true;
   const d = await loadDay(iso);
+  const prev = d.billingPaid[code];
   if(d.billingPaid[code]){
     d.billingPaid[code] = false;
   }else{
     d.billingPaid[code] = {paid:true, paidDate: todayISO()};
   }
-  await saveDay(iso, d);
-  showToast(d.billingPaid[code] ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
-  const dashSelectEl = document.getElementById('dashBranchSelect');
-  if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
-  if(outstandingBranchFilterValue===code) await renderOutstanding();
+  try{
+    await saveDay(iso, d);
+    showToast(d.billingPaid[code] ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
+    const dashSelectEl = document.getElementById('dashBranchSelect');
+    if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
+    if(outstandingBranchFilterValue===code) await renderOutstanding();
+  }catch(e){
+    d.billingPaid[code] = prev;
+    showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+    if(btn) btn.disabled = false;
+  }
 }
 async function jumpToLongestOverdue(){
   const agg = await computeBranchAggregates();
@@ -4577,15 +4767,25 @@ async function renderDashboard(){
   const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,currentDate) + Number(dayData.billExtra[code]||0), 0);
   const cogsToday = (dayData.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
-  const profitToday = revenue - cogsToday - expenseToday - fee.total;
+  const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
+  const profitToday = revenue - totalCostToday - fee.total;
   document.getElementById('dashDateLabel').textContent = formatDDMMYYYY(currentDate);
   document.getElementById('dashBranches').textContent = entries.length;
   document.getElementById('dashRevenue').textContent = money(revenue);
   document.getElementById('dashFee').textContent = money(fee.total);
-  document.getElementById('dashCogsToday').textContent = money(cogsToday);
+  document.getElementById('dashCogsToday').textContent = money(totalCostToday);
   document.getElementById('dashProfitToday').textContent = money(profitToday);
   const profitCard = document.getElementById('dashProfitCard');
   profitCard.className = 'dash-metric ' + (profitToday>=0 ? 'success' : 'danger');
+  // รายละเอียดสัดส่วนต้นทุนรวม — แบ่งเป็นต้นทุนซื้อสินค้ากับรายจ่ายกิจการอื่นๆ กี่ % ของแต่ละส่วน
+  const breakdownEl = document.getElementById('dashCostBreakdown');
+  if(totalCostToday>0){
+    const cogsPct = Math.round(cogsToday/totalCostToday*100);
+    const expensePct = 100 - cogsPct;
+    breakdownEl.innerHTML = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`;
+  }else{
+    breakdownEl.innerHTML = '';
+  }
 
   const trendEl = document.getElementById('dashTrend');
   trendEl.className='loading'; trendEl.innerHTML = 'กำลังโหลด…';
@@ -4832,7 +5032,11 @@ function guardedClick(btnId, fn){
     inFlight = true;
     btn.disabled = true;
     try{ await fn(); }
-    catch(e){ console.error(e); }
+    catch(e){
+      console.error(e);
+      // สำคัญ: ปุ่มกลุ่มนี้คือปุ่มบันทึกข้อมูลหลัก (ออเดอร์/รายจ่าย/ต้นทุนซื้อ/หนี้สิน ฯลฯ) ถ้าเน็ตมีปัญหาแล้วเงียบไปเฉยๆ ผู้ใช้จะไม่รู้ว่าข้อมูลที่กรอกไม่ถูกบันทึก
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองกดบันทึกอีกครั้ง — ข้อมูลที่กรอกไว้ยังอยู่ ยังไม่หาย');
+    }
     finally{ inFlight = false; btn.disabled = false; }
   });
 }

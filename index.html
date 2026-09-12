@@ -397,6 +397,29 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint" style="color:var(--accent);font-size:12.5px;">🛒 การซื้อสินค้าวันนี้</div>
     </div>
     <div class="card">
+      <h3>📦 ล็อตวัตถุดิบ (ซื้อเผื่อหลายวัน)</h3>
+      <div class="hint">สำหรับของที่ซื้อทีเดียวเป็นล็อตใหญ่ (เช่น ปูจืด/เชอรี่/หอยนางรมจากตลาดใหม่ 10-20 โล) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายให้ตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน และรวมค่าขนส่งเข้ากับต้นทุนดิบตั้งแต่ต้นแล้ว</div>
+      <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="lotProduct"></select></div>
+      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="lotSeller"></select></div>
+      <div class="grid7">
+        <div><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
+        <div><label>จำนวนซื้อทั้งหมด (กก.)</label><input type="number" step="0.01" id="lotQty" placeholder="0"></div>
+      </div>
+      <div class="grid7" style="margin-top:8px;">
+        <div><label>ราคา/กก.</label><input type="number" step="0.01" id="lotPrice" placeholder="0"></div>
+        <div><label>ค่าขนส่ง/ค่าใช้จ่ายเพิ่ม (ครั้งเดียว)</label><input type="number" step="1" id="lotExtra" placeholder="0"></div>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
+      <button class="btn" id="addLotBtn" style="margin-top:6px;">+ เพิ่มล็อตใหม่</button>
+    </div>
+    <div class="card">
+      <h3>📋 ล็อตที่มีอยู่</h3>
+      <div id="lotList" class="loading">กำลังโหลด…</div>
+    </div>
+    <div class="card" style="border-color:var(--accent);">
+      <div class="hint" style="color:var(--accent);font-size:12.5px;">🧊 ซื้อวันต่อวัน (ม๊ะก๊าด/มนต์/อื่นๆ ปกติ)</div>
+    </div>
+    <div class="card">
       <h3>🛒 บันทึกต้นทุนซื้อวันนี้</h3>
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนขายที่ได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนขายได้เท่ากับจำนวนซื้อ</div>
       <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
@@ -1142,7 +1165,18 @@ async function renderMessages(){
     {tag:'debt', label:'ข้อความแจ้งหนี้', text:debtLines.join('\n')},
   ];
   const area = document.getElementById('messagesArea');
-  area.innerHTML = blocks.map((b,i)=>`<div class="msgblock"><span class="tag ${b.tag}">${b.label}</span><pre class="msgtext">${b.text}</pre><button class="copybtn" data-copy="${i}">คัดลอกข้อความ</button></div>`).join('');
+  const MSG_SEP = '\n\n————————————————————\n\n'; // คั่นระหว่างส่วนตอน "คัดลอกทั้งหมด" — เอาเฉพาะเนื้อหา ไม่รวมหัวข้อ/แท็ก
+  const copyAllText = blocks.map(b=>b.text).join(MSG_SEP);
+  area.innerHTML = `<button class="btn secondary" id="copyAllMsgBtn" style="margin-bottom:12px;">📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)</button>` +
+    blocks.map((b,i)=>`<div class="msgblock"><span class="tag ${b.tag}">${b.label}</span><pre class="msgtext">${b.text}</pre><button class="copybtn" data-copy="${i}">คัดลอกข้อความ</button></div>`).join('');
+  document.getElementById('copyAllMsgBtn').addEventListener('click', async (e)=>{
+    const btn = e.currentTarget;
+    try{ await navigator.clipboard.writeText(copyAllText); }
+    catch(err){ const ta=document.createElement('textarea'); ta.value=copyAllText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+    const original = `📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)`;
+    btn.textContent='คัดลอกแล้ว ✓'; btn.style.background='var(--success-soft)'; btn.style.color='var(--success)'; btn.style.borderColor='var(--success)';
+    setTimeout(()=>{ btn.textContent=original; btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }, 1500);
+  });
   area.querySelectorAll('[data-copy]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const idx = Number(btn.getAttribute('data-copy'));
@@ -1586,6 +1620,7 @@ function renderExpenseList(){
         <div><div class="name">${e.category}${e.seller?` — ${e.seller}`:''}${e.note?` (${e.note})`:''}</div><div class="items num">${money(e.amount)}${e.paid && e.paidDate?` <span style="color:var(--text-faint);">• จ่าย ${formatDDMMYYYY(e.paidDate)}</span>`:''}</div></div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
+          <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎</button>
           <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕</button>
         </div>
       </div>
@@ -1633,20 +1668,42 @@ function renderExpenseList(){
     showToast('ลบรายจ่ายแล้ว');
     await renderAllExpenseList();
   }));
+  wrap.querySelectorAll('[data-expedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditExpense(btn.getAttribute('data-expedit'))));
 }
+let expEditingId = null;
 async function addExpense(){
   const category = document.getElementById('expCategory').value;
   const seller = document.getElementById('expPayee').value;
   const note = document.getElementById('expNote').value.trim();
   const amount = Number(document.getElementById('expAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.expenses.push({id: 'e'+Date.now(), category, seller, note, amount, paid:false});
+  if(expEditingId){
+    const existing = dayData.expenses.find(x=>x.id===expEditingId);
+    if(existing) Object.assign(existing, {category, seller, note, amount});
+    expEditingId = null;
+    document.getElementById('addExpenseBtn').textContent = '+ เพิ่มรายจ่าย';
+    showToast('แก้ไขรายจ่ายแล้ว');
+  }else{
+    dayData.expenses.push({id: 'e'+Date.now(), category, seller, note, amount, paid:false});
+    showToast('เพิ่มรายจ่ายแล้ว');
+  }
   await saveDay(currentDate, dayData);
   document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
+  document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
   renderExpenseList();
   renderStats();
-  showToast('เพิ่มรายจ่ายแล้ว');
   await renderAllExpenseList();
+}
+function startEditExpense(id){
+  const e = dayData.expenses.find(x=>x.id===id);
+  if(!e) return;
+  expEditingId = id;
+  document.getElementById('expCategory').value = e.category;
+  document.getElementById('expPayee').value = e.seller||'';
+  document.getElementById('expNote').value = e.note||'';
+  document.getElementById('expAmount').value = e.amount;
+  document.getElementById('addExpenseBtn').textContent = '💾 บันทึกการแก้ไข';
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 function renderExpenseCategorySettings(){
   const wrap = document.getElementById('expenseCategorySettings');
@@ -2475,6 +2532,140 @@ function updatePurchaseUnitLabels(){
 function purchaseCostTotal(entry){ return Number(entry.qty||0)*Number(entry.price||0) + Number(entry.extra||0); }
 function purchaseSellableQty(entry){ return entry.sellableQty!=null && entry.sellableQty!=='' ? Number(entry.sellableQty) : Number(entry.qty||0); }
 function purchaseCostPerUnit(entry){ const sq = purchaseSellableQty(entry); const ct = purchaseCostTotal(entry); return sq>0 ? ct/sq : 0; }
+
+// ---- ล็อตวัตถุดิบ (ซื้อเผื่อหลายวัน แล้วทยอยเบิกใช้) ----
+// เก็บแยกจาก dayData.purchases เพราะล็อตหนึ่งใช้ข้ามหลายวันได้ ไม่ผูกกับวันใดวันหนึ่ง
+// ตอน "เบิกใช้" แต่ละวัน จะสร้างรายการใน dayData.purchases ของวันนั้นให้อัตโนมัติ (paid:true เพราะจ่ายเงินไปตอนซื้อล็อตแล้ว)
+// เพื่อให้สรุปต้นทุนรายเดือน/แดชบอร์ด/ยอดขาดออเดอร์ ใช้ฟังก์ชันเดิมได้หมดโดยไม่ต้องแก้จุดอื่น
+async function loadRawLots(){
+  try{ const r = await window.storage.get('rawLots'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
+  catch(e){ return []; }
+}
+async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); }
+function lotCostTotal(lot){ return Number(lot.qtyTotal||0)*Number(lot.pricePerKg||0) + Number(lot.extra||0); }
+function lotCostPerKg(lot){ const q = Number(lot.qtyTotal||0); return q>0 ? lotCostTotal(lot)/q : 0; }
+function lotDrawnQty(lot){ const s = (lot.draws||[]).reduce((s,d)=>s+Number(d.qtyUsed||0), 0); return Math.round(s*100)/100; }
+function lotRemaining(lot){ return Math.round(Math.max(Number(lot.qtyTotal||0) - lotDrawnQty(lot), 0)*100)/100; }
+function renderLotForm(){
+  const prodSel = document.getElementById('lotProduct');
+  if(prodSel.innerHTML==='') prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+  document.getElementById('lotSeller').innerHTML = settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const dateEl = document.getElementById('lotBuyDate');
+  if(!dateEl.value) dateEl.value = currentDate;
+}
+async function addLot(){
+  const productId = document.getElementById('lotProduct').value;
+  const seller = document.getElementById('lotSeller').value;
+  const buyDate = document.getElementById('lotBuyDate').value || currentDate;
+  const qtyTotal = Number(document.getElementById('lotQty').value||0);
+  const pricePerKg = Number(document.getElementById('lotPrice').value||0);
+  const extra = Number(document.getElementById('lotExtra').value||0);
+  const note = document.getElementById('lotNote').value.trim();
+  if(!productId || qtyTotal<=0 || pricePerKg<=0){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
+  const lots = await loadRawLots();
+  lots.push({id:'lot'+Date.now(), productId, seller, buyDate, qtyTotal, pricePerKg, extra, note, draws:[]});
+  await saveRawLots(lots);
+  document.getElementById('lotQty').value=''; document.getElementById('lotPrice').value=''; document.getElementById('lotExtra').value=''; document.getElementById('lotNote').value='';
+  showToast('เพิ่มล็อตใหม่แล้ว');
+  await renderLotList();
+}
+let lotDrawOpenId = null;
+async function renderLotList(){
+  const wrap = document.getElementById('lotList');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const lots = await loadRawLots();
+  if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
+  const sorted = lots.slice().sort((a,b)=>{
+    const ra = lotRemaining(a)>0, rb = lotRemaining(b)>0;
+    if(ra!==rb) return ra ? -1 : 1;
+    return String(b.buyDate).localeCompare(String(a.buyDate));
+  });
+  wrap.innerHTML = sorted.map(lot=>{
+    const p = PRODUCTS.find(x=>x.id===lot.productId);
+    const remain = lotRemaining(lot);
+    const closed = remain<=0.001;
+    const costPerKg = lotCostPerKg(lot);
+    const drawOpen = lotDrawOpenId===lot.id;
+    const draws = lot.draws||[];
+    return `<div class="card" style="background:var(--surface-2);padding:12px;margin-bottom:10px;${closed?'opacity:0.6;':''}">
+      <div class="orow" style="background:transparent;border:none;padding:0;">
+        <div><div class="name"><b>${p.emoji} ${p.name}</b> <span style="color:var(--text-faint);">${lot.seller||''}</span></div>
+        <div class="items">ซื้อ ${formatDDMMYYYY(lot.buyDate)} • ${lot.qtyTotal} กก. × ${lot.pricePerKg}${lot.extra?` + ขนส่ง ${money(lot.extra)}`:''} = ${money(lotCostTotal(lot))} (${money(costPerKg)}/กก.)${lot.note?` • ${lot.note}`:''}</div></div>
+        <div class="acts"><button class="iconbtn" data-lotdel="${lot.id}" aria-label="ลบล็อต">✕</button></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);">
+        <span style="font-size:13px;color:${closed?'var(--text-faint)':'var(--accent)'};">${closed?'ใช้หมดแล้ว':`เหลือ ${remain} กก. (จาก ${lot.qtyTotal} กก.)`}</span>
+        ${closed?'':`<button class="btn small secondary" data-lotdraw="${lot.id}" style="width:auto;">🔻 เบิกใช้วันนี้</button>`}
+      </div>
+      ${drawOpen? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);">
+        <div class="grid7">
+          <div><label style="font-size:11.5px;color:var(--text-dim);">ใช้ไปกี่กก.วันนี้</label><input type="number" step="0.01" id="lotDrawQty-${lot.id}" placeholder="0"></div>
+          <div><label style="font-size:11.5px;color:var(--text-dim);">ได้ของขาย (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
+        </div>
+        <input type="text" id="lotDrawNote-${lot.id}" placeholder="หมายเหตุ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn small" data-lotdrawconfirm="${lot.id}" style="width:auto;">บันทึกการเบิก</button>
+          <button class="btn small secondary" data-lotdrawcancel="${lot.id}" style="width:auto;">ยกเลิก</button>
+        </div>
+      </div>` : ''}
+      ${draws.length ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);">
+        <div style="font-size:11.5px;color:var(--text-faint);margin-bottom:4px;">ประวัติการเบิก</div>
+        ${draws.slice().reverse().map(d=>`<div class="d" style="font-size:12px;color:var(--text-dim);margin-bottom:2px;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${d.note}`:''}</div>`).join('')}
+      </div>`:''}
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-lotdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.getAttribute('data-lotdel');
+    const lots2 = await loadRawLots();
+    const lot = lots2.find(x=>x.id===id);
+    if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
+    await saveRawLots(lots2.filter(x=>x.id!==id));
+    showToast('ลบล็อตแล้ว');
+    await renderLotList();
+  }));
+  wrap.querySelectorAll('[data-lotdraw]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotDrawOpenId = btn.getAttribute('data-lotdraw');
+    renderLotList();
+  }));
+  wrap.querySelectorAll('[data-lotdrawcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotDrawOpenId = null;
+    renderLotList();
+  }));
+  wrap.querySelectorAll('[data-lotdrawconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.getAttribute('data-lotdrawconfirm');
+    const qtyUsed = Number(document.getElementById(`lotDrawQty-${id}`).value||0);
+    const sellableQty = Number(document.getElementById(`lotDrawSellable-${id}`).value||0);
+    const note = document.getElementById(`lotDrawNote-${id}`).value.trim();
+    if(qtyUsed<=0 || sellableQty<=0){ showToast('กรอกจำนวนที่ใช้และจำนวนที่ได้ให้ครบ'); return; }
+    const lots2 = await loadRawLots();
+    const lot = lots2.find(x=>x.id===id);
+    if(!lot) return;
+    const remain = lotRemaining(lot);
+    if(qtyUsed > remain + 0.001){
+      const ok = confirm(`ล็อตนี้เหลืออยู่ ${remain} กก. แต่กำลังจะเบิก ${qtyUsed} กก. (มากกว่าที่เหลือ)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
+      if(!ok) return;
+    }
+    const drawId = 'drw'+Date.now();
+    const costPerKg = lotCostPerKg(lot);
+    lot.draws = lot.draws || [];
+    lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note});
+    await saveRawLots(lots2);
+    dayData.purchases = dayData.purchases || [];
+    dayData.purchases.push({
+      id: drawId, productId: lot.productId, seller: lot.seller,
+      qty: qtyUsed, price: costPerKg, extra: 0, sellableQty,
+      note: `เบิกจากล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.note?` (${lot.note})`:''}${note?` — ${note}`:''}`,
+      paid: true, fromLot: lot.id
+    });
+    await saveDay(currentDate, dayData);
+    lotDrawOpenId = null;
+    showToast('บันทึกการเบิกใช้แล้ว');
+    renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
+    await renderLotList();
+  }));
+}
+
 // คำนวณจำนวนที่ "ควรจะซื้อ" ของสินค้านี้วันนี้ จากยอดออเดอร์ (หักของเหลือที่มีจากเมื่อวานถ้าเป็นสินค้าที่มีของเหลือ)
 async function computeNeededQtyToday(pid){
   const totals = computeTotals(dayData.orders);
@@ -2548,20 +2739,20 @@ function renderPurchaseList(){
       const p = PRODUCTS.find(x=>x.id===e.productId);
       const ct = purchaseCostTotal(e); const sq = purchaseSellableQty(e); const cpu = purchaseCostPerUnit(e);
       return `<tr>
-        <td>${p.emoji} ${p.name}</td><td>${e.seller||'-'}</td>
+        <td>${p.emoji} ${p.name}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
         <td class="num num">${e.qty} ${purchaseBuyUnit(e.productId)}</td>
         <td class="num num">${e.price}</td>
         <td class="num num">${(e.qty*e.price).toLocaleString('th-TH')}</td>
         <td class="num num">${sq} ${purchaseSellUnit(e.productId)}</td>
         <td class="num num">${money(ct)}</td>
         <td class="num num" style="color:var(--accent);">${money(cpu)}</td>
-        <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</span></td>
-        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
+        <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
+        <td><div style="display:flex;gap:4px;">${e.fromLot?'':`<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
     }).join('')}
   </table></div>
   <div class="hint" style="margin-top:8px;">${purchaseNoteHint(list)}</div>
-  <div class="hint" style="margin-top:4px;">สถานะจ่าย/รอจ่ายจัดการรวมเป็นบิลได้ที่การ์ด "สรุปบิลตามผู้ขายวันนี้" ด้านบน</div>
+  <div class="hint" style="margin-top:4px;">สถานะจ่าย/รอจ่ายจัดการรวมเป็นบิลได้ที่การ์ด "สรุปบิลตามผู้ขายวันนี้" ด้านบน — รายการที่มี 📦 คือเบิกจากล็อตวัตถุดิบ จ่ายเงินไปตอนซื้อล็อตแล้ว แก้ไข/ลบได้ที่การ์ด "ล็อตที่มีอยู่" ด้านบนแทน</div>
   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
     <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมวันนี้</span>
     <span class="feebig" style="font-size:20px;">${money(totalCost)}</span>
@@ -2569,8 +2760,14 @@ function renderPurchaseList(){
   wrap.querySelectorAll('[data-purchedit]').forEach(btn=>btn.addEventListener('click', ()=>startEditPurchase(btn.getAttribute('data-purchedit'))));
   wrap.querySelectorAll('[data-purchdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-purchdel');
+    const entry = dayData.purchases.find(x=>x.id===id);
     dayData.purchases = dayData.purchases.filter(x=>x.id!==id);
     await saveDay(currentDate, dayData);
+    if(entry && entry.fromLot){
+      const lots2 = await loadRawLots();
+      const lot = lots2.find(x=>x.id===entry.fromLot);
+      if(lot){ lot.draws = (lot.draws||[]).filter(d=>d.id!==id); await saveRawLots(lots2); await renderLotList(); }
+    }
     if(purchEditingId===id){
       purchEditingId = null;
       document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
@@ -2586,8 +2783,8 @@ function renderPurchaseList(){
 let purchGroupEditingSeller = null;
 function renderPurchaseGroups(){
   const wrap = document.getElementById('purchaseGroups');
-  const list = dayData.purchases || [];
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายการต้นทุนซื้อวันนี้</div>'; return; }
+  const list = (dayData.purchases || []).filter(e=>!e.fromLot); // เบิกจากล็อตจ่ายเงินไปตอนซื้อล็อตแล้ว ไม่ต้องมารวมเป็นบิลรอจ่ายอีก
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ไม่มีรายการที่ต้องรวมบิล (ถ้ามีแต่รายการจากล็อต จ่ายไปแล้วตอนซื้อล็อต)</div>'; return; }
   const sellers = [...new Set(list.map(e=>e.seller||'ไม่ระบุ'))];
   dayData.purchaseGroupPayment = dayData.purchaseGroupPayment || {};
   wrap.innerHTML = sellers.map(seller=>{
@@ -3344,7 +3541,7 @@ async function switchTab(name){
   if(name==='messages') await renderMessages();
   if(name==='leftover') await renderLeftover();
   if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-  if(name==='purchase'){ renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+  if(name==='purchase'){ renderLotForm(); await renderLotList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
   if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
   if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
   if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
@@ -3416,6 +3613,7 @@ async function init(){
   document.getElementById('addPExpenseCategoryBtn').addEventListener('click', addPExpenseCategory);
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   document.getElementById('addPurchaseBtn').addEventListener('click', addPurchase);
+  document.getElementById('addLotBtn').addEventListener('click', addLot);
   document.getElementById('purMonthInput').addEventListener('change', renderPurchMonthSummary);
   document.getElementById('addPurchSellerBtn').addEventListener('click', addPurchSeller);
   document.getElementById('savePurchSellersBtn').addEventListener('click', savePurchSellers);

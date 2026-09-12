@@ -120,6 +120,11 @@ h1,h2,h3{font-family:'Chonburi','IBM Plex Sans Thai',sans-serif;font-weight:400;
 .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
 .card h3{font-size:15px;color:var(--text);margin-bottom:10px;}
 .card .hint{color:var(--text-faint);font-size:12px;margin-top:4px;}
+.card h3.collapsible{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0;user-select:none;}
+.card h3.collapsible .chev{font-size:12px;color:var(--text-faint);transition:transform .2s;flex:none;}
+.card h3.collapsible.open .chev{transform:rotate(180deg);}
+.card .card-body{margin-top:10px;}
+.card .card-body.collapsed{display:none;}
 select,input[type=number],input[type=text],input[type=date],input[type=month],textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:14px;}
 select:focus,input:focus{outline:none;border-color:var(--accent);}
 label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
@@ -398,23 +403,26 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card">
       <h3>📦 ล็อตวัตถุดิบ (ซื้อเผื่อหลายวัน)</h3>
-      <div class="hint">สำหรับของที่ซื้อทีเดียวเป็นล็อตใหญ่ (เช่น ปูจืด/เชอรี่/หอยนางรมจากตลาดใหม่ 10-20 โล) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายให้ตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน และรวมค่าขนส่งเข้ากับต้นทุนดิบตั้งแต่ต้นแล้ว</div>
-      <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="lotProduct"></select></div>
-      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="lotSeller"></select></div>
-      <div class="grid7">
-        <div><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
-        <div><label>จำนวนซื้อทั้งหมด (กก.)</label><input type="number" step="0.01" id="lotQty" placeholder="0"></div>
-      </div>
-      <div class="grid7" style="margin-top:8px;">
-        <div><label>ราคา/กก.</label><input type="number" step="0.01" id="lotPrice" placeholder="0"></div>
-        <div><label>ค่าขนส่ง/ค่าใช้จ่ายเพิ่ม (ครั้งเดียว)</label><input type="number" step="1" id="lotExtra" placeholder="0"></div>
+      <div class="hint">สำหรับทริปที่สั่งหลายสินค้าพร้อมกันเป็นบิลเดียว (เช่น ปูจืด+เชอรี่+หอยนางรมจากตลาดใหม่) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน</div>
+      <div class="field" style="margin-top:8px;"><label>ผู้ขายสินค้า (บิลเดียวกัน)</label><select id="lotSeller"></select></div>
+      <div class="field"><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
+      <div id="lotItemRows" style="margin-top:6px;"></div>
+      <button class="btn small secondary" id="addLotItemRowBtn" style="width:auto;margin-top:4px;">+ เพิ่มสินค้า</button>
+      <div class="hint" style="margin-top:10px;color:var(--accent);">🚚 ค่าขนส่ง — จ่ายแยกกับผู้ขายสินค้า (เช่น จ่ายให้คนขนส่งต่างหาก) ระบบจะแบ่งตามสัดส่วนน้ำหนักให้อัตโนมัติ</div>
+      <div class="grid7" style="margin-top:6px;">
+        <div><label>ค่าขนส่งรวมทั้งทริป</label><input type="number" step="1" id="lotTransportTotal" placeholder="0"></div>
+        <div><label>จ่ายให้ใคร (ถ้ามี)</label><select id="lotTransportPayee"><option value="">— ไม่ระบุ —</option></select></div>
       </div>
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
-      <button class="btn" id="addLotBtn" style="margin-top:6px;">+ เพิ่มล็อตใหม่</button>
+      <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
     </div>
     <div class="card">
       <h3>📋 ล็อตที่มีอยู่</h3>
       <div id="lotList" class="loading">กำลังโหลด…</div>
+    </div>
+    <div class="card">
+      <h3>🚚 ค่าขนส่งล็อต (จ่ายแยกกับบิลสินค้า)</h3>
+      <div id="lotTransportList" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card" style="border-color:var(--accent);">
       <div class="hint" style="color:var(--accent);font-size:12.5px;">🧊 ซื้อวันต่อวัน (ม๊ะก๊าด/มนต์/อื่นๆ ปกติ)</div>
@@ -2061,6 +2069,12 @@ async function renderAllExpenseList(){
         rows.push({iso, label:`ค่าใช้จ่ายเพิ่มเติมบิล ${seller}${g.note?` — ${g.note}`:''}`, amount:g.extra, paid:g.paid, delay, seller});
       });
     }
+    const transportBills = await loadLotTransportBills();
+    transportBills.forEach(b=>{
+      if(expenseFilterMode==='unpaid' && b.paid) return;
+      const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
+      rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||''});
+    });
     if(expSellerFilterValue){ rows = rows.filter(r=>r.seller===expSellerFilterValue); }
     rows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
     const totalEl = document.getElementById('expSellerTotal');
@@ -2086,6 +2100,8 @@ async function computeAllExpensePayables(){
     (d.purchases||[]).forEach(e=>{ if(!e.paid){ total += purchaseCostTotal(e); count++; } });
     Object.values(d.purchaseGroupPayment||{}).forEach(g=>{ if(!g.paid && g.extra){ total += Number(g.extra||0); count++; } });
   }
+  const transportBills = await loadLotTransportBills();
+  transportBills.forEach(b=>{ if(!b.paid){ total += Number(b.amount||0); count++; } });
   return {total, count};
 }
 async function renderOutstanding(){
@@ -2542,31 +2558,96 @@ async function loadRawLots(){
   catch(e){ return []; }
 }
 async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); }
+// บิลค่าขนส่งของล็อต — เก็บแยกจากล็อตสินค้า เพราะจ่ายให้คนละคน/คนละเวลากับบิลสินค้า ต้องมีสถานะจ่าย/รอจ่ายของตัวเอง
+async function loadLotTransportBills(){
+  try{ const r = await window.storage.get('lotTransportBills'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
+  catch(e){ return []; }
+}
+async function saveLotTransportBills(bills){ await window.storage.set('lotTransportBills', JSON.stringify(bills)); }
 function lotCostTotal(lot){ return Number(lot.qtyTotal||0)*Number(lot.pricePerKg||0) + Number(lot.extra||0); }
 function lotCostPerKg(lot){ const q = Number(lot.qtyTotal||0); return q>0 ? lotCostTotal(lot)/q : 0; }
 function lotDrawnQty(lot){ const s = (lot.draws||[]).reduce((s,d)=>s+Number(d.qtyUsed||0), 0); return Math.round(s*100)/100; }
 function lotRemaining(lot){ return Math.round(Math.max(Number(lot.qtyTotal||0) - lotDrawnQty(lot), 0)*100)/100; }
+// ---- ฟอร์มซื้อล็อตแบบหลายสินค้าในบิลเดียว (ค่าขนส่งแยกจากบิลสินค้า แบ่งตามน้ำหนักอัตโนมัติ) ----
+let lotFormRows = [{rid:1, productId:'p4', qty:'', price:''}];
+let lotFormRowSeq = 1;
 function renderLotForm(){
-  const prodSel = document.getElementById('lotProduct');
-  if(prodSel.innerHTML==='') prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   document.getElementById('lotSeller').innerHTML = settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('lotTransportPayee').innerHTML = `<option value="">— ไม่ระบุ —</option>` + settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
   const dateEl = document.getElementById('lotBuyDate');
   if(!dateEl.value) dateEl.value = currentDate;
+  renderLotItemRows();
+}
+function renderLotItemRows(){
+  const wrap = document.getElementById('lotItemRows');
+  wrap.innerHTML = lotFormRows.map((row,i)=>`
+    <div class="grid7" style="margin-bottom:6px;align-items:end;" data-lotrow="${row.rid}">
+      <div style="grid-column:1/3;"><label style="font-size:11.5px;color:var(--text-dim);">สินค้า</label>
+        <select data-lotrowproduct="${row.rid}">${PRODUCTS.map(p=>`<option value="${p.id}" ${p.id===row.productId?'selected':''}>${p.emoji} ${p.name}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="grid7" style="margin-bottom:10px;">
+      <div><label style="font-size:11.5px;color:var(--text-dim);">จำนวนซื้อ (กก.)</label><input type="number" step="0.01" data-lotrowqty="${row.rid}" value="${row.qty}" placeholder="0"></div>
+      <div><label style="font-size:11.5px;color:var(--text-dim);">ราคา/กก.</label><input type="number" step="0.01" data-lotrowprice="${row.rid}" value="${row.price}" placeholder="0"></div>
+      <div>${lotFormRows.length>1?`<button type="button" class="iconbtn" data-lotrowdel="${row.rid}" aria-label="ลบสินค้านี้" style="margin-top:18px;">✕</button>`:''}</div>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-lotrowproduct]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const rid = Number(sel.getAttribute('data-lotrowproduct'));
+    const row = lotFormRows.find(r=>r.rid===rid); if(row) row.productId = sel.value;
+  }));
+  wrap.querySelectorAll('[data-lotrowqty]').forEach(inp=>inp.addEventListener('input', ()=>{
+    const rid = Number(inp.getAttribute('data-lotrowqty'));
+    const row = lotFormRows.find(r=>r.rid===rid); if(row) row.qty = inp.value;
+  }));
+  wrap.querySelectorAll('[data-lotrowprice]').forEach(inp=>inp.addEventListener('input', ()=>{
+    const rid = Number(inp.getAttribute('data-lotrowprice'));
+    const row = lotFormRows.find(r=>r.rid===rid); if(row) row.price = inp.value;
+  }));
+  wrap.querySelectorAll('[data-lotrowdel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const rid = Number(btn.getAttribute('data-lotrowdel'));
+    lotFormRows = lotFormRows.filter(r=>r.rid!==rid);
+    renderLotItemRows();
+  }));
+}
+function addLotItemRow(){
+  lotFormRowSeq++;
+  lotFormRows.push({rid: lotFormRowSeq, productId:'p4', qty:'', price:''});
+  renderLotItemRows();
 }
 async function addLot(){
-  const productId = document.getElementById('lotProduct').value;
   const seller = document.getElementById('lotSeller').value;
   const buyDate = document.getElementById('lotBuyDate').value || currentDate;
-  const qtyTotal = Number(document.getElementById('lotQty').value||0);
-  const pricePerKg = Number(document.getElementById('lotPrice').value||0);
-  const extra = Number(document.getElementById('lotExtra').value||0);
+  const transportTotal = Number(document.getElementById('lotTransportTotal').value||0);
+  const transportPayee = document.getElementById('lotTransportPayee').value;
   const note = document.getElementById('lotNote').value.trim();
-  if(!productId || qtyTotal<=0 || pricePerKg<=0){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
+  const validRows = lotFormRows.filter(r=>Number(r.qty)>0 && Number(r.price)>0);
+  if(validRows.length===0){ showToast('กรอกอย่างน้อย 1 สินค้า พร้อมจำนวนซื้อและราคาให้ครบ'); return; }
+  const totalQtyAll = validRows.reduce((s,r)=>s+Number(r.qty), 0);
   const lots = await loadRawLots();
-  lots.push({id:'lot'+Date.now(), productId, seller, buyDate, qtyTotal, pricePerKg, extra, note, draws:[]});
+  const billId = 'bill'+Date.now();
+  const productLabels = [];
+  validRows.forEach((r,i)=>{
+    const transportShare = totalQtyAll>0 ? Math.round((Number(r.qty)/totalQtyAll)*transportTotal*100)/100 : 0;
+    const transportNote = transportTotal>0 ? ` • ส่วนค่าขนส่ง ${money(transportShare)}${transportPayee?` (จ่ายแยกให้ ${transportPayee})`:''}` : '';
+    const p = PRODUCTS.find(x=>x.id===r.productId);
+    productLabels.push(`${p.emoji}${p.name}`);
+    lots.push({
+      id: `${billId}-${i}`, productId: r.productId, seller, buyDate,
+      qtyTotal: Number(r.qty), pricePerKg: Number(r.price), extra: transportShare,
+      note: `${note}${transportNote}`.trim(), draws:[], billId
+    });
+  });
   await saveRawLots(lots);
-  document.getElementById('lotQty').value=''; document.getElementById('lotPrice').value=''; document.getElementById('lotExtra').value=''; document.getElementById('lotNote').value='';
-  showToast('เพิ่มล็อตใหม่แล้ว');
+  if(transportTotal>0){
+    const bills = await loadLotTransportBills();
+    bills.push({id:'lt'+Date.now(), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+    await saveLotTransportBills(bills);
+  }
+  lotFormRows = [{rid: ++lotFormRowSeq, productId:'p4', qty:'', price:''}];
+  document.getElementById('lotTransportTotal').value=''; document.getElementById('lotTransportPayee').value=''; document.getElementById('lotNote').value='';
+  renderLotItemRows();
+  showToast(`เพิ่มล็อตแล้ว ${validRows.length} รายการ`);
+  await renderLotTransportList();
   await renderLotList();
 }
 let lotDrawOpenId = null;
@@ -2663,6 +2744,64 @@ async function renderLotList(){
     showToast('บันทึกการเบิกใช้แล้ว');
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
     await renderLotList();
+  }));
+}
+let lotTransportEditingId = null;
+async function renderLotTransportList(){
+  const wrap = document.getElementById('lotTransportList');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const bills = await loadLotTransportBills();
+  if(bills.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีค่าขนส่งล็อต</div>'; return; }
+  const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
+  wrap.innerHTML = sorted.map(b=>{
+    const showDatePicker = lotTransportEditingId===b.id;
+    return `<div class="branchbill">
+      <div class="toprow">
+        <div class="left"><div class="n">${b.payee||'ไม่ระบุผู้รับ'}</div>
+          <div class="amt num">${money(b.amount)}</div>
+          <div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}${b.paid && b.paidDate?` • จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}`:''}</div>
+        </div>
+        <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lottranspay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button></div>
+      </div>
+      ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
+        <button class="btn small" data-lottransconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
+        <button class="btn small secondary" data-lottranscancel="${b.id}" style="width:auto;">ยกเลิก</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-lottranspay]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.getAttribute('data-lottranspay');
+    const bills2 = await loadLotTransportBills();
+    const b = bills2.find(x=>x.id===id);
+    if(!b) return;
+    if(b.paid){
+      b.paid = false; b.paidDate = null;
+      await saveLotTransportBills(bills2);
+      await renderLotTransportList();
+      await renderAllExpenseList();
+    }else{
+      lotTransportEditingId = id;
+      await renderLotTransportList();
+    }
+  }));
+  wrap.querySelectorAll('[data-lottransconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.getAttribute('data-lottransconfirm');
+    const dateInput = document.getElementById(`lottransdate-${id}`);
+    const paidDate = dateInput.value || todayISO();
+    lastUsedPayDate = paidDate;
+    const bills2 = await loadLotTransportBills();
+    const b = bills2.find(x=>x.id===id);
+    if(b){ b.paid = true; b.paidDate = paidDate; }
+    lotTransportEditingId = null;
+    await saveLotTransportBills(bills2);
+    await renderLotTransportList();
+    await renderAllExpenseList();
+  }));
+  wrap.querySelectorAll('[data-lottranscancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    lotTransportEditingId = null;
+    await renderLotTransportList();
   }));
 }
 
@@ -3541,7 +3680,7 @@ async function switchTab(name){
   if(name==='messages') await renderMessages();
   if(name==='leftover') await renderLeftover();
   if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-  if(name==='purchase'){ renderLotForm(); await renderLotList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+  if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotTransportList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
   if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
   if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
   if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
@@ -3564,7 +3703,40 @@ async function loadForDate(iso){
   await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
 }
 
+function initCollapsibleSettings(){
+  // เพิ่มปุ่ม ^ พับ/กางให้ทุกการ์ดในหน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ (เช่นรายชื่อสาขา)
+  const panel = document.getElementById('panel-settings');
+  if(!panel) return;
+  const collapsedByDefaultKeywords = ['รายชื่อสาขา']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด
+  panel.querySelectorAll(':scope > .card').forEach(card=>{
+    const h3 = card.querySelector('h3');
+    if(!h3 || h3.dataset.collapsibleInit) return;
+    h3.dataset.collapsibleInit = '1';
+    const titleText = h3.textContent;
+    const startCollapsed = collapsedByDefaultKeywords.some(k=>titleText.includes(k));
+    const body = document.createElement('div');
+    body.className = 'card-body' + (startCollapsed?' collapsed':'');
+    let node = h3.nextSibling;
+    while(node){
+      const next = node.nextSibling;
+      body.appendChild(node);
+      node = next;
+    }
+    card.appendChild(body);
+    h3.classList.add('collapsible');
+    if(!startCollapsed) h3.classList.add('open');
+    const chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.textContent = '▾';
+    h3.appendChild(chev);
+    h3.addEventListener('click', ()=>{
+      const nowCollapsed = body.classList.toggle('collapsed');
+      h3.classList.toggle('open', !nowCollapsed);
+    });
+  });
+}
 async function init(){
+  initCollapsibleSettings();
   document.getElementById('newPriceDate').value = todayISO();
   document.getElementById('monthInput').value = todayISO().slice(0,7);
   document.getElementById('plMonthInput').value = todayISO().slice(0,7);
@@ -3614,6 +3786,7 @@ async function init(){
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   document.getElementById('addPurchaseBtn').addEventListener('click', addPurchase);
   document.getElementById('addLotBtn').addEventListener('click', addLot);
+  document.getElementById('addLotItemRowBtn').addEventListener('click', addLotItemRow);
   document.getElementById('purMonthInput').addEventListener('change', renderPurchMonthSummary);
   document.getElementById('addPurchSellerBtn').addEventListener('click', addPurchSeller);
   document.getElementById('savePurchSellersBtn').addEventListener('click', savePurchSellers);

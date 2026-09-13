@@ -850,7 +850,10 @@ async function bulkSetStorage(items){
 }
 let settings = null;
 let currentDate = todayISO();
-let dayData = null;
+// เริ่มต้นด้วยวันเปล่า (ไม่ใช่ null) เสมอ — กันพังทั้งแอป: เดิมถ้าเปิดแอปตอนเน็ตมีปัญหาแล้วโหลดข้อมูลวันนี้ไม่ติดเลยตั้งแต่แรก
+// dayData จะค้างเป็น null และโค้ดหลายจุดทั่วแอป (เช่นหน้าต้นทุนซื้อ) ที่สมมติว่ามันมีค่าเสมอจะพังทันทีที่กดแท็บอื่น
+// ("Cannot read properties of null") ทั้งที่คอมเมนต์เดิมตั้งใจให้ "ทุกแท็บกดสลับได้ปกติแม้โหลดข้อมูลไม่สำเร็จ"
+let dayData = emptyDay();
 let editingCode = null;
 let editingDebtId = null;
 
@@ -1234,13 +1237,41 @@ function matchProductFromOcrName(name){
   if(n.includes('นางรม')||n.includes('หอยนางรม')||n.includes('เนื้อหอยนางรม')) return 'p7';
   return null;
 }
+function withOcrTimeout_(promise, label, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลา${label?' ('+label+')':''} (เน็ตช้า/มีปัญหาระหว่างโหลดตัวอ่านภาษา?) — ลองใหม่อีกครั้ง`)), ms || 45000))
+  ]);
+}
+// เดิมเรียก Tesseract.recognize(...) ตรงๆ ทุกครั้ง ซึ่งแต่ละครั้งจะสร้าง worker ใหม่ + โหลดไฟล์โมเดลภาษาไทย/อังกฤษ
+// จากเน็ตใหม่หมดทุกรอบ (หลายสิบ MB) — ถ้าเน็ตร้านไม่นิ่ง (ปัญหาที่เจอมาตลอดทั้งระบบนี้) จะค้าง/ไทม์เอาต์เงียบๆ
+// ไม่มี error ให้เห็นเลย (ปุ่มก็กดซ้ำได้เรื่อยๆ แต่แต่ละครั้งไปเริ่มโหลดใหม่จากศูนย์อีก) นี่คือสาเหตุหลักที่ "กดสิบรอบ
+// ไม่ติดสักที" เปลี่ยนมาสร้าง worker ค้างไว้ใช้ซ้ำ (โหลดโมเดลแค่ครั้งแรกครั้งเดียว ครั้งต่อๆ ไปเร็วขึ้นมาก) และใส่
+// ไทม์เอาต์ชัดเจนกันค้างเงียบ ถ้า worker พังระหว่างทางก็ทิ้งไปสร้างใหม่ได้ในครั้งถัดไป ไม่ค้างตายตัว
+let ocrWorkerPromise_ = null;
+async function getOcrWorker_(){
+  if(!ocrWorkerPromise_){
+    ocrWorkerPromise_ = withOcrTimeout_(Tesseract.createWorker('tha+eng'), 'เตรียมตัวอ่านภาพครั้งแรก', 60000)
+      .catch(e=>{ ocrWorkerPromise_ = null; throw e; }); // สร้างไม่สำเร็จ อย่าค้าง promise ที่ reject ไว้ตลอดกาล ให้ลองสร้างใหม่ได้ครั้งถัดไป
+  }
+  return ocrWorkerPromise_;
+}
 async function parseOrderImage(file){
   if(typeof Tesseract === 'undefined'){
     throw new Error('ตัวอ่านภาพ (Tesseract) โหลดไม่สำเร็จ — เช็คว่าเน็ตเชื่อมอยู่ แล้วลองรีเฟรชหน้าใหม่');
   }
   const imageUrl = URL.createObjectURL(file);
   try{
-    const result = await Tesseract.recognize(imageUrl, 'tha+eng');
+    const worker = await getOcrWorker_();
+    let result;
+    try{
+      result = await withOcrTimeout_(worker.recognize(imageUrl), 'อ่านภาพ', 45000);
+    }catch(e){
+      // worker อาจค้าง/พังจากปัญหาเน็ตระหว่างอ่าน — ทิ้ง worker เดิม ครั้งถัดไปจะได้สร้างใหม่สดๆ แทนที่จะค้างพังซ้ำ
+      ocrWorkerPromise_ = null;
+      try{ await worker.terminate(); }catch(e2){ /* ปิดไม่สำเร็จก็ช่างมัน ไม่กระทบอะไรต่อ */ }
+      throw e;
+    }
     return parseOcrText(result.data.text);
   }finally{
     URL.revokeObjectURL(imageUrl);
@@ -2451,80 +2482,100 @@ let expSellerFilterValue = '';
 let allExpenseRenderSeq_ = 0;
 let allExpEditingKey = null; // แถวที่กำลังกาง date picker อยู่ในรายการ "รอจ่ายทั้งหมด" ด้านล่างสุด
 let allExpActionInFlight = false;
-async function renderAllExpenseList(){
+// แคชรายการล่าสุดที่ดึงมาไว้ (ไม่กรองตามแท็บ/คู่ค้า) — ตอนแค่ "เปลี่ยนตัวกรอง" (เลือกคู่ค้า/สลับแท็บ
+// ทั้งหมด-ค้างจ่าย-จ่ายแล้ว) หรือ "แก้สถานะจ่ายรายการเดียว" ไม่จำเป็นต้องยิงเน็ตโหลดข้อมูลทุกวันใหม่หมดทุกครั้ง
+// ใช้ของเดิมกรอง/เรียง/แก้ตรงจุดแล้วเรนเดอร์ใหม่ได้เลย เร็วกว่ามากและไม่จอกระพริบ "กำลังโหลด" ทุกครั้งที่กด
+let allExpenseRowsCache_ = null;
+async function buildAllExpenseRows_(){
+  const listRes = await window.storage.list('day:');
+  const keys = (listRes && listRes.keys) ? listRes.keys : [];
+  const isoList = keys.map(k=>k.slice(4));
+  const dayMap = await loadDaysBulk(isoList);
+  const today = todayISO();
+  let rows = []; // เก็บทุกรายการไว้ก่อน ไม่กรองตามแท็บ เพื่อให้สรุปยอดของคู่ค้าถูกต้องเสมอไม่ว่าจะเปิดแท็บไหนอยู่
+  for(const iso of isoList){
+    const d = dayMap[iso];
+    (d.expenses||[]).forEach(e=>{
+      const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
+      rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
+    });
+    // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
+    // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
+    const sellerGroups = {};
+    (d.purchases||[]).filter(e=>!e.fromLot).forEach(e=>{
+      const seller = e.seller || 'ไม่ระบุ';
+      if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:true, items:[]};
+      sellerGroups[seller].amount += purchaseCostTotal(e);
+      sellerGroups[seller].items.push(e);
+      if(!e.paid) sellerGroups[seller].paid = false;
+    });
+    Object.entries(d.purchaseGroupPayment||{}).forEach(([seller,g])=>{
+      if(!g.extra) return;
+      if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:g.paid, items:[]};
+      sellerGroups[seller].amount += Number(g.extra||0);
+      sellerGroups[seller].paid = g.paid; // สถานะจ่ายยึดตามปุ่ม "รวมบิล" เป็นหลัก เพราะกดทีเดียวจ่ายทั้งบิล
+    });
+    Object.entries(sellerGroups).forEach(([seller,g])=>{
+      const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
+      const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
+      // ไม่ใส่ชื่อคู่ค้าซ้ำในป้ายชื่อแล้ว เพราะย้ายไปขึ้นต้นแถวแทน (ดูส่วนแสดงผลด้านล่าง)
+      rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}`, amount:g.amount, paid:g.paid, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
+    });
+  }
+  const transportBills = await loadLotTransportBills();
+  transportBills.forEach(b=>{
+    const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
+    rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||'', type:'pt', key:`pt:${b.id}`, billId:b.id});
+  });
+  const productBills = await loadLotProductBills();
+  productBills.forEach(b=>{
+    const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
+    rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
+  });
+  return rows;
+}
+// skipReload=true: ใช้ข้อมูลที่แคชไว้ล่าสุดกรอง/เรียงใหม่ทันที ไม่ยิงเน็ตซ้ำ — ใช้ตอนแค่เปลี่ยนตัวกรอง
+// (เลือกคู่ค้า/สลับแท็บสถานะ) หรือแก้สถานะจ่ายรายการเดียวที่รู้ผลลัพธ์แน่นอนอยู่แล้ว ไม่ต้องโหลดข้อมูลทุกวันใหม่หมด
+async function renderAllExpenseList(skipReload){
   const mySeq = ++allExpenseRenderSeq_;
   const container = document.getElementById('allExpenseList');
-  container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   const sellerSel = document.getElementById('expSellerFilter');
   if(sellerSel && sellerSel.options.length<=1){
     sellerSel.innerHTML = `<option value="">— ทุกคู่ค้า —</option>` + settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
     sellerSel.value = expSellerFilterValue;
   }
   try{
-    const listRes = await window.storage.list('day:');
-    if(mySeq !== allExpenseRenderSeq_) return;
-    const keys = (listRes && listRes.keys) ? listRes.keys : [];
-    const isoList = keys.map(k=>k.slice(4));
-    const dayMap = await loadDaysBulk(isoList);
-    if(mySeq !== allExpenseRenderSeq_) return;
+    let rows;
+    if(skipReload && allExpenseRowsCache_){
+      rows = allExpenseRowsCache_;
+    }else{
+      container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+      rows = await buildAllExpenseRows_();
+      if(mySeq !== allExpenseRenderSeq_) return;
+      allExpenseRowsCache_ = rows;
+    }
     const today = todayISO();
     // เลือกข้ามรายการตามแท็บที่กรองอยู่: ทั้งหมด / เฉพาะค้างจ่าย(ไม่เอาที่จ่ายแล้ว) / จ่ายแล้ว(ไม่เอาที่ยังค้าง)
     const skipByFilter = (paid)=> (expenseFilterMode==='unpaid' && paid) || (expenseFilterMode==='paid' && !paid);
-    let rows = []; // เก็บทุกรายการไว้ก่อน ไม่กรองตามแท็บ เพื่อให้สรุปยอดของคู่ค้าถูกต้องเสมอไม่ว่าจะเปิดแท็บไหนอยู่
-    for(const iso of isoList){
-      const d = dayMap[iso];
-      (d.expenses||[]).forEach(e=>{
-        const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
-      });
-      // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
-      // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
-      const sellerGroups = {};
-      (d.purchases||[]).filter(e=>!e.fromLot).forEach(e=>{
-        const seller = e.seller || 'ไม่ระบุ';
-        if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:true, items:[]};
-        sellerGroups[seller].amount += purchaseCostTotal(e);
-        sellerGroups[seller].items.push(e);
-        if(!e.paid) sellerGroups[seller].paid = false;
-      });
-      Object.entries(d.purchaseGroupPayment||{}).forEach(([seller,g])=>{
-        if(!g.extra) return;
-        if(!sellerGroups[seller]) sellerGroups[seller] = {amount:0, paid:g.paid, items:[]};
-        sellerGroups[seller].amount += Number(g.extra||0);
-        sellerGroups[seller].paid = g.paid; // สถานะจ่ายยึดตามปุ่ม "รวมบิล" เป็นหลัก เพราะกดทีเดียวจ่ายทั้งบิล
-      });
-      Object.entries(sellerGroups).forEach(([seller,g])=>{
-        const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
-        rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
-      });
-    }
-    const transportBills = await loadLotTransportBills();
-    transportBills.forEach(b=>{
-      const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
-      rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||'', type:'pt', key:`pt:${b.id}`, billId:b.id});
-    });
-    const productBills = await loadLotProductBills();
-    productBills.forEach(b=>{
-      const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
-      rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
-    });
     // ขอบเขตของคู่ค้าที่เลือก (ทุกบิล ไม่ว่าจ่ายแล้วหรือค้าง) ใช้คำนวณสรุปยอดด้านบน — แยกจาก visibleRows ที่ใช้แสดงรายการด้านล่างซึ่งกรองตามแท็บด้วย
     const sellerRows = expSellerFilterValue ? rows.filter(r=>r.seller===expSellerFilterValue) : null;
     const baseRows = sellerRows || rows;
     const visibleRows = baseRows.filter(r=>!skipByFilter(r.paid));
-    visibleRows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
+    // เรียงตามวันที่ล้วนๆ (ใหม่→เก่า) ไม่แยกกลุ่มค้างจ่ายขึ้นก่อนแล้วแล้วอีกแล้ว — แท็บ "ทั้งหมด" จะได้เห็นรายการปนกันเรียงวันที่ต่อเนื่องกันจริงๆ
+    // (แท็บ "เฉพาะค้างจ่าย"/"จ่ายแล้ว" มีแค่สถานะเดียวอยู่แล้ว เรียงแบบนี้ผลเหมือนเดิม)
+    visibleRows.sort((a,b)=> b.iso.localeCompare(a.iso));
     const totalEl = document.getElementById('expSellerTotal');
     if(expSellerFilterValue){
       const billCount = sellerRows.length;
       const totalAmount = sellerRows.reduce((s,r)=>s+r.amount,0);
-      const paidAmount = sellerRows.filter(r=>r.paid).reduce((s,r)=>s+r.amount,0);
+      const paidRows = sellerRows.filter(r=>r.paid);
+      const paidAmount = paidRows.reduce((s,r)=>s+r.amount,0);
       const unpaidRows = sellerRows.filter(r=>!r.paid);
       const unpaidAmount = unpaidRows.reduce((s,r)=>s+r.amount,0);
       totalEl.innerHTML = `<div class="dash-grid" style="margin:4px 0 10px;">
         <div class="dash-metric"><div class="dm-label">จำนวนบิล</div><div class="dm-value num">${billCount} บิล</div></div>
         <div class="dash-metric"><div class="dm-label">ยอดรวมทั้งหมด</div><div class="dm-value num">${money(totalAmount)}</div></div>
-        <div class="dash-metric success"><div class="dm-label">ยอดโอนแล้ว</div><div class="dm-value num">${money(paidAmount)}</div></div>
+        <div class="dash-metric success"><div class="dm-label">ยอดโอนแล้ว (${paidRows.length})</div><div class="dm-value num">${money(paidAmount)}</div></div>
         <div class="dash-metric danger"><div class="dm-label">ยอดค้างจ่าย (${unpaidRows.length})</div><div class="dm-value num">${money(unpaidAmount)}</div></div>
       </div>`;
     }else{
@@ -2536,7 +2587,7 @@ async function renderAllExpenseList(){
       const editing = allExpEditingKey===r.key;
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div><div>${r.label}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amount)}</div></div>
+          <div><div style="font-weight:600;">${r.seller || 'ไม่ระบุคู่ค้า'}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${r.label} • ${money(r.amount)}</div></div>
           <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
@@ -2595,15 +2646,17 @@ async function renderAllExpenseList(){
         btn.disabled = true;
         try{
           await allExpSetPaid(r, false, null);
+          // แก้สถานะที่แคชตรงจุดเลย ไม่ต้องยิงเน็ตโหลดข้อมูลทุกวันใหม่หมด — รู้ผลลัพธ์แน่นอนอยู่แล้วว่าแถวนี้เปลี่ยนเป็นอะไร
+          r.paid = false; r.delay = Math.round((new Date(todayISO())-new Date(r.iso))/86400000);
           refreshRelatedViews(r);
-          await renderAllExpenseList();
+          await renderAllExpenseList(true);
         }catch(err){
           showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
           btn.disabled = false;
         } finally { allExpActionInFlight = false; }
       }else{
         allExpEditingKey = key;
-        renderAllExpenseList();
+        renderAllExpenseList(true);
       }
     }));
     container.querySelectorAll('[data-allexpconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -2618,9 +2671,11 @@ async function renderAllExpenseList(){
       btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
       try{
         await allExpSetPaid(r, true, paidDate);
+        // แก้สถานะที่แคชตรงจุดเลย ไม่ต้องยิงเน็ตโหลดข้อมูลทุกวันใหม่หมด — รู้ผลลัพธ์แน่นอนอยู่แล้วว่าแถวนี้เปลี่ยนเป็นอะไร
+        r.paid = true; r.delay = null;
         allExpEditingKey = null;
         refreshRelatedViews(r);
-        await renderAllExpenseList();
+        await renderAllExpenseList(true);
       }catch(err){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false; btn.textContent = 'ยืนยัน';
@@ -2628,7 +2683,7 @@ async function renderAllExpenseList(){
     }));
     container.querySelectorAll('[data-allexpcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
       allExpEditingKey = null;
-      renderAllExpenseList();
+      renderAllExpenseList(true);
     }));
   }catch(e){ if(mySeq === allExpenseRenderSeq_) container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
@@ -3153,19 +3208,24 @@ async function autofillPurchasePrice(){
   priceInput.value = '';
   delete priceInput.dataset.autofilled;
   priceInput.placeholder = 'กำลังค้นหาราคาล่าสุด…';
-  for(let i=1;i<=30;i++){
-    const iso = addDaysISO(currentDate, -i);
-    const d = await loadDay(iso);
-    const entries = (d.purchases||[]).filter(e=>e.productId===pid);
-    if(entries.length){
-      const latest = entries[entries.length-1];
-      priceInput.placeholder = `${latest.price} (ราคาล่าสุดเมื่อ ${formatDDMMYYYY(iso)})`;
-      priceInput.value = latest.price;
-      priceInput.dataset.autofilled = '1';
-      return;
+  try{
+    for(let i=1;i<=30;i++){
+      const iso = addDaysISO(currentDate, -i);
+      const d = await loadDay(iso);
+      const entries = (d.purchases||[]).filter(e=>e.productId===pid);
+      if(entries.length){
+        const latest = entries[entries.length-1];
+        priceInput.placeholder = `${latest.price} (ราคาล่าสุดเมื่อ ${formatDDMMYYYY(iso)})`;
+        priceInput.value = latest.price;
+        priceInput.dataset.autofilled = '1';
+        return;
+      }
     }
+    priceInput.placeholder = '0';
+  }catch(e){
+    // เน็ตมีปัญหาตอนค้นราคาย้อนหลัง — แค่เติมราคาอัตโนมัติให้ไม่ได้ ไม่กระทบการกรอกข้อมูลอื่น ปล่อยให้กรอกราคาเองแทน
+    priceInput.placeholder = '0';
   }
-  priceInput.placeholder = '0';
 }
 async function updatePurchaseLeftoverHint(){
   const pid = document.getElementById('purchProduct').value;
@@ -3175,7 +3235,14 @@ async function updatePurchaseLeftoverHint(){
   const p = PRODUCTS.find(x=>x.id===pid);
   const totals = computeTotals(dayData.orders);
   const todayOrder = totals[pid]||0;
-  const prevDay = await loadDay(addDaysISO(currentDate,-1));
+  let prevDay;
+  try{
+    prevDay = await loadDay(addDaysISO(currentDate,-1));
+  }catch(e){
+    // เน็ตมีปัญหาตอนโหลดของเหลือเมื่อวาน — ไม่ต้องขึ้นคำแนะนำตรงนี้ ไม่กระทบการกรอกซื้อของหลัก
+    hintEl.innerHTML = '';
+    return;
+  }
   const leftoverIn = Number((prevDay.leftoverOut||{})[pid]||0);
   if(todayOrder===0 && leftoverIn===0){ hintEl.innerHTML = ''; return; }
   if(leftoverIn>0){
@@ -5239,17 +5306,28 @@ async function renderDashboard(){
 
 // ---- Tab switching / date ----
 async function switchTab(name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
+  // ใช้ '.tab[data-tab]' เหมือนกับตอนผูกปุ่มตอน init — ปุ่มแท็บย่อย (กรองสถานะจ่าย/ช่วงเวลาสรุปอันดับ ฯลฯ)
+  // ใช้คลาส "tab" ร่วมกันแค่ยืมสไตล์ แต่ไม่มี data-tab ถ้าเลือกแค่ '.tab' ทุกครั้งที่สลับแท็บใหญ่จะไปลบ
+  // "active" ของปุ่มพวกนี้ทิ้งหมดโดยไม่ตั้งใจ (เทียบ data-tab ของมันซึ่งไม่มีอยู่แล้วไม่มีทางตรงชื่อแท็บ) ทำให้
+  // ปุ่มกรองด้านในดูเหมือนไม่มีอันไหนถูกเลือกอยู่เลย ทั้งที่ตัวกรองจริงๆ ยังทำงานถูกต้องอยู่ก็ตาม
+  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
-  if(name==='dashboard') await renderDashboard();
-  if(name==='messages') await renderMessages();
-  if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
-  if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-  if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
-  if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
-  if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
-  if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
-  if(name==='settings'){ renderPriceProductSelect(); renderBillInfoForm(); renderBranchSettings(); renderExpenseCategorySettings(); renderDebtOwnerSettings(); renderDebtTypeSettings(); renderPIncomeCategorySettings(); renderPExpenseCategorySettings(); renderPurchSellerSettings(); }
+  // ครอบทั้งชุดด้วย try/catch — เดิมถ้ามีอะไรพังกลางทาง (เช่น เน็ตมีปัญหาตอนโหลดบางส่วน) จะทำให้ค้างครึ่งๆ กลางๆ
+  // เงียบๆ โดยไม่มีอะไรแจ้งเตือนเลย (ส่วนที่ยังไม่ทันเรนเดอร์ก็ค้างว่างไป) ตอนนี้ถ้าพังจะเห็น toast แจ้งอย่างน้อย
+  // แทนที่จะงงว่าทำไมบางส่วนของหน้าหายไปเฉยๆ
+  try{
+    if(name==='dashboard') await renderDashboard();
+    if(name==='messages') await renderMessages();
+    if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
+    if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
+    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+    if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
+    if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
+    if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
+    if(name==='settings'){ renderPriceProductSelect(); renderBillInfoForm(); renderBranchSettings(); renderExpenseCategorySettings(); renderDebtOwnerSettings(); renderDebtTypeSettings(); renderPIncomeCategorySettings(); renderPExpenseCategorySettings(); renderPurchSellerSettings(); }
+  }catch(e){
+    showToast('โหลดข้อมูลบางส่วนของหน้านี้ไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหรือสลับแท็บใหม่อีกครั้ง');
+  }
 }
 // ---- ปฏิทินเลือกวันที่แบบกำหนดเอง (native input[type=date] ปรับแต่งหน้าตาปฏิทินของมันเองไม่ได้ เลยทำเป็นป็อปอัปของเราเอง) ----
 // จุดแดงมุมล่างซ้าย = มีบันทึกต้นทุนซื้อวันนั้น, จุดเขียว = มีออเดอร์ขายวันนั้น (โชว์คู่กันได้ถ้ามีทั้งสอง)
@@ -5539,11 +5617,12 @@ async function init(){
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    // แค่เปลี่ยนตัวกรอง ไม่ได้แก้ข้อมูล ใช้ของที่แคชไว้กรอง/เรียงใหม่ได้เลย ไม่ต้องโหลดข้อมูลทุกวันใหม่ทั้งหมด (เร็วขึ้นมาก ไม่จอกระพริบ)
+    renderAllExpenseList(true); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
   }));
   document.getElementById('expSellerFilter').addEventListener('change', async (e)=>{
     expSellerFilterValue = e.target.value;
-    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    renderAllExpenseList(true); // แค่เปลี่ยนตัวกรองคู่ค้า ใช้ของที่แคชไว้ ไม่ต้องโหลดใหม่หมด (ไม่ต้องรอ — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว)
   });
   document.getElementById('outstandingBranchFilter').addEventListener('change', async (e)=>{
     outstandingBranchFilterValue = e.target.value;

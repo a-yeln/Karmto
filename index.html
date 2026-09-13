@@ -1226,15 +1226,21 @@ function findBranchFromOcr(branchCodeGuess, branchAreaGuess){
   }
   return null;
 }
+// ตัดวรรณยุกต์ (ไม้เอก โท ตรี จัตวา) และไม้ทัณฑฆาต ออกก่อนเทียบชื่อสินค้าเสมอ — OCR อ่านคำไทยยาวๆ ที่มีวรรณยุกต์
+// ซ้อนกันหลายจุด (เช่น "เชอรี่" ในเนื้อหอยเชอรี่) ผิดหรือตกหล่นบ่อยมาก เทียบแบบตัดวรรณยุกต์ทิ้งทั้งสองฝั่งจะทนทานกว่ามาก
+function normalizeOcrTh_(s){
+  return (s||'').toLowerCase().replace(/[่-์]/g,'').replace(/\s+/g,'');
+}
 function matchProductFromOcrName(name){
-  const n = (name||'').toLowerCase().replace(/\s+/g,'');
-  if(n.includes('แช่')||n.includes('แซ่')) return 'p1';
-  if(n.includes('ดอง')) return 'p2';
-  if(n.includes('ตัดปาก')||n.includes('ตัดหัว')||n.includes('ตัด')||n.includes('กุ้งตัด')) return 'p3';
-  if(n.includes('ปูจืด')||n.includes('ปู')) return 'p4';
-  if(n.includes('หมึกกล้วย')||n.includes('หมึก')) return 'p5';
-  if(n.includes('เชอรี่')||n.includes('เชอร์รี่')||n.includes('หอยเชอรี่')||n.includes('เนื้อหอยเชอรี่')) return 'p6';
-  if(n.includes('นางรม')||n.includes('หอยนางรม')||n.includes('เนื้อหอยนางรม')) return 'p7';
+  const n = normalizeOcrTh_(name);
+  const has = (pat)=> n.includes(normalizeOcrTh_(pat));
+  if(has('แช่')||has('แซ่')) return 'p1';
+  if(has('ดอง')) return 'p2';
+  if(has('ตัดปาก')||has('ตัดหัว')||has('ตัด')||has('กุ้งตัด')) return 'p3';
+  if(has('ปูจืด')||has('ปู')) return 'p4';
+  if(has('หมึกกล้วย')||has('หมึก')) return 'p5';
+  if(has('เชอรี่')||has('เชอร์รี่')||has('หอยเชอรี่')||has('เนื้อหอยเชอรี่')) return 'p6';
+  if(has('นางรม')||has('หอยนางรม')||has('เนื้อหอยนางรม')) return 'p7';
   return null;
 }
 function withOcrTimeout_(promise, label, ms){
@@ -1251,7 +1257,10 @@ function withOcrTimeout_(promise, label, ms){
 let ocrWorkerPromise_ = null;
 async function getOcrWorker_(){
   if(!ocrWorkerPromise_){
-    ocrWorkerPromise_ = withOcrTimeout_(Tesseract.createWorker('tha+eng'), 'เตรียมตัวอ่านภาพครั้งแรก', 60000)
+    // สำคัญ: createWorker ต้องส่งหลายภาษาเป็น "array" เช่น ['tha','eng'] เท่านั้น — ใช้สตริงต่อด้วยเครื่องหมาย + แบบ
+    // 'tha+eng' แบบเดิม (ที่ใช้ได้กับ Tesseract.recognize() แบบเก่า) ไม่ได้กับ createWorker() จะพังทุกครั้งเงียบๆ (404
+    // หาไฟล์โมเดลชื่อ "tha+eng" ไม่เจอ) นี่คือสาเหตุที่แก้รอบก่อนแล้วยังอ่านไม่ผ่านอยู่ดี
+    ocrWorkerPromise_ = withOcrTimeout_(Tesseract.createWorker(['tha','eng']), 'เตรียมตัวอ่านภาพครั้งแรก', 60000)
       .catch(e=>{ ocrWorkerPromise_ = null; throw e; }); // สร้างไม่สำเร็จ อย่าค้าง promise ที่ reject ไว้ตลอดกาล ให้ลองสร้างใหม่ได้ครั้งถัดไป
   }
   return ocrWorkerPromise_;
@@ -1299,21 +1308,41 @@ function parseOcrText(text){
     }
   }
   const items = [];
+  const unmatched = []; // เจอชื่อสินค้าแล้วแต่หาจำนวนไม่เจอเลยในบรรทัดใกล้ๆ — เก็บไว้โชว์ให้เห็นว่า OCR อ่านได้ว่าอะไรบ้าง
+  // แทนที่จะหายไปเงียบๆ โดยไม่มีร่องรอยอะไรให้ตรวจสอบเลย (เช่น รูปแบบจริง "Bm9 หอยเชอรี่ (กก.)" ไม่มีเลขจำนวนอยู่ในบรรทัดนี้เลย ต้องหาบรรทัดถัดๆ ไป)
   for(let i=0; i<lines.length; i++){
     const line = stripOcrSkuPrefix(lines[i]);
     const pid = matchProductFromOcrName(line);
     if(!pid) continue;
     let numMatches = line.match(/\d+(\.\d+)?/g);
-    // ถ้าบรรทัดนี้ไม่มีตัวเลข ลองดูบรรทัดถัดไป (บางทีชื่อสินค้ากับจำนวนถูกอ่านแยกคนละบรรทัด)
-    if(!numMatches && lines[i+1]){
-      numMatches = stripOcrSkuPrefix(lines[i+1]).match(/\d+(\.\d+)?/g);
+    // ถ้าบรรทัดนี้ไม่มีตัวเลข ลองดูบรรทัดถัดไปอีกสูงสุด 2 บรรทัด (บางทีชื่อสินค้า/หน่วย/จำนวน ถูกอ่านแยกคนละบรรทัดกันหลายชั้น
+    // ไม่ใช่แค่บรรทัดติดกันบรรทัดเดียวเสมอไป — เดิมเช็คแค่บรรทัดถัดไป 1 บรรทัด พอเจอ 2 ชั้น (เช่น มีบรรทัดหน่วย "(กก.)" คั่นกลาง) จะหาจำนวนไม่เจอแล้วหายไปเงียบๆ)
+    const nearbyLines = [lines[i]];
+    for(let k=1; k<=2 && !numMatches; k++){
+      if(!lines[i+k]) break;
+      nearbyLines.push(lines[i+k]);
+      numMatches = stripOcrSkuPrefix(lines[i+k]).match(/\d+(\.\d+)?/g);
     }
     if(numMatches && numMatches.length){
       const qty = Number(numMatches[numMatches.length-1]);
       if(qty>0) items.push({name: line, qty});
+      else unmatched.push({name: line, nearbyLines});
+    }else{
+      unmatched.push({name: line, nearbyLines});
     }
   }
-  return {branchCode, branchArea, items};
+  return {branchCode, branchArea, items, unmatched};
+}
+// เช็คว่าแถวออเดอร์นี้มีของจริงอยู่ไหม (ไม่ใช่แค่ {} เปล่าๆ หรือทุกช่องเป็น 0) — ใช้กันเขียนทับของจริงที่มีอยู่แล้วโดยไม่รู้ตัว
+function hasNonEmptyOrder_(row){
+  return !!row && PRODUCTS.some(p=>Number(row[p.id]||0)>0);
+}
+// สรุปรายการที่ "เจอชื่อสินค้าในภาพแล้ว แต่หาจำนวนไม่เจอ" ให้อ่านง่ายๆ พร้อมโชว์บรรทัดดิบที่ OCR อ่านได้จริงๆ
+// กันปัญหาแบบที่เจอมาแล้ว: สินค้าหายไปจากผลลัพธ์เงียบๆ โดยไม่มีร่องรอยอะไรให้ตรวจสอบว่า OCR อ่านว่าอะไรกันแน่
+function formatUnmatchedOcr_(unmatched){
+  if(!unmatched || !unmatched.length) return '';
+  const items = unmatched.slice(0,5).map(u=>`"${u.nearbyLines.join(' / ')}"`).join(', ');
+  return ` — ⚠️ เจอชื่อสินค้าในภาพแต่หาจำนวนไม่เจอ ${unmatched.length} รายการ (ยังไม่ได้เติมให้ ต้องกรอกเอง): ${items}`;
 }
 async function readOrderImage(file){
   const statusEl = document.getElementById('orderImageStatus');
@@ -1333,11 +1362,20 @@ async function readOrderImage(file){
       const pid = matchProductFromOcrName(it.name);
       if(pid) row[pid] = Number(it.qty)||0;
     });
+    const unmatchedMsg = formatUnmatchedOcr_(parsed.unmatched);
+    // สาขานี้มีออเดอร์บันทึกไว้อยู่แล้วในวันที่กำลังเปิดดูอยู่ — เตือนชัดๆ ก่อนเผลอกดบันทึกทับของจริงโดยไม่รู้ตัว
+    // (เกิดจากเปิดรูปออเดอร์วันอื่นค้างไว้ แต่แอปกำลังเปิดดูวันปัจจุบันอยู่ — รูปไม่มีข้อมูลวันที่ให้เทียบเองได้)
+    const existing = dayData.orders[branch.code];
+    if(hasNonEmptyOrder_(existing)){
+      const existingText = PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`).join(', ');
+      statusEl.innerHTML = `⚠️ <b style="color:var(--danger);">สาขา ${branchDisplayName(branch)} มีออเดอร์บันทึกไว้แล้วในวันที่ ${formatDDMMYYYY(currentDate)} (${existingText}) — ถ้ากด "บันทึกสาขานี้" ตอนนี้จะเขียนทับของเดิมทันที เช็คให้ชัวร์ก่อนว่ารูปที่อ่านนี้เป็นของวันที่ ${formatDDMMYYYY(currentDate)} จริงๆ (ไม่ใช่วันอื่น) ก่อนบันทึก</b>${unmatchedMsg}`;
+    }else{
+      statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง (กำลังจะบันทึกเข้าวันที่ ${formatDDMMYYYY(currentDate)})${unmatchedMsg}`;
+    }
     Object.entries(row).forEach(([pid,qty])=>{
       const input = document.querySelector(`.prodinput[data-pid="${pid}"]`);
       if(input) input.value = qty;
     });
-    statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง`;
     window.scrollTo({top:0, behavior:'smooth'});
   }catch(e){
     console.error('readOrderImage failed', e);
@@ -1349,7 +1387,13 @@ async function readOrderImages(fileList){
   if(files.length===0) return;
   if(files.length===1){ await readOrderImage(files[0]); return; }
   const statusEl = document.getElementById('orderImageStatus');
-  const successList = []; const failedList = [];
+  // จับ "วันที่ปลายทาง" ไว้ตั้งแต่ก่อนเริ่มอ่านเลย ไม่ใช้ currentDate สดๆ ตอนบันทึกท้ายสุด — อ่านหลายรูปใช้เวลานาน
+  // (หลายสิบวินาทีถึงหลายนาที) ถ้าระหว่างนั้นแอปสลับวันไปที่อื่น (เช่น กดผิด/เน็ตมีปัญหาทำให้สลับวันไม่สำเร็จแล้วเด้ง
+  // กลับวันนี้เงียบๆ) ผลลัพธ์ต้องยังคงบันทึกเข้าวันที่ตั้งใจเลือกไว้ตอนเริ่มอ่านเสมอ ไม่ใช่ไปเข้าวันที่เปิดอยู่ตอนจบ —
+  // เคยเกิดปัญหาจริงมาแล้วที่ตั้งใจอ่านรูปเข้าวันอื่น แต่ดันไปเขียนทับข้อมูลจริงของวันนี้แทน
+  const targetDate = currentDate;
+  const parsedResults = []; // เก็บผลอ่านไว้ก่อนเฉยๆ ยังไม่แตะ dayData ของวันไหนทั้งนั้นจนกว่าจะอ่านครบและรู้ปลายทางที่ถูกต้องแน่นอน
+  const failedList = []; const unmatchedAll = [];
   for(let i=0;i<files.length;i++){
     statusEl.textContent = `กำลังอ่านภาพ ${i+1}/${files.length} (ใช้เวลาสักครู่ต่อภาพ)…`;
     try{
@@ -1358,18 +1402,41 @@ async function readOrderImages(fileList){
       if(!branch){ failedList.push(`${files[i].name} (หาสาขาไม่เจอ: ${parsed.branchArea||parsed.branchCode||'-'})`); continue; }
       const row = {};
       (parsed.items||[]).forEach(it=>{ const pid = matchProductFromOcrName(it.name); if(pid) row[pid] = Number(it.qty)||0; });
-      dayData.orders[branch.code] = row;
-      successList.push(branchDisplayName(branch));
+      if(parsed.unmatched && parsed.unmatched.length) unmatchedAll.push(...parsed.unmatched);
+      parsedResults.push({branch, row, fileName: files[i].name});
     }catch(e){
       console.error('readOrderImages failed for', files[i].name, e);
       failedList.push(`${files[i].name} (${(e&&e.message)?e.message:'อ่านไม่สำเร็จ'})`);
     }
   }
-  await saveDay(currentDate, dayData);
-  refreshOrderTab();
-  renderStats();
-  let msg = successList.length ? `บันทึกสำเร็จ ${successList.length} สาขา: ${successList.join(', ')} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง ช่วยไล่เช็คตัวเลขแต่ละสาขาที่ "สาขาที่บันทึกแล้ว" เทียบกับภาพอีกรอบด้วย` : 'ไม่มีสาขาที่บันทึกสำเร็จเลย';
+  // อ่านครบทุกภาพแล้ว ค่อยตัดสินใจว่าจะเขียนเข้าวันไหน — ยึดตาม targetDate ที่จับไว้ตั้งแต่ต้นเสมอ ไม่ใช่ currentDate ตอนนี้
+  // ถ้ายังเปิดดูวันเดิมอยู่ ใช้ dayData สดที่มีอยู่แล้วได้เลย (เร็วกว่า) ถ้าสลับวันไปแล้วให้โหลดของวันเป้าหมายใหม่สดๆ แยกต่างหาก
+  const stillOnTargetDate = (currentDate === targetDate);
+  let targetDay;
+  try{
+    targetDay = stillOnTargetDate ? dayData : await loadDay(targetDate);
+  }catch(e){
+    statusEl.textContent = `อ่านภาพเสร็จแล้ว แต่โหลดข้อมูลวันที่ ${formatDDMMYYYY(targetDate)} เพื่อบันทึกไม่สำเร็จ (เน็ตมีปัญหา?) — ยังไม่ได้บันทึกอะไรลงไปเลย ลองใหม่อีกครั้ง`;
+    return;
+  }
+  // เช็คสาขาที่มีออเดอร์อยู่แล้วตรงจุดนี้ (กับข้อมูลของวันเป้าหมายจริงๆ) ไม่ใช่เช็คระหว่างอ่านตอนต้น — กันเขียนทับ
+  // ของจริงโดยไม่รู้ตัว ไม่มีขั้นตอนตรวจทานก่อนบันทึกเหมือนโหมดรูปเดียว จึงข้ามสาขาที่มีอยู่แล้วไปแทนที่จะทับอัตโนมัติ
+  const successList = []; const skippedList = [];
+  parsedResults.forEach(({branch, row, fileName})=>{
+    if(hasNonEmptyOrder_(targetDay.orders[branch.code])){
+      skippedList.push(`${fileName} (${branchDisplayName(branch)} มีออเดอร์อยู่แล้ว)`);
+      return;
+    }
+    targetDay.orders[branch.code] = row;
+    successList.push(branchDisplayName(branch));
+  });
+  await saveDay(targetDate, targetDay);
+  if(stillOnTargetDate){ dayData = targetDay; refreshOrderTab(); renderStats(); }
+  let msg = successList.length ? `บันทึกสำเร็จ ${successList.length} สาขา (เข้าวันที่ ${formatDDMMYYYY(targetDate)}): ${successList.join(', ')} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง ช่วยไล่เช็คตัวเลขแต่ละสาขาที่ "สาขาที่บันทึกแล้ว" เทียบกับภาพอีกรอบด้วย` : 'ไม่มีสาขาที่บันทึกสำเร็จเลย';
+  if(skippedList.length) msg += ` — ⚠️ ข้าม ${skippedList.length} ภาพเพราะสาขานั้นมีออเดอร์บันทึกไว้แล้ว (ไม่ได้เขียนทับให้): ${skippedList.join(', ')} — ถ้าจะบันทึกทับจริงๆ กรุณาเลือกอ่านรูปนั้นทีละรูปแล้วบันทึกเองแทน (เช็คก่อนว่าเปิดวันที่ถูกต้องอยู่)`;
   if(failedList.length) msg += ` — พลาด ${failedList.length} ภาพ: ${failedList.join(', ')} (กรอกเองแทน)`;
+  msg += formatUnmatchedOcr_(unmatchedAll);
+  if(!stillOnTargetDate) msg += ` — หมายเหตุ: ระหว่างอ่านภาพมีการสลับวันที่ในแอปไป ระบบบันทึกเข้าวันที่ ${formatDDMMYYYY(targetDate)} ที่ตั้งใจไว้ตอนเริ่มอ่านให้เรียบร้อยแล้ว (ไม่ใช่วันที่กำลังเปิดอยู่ตอนนี้) ลองกลับไปดูวันนั้นเพื่อตรวจสอบ`;
   statusEl.textContent = msg;
 }
 
@@ -5399,7 +5466,10 @@ async function loadForDate(iso){
   }catch(e){
     currentDate = previousDate;
     document.getElementById('dateInput').value = previousDate;
-    showToast('โหลดข้อมูลวันที่ '+formatDDMMYYYY(iso)+' ไม่สำเร็จ (เชื่อมต่อไม่ได้) — ลองใหม่อีกครั้ง');
+    // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
+    // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
+    // ออเดอร์ต่อทันทีเลยดันไปเขียนทับข้อมูลของวันที่เปิดอยู่จริง (ไม่ใช่วันที่ตั้งใจสลับไป) ต้องให้ชัวร์ว่าเห็นแน่นอน
+    alert('สลับไปวันที่ '+formatDDMMYYYY(iso)+' ไม่สำเร็จ (เชื่อมต่อไม่ได้) — แอปยังอยู่ที่วันที่ '+formatDDMMYYYY(previousDate)+' เหมือนเดิม กรุณาลองสลับวันใหม่อีกครั้งก่อนอ่าน/บันทึกอะไรต่อ เพื่อกันบันทึกผิดวันโดยไม่ตั้งใจ');
     return;
   }
   editingCode = null;

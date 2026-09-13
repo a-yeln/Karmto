@@ -3576,7 +3576,7 @@ async function renderLotList(){
         const note = document.getElementById('multiLotNote').value.trim();
         if(qtyUsedTotal<=0 || sellableTotal<=0){ showToast('กรอกจำนวนที่ใช้รวมและที่ได้รวมให้ครบ'); return; }
         const lots2 = await loadRawLots();
-        // FIFO: เรียงล็อตที่ยังไม่หมดของสินค้านี้ตามวันที่ซื้อ เก่าสุดก่อน แล้วหักลบไล่ไปทีละล็อตจนครบยอดที่เบิก
+        // หักเบิก (ใช้ไป) แบบเต็มลอต: FIFO — ตัดล็อตที่ซื้อมาก่อนสุดให้หมดก่อน แล้วค่อยไล่ไปล็อตถัดไปจนครบยอดที่เบิก
         const activeLots = lots2.filter(l=>l.productId===productId && lotRemaining(l)>0)
           .sort((a,b)=> String(a.buyDate).localeCompare(String(b.buyDate)) || String(a.id).localeCompare(String(b.id)));
         if(activeLots.length===0){ showToast('ไม่มีล็อตที่เหลืออยู่ของสินค้านี้'); return; }
@@ -3599,7 +3599,7 @@ async function renderLotList(){
             allocations.push({lot: activeLots[activeLots.length-1], qty: qtyUsedTotal});
           }
         }
-        // แบ่งยอด "ทำได้" ตามสัดส่วนที่เบิกจากแต่ละล็อต — ล็อตสุดท้ายเอาส่วนที่เหลือทั้งหมดไปกันยอดรวมเพี้ยนจากการปัดเศษ
+        // แบ่งยอด "ทำได้" ตามสัดส่วนที่เบิกจากแต่ละล็อต (เฉลี่ยตามสัดส่วนที่หักไปจริง) — ล็อตสุดท้ายเอาส่วนที่เหลือทั้งหมดไปกันยอดรวมเพี้ยนจากการปัดเศษ
         const qtySum = allocations.reduce((s,a)=>s+a.qty,0);
         let sellableAssigned = 0;
         allocations.forEach((a,i)=>{

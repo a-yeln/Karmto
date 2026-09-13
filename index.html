@@ -854,6 +854,18 @@ let dayData = null;
 let editingCode = null;
 let editingDebtId = null;
 
+// สร้างรหัสรายการที่ไม่ชนกันแน่นอน — เดิมใช้แค่ Date.now() เฉยๆ ถ้ากดบันทึกซ้ำเร็วมากๆ (เช่นดับเบิลแท็ปมือถือ/เน็ตกระตุก) อาจได้ timestamp เดียวกันจนรหัสซ้ำกัน
+// แล้วพอกดลบรายการหนึ่ง (ลบตามรหัส) จะพลอยลบรายการอื่นที่รหัสซ้ำกันไปด้วยทั้งหมดโดยไม่ตั้งใจ — เติมเลขสุ่มต่อท้ายกันชนแน่นอน
+function uid(prefix){ return prefix + Date.now() + '-' + Math.random().toString(36).slice(2,8); }
+// ลบแค่รายการแรกที่ตรงรหัส ไม่ใช่ลบทุกรายการที่รหัสตรงกัน — กันไว้เผื่อมีข้อมูลเก่าก่อนแก้ uid() ที่รหัสดันชนกัน
+// จะได้ไม่โดนลบยกชุดโดยไม่ตั้งใจถ้ากดลบแค่รายการเดียว
+function removeFirstById(arr, id){
+  const idx = arr.findIndex(x=>x.id===id);
+  if(idx<0) return arr.slice();
+  const copy = arr.slice();
+  copy.splice(idx,1);
+  return copy;
+}
 function todayISO(){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 function addDaysISO(iso, delta){ const [y,m,d] = iso.split('-').map(Number); const dt = new Date(Date.UTC(y, m-1, d)); dt.setUTCDate(dt.getUTCDate()+delta); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`; }
 function formatDDMMYYYY(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
@@ -2019,7 +2031,7 @@ function renderExpenseList(){
     const id = btn.getAttribute('data-expdel');
     const removed = dayData.expenses.find(x=>x.id===id);
     const removedIdx = dayData.expenses.indexOf(removed);
-    dayData.expenses = dayData.expenses.filter(x=>x.id!==id);
+    dayData.expenses = removeFirstById(dayData.expenses, id);
     try{
       await saveDay(currentDate, dayData);
       renderExpenseList();
@@ -2048,7 +2060,7 @@ async function addExpense(){
     document.getElementById('addExpenseBtn').textContent = '+ เพิ่มรายจ่าย';
     showToast('แก้ไขรายจ่ายแล้ว');
   }else{
-    dayData.expenses.push({id: 'e'+Date.now(), category, seller, note, amount, paid:false});
+    dayData.expenses.push({id: uid('e'), category, seller, note, amount, paid:false});
     showToast('เพิ่มรายจ่ายแล้ว');
   }
   await saveDay(currentDate, dayData);
@@ -2873,7 +2885,7 @@ function renderPersonalLists(){
   incWrap.querySelectorAll('[data-pincdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pincdel');
     const prevList = dayData.personalIncome;
-    dayData.personalIncome = dayData.personalIncome.filter(x=>x.id!==id);
+    dayData.personalIncome = removeFirstById(dayData.personalIncome, id);
     try{
       await saveDay(currentDate, dayData);
       renderPersonalLists();
@@ -2894,7 +2906,7 @@ function renderPersonalLists(){
   expWrap.querySelectorAll('[data-pexpdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pexpdel');
     const prevList = dayData.personalExpense;
-    dayData.personalExpense = dayData.personalExpense.filter(x=>x.id!==id);
+    dayData.personalExpense = removeFirstById(dayData.personalExpense, id);
     try{
       await saveDay(currentDate, dayData);
       renderPersonalLists();
@@ -2911,7 +2923,7 @@ async function addPersonalIncome(){
   const note = document.getElementById('pIncomeNote').value.trim();
   const amount = Number(document.getElementById('pIncomeAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.personalIncome.push({id:'pi'+Date.now(), person, category, note, amount});
+  dayData.personalIncome.push({id:uid('pi'), person, category, note, amount});
   await saveDay(currentDate, dayData);
   document.getElementById('pIncomeNote').value=''; document.getElementById('pIncomeAmount').value='';
   renderPersonalLists();
@@ -2923,7 +2935,7 @@ async function addPersonalExpense(){
   const note = document.getElementById('pExpenseNote').value.trim();
   const amount = Number(document.getElementById('pExpenseAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.personalExpense.push({id:'pe'+Date.now(), person, category, note, amount});
+  dayData.personalExpense.push({id:uid('pe'), person, category, note, amount});
   await saveDay(currentDate, dayData);
   document.getElementById('pExpenseNote').value=''; document.getElementById('pExpenseAmount').value='';
   renderPersonalLists();
@@ -3231,7 +3243,7 @@ async function addLot(){
   try{
     const totalQtyAll = validRows.reduce((s,r)=>s+Number(r.qty), 0);
     const lots = await loadRawLots();
-    const billId = 'bill'+Date.now();
+    const billId = uid('bill');
     const productLabels = [];
     let productAmountTotal = 0;
     validRows.forEach((r,i)=>{
@@ -3252,7 +3264,7 @@ async function addLot(){
     await saveLotProductBills(productBills);
     if(transportTotal>0){
       const bills = await loadLotTransportBills();
-      bills.push({id:'lt'+Date.now(), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+      bills.push({id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
       await saveLotTransportBills(bills);
     }
     settings.lastLotSeller = seller;
@@ -3382,7 +3394,7 @@ async function renderLotList(){
     const lot = lots2.find(x=>x.id===id);
     if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
     try{
-      await saveRawLots(lots2.filter(x=>x.id!==id));
+      await saveRawLots(removeFirstById(lots2, id));
       showToast('ลบล็อตแล้ว');
       await renderLotList();
     }catch(e){
@@ -3415,7 +3427,7 @@ async function renderLotList(){
       const ok = confirm(`ล็อตนี้เหลืออยู่ ${remain} กก. แต่กำลังจะเบิก ${qtyUsed} กก. (มากกว่าที่เหลือ)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
       if(!ok) return;
     }
-    const drawId = 'drw'+Date.now();
+    const drawId = uid('drw');
     const costPerKg = lotCostPerKg(lot);
     lot.draws = lot.draws || [];
     lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note});
@@ -3505,7 +3517,7 @@ async function renderLotTransportList(){
     const id = btn.getAttribute('data-lottransdel');
     try{
       const bills2 = await loadLotTransportBills();
-      await saveLotTransportBills(bills2.filter(x=>x.id!==id));
+      await saveLotTransportBills(removeFirstById(bills2, id));
       showToast('ลบแล้ว');
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -3607,7 +3619,7 @@ async function renderLotProductBillList(){
     const id = btn.getAttribute('data-lotproddel');
     try{
       const bills2 = await loadLotProductBills();
-      await saveLotProductBills(bills2.filter(x=>x.id!==id));
+      await saveLotProductBills(removeFirstById(bills2, id));
       showToast('ลบแล้ว');
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -3680,7 +3692,7 @@ async function addPurchase(){
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
   }else{
-    dayData.purchases.push({id:'pu'+Date.now(), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false});
+    dayData.purchases.push({id:uid('pu'), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false});
     showToast('บันทึกต้นทุนซื้อแล้ว');
   }
   await saveDay(currentDate, dayData);
@@ -3778,7 +3790,7 @@ function renderPurchaseList(){
     const id = btn.getAttribute('data-purchdel');
     const entry = dayData.purchases.find(x=>x.id===id);
     const prevList = dayData.purchases;
-    dayData.purchases = dayData.purchases.filter(x=>x.id!==id);
+    dayData.purchases = removeFirstById(dayData.purchases, id);
     try{
       await saveDay(currentDate, dayData);
     }catch(e){
@@ -4126,13 +4138,13 @@ async function renderDebts(){
     if(d.owner==='AY' || d.owner==='WJ'){
       const dayRec = await loadDay(payDate);
       dayRec.personalExpense = dayRec.personalExpense || [];
-      dayRec.personalExpense.push({id:'pe'+Date.now(), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount});
+      dayRec.personalExpense.push({id:uid('pe'), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount});
       await saveDay(payDate, dayRec);
       if(payDate===currentDate) dayData = dayRec;
     } else if(d.owner==='ก้ามโต' && interest>0){
       const dayRec = await loadDay(payDate);
       dayRec.expenses = dayRec.expenses || [];
-      dayRec.expenses.push({id:'e'+Date.now(), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true});
+      dayRec.expenses.push({id:uid('e'), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true});
       await saveDay(payDate, dayRec);
       if(payDate===currentDate) dayData = dayRec;
     }
@@ -4161,7 +4173,7 @@ async function addDebt(){
     }
     showToast('แก้ไขหนี้แล้ว');
   }else{
-    const newDebt = {id:'d'+Date.now(), creditor, type, owner, interestRate, dueDate, principalStart, payments:[]};
+    const newDebt = {id:uid('d'), creditor, type, owner, interestRate, dueDate, principalStart, payments:[]};
     applyInitialAdjustment(newDebt, principalStart, remainNowRaw);
     all.push(newDebt);
     showToast('เพิ่มหนี้แล้ว');
@@ -4277,7 +4289,7 @@ async function submitQuickRecord(){
     const qty = Number(document.getElementById('qrQty').value||0);
     const price = Number(document.getElementById('qrPrice').value||0);
     if(!productId || qty<=0 || price<=0){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
-    dayData.purchases.push({id:'pu'+Date.now(), productId, seller, qty, price, extra:0, sellableQty:null, note:'', paid:false});
+    dayData.purchases.push({id:uid('pu'), productId, seller, qty, price, extra:0, sellableQty:null, note:'', paid:false});
     await saveDay(currentDate, dayData);
     showToast('บันทึกต้นทุนซื้อแล้ว — ดูรายละเอียดเพิ่มได้ที่แท็บต้นทุนซื้อ');
     if(document.getElementById('purchaseList')) renderPurchaseList();
@@ -4289,9 +4301,9 @@ async function submitQuickRecord(){
     const personSel = document.getElementById('qrPerson');
     const person = personSel ? personSel.value : null;
     if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-    if(qrType==='expense'){ dayData.expenses.push({id:'e'+Date.now(), category, note, amount, paid:false}); if(document.getElementById('expenseList')) renderExpenseList(); }
-    if(qrType==='pincome'){ dayData.personalIncome.push({id:'pi'+Date.now(), person, category, note, amount}); if(document.getElementById('pIncomeList')) renderPersonalLists(); }
-    if(qrType==='pexpense'){ dayData.personalExpense.push({id:'pe'+Date.now(), person, category, note, amount}); if(document.getElementById('pExpenseList')) renderPersonalLists(); }
+    if(qrType==='expense'){ dayData.expenses.push({id:uid('e'), category, note, amount, paid:false}); if(document.getElementById('expenseList')) renderExpenseList(); }
+    if(qrType==='pincome'){ dayData.personalIncome.push({id:uid('pi'), person, category, note, amount}); if(document.getElementById('pIncomeList')) renderPersonalLists(); }
+    if(qrType==='pexpense'){ dayData.personalExpense.push({id:uid('pe'), person, category, note, amount}); if(document.getElementById('pExpenseList')) renderPersonalLists(); }
     await saveDay(currentDate, dayData);
     showToast('บันทึกแล้ว');
   }
@@ -4665,7 +4677,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const amtInput = detailEl.querySelector('#branchPayAmount');
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedSum;
       const note = detailEl.querySelector('#branchPayNote').value || '';
-      const batchId = isos.length>1 ? ('batch'+Date.now()) : null;
+      const batchId = isos.length>1 ? uid('batch') : null;
       for(const iso of isos){
         const d = await loadDay(iso);
         d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};

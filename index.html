@@ -1422,6 +1422,28 @@ async function renderMessages(){
 }
 
 // ---- Leftover tab ----
+// สูตรกลาง (ใช้ทั้งหน้าของเหลือ และตอนเติมอัตโนมัติจากฟอร์มซื้อ/เบิกล็อต ให้เป็นสูตรเดียวกัน กันตัวเลขไม่ตรงกัน)
+// ของเหลือที่ต้องเก็บวันนี้ = (ของเหลือที่ยกมาจากเมื่อวาน + ที่ซื้อ/ทำได้เพิ่มวันนี้) - ยอดออเดอร์วันนี้
+async function computeSuggestedLeftover(pid){
+  if(!LEFTOVER_IDS.includes(pid)) return {suggested:0, carriedIn:0, yieldQty:0, orderedQty:0};
+  const prevDay = await loadDay(addDaysISO(currentDate,-1));
+  const carriedIn = Number((prevDay.leftoverOut||{})[pid]||0);
+  const yieldQty = (dayData.purchases||[]).filter(e=>e.productId===pid).reduce((s,e)=>s+purchaseSellableQty(e),0);
+  const orderedQty = computeTotals(dayData.orders)[pid]||0;
+  const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
+  return {suggested, carriedIn, yieldQty, orderedQty};
+}
+// เติม "ของเหลือ" ให้อัตโนมัติทันทีหลังบันทึกต้นทุนซื้อ/เบิกล็อต ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ — จะได้ไม่ต้องมาเข้าหน้าของเหลือเพื่อกดบันทึกซ้ำเอง
+// จะไม่ทับถ้าผู้ใช้เคยกรอกของเหลือของวันนี้ไว้เองแล้ว (เคารพตัวเลขที่นับจริงเสมอ)
+async function autoFillLeftoverIfNeeded(pid){
+  if(!LEFTOVER_IDS.includes(pid)) return;
+  if(Object.prototype.hasOwnProperty.call(dayData.leftoverOut, pid)) return;
+  const {suggested} = await computeSuggestedLeftover(pid);
+  if(suggested<=0) return;
+  dayData.leftoverOut[pid] = suggested;
+  await saveDay(currentDate, dayData);
+  if(document.querySelector('.panel.active')?.id==='panel-leftover') renderLeftover();
+}
 async function renderLeftover(){
   const prevIso = addDaysISO(currentDate,-1);
   const nextIso = addDaysISO(currentDate,1);
@@ -1432,17 +1454,12 @@ async function renderLeftover(){
   document.getElementById('leftoverOutHeader').textContent = `ของเหลือที่ต้องเก็บจากวันที่ ${formatDDMMYYYY(currentDate)} (จะหักออกจากออเดอร์วันที่ ${formatDDMMYYYY(nextIso)})`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
-  // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ)
-  const orderedTotals = computeTotals(dayData.orders);
-  const yieldTotals = {};
-  (dayData.purchases||[]).forEach(e=>{ yieldTotals[e.productId] = (yieldTotals[e.productId]||0) + purchaseSellableQty(e); });
-  document.getElementById('leftoverOutForm').innerHTML = LEFTOVER_IDS.map(id=>{
+  // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
+  document.getElementById('leftoverOutForm').innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const rowsHtml = await Promise.all(LEFTOVER_IDS.map(async id=>{
     const p=PRODUCTS.find(x=>x.id===id);
     const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, id);
-    const yieldQty = yieldTotals[id]||0, orderedQty = orderedTotals[id]||0, carriedIn = Number(leftIn[id]||0);
-    // ของเหลือที่ต้องเก็บวันนี้ = (ของเหลือที่ยกมาจากเมื่อวาน + ที่ซื้อ/ทำได้เพิ่มวันนี้) - ยอดออเดอร์วันนี้
-    // เดิมลืมบวกของเหลือที่ยกมา ทำให้เวลาซื้อเผื่อเกินความต้องการ ตัวเลขแนะนำต่ำกว่าความเป็นจริง
-    const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
+    const {suggested, carriedIn, yieldQty, orderedQty} = await computeSuggestedLeftover(id);
     const showSuggestHint = !alreadyRecorded && (yieldQty>0 || carriedIn>0);
     const val = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
     return `<div class="lrow" style="flex-direction:column;align-items:stretch;">
@@ -1452,7 +1469,8 @@ async function renderLeftover(){
       </div>
       ${showSuggestHint ? `<div class="hint" style="margin-top:2px;">ระบบคำนวณให้อัตโนมัติ: เหลือยกมา ${carriedIn} + ทำได้วันนี้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)</div>` : ''}
     </div>`;
-  }).join('');
+  }));
+  document.getElementById('leftoverOutForm').innerHTML = rowsHtml.join('');
 }
 async function saveLeftover(){
   document.querySelectorAll('[data-lpid]').forEach(inp=>{ dayData.leftoverOut[inp.getAttribute('data-lpid')] = Number(inp.value||0); });
@@ -3272,6 +3290,7 @@ async function renderLotStockSummary(){
 }
 let lotDrawOpenId = null;
 let lotDrawConfirmInFlight = false;
+let lotDepletedSectionOpen = false; // พับ "บิลที่ใช้หมดแล้ว" ไว้เป็นค่าเริ่มต้น กันรายการเก่าที่เบิกหมดแล้วมาบังบิลที่ยังมีของเหลืออยู่
 async function renderLotList(){
   const wrap = document.getElementById('lotList');
   if(!wrap) return;
@@ -3281,12 +3300,12 @@ async function renderLotList(){
   await ensureLotBillRecords(lots);
   const groups = {};
   lots.forEach(lot=>{ const bid = lot.billId || lot.id; (groups[bid] = groups[bid]||[]).push(lot); });
-  const billIds = Object.keys(groups).sort((a,b)=>{
-    const ra = groups[a].some(l=>lotRemaining(l)>0), rb = groups[b].some(l=>lotRemaining(l)>0);
-    if(ra!==rb) return ra ? -1 : 1;
+  const allBillIds = Object.keys(groups).sort((a,b)=>{
     return String(groups[b][0].buyDate).localeCompare(String(groups[a][0].buyDate));
   });
-  wrap.innerHTML = billIds.map(bid=>{
+  const activeBillIds = allBillIds.filter(bid=>groups[bid].some(l=>lotRemaining(l)>0));
+  const depletedBillIds = allBillIds.filter(bid=>!groups[bid].some(l=>lotRemaining(l)>0));
+  const renderBillCard = (bid)=>{
     const rows = groups[bid];
     const head = rows[0];
     const productTotal = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0),0);
@@ -3335,7 +3354,24 @@ async function renderLotList(){
       </div>
       ${rowsHtml}
     </div>`;
-  }).join('');
+  };
+  const activeHtml = activeBillIds.map(renderBillCard).join('');
+  const depletedHtml = depletedBillIds.length ? `<div class="card" style="background:var(--surface-2);padding:10px 12px;margin-bottom:10px;">
+    <div id="lotDepletedToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+      <b style="font-size:13.5px;color:var(--text-dim);">📦 ล็อตที่ใช้หมดแล้ว (${depletedBillIds.length} บิล)</b>
+      <span id="lotDepletedChevron">${lotDepletedSectionOpen?'▾':'▸'}</span>
+    </div>
+    <div id="lotDepletedBody" style="display:${lotDepletedSectionOpen?'':'none'};margin-top:8px;">${depletedBillIds.map(renderBillCard).join('')}</div>
+  </div>` : '';
+  wrap.innerHTML = (activeHtml || depletedHtml ? activeHtml : '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>') + depletedHtml;
+  const depletedToggleEl = document.getElementById('lotDepletedToggle');
+  if(depletedToggleEl){
+    depletedToggleEl.addEventListener('click', ()=>{
+      lotDepletedSectionOpen = !lotDepletedSectionOpen;
+      document.getElementById('lotDepletedBody').style.display = lotDepletedSectionOpen ? '' : 'none';
+      document.getElementById('lotDepletedChevron').textContent = lotDepletedSectionOpen ? '▾' : '▸';
+    });
+  }
   wrap.querySelectorAll('[data-lotbilldel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     await deleteWholeBill(btn.getAttribute('data-lotbilldel'));
   }));
@@ -3391,6 +3427,7 @@ async function renderLotList(){
       paid: true, fromLot: lot.id
     });
     await saveDay(currentDate, dayData);
+    await autoFillLeftoverIfNeeded(lot.productId); // ถ้าเบิกเกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     lotDrawOpenId = null;
     showToast('บันทึกการเบิกใช้แล้ว');
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
@@ -3401,6 +3438,7 @@ async function renderLotList(){
   }));
 }
 let lotTransportEditingId = null;
+let lotTransActionInFlight = false;
 async function renderLotTransportList(){
   const wrap = document.getElementById('lotTransportList');
   if(!wrap) return;
@@ -3436,11 +3474,13 @@ async function renderLotTransportList(){
   }).join('') + otherHint;
   wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lottranspay]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotTransActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     const id = btn.getAttribute('data-lottranspay');
     const bills2 = await loadLotTransportBills();
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      lotTransActionInFlight = true;
       btn.disabled = true;
       b.paid = false; b.paidDate = null;
       try{
@@ -3450,14 +3490,17 @@ async function renderLotTransportList(){
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false;
-      }
+      } finally { lotTransActionInFlight = false; }
     }else{
       lotTransportEditingId = id;
       await renderLotTransportList();
     }
   }));
   wrap.querySelectorAll('[data-lottransdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotTransActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     if(!confirm('ลบรายการค่าขนส่งนี้?')) return;
+    lotTransActionInFlight = true;
+    btn.disabled = true;
     const id = btn.getAttribute('data-lottransdel');
     try{
       const bills2 = await loadLotTransportBills();
@@ -3465,9 +3508,12 @@ async function renderLotTransportList(){
       showToast('ลบแล้ว');
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
-    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); btn.disabled = false; }
+    finally { lotTransActionInFlight = false; }
   }));
   wrap.querySelectorAll('[data-lottransconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotTransActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า — นี่คือจุดที่เคยไม่มีการป้องกัน
+    lotTransActionInFlight = true;
     const id = btn.getAttribute('data-lottransconfirm');
     const dateInput = document.getElementById(`lottransdate-${id}`);
     const paidDate = dateInput.value || todayISO();
@@ -3485,7 +3531,7 @@ async function renderLotTransportList(){
     }catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
       btn.disabled = false; btn.textContent = 'ยืนยัน';
-    }
+    } finally { lotTransActionInFlight = false; }
   }));
   wrap.querySelectorAll('[data-lottranscancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotTransportEditingId = null;
@@ -3494,6 +3540,7 @@ async function renderLotTransportList(){
   updateBillSummaryVisibility();
 }
 let lotProductBillEditingId = null;
+let lotProdActionInFlight = false;
 async function renderLotProductBillList(){
   const wrap = document.getElementById('lotProductBillList');
   if(!wrap) return;
@@ -3529,11 +3576,13 @@ async function renderLotProductBillList(){
   }).join('') + otherHint;
   wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-lotprodpay]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotProdActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     const id = btn.getAttribute('data-lotprodpay');
     const bills2 = await loadLotProductBills();
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      lotProdActionInFlight = true;
       btn.disabled = true;
       b.paid = false; b.paidDate = null;
       try{
@@ -3543,14 +3592,17 @@ async function renderLotProductBillList(){
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false;
-      }
+      } finally { lotProdActionInFlight = false; }
     }else{
       lotProductBillEditingId = id;
       await renderLotProductBillList();
     }
   }));
   wrap.querySelectorAll('[data-lotproddel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotProdActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     if(!confirm('ลบรายการบิลสินค้าล็อตนี้? (ไม่ลบล็อตสินค้า ลบเฉพาะรายการรอจ่ายนี้)')) return;
+    lotProdActionInFlight = true;
+    btn.disabled = true;
     const id = btn.getAttribute('data-lotproddel');
     try{
       const bills2 = await loadLotProductBills();
@@ -3558,9 +3610,12 @@ async function renderLotProductBillList(){
       showToast('ลบแล้ว');
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
-    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); btn.disabled = false; }
+    finally { lotProdActionInFlight = false; }
   }));
   wrap.querySelectorAll('[data-lotprodconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotProdActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า — นี่คือจุดที่เคยไม่มีการป้องกัน ทำให้กดรัวๆ ได้บิลซ้ำหลายรอบ
+    lotProdActionInFlight = true;
     const id = btn.getAttribute('data-lotprodconfirm');
     const dateInput = document.getElementById(`lotproddate-${id}`);
     const paidDate = dateInput.value || todayISO();
@@ -3577,7 +3632,7 @@ async function renderLotProductBillList(){
     }catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
       btn.disabled = false; btn.textContent = 'ยืนยัน';
-    }
+    } finally { lotProdActionInFlight = false; }
   }));
   wrap.querySelectorAll('[data-lotprodcancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotProductBillEditingId = null;
@@ -3628,6 +3683,7 @@ async function addPurchase(){
     showToast('บันทึกต้นทุนซื้อแล้ว');
   }
   await saveDay(currentDate, dayData);
+  await autoFillLeftoverIfNeeded(productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   renderPurchaseList();

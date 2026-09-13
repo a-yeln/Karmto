@@ -2470,11 +2470,10 @@ async function renderAllExpenseList(){
     const today = todayISO();
     // เลือกข้ามรายการตามแท็บที่กรองอยู่: ทั้งหมด / เฉพาะค้างจ่าย(ไม่เอาที่จ่ายแล้ว) / จ่ายแล้ว(ไม่เอาที่ยังค้าง)
     const skipByFilter = (paid)=> (expenseFilterMode==='unpaid' && paid) || (expenseFilterMode==='paid' && !paid);
-    let rows = [];
+    let rows = []; // เก็บทุกรายการไว้ก่อน ไม่กรองตามแท็บ เพื่อให้สรุปยอดของคู่ค้าถูกต้องเสมอไม่ว่าจะเปิดแท็บไหนอยู่
     for(const iso of isoList){
       const d = dayMap[iso];
       (d.expenses||[]).forEach(e=>{
-        if(skipByFilter(e.paid)) return;
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
       });
@@ -2495,7 +2494,6 @@ async function renderAllExpenseList(){
         sellerGroups[seller].paid = g.paid; // สถานะจ่ายยึดตามปุ่ม "รวมบิล" เป็นหลัก เพราะกดทีเดียวจ่ายทั้งบิล
       });
       Object.entries(sellerGroups).forEach(([seller,g])=>{
-        if(skipByFilter(g.paid)) return;
         const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
         rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
@@ -2503,28 +2501,38 @@ async function renderAllExpenseList(){
     }
     const transportBills = await loadLotTransportBills();
     transportBills.forEach(b=>{
-      if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
       rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||'', type:'pt', key:`pt:${b.id}`, billId:b.id});
     });
     const productBills = await loadLotProductBills();
     productBills.forEach(b=>{
-      if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
       rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
     });
-    if(expSellerFilterValue){ rows = rows.filter(r=>r.seller===expSellerFilterValue); }
-    rows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
+    // ขอบเขตของคู่ค้าที่เลือก (ทุกบิล ไม่ว่าจ่ายแล้วหรือค้าง) ใช้คำนวณสรุปยอดด้านบน — แยกจาก visibleRows ที่ใช้แสดงรายการด้านล่างซึ่งกรองตามแท็บด้วย
+    const sellerRows = expSellerFilterValue ? rows.filter(r=>r.seller===expSellerFilterValue) : null;
+    const baseRows = sellerRows || rows;
+    const visibleRows = baseRows.filter(r=>!skipByFilter(r.paid));
+    visibleRows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
     const totalEl = document.getElementById('expSellerTotal');
     if(expSellerFilterValue){
-      const unpaidTotal = rows.filter(r=>!r.paid).reduce((s,r)=>s+r.amount,0);
-      totalEl.innerHTML = `<b style="color:var(--danger);">ยอดค้างกับ ${expSellerFilterValue}: ${money(unpaidTotal)}</b>`;
+      const billCount = sellerRows.length;
+      const totalAmount = sellerRows.reduce((s,r)=>s+r.amount,0);
+      const paidAmount = sellerRows.filter(r=>r.paid).reduce((s,r)=>s+r.amount,0);
+      const unpaidRows = sellerRows.filter(r=>!r.paid);
+      const unpaidAmount = unpaidRows.reduce((s,r)=>s+r.amount,0);
+      totalEl.innerHTML = `<div class="dash-grid" style="margin:4px 0 10px;">
+        <div class="dash-metric"><div class="dm-label">จำนวนบิล</div><div class="dm-value num">${billCount} บิล</div></div>
+        <div class="dash-metric"><div class="dm-label">ยอดรวมทั้งหมด</div><div class="dm-value num">${money(totalAmount)}</div></div>
+        <div class="dash-metric success"><div class="dm-label">ยอดโอนแล้ว</div><div class="dm-value num">${money(paidAmount)}</div></div>
+        <div class="dash-metric danger"><div class="dm-label">ยอดค้างจ่าย (${unpaidRows.length})</div><div class="dm-value num">${money(unpaidAmount)}</div></div>
+      </div>`;
     }else{
       totalEl.innerHTML = '';
     }
     if(mySeq !== allExpenseRenderSeq_) return;
-    if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการ</div>'; return; }
-    container.innerHTML = rows.map(r=>{
+    if(visibleRows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการ</div>'; return; }
+    container.innerHTML = visibleRows.map(r=>{
       const editing = allExpEditingKey===r.key;
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -5590,7 +5598,11 @@ async function init(){
   document.getElementById('saveDebtOwnersBtn').addEventListener('click', saveDebtOwners);
   document.getElementById('addDebtTypeBtn').addEventListener('click', addDebtType);
   document.getElementById('saveDebtTypesBtn').addEventListener('click', saveDebtTypes);
-  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>switchTab(t.getAttribute('data-tab'))));
+  // ใช้ '.tab[data-tab]' ไม่ใช่แค่ '.tab' เฉยๆ เพราะปุ่มแท็บย่อยอื่นๆ (กรองสถานะจ่าย/ช่วงเวลาสรุปอันดับ ฯลฯ)
+  // ก็ใช้คลาส "tab" ร่วมกัน (แค่ยืมสไตล์) แต่ไม่มี data-tab — ถ้าเลือกแค่ '.tab' ปุ่มพวกนี้จะโดนผูก
+  // switchTab(null) ซ้อนเข้ามาโดยไม่ตั้งใจ พอกด switchTab(null) จะไล่ปิด class "active" ของทุกแผงเพราะ
+  // ไม่มีแผงไหน id ตรงกับ "panel-null" เลย ทำให้จอว่างเปล่า/ดำทั้งหน้าโดยไม่มี error ให้เห็น (บั๊กจอดำที่เจอ)
+  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.addEventListener('click', ()=>switchTab(t.getAttribute('data-tab'))));
   document.body.addEventListener('click', e=>{
     const el = e.target.closest('[data-goto]');
     if(el){ switchTab(el.getAttribute('data-goto')); return; }

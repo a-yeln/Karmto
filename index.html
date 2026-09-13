@@ -1249,6 +1249,29 @@ function withOcrTimeout_(promise, label, ms){
     new Promise((_, reject)=>setTimeout(()=>reject(new Error(`หมดเวลา${label?' ('+label+')':''} (เน็ตช้า/มีปัญหาระหว่างโหลดตัวอ่านภาษา?) — ลองใหม่อีกครั้ง`)), ms || 45000))
   ]);
 }
+// แปล error ดิบของเบราว์เซอร์/Tesseract ให้เป็นข้อความไทยที่ user เข้าใจได้ว่าเกิดอะไรขึ้นจริงๆ
+// "Failed to fetch" คือ browser ต่อเน็ตไปโหลดไฟล์โมเดลภาษาไม่ติดเลย (ไม่ใช่แค่ช้า) — ต่างจาก timeout ของเราเอง
+// (ซึ่งแปลว่าต่อได้แต่โหลดช้าเกินจะรอ) ต้องแยกสองเคสนี้ให้ user เพราะทางแก้ไม่เหมือนกัน
+function friendlyOcrError_(e){
+  const msg = (e && e.message) || String(e);
+  if(/failed to fetch/i.test(msg)){
+    return 'เน็ตหลุด/อ่อนเกินกว่าจะโหลดตัวอ่านภาษาได้เลย (ไม่ใช่แค่ช้า) — ลองหาที่สัญญาณดีๆ หรือต่อ Wi-Fi สักครั้งแรกก่อน (พอโหลดสำเร็จครั้งนึง เครื่อง/เบราว์เซอร์จะจำไว้ ครั้งต่อไปจะเร็วขึ้นมากแม้เน็ตจะยังช้าอยู่) แล้วลองกดอ่านใหม่';
+  }
+  return msg + ' — ลองใหม่อีกครั้ง (ถ้ายังไม่ได้ ลองหาที่สัญญาณดีกว่านี้)';
+}
+// ลองซ้ำอัตโนมัติสำหรับ error ที่มักเกิดจากเน็ตไม่นิ่งชั่วคราว (หลุดแป๊บเดียวแล้วกลับมาได้) — เน็ตร้านที่ผู้ใช้เจอ
+// มักไม่ใช่ "ช้าคงที่" แต่เป็นๆ หายๆ ลองใหม่ 2-3 ครั้งห่างกันไม่กี่วินาทีช่วยผ่านได้บ่อยกว่าปล่อยพังตั้งแต่ครั้งแรก
+async function retryOcrOp_(fn, attempts){
+  let lastErr;
+  for(let i=0; i<attempts; i++){
+    try{ return await fn(); }
+    catch(e){
+      lastErr = e;
+      if(i < attempts-1) await new Promise(r=>setTimeout(r, 2500));
+    }
+  }
+  throw lastErr;
+}
 // เดิมเรียก Tesseract.recognize(...) ตรงๆ ทุกครั้ง ซึ่งแต่ละครั้งจะสร้าง worker ใหม่ + โหลดไฟล์โมเดลภาษาไทย/อังกฤษ
 // จากเน็ตใหม่หมดทุกรอบ (หลายสิบ MB) — ถ้าเน็ตร้านไม่นิ่ง (ปัญหาที่เจอมาตลอดทั้งระบบนี้) จะค้าง/ไทม์เอาต์เงียบๆ
 // ไม่มี error ให้เห็นเลย (ปุ่มก็กดซ้ำได้เรื่อยๆ แต่แต่ละครั้งไปเริ่มโหลดใหม่จากศูนย์อีก) นี่คือสาเหตุหลักที่ "กดสิบรอบ
@@ -1260,8 +1283,13 @@ async function getOcrWorker_(){
     // สำคัญ: createWorker ต้องส่งหลายภาษาเป็น "array" เช่น ['tha','eng'] เท่านั้น — ใช้สตริงต่อด้วยเครื่องหมาย + แบบ
     // 'tha+eng' แบบเดิม (ที่ใช้ได้กับ Tesseract.recognize() แบบเก่า) ไม่ได้กับ createWorker() จะพังทุกครั้งเงียบๆ (404
     // หาไฟล์โมเดลชื่อ "tha+eng" ไม่เจอ) นี่คือสาเหตุที่แก้รอบก่อนแล้วยังอ่านไม่ผ่านอยู่ดี
-    ocrWorkerPromise_ = withOcrTimeout_(Tesseract.createWorker(['tha','eng']), 'เตรียมตัวอ่านภาพครั้งแรก', 60000)
-      .catch(e=>{ ocrWorkerPromise_ = null; throw e; }); // สร้างไม่สำเร็จ อย่าค้าง promise ที่ reject ไว้ตลอดกาล ให้ลองสร้างใหม่ได้ครั้งถัดไป
+    //
+    // ลองซ้ำอัตโนมัติ 3 รอบ: เน็ตร้านที่เจอปัญหานี้บ่อยๆ คือหลุดแป๊บเดียว (ไม่ใช่ช้าคงที่ตลอด) "Failed to fetch"
+    // รอบแรกมักหายไปเองถ้าลองใหม่อีกสัก 1-2 ครั้ง โดยไม่ต้องให้ user กดปุ่มเองซ้ำๆ
+    ocrWorkerPromise_ = retryOcrOp_(
+      ()=> withOcrTimeout_(Tesseract.createWorker(['tha','eng']), 'เตรียมตัวอ่านภาพครั้งแรก', 60000),
+      3
+    ).catch(e=>{ ocrWorkerPromise_ = null; throw e; }); // สร้างไม่สำเร็จ อย่าค้าง promise ที่ reject ไว้ตลอดกาล ให้ลองสร้างใหม่ได้ครั้งถัดไป
   }
   return ocrWorkerPromise_;
 }
@@ -1271,7 +1299,12 @@ async function parseOrderImage(file){
   }
   const imageUrl = URL.createObjectURL(file);
   try{
-    const worker = await getOcrWorker_();
+    let worker;
+    try{
+      worker = await getOcrWorker_();
+    }catch(e){
+      throw new Error(friendlyOcrError_(e));
+    }
     let result;
     try{
       result = await withOcrTimeout_(worker.recognize(imageUrl), 'อ่านภาพ', 45000);
@@ -1279,7 +1312,7 @@ async function parseOrderImage(file){
       // worker อาจค้าง/พังจากปัญหาเน็ตระหว่างอ่าน — ทิ้ง worker เดิม ครั้งถัดไปจะได้สร้างใหม่สดๆ แทนที่จะค้างพังซ้ำ
       ocrWorkerPromise_ = null;
       try{ await worker.terminate(); }catch(e2){ /* ปิดไม่สำเร็จก็ช่างมัน ไม่กระทบอะไรต่อ */ }
-      throw e;
+      throw new Error(friendlyOcrError_(e));
     }
     return parseOcrText(result.data.text);
   }finally{

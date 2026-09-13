@@ -2449,6 +2449,8 @@ let expenseFilterMode = 'all';
 let expSellerFilterValue = '';
 // กันเรนเดอร์ซ้อนกัน (เช่น กดเปลี่ยนสถานะรัวๆ ที่แต่ละครั้ง trigger ให้เรียกซ้ำ) ไม่ให้ผลลัพธ์เก่าที่โหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
 let allExpenseRenderSeq_ = 0;
+let allExpEditingKey = null; // แถวที่กำลังกาง date picker อยู่ในรายการ "รอจ่ายทั้งหมด" ด้านล่างสุด
+let allExpActionInFlight = false;
 async function renderAllExpenseList(){
   const mySeq = ++allExpenseRenderSeq_;
   const container = document.getElementById('allExpenseList');
@@ -2474,7 +2476,7 @@ async function renderAllExpenseList(){
       (d.expenses||[]).forEach(e=>{
         if(skipByFilter(e.paid)) return;
         const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||''});
+        rows.push({iso, label:e.category+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
       });
       // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
       // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
@@ -2496,20 +2498,20 @@ async function renderAllExpenseList(){
         if(skipByFilter(g.paid)) return;
         const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
         const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
-        rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller});
+        rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}${seller?` (${seller})`:''}`, amount:g.amount, paid:g.paid, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
       });
     }
     const transportBills = await loadLotTransportBills();
     transportBills.forEach(b=>{
       if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
-      rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||''});
+      rows.push({iso:b.buyDate, label:`🚚 ค่าขนส่งล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.payee||'', type:'pt', key:`pt:${b.id}`, billId:b.id});
     });
     const productBills = await loadLotProductBills();
     productBills.forEach(b=>{
       if(skipByFilter(b.paid)) return;
       const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
-      rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||''});
+      rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
     });
     if(expSellerFilterValue){ rows = rows.filter(r=>r.seller===expSellerFilterValue); }
     rows.sort((a,b)=> (a.paid===b.paid) ? b.iso.localeCompare(a.iso) : (a.paid?1:-1));
@@ -2522,7 +2524,104 @@ async function renderAllExpenseList(){
     }
     if(mySeq !== allExpenseRenderSeq_) return;
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการ</div>'; return; }
-    container.innerHTML = rows.map(r=>`<div class="delayrow"><div><div>${r.label}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amount)}</div></div><span class="badge-delay" style="${r.paid?'background:var(--success-soft);color:var(--success);':''}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</span></div>`).join('');
+    container.innerHTML = rows.map(r=>{
+      const editing = allExpEditingKey===r.key;
+      return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div><div>${r.label}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${money(r.amount)}</div></div>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
+        </div>
+        ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="date" id="allexpdate-${encodeURIComponent(r.key)}" value="${lastUsedPayDate}" style="flex:1;">
+          <button class="btn small" data-allexpconfirm="${r.key}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-allexpcancel="${r.key}" style="width:auto;">ยกเลิก</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+    // สลับสถานะจ่าย/รอจ่ายได้ตรงนี้เลย ไม่ต้องไปหาแก้ทีละวัน — รองรับ 4 แบบ: รายจ่ายกิจการ, บิลรวมค่าซื้อของ (ตามคู่ค้า), ค่าขนส่งล็อต, บิลสินค้าล็อต
+    async function allExpSetPaid(r, paid, paidDate){
+      if(r.type==='exp'){
+        const isToday = r.iso===currentDate;
+        const d = isToday ? dayData : await loadDay(r.iso);
+        const e = (d.expenses||[]).find(x=>x.id===r.expId);
+        if(!e) throw new Error('รายการนี้ถูกลบไปแล้ว');
+        e.paid = paid; e.paidDate = paid ? paidDate : null;
+        await saveDay(r.iso, d);
+      } else if(r.type==='pg'){
+        const isToday = r.iso===currentDate;
+        const d = isToday ? dayData : await loadDay(r.iso);
+        d.purchaseGroupPayment = d.purchaseGroupPayment || {};
+        const info = d.purchaseGroupPayment[r.seller] || {paid:false, paidDate:null, extra:0, note:''};
+        info.paid = paid; info.paidDate = paid ? paidDate : null;
+        d.purchaseGroupPayment[r.seller] = info;
+        (d.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===r.seller) e.paid = paid; });
+        await saveDay(r.iso, d);
+      } else if(r.type==='pt'){
+        const bills = await loadLotTransportBills();
+        const b = bills.find(x=>x.id===r.billId);
+        if(!b) throw new Error('บิลนี้ถูกลบไปแล้ว');
+        b.paid = paid; b.paidDate = paid ? paidDate : null;
+        await saveLotTransportBills(bills);
+      } else if(r.type==='pp'){
+        const bills = await loadLotProductBills();
+        const b = bills.find(x=>x.id===r.billId);
+        if(!b) throw new Error('บิลนี้ถูกลบไปแล้ว');
+        b.paid = paid; b.paidDate = paid ? paidDate : null;
+        await saveLotProductBills(bills);
+      }
+    }
+    function refreshRelatedViews(r){
+      if(r.iso!==currentDate) return; // อัปเดตของวันที่กำลังเปิดดูอยู่ให้ตรงกันทันที ถ้าวันอื่นไม่ต้องยุ่ง เดี๋ยวมันโหลดสดตอนเปิดวันนั้นเอง
+      if(r.type==='exp') renderExpenseList();
+      else if(r.type==='pg'){ renderPurchaseGroups(); renderPurchaseList(); }
+      else if(r.type==='pt') renderLotTransportList();
+      else if(r.type==='pp') renderLotProductBillList();
+    }
+    container.querySelectorAll('[data-allexppay]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const key = btn.getAttribute('data-allexppay');
+      const r = rows.find(x=>x.key===key);
+      if(!r) return;
+      if(r.paid){
+        if(allExpActionInFlight) return;
+        allExpActionInFlight = true;
+        btn.disabled = true;
+        try{
+          await allExpSetPaid(r, false, null);
+          refreshRelatedViews(r);
+          await renderAllExpenseList();
+        }catch(err){
+          showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+          btn.disabled = false;
+        } finally { allExpActionInFlight = false; }
+      }else{
+        allExpEditingKey = key;
+        renderAllExpenseList();
+      }
+    }));
+    container.querySelectorAll('[data-allexpconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(allExpActionInFlight) return;
+      allExpActionInFlight = true;
+      const key = btn.getAttribute('data-allexpconfirm');
+      const r = rows.find(x=>x.key===key);
+      if(!r){ allExpActionInFlight = false; return; }
+      const dateInput = document.getElementById(`allexpdate-${encodeURIComponent(key)}`);
+      const paidDate = (dateInput && dateInput.value) || todayISO();
+      lastUsedPayDate = paidDate;
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+      try{
+        await allExpSetPaid(r, true, paidDate);
+        allExpEditingKey = null;
+        refreshRelatedViews(r);
+        await renderAllExpenseList();
+      }catch(err){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        btn.disabled = false; btn.textContent = 'ยืนยัน';
+      } finally { allExpActionInFlight = false; }
+    }));
+    container.querySelectorAll('[data-allexpcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+      allExpEditingKey = null;
+      renderAllExpenseList();
+    }));
   }catch(e){ if(mySeq === allExpenseRenderSeq_) container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
 async function computeAllExpensePayables(){

@@ -334,6 +334,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <div class="dash-metric accent" data-goto="fee" style="cursor:pointer;"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFee">฿0</div></div>
         <div class="dash-metric danger" data-action="jumpLongestOverdue" style="cursor:pointer;"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaid">0 บิล</div></div>
         <div class="dash-metric danger" data-goto="billing" style="cursor:pointer;"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableToday">฿0</div></div>
+        <div class="dash-metric success" data-goto="billing" style="cursor:pointer;"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidToday">฿0</div></div>
       </div>
       <div id="dashCostBreakdown" class="hint" style="margin-top:8px;"></div>
       <div class="hint" style="margin-top:4px;">ต้นทุน/กำไรวันนี้ นับเฉพาะรายการที่บันทึกไว้ในแท็บต้นทุนซื้อของวันนี้ ถ้ายังกรอกไม่ครบตัวเลขจะดูดีเกินจริง — "ต้นทุนรวมวันนี้" รวมทั้งต้นทุนซื้อสินค้าและรายจ่ายกิจการอื่นๆ เข้าด้วยกัน</div>
@@ -4883,6 +4884,16 @@ async function renderDashboard(){
   const totalUnpaidCount = Object.values(aggAll).reduce((s,a)=>s+a.unpaidCount,0);
   document.getElementById('dashUnpaid').innerHTML = `${totalUnpaidCount} บิล <span style="font-size:10.5px;font-weight:400;color:var(--text-faint);">(ทุกวัน)</span>`;
   document.getElementById('dashPayableToday').textContent = money(payables.total);
+  // เงินที่โอนเข้าจริงวันนี้ (นับทุกบิลที่โอนวันนี้ ไม่ว่าจะเป็นบิลของวันไหนก็ตาม) — คู่กับ "รอจ่ายทั้งหมด" ให้เห็นเงินเข้า-ออกคู่กัน และให้กริดลงตัวพอดี
+  let paidTodayTotal = 0;
+  Object.values(aggAll).forEach(a=>{
+    (a.allBillsList||[]).forEach(b=>{
+      if(b.paid && b.payInfo && b.payInfo.paidDate===currentDate){
+        paidTodayTotal += Number(b.payInfo.transferAmount!=null ? b.payInfo.transferAmount : b.amt);
+      }
+    });
+  });
+  document.getElementById('dashPaidToday').textContent = money(paidTodayTotal);
 
   const trendData = days14.map(iso=>({iso, fee: computeFee(computeFeeTotals(day14Map[iso].orders)).total}));
   const maxFee = Math.max(1, ...trendData.map(t=>t.fee));

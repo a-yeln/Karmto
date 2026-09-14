@@ -490,6 +490,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="purchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
       <button class="btn" id="addPurchaseBtn" style="margin-top:6px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
+    <div id="lotSettleCards"></div>
     <div class="card" data-no-collapse="1">
       <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
         <h3 style="margin:0;">📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
@@ -783,8 +784,10 @@ const PRODUCTS = [
   {id:'p6', emoji:'🐚', name:'เนื้อหอยเชอรี่', unit:'กก.', unitLong:'กิโลกรัม', shop:'phat',    price:170},
   {id:'p7', emoji:'🦪', name:'เนื้อหอยนางรม',  unit:'ปุก', unitLong:'กระปุก',  shop:'monk',    price:27},
 ];
-const LEFTOVER_IDS = ['p1','p2','p4','p5','p7'];
-const LEFTOVER_SHORT = {p1:'แช่',p2:'ดอง',p4:'ปู',p5:'หมึก',p7:'หอย'};
+// เดิมมีแค่ 5 ตัว (เฉพาะกลุ่มที่สั่งจาก "มนต์") ขาดกุ้งตัดปาก (p3) กับเชอรี่ (p6) ไป — ทั้งที่ทั้งคู่ก็ทำเผื่อ/เหลือข้ามวันได้เหมือนกัน
+// (เชอรี่เห็นชัดสุดเพราะเบิกจากล็อตมาทำเผื่อไว้ อาจส่งออเดอร์ไม่หมดในวันเดียว) เลยเพิ่มให้ครบทั้ง 7 สินค้า
+const LEFTOVER_IDS = ['p1','p2','p3','p4','p5','p6','p7'];
+const LEFTOVER_SHORT = {p1:'แช่',p2:'ดอง',p3:'ตัด',p4:'ปู',p5:'หมึก',p6:'เชอรี่',p7:'หอย'};
 const MONK_IDS = ['p1','p2','p4','p5','p7'];
 const KG_FEE_IDS = ['p1','p2','p3','p4','p5','p6'];
 // สีที่ใช้วนสำหรับแผนภูมิวงกลมที่มีหมวดหมู่ไม่แน่นอน (เช่น รายจ่ายส่วนตัวแยกตามหมวด)
@@ -1478,14 +1481,18 @@ async function readOrderImages(fileList){
 async function renderMessages(){
   const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
   const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]}`)];
-  const mahkardRows = Object.entries(dayData.orders).filter(([c,row])=>Number(row.p3||0)>0).sort((a,b)=>a[0].localeCompare(b[0])).map(([c,row])=>`${c} : ${row.p3}`);
-  const mahkardLines = [`🚩ออเดอร์ม๊ะก๊าด ${dateStr}`, '', ...mahkardRows, '', `รวมทั้งหมด ${totals.p3} กก.`];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const leftIn = prevDay.leftoverOut || {};
+  // กุ้งตัดปากตอนนี้อยู่ในระบบ "ของเหลือ" แล้วด้วย (เดิมไม่ได้หัก) — หักของเหลือจากเมื่อวานออกจากยอดที่ต้องสั่งม๊ะก๊าดจริงเหมือนที่ทำกับมนต์
+  const mahkardNet = Math.max(totals.p3 - Number(leftIn.p3||0), 0);
+  const mahkardRows = Object.entries(dayData.orders).filter(([c,row])=>Number(row.p3||0)>0).sort((a,b)=>a[0].localeCompare(b[0])).map(([c,row])=>`${c} : ${row.p3}`);
+  const mahkardLines = [`🚩ออเดอร์ม๊ะก๊าด ${dateStr}`, '', ...mahkardRows, '', `รวมทั้งหมด ${mahkardNet} กก.${Number(leftIn.p3||0)>0?` (สั่ง ${totals.p3} − เหลือจากเมื่อวาน ${leftIn.p3})`:''}`];
   const MONK_EMOJI_OVERRIDE = {p1:'✅', p2:'❎'};
   const monkLines = [`🚩ออเดอร์มนต์ ${dateStr}`, '', ...MONK_IDS.map(id=>{ const p = PRODUCTS.find(x=>x.id===id); const net = Math.max(totals[id]-Number(leftIn[id]||0),0); const emoji = MONK_EMOJI_OVERRIDE[id] || p.emoji; return `${emoji}${p.name} ${net} ${p.unitLong}`; })];
   const leftoverOutList = LEFTOVER_IDS.filter(id=>Number(leftIn[id]||0)>0).map(id=>`${LEFTOVER_SHORT[id]}${leftIn[id]}`).join(' ');
-  const phatLines = [`🚩พี่พัฒน์`, '', `• เชอรี่ ${totals.p6}`, `• เหลือออก ${leftoverOutList || '-'}`];
+  // เชอรี่ก็อยู่ในระบบ "ของเหลือ" แล้วเหมือนกัน — หักของเหลือจากเมื่อวานออกจากยอดที่แจ้งพี่พัฒน์เหมือนกับมนต์/ม๊ะก๊าด
+  const phatNet = Math.max(totals.p6 - Number(leftIn.p6||0), 0);
+  const phatLines = [`🚩พี่พัฒน์`, '', `• เชอรี่ ${phatNet}${Number(leftIn.p6||0)>0?` (สั่ง ${totals.p6} − เหลือจากเมื่อวาน ${leftIn.p6})`:''}`, `• เหลือออก ${leftoverOutList || '-'}`];
   const debtRows = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0])).map(([code,row])=>`${branchShortLabel(code)} : ${Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0))}`);
   const debtLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...debtRows];
   const overrides = dayData.messageOverrides || {};
@@ -1572,7 +1579,16 @@ async function computeSuggestedLeftover(pid){
   if(!LEFTOVER_IDS.includes(pid)) return {suggested:0, carriedIn:0, yieldQty:0, orderedQty:0};
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const carriedIn = Number((prevDay.leftoverOut||{})[pid]||0);
-  const yieldQty = (dayData.purchases||[]).filter(e=>e.productId===pid).reduce((s,e)=>s+purchaseSellableQty(e),0);
+  let yieldQty = (dayData.purchases||[]).filter(e=>e.productId===pid && !e.lotSettle).reduce((s,e)=>s+purchaseSellableQty(e),0);
+  // ของที่เบิกจากล็อตมาทำไว้วันนี้ นับเป็น "ทำได้" ทันทีตามน้ำหนักจริง แม้จะยังไม่ตัดต้นทุน (ต้นทุนกับของจริงเป็นคนละเรื่องกัน
+  // — ของทำเสร็จแล้ววันนี้จริงๆ ต้องนับรวมในของเหลือ ไม่งั้นของเหลือจะคำนวณตกหล่นไป)
+  try{
+    const lots = await loadRawLots();
+    for(const lot of lots){
+      if(lot.productId!==pid) continue;
+      for(const d of (lot.draws||[])){ if(d.date===currentDate) yieldQty += Number(d.sellableQty||0); }
+    }
+  }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
   const orderedQty = computeTotals(dayData.orders)[pid]||0;
   const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
   return {suggested, carriedIn, yieldQty, orderedQty};
@@ -3425,6 +3441,132 @@ function lotCostTotal(lot){ return Number(lot.qtyTotal||0)*Number(lot.pricePerKg
 function lotCostPerKg(lot){ const q = Number(lot.qtyTotal||0); return q>0 ? lotCostTotal(lot)/q : 0; }
 function lotDrawnQty(lot){ const s = (lot.draws||[]).reduce((s,d)=>s+Number(d.qtyUsed||0), 0); return Math.round(s*100)/100; }
 function lotRemaining(lot){ return Math.round(Math.max(Number(lot.qtyTotal||0) - lotDrawnQty(lot), 0)*100)/100; }
+
+// ---- ตัดต้นทุนสต็อกล็อตตามการใช้จริงรายวัน ----
+// เดิม: กดเบิกใช้ล็อตครั้งเดียว = ตัดต้นทุนซื้อเต็มจำนวนทันทีลงวันที่ "ทำเบิก" ทั้งที่ของที่ทำได้อาจถูกใช้/ส่งออเดอร์จริง
+// กระจายไปหลายวันข้างหน้า (เช่น เบิกมา 11 กก. วันนี้ส่งได้แค่ 4 ที่เหลือเก็บไว้ส่งวันต่อๆ ไป) ทำให้ต้นทุนซื้อวันที่เบิกพุ่งสูง
+// ผิดปกติ จำนวน/ราคาไม่ตรงกับที่คาดตอนดูวันนั้นๆ (ทั้งที่ต้นทางยังไม่ได้ส่งบิลมาเลยด้วยซ้ำ) — เปลี่ยนมาเก็บของที่เบิกมา
+// (sellableQty ของแต่ละรอบเบิก) ไว้เป็น "สต็อกรอตัดต้นทุน" แทน โดยรอให้กดยืนยัน "ตัดต้นทุนวันนี้" เองตามจำนวนที่ใช้จริง
+// แต่ละวัน (ระบบคำนวณจำนวนแนะนำจากยอดออเดอร์ให้ แก้ได้) ตัดจากรอบเบิกเก่าสุดก่อน (FIFO) ให้ต้นทุนตรงกับของที่ใช้จริง
+function drawCostPerUnit_(draw){
+  const sq = Number(draw.sellableQty||0);
+  return sq>0 ? Number(draw.totalCost||0)/sq : 0;
+}
+function drawPendingQty_(draw){
+  return Math.max(0, Math.round((Number(draw.sellableQty||0) - Number(draw.costedQty||0))*100)/100);
+}
+// รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย
+async function lotPendingStock_(productId){
+  const lots = await loadRawLots();
+  let qty = 0, costSum = 0;
+  const items = [];
+  for(const lot of lots){
+    if(lot.productId!==productId) continue;
+    for(const d of (lot.draws||[])){
+      const pend = drawPendingQty_(d);
+      if(pend<=0.001) continue;
+      const cpu = drawCostPerUnit_(d);
+      qty += pend; costSum += pend*cpu;
+      items.push({lotId:lot.id, drawId:d.id, date:d.date, pend, cpu});
+    }
+  }
+  items.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.drawId).localeCompare(String(b.drawId)));
+  return {qty: Math.round(qty*100)/100, avgCostPerUnit: qty>0 ? costSum/qty : 0, items};
+}
+// จำนวนที่ตัดต้นทุนจากสต็อกล็อตไปแล้ว "วันนี้" ของสินค้านี้ (กันแนะนำจำนวนซ้ำถ้ากดยืนยันไปแล้วบางส่วนของวันเดียวกัน)
+function lotSettledToday_(productId){
+  return (dayData.purchases||[]).filter(e=>e.productId===productId && e.lotSettle).reduce((s,e)=>s+Number(e.qty||0),0);
+}
+async function renderLotSettleCards_(){
+  const wrap = document.getElementById('lotSettleCards');
+  if(!wrap) return;
+  const lots = await loadRawLots();
+  const productIdsWithLots = Array.from(new Set(lots.map(l=>l.productId)));
+  const rows = [];
+  for(const pid of productIdsWithLots){
+    const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid);
+    if(pendingQty<=0.001) continue;
+    const p = PRODUCTS.find(x=>x.id===pid);
+    if(!p) continue;
+    const orderedQty = computeTotals(dayData.orders)[pid]||0;
+    const settledToday = lotSettledToday_(pid);
+    const suggested = Math.max(0, Math.round((Math.min(pendingQty, orderedQty) - settledToday)*100)/100);
+    rows.push({pid, p, pendingQty, avgCostPerUnit, suggested, settledToday});
+  }
+  if(rows.length===0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<div class="card">
+    <h3>📦 ตัดต้นทุนสต็อกล็อตวันนี้</h3>
+    <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้าจะยังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ "ใช้/ส่งจริง" วันนี้ของแต่ละสินค้าแล้วกดยืนยัน ระบบจะตัดต้นทุนจากรอบเบิกเก่าสุดก่อน (FIFO) ให้ตัวเลขต้นทุนตรงกับวันที่ใช้จริง ไม่ใช่วันที่ไปเบิกมา (ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำจากยอดออเดอร์วันนี้ แก้ได้ถ้าจริงไม่ตรง)</div>
+    ${rows.map(r=>`
+      <div class="lrow" style="flex-direction:column;align-items:stretch;margin-top:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div class="lname">${r.p.emoji} ${r.p.name} <span style="color:var(--text-dim);font-size:11.5px;">(ค้างตัดต้นทุน ${r.pendingQty} ${r.p.unit} • เฉลี่ย ~${money(r.avgCostPerUnit)}/${r.p.unit})</span></div>
+          <div><input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${r.p.unit}</span></div>
+        </div>
+        ${r.settledToday>0?`<div class="hint" style="margin-top:2px;">ตัดต้นทุนวันนี้ไปแล้ว ${r.settledToday} ${r.p.unit}</div>`:''}
+        <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;align-self:flex-end;margin-top:6px;">✅ ยืนยันตัดต้นทุนวันนี้</button>
+      </div>`).join('')}
+  </div>`;
+  wrap.querySelectorAll('[data-lotsettleconfirm]').forEach(btn=>btn.addEventListener('click', ()=>confirmLotSettle_(btn.getAttribute('data-lotsettleconfirm'))));
+}
+let lotSettleInFlight_ = false;
+async function confirmLotSettle_(productId){
+  if(lotSettleInFlight_) return;
+  const input = document.querySelector(`[data-lotsettleqty="${productId}"]`);
+  const useQty = Number((input && input.value) || 0);
+  if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
+  lotSettleInFlight_ = true;
+  try{
+    const lots2 = await loadRawLots();
+    const {items} = await lotPendingStock_(productId);
+    const totalPending = items.reduce((s,i)=>s+i.pend,0);
+    let targetQty = useQty;
+    if(totalPending < useQty - 0.001){
+      const p = PRODUCTS.find(x=>x.id===productId);
+      const ok = confirm(`สต็อกล็อตที่เบิกมาแล้วของ ${p?p.name:productId} เหลือรอตัดต้นทุนแค่ ${Math.round(totalPending*100)/100} ${p?p.unit:''} แต่กำลังจะตัดต้นทุน ${useQty}\n\nกด OK เพื่อตัดเท่าที่มี (${Math.round(totalPending*100)/100}) หรือ ยกเลิกเพื่อกลับไปแก้ตัวเลข`);
+      if(!ok) return;
+      targetQty = totalPending;
+    }
+    let remaining = targetQty;
+    let totalCost = 0, totalQty = 0;
+    const allocations = [];
+    for(const it of items){
+      if(remaining<=0.001) break;
+      const take = Math.min(it.pend, remaining);
+      if(take<=0.001) continue;
+      const lot = lots2.find(l=>l.id===it.lotId);
+      const draw = lot && (lot.draws||[]).find(d=>d.id===it.drawId);
+      if(!draw) continue;
+      draw.costedQty = Math.round((Number(draw.costedQty||0) + take)*100)/100;
+      const cost = take*it.cpu;
+      totalCost += cost; totalQty += take;
+      allocations.push({lotId:it.lotId, drawId:it.drawId, qty:Math.round(take*100)/100, cost:Math.round(cost*100)/100});
+      remaining -= take;
+    }
+    if(totalQty<=0.001){ showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return; }
+    const primaryLot = lots2.find(l=>l.id===allocations[0].lotId);
+    dayData.purchases = dayData.purchases || [];
+    dayData.purchases.push({
+      id: uid('pu'), productId, seller: primaryLot ? primaryLot.seller : '',
+      qty: Math.round(totalQty*100)/100, price: Math.round((totalCost/totalQty)*10000)/10000, extra:0,
+      sellableQty: Math.round(totalQty*100)/100,
+      note: `ตัดต้นทุนจากสต็อกล็อตตามที่ใช้จริงวันนี้ (${allocations.length} รอบเบิก)`,
+      paid:true, fromLot:true, lotSettle:true, lotSettleAllocations: allocations
+    });
+    try{
+      await saveRawLots(lots2);
+      await saveDay(currentDate, dayData);
+    }catch(e){
+      dayData.purchases.pop();
+      showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      return;
+    }
+    showToast('ตัดต้นทุนวันนี้แล้ว');
+    renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderLotList();
+  }catch(e){
+    showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+  } finally { lotSettleInFlight_ = false; }
+}
 // เติมข้อมูลบิลสินค้าย้อนหลังให้ล็อตที่สร้างไว้ก่อนมีระบบนี้ (billId ที่ยังไม่มี lotProductBills คู่กัน)
 // เรียกครั้งเดียวตอนโหลดล็อตครั้งแรกของหน้า เพื่อให้บิลเก่าโผล่ในตัวกรองคู่ค้าได้เหมือนกัน
 async function ensureLotBillRecords(lots){
@@ -3792,21 +3934,17 @@ async function renderLotList(){
     }
     const drawId = uid('drw');
     const costPerKg = lotCostPerKg(lot);
+    const totalCost = Math.round(qtyUsed*costPerKg*100)/100;
     lot.draws = lot.draws || [];
-    lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note});
+    // สำคัญ: เบิกมา = ทำเป็นสต็อกไว้เฉยๆ ก่อน "ยังไม่ตัดต้นทุนซื้อทันที" (costedQty:0) เพราะของที่ทำได้วันนี้
+    // อาจถูกใช้/ส่งจริงกระจายไปหลายวันข้างหน้า ถ้าตัดต้นทุนเต็มจำนวนในวันที่เบิกจะทำให้ต้นทุนซื้อวันนั้นพุ่งผิดปกติ
+    // ไม่ตรงกับของที่ใช้จริงวันนั้น — ต้นทุนจะถูกตัดทีหลังผ่านการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน
+    lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note, totalCost, costedQty:0});
     await saveRawLots(lots2);
-    dayData.purchases = dayData.purchases || [];
-    dayData.purchases.push({
-      id: drawId, productId: lot.productId, seller: lot.seller,
-      qty: qtyUsed, price: costPerKg, extra: 0, sellableQty,
-      note: `เบิกจากล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.note?` (${lot.note})`:''}${note?` — ${note}`:''}`,
-      paid: true, fromLot: lot.id
-    });
-    await saveDay(currentDate, dayData);
     await autoFillLeftoverIfNeeded(lot.productId); // ถ้าเบิกเกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     lotDrawOpenId = null;
-    showToast('บันทึกการเบิกใช้แล้ว');
-    renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
+    showToast('บันทึกการเบิกใช้แล้ว — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยัน "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน');
+    renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_();
     await renderLotList();
     } catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
@@ -3884,26 +4022,20 @@ async function renderLotList(){
             sellableAssigned += a.sellable;
           }
         });
-        dayData.purchases = dayData.purchases || [];
+        // เหมือนกับเบิกทีละล็อต: บันทึกเป็นสต็อกไว้ก่อน ยังไม่ตัดต้นทุนซื้อทันที — ไปตัดทีหลังผ่านการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้"
         allocations.forEach(a=>{
           const lot = a.lot;
           const drawId = uid('drw');
           const costPerKg = lotCostPerKg(lot);
+          const totalCost = Math.round(a.qty*costPerKg*100)/100;
           lot.draws = lot.draws || [];
-          lot.draws.push({id:drawId, date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note});
-          dayData.purchases.push({
-            id: drawId, productId: lot.productId, seller: lot.seller,
-            qty: a.qty, price: costPerKg, extra: 0, sellableQty: a.sellable,
-            note: `เบิกจากล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.note?` (${lot.note})`:''}${note?` — ${note}`:''} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต`,
-            paid: true, fromLot: lot.id
-          });
+          lot.draws.push({id:drawId, date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note: note ? `${note} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต` : 'แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต', totalCost, costedQty:0});
         });
         await saveRawLots(lots2);
-        await saveDay(currentDate, dayData);
         await autoFillLeftoverIfNeeded(productId);
         multiLotDrawOpen = false;
-        showToast(`บันทึกการเบิกรวมแล้ว (แบ่งให้ ${allocations.length} ล็อตอัตโนมัติ)`);
-        renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList();
+        showToast(`บันทึกการเบิกรวมแล้ว (แบ่งให้ ${allocations.length} ล็อตอัตโนมัติ) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยันตัดต้นทุนตามที่ใช้จริงแต่ละวันแทน`);
+        renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_();
         await renderLotList();
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
@@ -4169,17 +4301,19 @@ async function addPurchase(){
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   renderPurchaseList();
   renderPurchaseGroups();
-  // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข) ให้เด้งไปสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อให้อัตโนมัติ กันลืมกรอกตกหล่น
+  // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข) แจ้งเตือนสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อ กันลืมกรอกตกหล่น
+  // สำคัญ: เดิมระบบจะ "สลับสินค้าในฟอร์ม + เติมราคาให้อัตโนมัติ" ทันทีแบบเงียบๆ ตรงนี้ — อันตรายมากถ้ากำลังกรอกซื้อ
+  // หลายรายการต่อเนื่องรัวๆ (มือไวกว่าตา) เพราะพิมพ์จำนวนที่ตั้งใจจะกรอกให้สินค้าเดิม ไปตกลงกับสินค้าอื่นที่ระบบสลับให้
+  // แบบไม่ทันสังเกต พ่วงราคาเก่าที่ระบบเติมมาเองแบบไม่รู้ตัว กลายเป็นรายการต้นทุนที่ไม่ตรงกับอะไรเลย (เจอเคสจริงมาแล้ว:
+  // กุ้งตัดปากโผล่ต้นทุนซื้อที่ไม่ได้ตั้งใจกรอก) เปลี่ยนเป็นแค่ "แจ้งเตือน" อย่างเดียว ต้องกดเลือกสินค้าเองที่ช่อง "สินค้า"
+  // เท่านั้นถึงจะเปลี่ยน ป้องกันไม่ให้ฟอร์มสลับสินค้า/ราคาไปเองโดยที่ผู้ใช้ไม่ได้สั่ง
   if(wasNewEntry){
     const nextPid = await findNextUnrecordedPurchaseProduct();
     if(nextPid){
-      document.getElementById('purchProduct').value = nextPid;
-      updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
       const p = PRODUCTS.find(x=>x.id===nextPid);
-      showToast(`ถัดไป: ${p.emoji} ${p.name} (มีออเดอร์แต่ยังไม่ได้กรอกต้นทุน)`);
+      showToast(`ยังไม่ได้กรอกต้นทุน: ${p.emoji} ${p.name} (มีออเดอร์วันนี้) — เลือกที่ช่อง "สินค้า" เพื่อกรอกต่อ`);
     }
   }
-  autofillPurchasePrice();
 }
 // หาสินค้าตัวถัดไปที่มีออเดอร์วันนี้ (ต้องการมากกว่า 0) แต่ยังไม่มีรายการต้นทุนซื้อบันทึกไว้เลย — ใช้เด้งฟอร์มไปให้อัตโนมัติหลังบันทึกแต่ละรายการ
 async function findNextUnrecordedPurchaseProduct(){
@@ -4266,7 +4400,23 @@ function renderPurchaseList(){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       return;
     }
-    if(entry && entry.fromLot){
+    if(entry && entry.lotSettle && Array.isArray(entry.lotSettleAllocations)){
+      // รายการนี้คือ "ตัดต้นทุน" จากสต็อกล็อต (อาจครอบคลุมหลายรอบเบิก/หลายล็อต) — ลบแล้วต้องคืนสถานะ costedQty ให้แต่ละ
+      // รอบเบิกที่เกี่ยวข้อง ไม่ใช่ลบรอบเบิกทิ้ง เพราะของยังอยู่ในสต็อกเหมือนเดิม แค่ยังไม่ถูกตัดเป็นต้นทุนซื้อ
+      try{
+        const lots2 = await loadRawLots();
+        entry.lotSettleAllocations.forEach(a=>{
+          const lot = lots2.find(x=>x.id===a.lotId);
+          const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
+          if(draw) draw.costedQty = Math.max(0, Math.round((Number(draw.costedQty||0) - Number(a.qty||0))*100)/100);
+        });
+        await saveRawLots(lots2);
+        await renderLotList(); await renderLotSettleCards_();
+      }catch(e){
+        showToast('ลบต้นทุนซื้อสำเร็จ แต่คืนสถานะสต็อกล็อตไม่สำเร็จ (เน็ตมีปัญหา?) — ลองรีเฟรชแล้วเช็คที่การ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
+      }
+    }else if(entry && entry.fromLot && typeof entry.fromLot === 'string'){
+      // รูปแบบเก่า (ก่อนปรับระบบตัดต้นทุนรายวัน): 1 รายการต้นทุนซื้อ = 1 รอบเบิกเต็มจำนวน ผูกกับล็อตตรงๆ ด้วย id เดียวกับรอบเบิก
       try{
         const lots2 = await loadRawLots();
         const lot = lots2.find(x=>x.id===entry.fromLot);
@@ -5420,7 +5570,7 @@ async function switchTab(name){
     if(name==='messages') await renderMessages();
     if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
     if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }

@@ -3490,8 +3490,10 @@ function drawPendingQty_(draw){
 }
 // รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย — เป็นก้อนกลาง
 // ไม่ผูกกับวันใดวันหนึ่ง (ของมันอยู่ตรงนั้นจริงๆ ไม่ว่าจะเปิดแอปดูวันไหนอยู่)
-async function lotPendingStock_(productId){
-  const lots = await loadRawLots();
+// preloadedLots (ถ้ามี) = ล็อตทั้งหมดที่โหลดมาแล้วจากที่อื่น ส่งเข้ามาเพื่อไม่ต้องยิง loadRawLots() ซ้ำ (เน็ตช้า ยิงซ้ำหลายรอบแล้วรวมกันช้ามาก
+// โดยเฉพาะตอนมีสินค้าหลายตัว — จุดที่เรียกฟังก์ชันนี้วนหลายรอบต้อง loadRawLots() ครั้งเดียวข้างนอกแล้วส่งเข้ามาเสมอ)
+async function lotPendingStock_(productId, preloadedLots){
+  const lots = preloadedLots || await loadRawLots();
   let qty = 0, costSum = 0;
   const items = [];
   for(const lot of lots){
@@ -3521,7 +3523,7 @@ async function computeAllPendingStockValue_(){
   const items = [];
   let totalValue = 0;
   for(const pid of productIds){
-    const {qty, avgCostPerUnit} = await lotPendingStock_(pid);
+    const {qty, avgCostPerUnit} = await lotPendingStock_(pid, lots);
     if(qty<=0.001) continue;
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
@@ -3571,7 +3573,7 @@ async function renderLotSettleCards_(){
   const rawTotalsToday = computeTotals(dayData.orders);
   const rows = [];
   for(const pid of productIdsWithLots){
-    const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid);
+    const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid, lots);
     if(pendingQty<=0.001) continue;
     const neededToday = rawTotalsToday[pid] || 0;
     const boughtToday = purchasedTodayQty_(pid);
@@ -3604,7 +3606,7 @@ async function confirmLotSettle_(productId){
   lotSettleInFlight_ = true;
   try{
     const lots2 = await loadRawLots();
-    const {items} = await lotPendingStock_(productId);
+    const {items} = await lotPendingStock_(productId, lots2);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
     if(totalPending < useQty - 0.001){

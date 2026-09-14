@@ -588,7 +588,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="purMonthSummary" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>⏳ รายการที่ต้องตามจ่ายทั้งหมด (ทุกวันที่ยังไม่ปิด)</h3>
+      <h3>⏳ รายการต้นทุนซื้อทั้งหมด</h3>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button class="tab active" data-expfilter="all">ทั้งหมด</button>
         <button class="tab" data-expfilter="unpaid">เฉพาะค้างจ่าย</button>
@@ -2133,7 +2133,10 @@ function renderExpenseList(){
     return `
     <div class="orow billrow" style="flex-direction:column;align-items:stretch;padding:8px 10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div style="cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:left;" data-billrowtoggle="${rowKey}"><span class="name">${e.category}${e.seller?` — ${e.seller}`:''}</span><span class="items num">${money(e.amount)}${e.paid?' <span style="color:var(--text-faint);font-size:11.5px;">• จ่ายแล้ว</span>':''}</span></div>
+        <div style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;" data-billrowtoggle="${rowKey}">
+          <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span class="name">${e.category}${e.seller?` — ${e.seller}`:''}</span><span class="items num">${money(e.amount)}</span></div>
+          ${e.paid && e.paidDate? `<div style="color:var(--text-faint);font-size:11.5px;">✅ ${formatDDMMYYYY(e.paidDate)}</div>`:''}
+        </div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
           <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>
@@ -2141,7 +2144,6 @@ function renderExpenseList(){
       </div>
       <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
         ${e.note? `<div class="hint" style="margin-top:6px;">หมายเหตุ: ${e.note}</div>`:''}
-        ${e.paid && e.paidDate? `<div class="hint" style="margin-top:4px;color:var(--text-faint);">จ่ายแล้ว ${formatDDMMYYYY(e.paidDate)}</div>`:''}
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎ แก้ไข</button>
           <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕ ลบ</button>
@@ -3669,6 +3671,8 @@ async function confirmLotSettle_(productId){
 async function ensureLotBillRecords(lots){
   const productBills = await loadLotProductBills();
   const haveBillIds = new Set(productBills.map(b=>b.billId));
+  const transportBills = await loadLotTransportBills();
+  const haveTransportBillIds = new Set(transportBills.map(b=>b.billId));
   const groups = {};
   lots.forEach(lot=>{
     const bid = lot.billId || lot.id;
@@ -3676,16 +3680,29 @@ async function ensureLotBillRecords(lots){
     groups[bid].push(lot);
   });
   let changed = false;
+  let transportChanged = false;
   Object.keys(groups).forEach(bid=>{
-    if(haveBillIds.has(bid)) return;
     const rows = groups[bid];
-    const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
-    if(amount<=0) return;
-    const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
-    productBills.push({id:'lp'+bid, billId: bid, seller: rows[0].seller||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-    changed = true;
+    if(!haveBillIds.has(bid)){
+      const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
+      if(amount>0){
+        const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
+        productBills.push({id:'lp'+bid, billId: bid, seller: rows[0].seller||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+        changed = true;
+      }
+    }
+    // เผื่อกรณีตอนบันทึกล็อตมีค่าขนส่ง (ติดอยู่ใน extra ของแต่ละล็อตแล้ว นับเป็นต้นทุนถูกต้องอยู่แล้ว) แต่บิลค่าขนส่งที่ต้องตามจ่ายไม่ถูกสร้างขึ้น (เช่น เน็ตสะดุดตอนบันทึกขั้นที่สอง) — สร้างย้อนหลังให้อัตโนมัติ กันตกหล่นไม่มีให้ตามจ่าย
+    if(!haveTransportBillIds.has(bid)){
+      const transportAmount = Math.round(rows.reduce((s,l)=>s+Number(l.extra||0),0)*100)/100;
+      if(transportAmount>0){
+        const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
+        transportBills.push({id:'lt'+bid, billId: bid, payee:'', amount: transportAmount, buyDate: rows[0].buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+        transportChanged = true;
+      }
+    }
   });
   if(changed) await saveLotProductBills(productBills);
+  if(transportChanged) await saveLotTransportBills(transportBills);
 }
 // ลบทั้งบิล = ลบทุกล็อตในบิลนี้ + บิลต้นทุนสินค้า + บิลค่าขนส่งที่ผูกกับบิลนี้
 async function deleteWholeBill(billId){
@@ -5429,12 +5446,16 @@ function renderBranchAnalysisHtml(sortedBills){
 }
 // กันเรนเดอร์ซ้อนกันต่อ container เดียวกัน (เช่น สลับสาขาถี่ๆ หรือมีการกดบันทึกที่ trigger ให้เรียกซ้ำ) ไม่ให้ผลลัพธ์เก่าที่โหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
 const branchDetailRenderSeq_ = {};
+// จำแท็บ (ทั้งหมด/ค้างโอน/โอนแล้ว) ที่เลือกไว้ล่าสุดต่อ container ไว้ เพื่อไม่ให้รีเซ็ตกลับ "ทั้งหมด" ทุกครั้งที่เรนเดอร์ซ้ำ (เช่น หลังกดยืนยันชำระ)
+const branchDetailActiveFilter_ = {};
 async function renderBranchDetail(code, precomputedAgg, containerId){
   const cId = containerId || 'dashBranchDetail';
   const mySeq = (branchDetailRenderSeq_[cId] = (branchDetailRenderSeq_[cId]||0) + 1);
   const detailEl = document.getElementById(cId);
-  if(!code){ detailEl.className='empty'; detailEl.innerHTML = 'เลือกสาขาเพื่อดูรายละเอียด'; return; }
-  detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…';
+  if(!code){ detailEl.className='empty'; detailEl.innerHTML = 'เลือกสาขาเพื่อดูรายละเอียด'; delete branchDetailActiveFilter_[cId]; return; }
+  // ถ้าหน้านี้กำลังโชว์สาขาเดิมอยู่แล้ว (เช่น เรียกซ้ำหลังกดยืนยันชำระ) ไม่ต้องเคลียร์จอเป็น "กำลังโหลด…" ให้จอกระพริบ/เด้ง — รอข้อมูลใหม่มาแล้วค่อยสลับเนื้อหาทีเดียว
+  const sameCodeAlreadyShown = detailEl.dataset.branchCode === code && detailEl.className === '';
+  if(!sameCodeAlreadyShown){ detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…'; }
   const agg = precomputedAgg || await computeBranchAggregates();
   if(mySeq !== branchDetailRenderSeq_[cId]) return; // มีการเรียกเรนเดอร์รอบใหม่ของ container นี้มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
   const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
@@ -5460,7 +5481,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
     </div>
     <div class="hint">สั่งล่าสุด ${a.lastOrderIso?formatDDMMYYYY(a.lastOrderIso):'-'} — แตะรายการด้านล่างเพื่อดูบิลจริง เลือกได้หลายรายการเพื่อบันทึกว่าโอนรวมกันทีเดียว</div>
     <div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;">
-      <button class="tab active" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
+      <button class="tab" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
       <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
       <button class="tab" data-branchbillfilter="paid">โอนแล้ว (${sortedBills.length-a.unpaidCount})</button>
     </div>
@@ -5468,6 +5489,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
     ${trendHtml}
     ${renderBranchAnalysisHtml(sortedBills)}
   `;
+  detailEl.dataset.branchCode = code;
   if(monthKeys.length>1){
     const branchTrendValueEl = detailEl.querySelector('#branchTrendValue');
     detailEl.querySelectorAll('#branchTrendChart [data-bmonthidx]').forEach(el=>{
@@ -5565,13 +5587,16 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
     });
     updateBranchPayBar();
   }
+  const activeFilter = branchDetailActiveFilter_[cId] || 'all';
   detailEl.querySelectorAll('[data-branchbillfilter]').forEach(btn=>{
+    btn.classList.toggle('active', btn.getAttribute('data-branchbillfilter')===activeFilter);
     btn.addEventListener('click', ()=>{
+      branchDetailActiveFilter_[cId] = btn.getAttribute('data-branchbillfilter');
       detailEl.querySelectorAll('[data-branchbillfilter]').forEach(b=>b.classList.toggle('active', b===btn));
       renderBranchBillList(btn.getAttribute('data-branchbillfilter'));
     });
   });
-  renderBranchBillList('all');
+  renderBranchBillList(activeFilter);
 }
 async function computeDataGaps(){
   const listRes = await window.storage.list('day:');
@@ -5595,7 +5620,11 @@ async function computeDataGaps(){
     PRODUCTS.forEach(p=>{
       const qty = totals[p.id]||0;
       if(qty<=0) return;
-      if(LEFTOVER_IDS.includes(p.id)){
+      // สินค้าที่มีล็อตอยู่ (lotProductIds) ห้ามหักของเหลือยกมาออกตรงนี้ — เหตุผลเดียวกับที่แก้ในการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้"
+      // ก่อนหน้านี้: ของเหลือยกมาของสินค้ากลุ่มนี้คือก้อนสต็อกเดียวกับที่เบิกจากล็อตมาเกินออเดอร์วันก่อน ถ้าหักซ้ำอีกที
+      // ยอด "ต้องการ" จะเหลือ 0 ทั้งที่จริงมีออเดอร์เต็มจำนวน พอไปเทียบกับยอดต้นทุนที่บันทึกจริง (ซึ่งอิงยอดออเดอร์ดิบ)
+      // เลยเข้าใจผิดว่า "ซื้อเกิน" หรือ "ซื้อไม่มีออเดอร์รองรับ" ทั้งที่จริงตรงกันเป๊ะ
+      if(LEFTOVER_IDS.includes(p.id) && !lotProductIds.has(p.id)){
         const leftoverIn = Number((prevDay.leftoverOut||{})[p.id]||0);
         const net = Math.max(qty - leftoverIn, 0);
         if(net>0) neededByProduct[p.id] = net;

@@ -1779,7 +1779,7 @@ function renderBillingList(){
     const showDatePicker = payDateEditingCode===code;
     return `<div class="branchbill" id="bb-${code}">
       <div class="toprow">
-        <div class="left"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${branchName(code)}</div><div class="amt num">${money(amt)}</div>${delayInfo}</div>
+        <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${branchName(code)}</div><div class="amt num">${money(amt)}</div>${delayInfo}</div>
         <div class="acts2">
           <button class="iconbtn" data-viewbill="${code}" aria-label="ดูบิล">🧾</button>
           <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
@@ -2902,7 +2902,10 @@ async function renderOutstanding(){
       const key = `${r.iso}|${r.code}`;
       return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
         <div class="toprow">
-          <div class="left"><div class="n">${branchName(r.code)}</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:2px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div></div>
+          <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;">
+            <div style="display:flex;align-items:baseline;gap:6px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div>
+            <div class="n" style="margin-top:2px;">${branchName(r.code)}</div>
+          </div>
           <div class="acts2">
             <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:44px;">${r.delay} วัน</span>
             <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
@@ -3941,11 +3944,11 @@ async function renderLotList(){
         </div>` : ''}
         ${draws.length ? `<div style="margin-top:8px;">
           <div data-lothistorytoggle="${lot.id}" style="cursor:pointer;font-size:11.5px;color:var(--text-faint);display:flex;align-items:center;gap:4px;">
-            <span>${historyOpen?'▾':'▸'}</span><span>ประวัติการเบิก (${draws.length} ครั้ง)</span>
+            <span id="lotHistoryChevron-${lot.id}">${historyOpen?'▾':'▸'}</span><span>ประวัติการเบิก (${draws.length} ครั้ง)</span>
           </div>
-          ${historyOpen ? `<div style="margin-top:6px;padding-left:12px;border-left:2px solid var(--border-soft);">
+          <div id="lotHistoryBody-${lot.id}" style="display:${historyOpen?'':'none'};margin-top:6px;padding-left:12px;border-left:2px solid var(--border-soft);">
             ${draws.slice().reverse().map(d=>`<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${d.note}`:''}</div>`).join('')}
-          </div>` : ''}
+          </div>
         </div>`:''}
       </div>`;
     }).join('');
@@ -3962,16 +3965,18 @@ async function renderLotList(){
   };
   const activeHtml = activeBillIds.map(renderBillCard).join('');
   // แต่ละบิลในกลุ่มนี้พับรายละเอียดไว้เป็นค่าเริ่มต้นเสมอ (เห็นแค่วันที่+คู่ค้าเรียงกันเป็นแถวๆ) กดทีละบิลเพื่อดูรายละเอียดเต็มของบิลนั้นเอง
+  // สำคัญ: เรนเดอร์รายละเอียดเต็มของทุกบิลไว้ล่วงหน้าเลย (ซ่อนด้วย display:none) แล้วกดแค่โชว์/ซ่อนด้วย JS ตรงๆ (เหมือนการ์ดอื่นๆ ในหน้านี้)
+  // ไม่เรียก renderLotList() ใหม่ทั้งหมดตอนกด — กันจอกระตุก/รีโหลดทั้งการ์ดทุกครั้งที่กดเปิดดูบิลเดียว
   const depletedRowsHtml = depletedBillIds.map(bid=>{
     const rows = groups[bid];
     const head = rows[0];
     const billOpen = lotDepletedBillOpenIds.has(bid);
     return `<div style="border-top:1px solid var(--border-soft);">
       <div class="lrow" data-lotbilltoggle="${bid}" style="cursor:pointer;padding:8px 0;">
-        <span style="font-size:12px;color:var(--text-faint);flex:none;">${billOpen?'▾':'▸'}</span>
+        <span id="lotBillChevron-${bid}" style="font-size:12px;color:var(--text-faint);flex:none;">${billOpen?'▾':'▸'}</span>
         <div class="lname" style="width:auto;flex:1;color:var(--text-dim);">${formatDDMMYYYY(head.buyDate)} • ${head.seller||'ไม่ระบุผู้ขาย'}</div>
       </div>
-      ${billOpen ? renderBillCard(bid) : ''}
+      <div id="lotBillDetail-${bid}" style="display:${billOpen?'':'none'};">${renderBillCard(bid)}</div>
     </div>`;
   }).join('');
   const depletedHtml = depletedBillIds.length ? `<div class="card" style="background:var(--surface-2);padding:10px 12px;margin-bottom:10px;">
@@ -3992,8 +3997,12 @@ async function renderLotList(){
   }
   wrap.querySelectorAll('[data-lotbilltoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const bid = el.getAttribute('data-lotbilltoggle');
-    if(lotDepletedBillOpenIds.has(bid)) lotDepletedBillOpenIds.delete(bid); else lotDepletedBillOpenIds.add(bid);
-    renderLotList();
+    const open = lotDepletedBillOpenIds.has(bid);
+    if(open) lotDepletedBillOpenIds.delete(bid); else lotDepletedBillOpenIds.add(bid);
+    const detailEl = document.getElementById(`lotBillDetail-${bid}`);
+    const chevronEl = document.getElementById(`lotBillChevron-${bid}`);
+    if(detailEl) detailEl.style.display = open ? 'none' : '';
+    if(chevronEl) chevronEl.textContent = open ? '▸' : '▾';
   }));
   wrap.querySelectorAll('[data-lotbilldel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     await deleteWholeBill(btn.getAttribute('data-lotbilldel'));
@@ -4021,8 +4030,12 @@ async function renderLotList(){
   }));
   wrap.querySelectorAll('[data-lothistorytoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lothistorytoggle');
-    if(lotHistoryOpenIds.has(id)) lotHistoryOpenIds.delete(id); else lotHistoryOpenIds.add(id);
-    renderLotList();
+    const open = lotHistoryOpenIds.has(id);
+    if(open) lotHistoryOpenIds.delete(id); else lotHistoryOpenIds.add(id);
+    const bodyEl = document.getElementById(`lotHistoryBody-${id}`);
+    const chevronEl = document.getElementById(`lotHistoryChevron-${id}`);
+    if(bodyEl) bodyEl.style.display = open ? 'none' : '';
+    if(chevronEl) chevronEl.textContent = open ? '▸' : '▾';
   }));
   wrap.querySelectorAll('[data-lotdrawconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(lotDrawConfirmInFlight) return; // กันบันทึกการเบิกซ้ำถ้ากดรัวๆ/เน็ตช้า
@@ -5420,10 +5433,9 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
         <div class="toprow">
           <div class="left" style="display:flex;align-items:flex-start;gap:8px;">
             ${!u.paid ? `<input type="checkbox" data-billselect="${u.iso}" style="margin-top:4px;">` : ''}
-            <div>
-              <div class="n">${formatDDMMYYYY(u.iso)}</div>
-              <div class="amt num">${money(u.amt)}</div>
-              ${u.paid ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">โอน ${u.payInfo&&u.payInfo.paidDate?formatDDMMYYYY(u.payInfo.paidDate):'-'}${billPaidDiffHtml(u.payInfo, u.amt)}</div>` : ''}
+            <div style="text-align:left;">
+              <div style="display:flex;align-items:baseline;gap:6px;"><span class="n">${formatDDMMYYYY(u.iso)}</span><span class="amt num">${money(u.amt)}</span></div>
+              <div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;min-height:14px;">${u.paid ? `✅ ${u.payInfo&&u.payInfo.paidDate?formatDDMMYYYY(u.payInfo.paidDate):'-'}${billPaidDiffHtml(u.payInfo, u.amt)}` : ''}</div>
             </div>
           </div>
           <div class="acts2">

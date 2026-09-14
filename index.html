@@ -324,6 +324,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
       <div id="dataGapsList"></div>
     </div>
+    <div class="card" id="todayAnomalyCard" style="display:none;border-color:var(--accent);">
+      <h3>🚨 ออเดอร์วันนี้ที่ดูผิดปกติ (เทียบค่าเฉลี่ยที่ผ่านมา)</h3>
+      <div class="hint">เทียบจำนวนที่สั่งวันนี้กับค่าเฉลี่ยของแต่ละสาขา/สินค้าเอง ถ้าต่างจากปกติมาก (±40% ขึ้นไป) จะแจ้งไว้ที่นี่ — ช่วยจับกรอกผิด/สาขาสั่งผิดปกติได้ทันทีโดยไม่ต้องไล่เช็คทีละสาขา แตะแถวไหนเพื่อดูรายละเอียดสาขานั้น</div>
+      <div id="todayAnomalyList" style="margin-top:8px;"></div>
+    </div>
     <div class="card">
       <h3>📊 ภาพรวมวันที่ <span id="dashDateLabel" class="num" style="color:var(--accent);"></span></h3>
       <div class="dash-grid">
@@ -3448,14 +3453,19 @@ function lotRemaining(lot){ return Math.round(Math.max(Number(lot.qtyTotal||0) -
 // ผิดปกติ จำนวน/ราคาไม่ตรงกับที่คาดตอนดูวันนั้นๆ (ทั้งที่ต้นทางยังไม่ได้ส่งบิลมาเลยด้วยซ้ำ) — เปลี่ยนมาเก็บของที่เบิกมา
 // (sellableQty ของแต่ละรอบเบิก) ไว้เป็น "สต็อกรอตัดต้นทุน" แทน โดยรอให้กดยืนยัน "ตัดต้นทุนวันนี้" เองตามจำนวนที่ใช้จริง
 // แต่ละวัน (ระบบคำนวณจำนวนแนะนำจากยอดออเดอร์ให้ แก้ได้) ตัดจากรอบเบิกเก่าสุดก่อน (FIFO) ให้ต้นทุนตรงกับของที่ใช้จริง
-function drawCostPerUnit_(draw){
+// สำคัญ: รอบเบิกเก่าที่บันทึกไว้ก่อนจะมีระบบนี้อาจไม่มี draw.totalCost (ฟิลด์ใหม่) เลย — ถ้าไม่มีให้คำนวณย้อนจากล็อตแทน
+// กันโชว์ "เฉลี่ย ~฿0/กก." ผิดๆ สำหรับรอบเบิกเก่า
+function drawCostPerUnit_(draw, lot){
   const sq = Number(draw.sellableQty||0);
-  return sq>0 ? Number(draw.totalCost||0)/sq : 0;
+  if(sq<=0) return 0;
+  const totalCost = draw.totalCost!=null ? Number(draw.totalCost) : Number(draw.qtyUsed||0)*(lot?lotCostPerKg(lot):0);
+  return totalCost/sq;
 }
 function drawPendingQty_(draw){
   return Math.max(0, Math.round((Number(draw.sellableQty||0) - Number(draw.costedQty||0))*100)/100);
 }
-// รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย
+// รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย — เป็นก้อนกลาง
+// ไม่ผูกกับวันใดวันหนึ่ง (ของมันอยู่ตรงนั้นจริงๆ ไม่ว่าจะเปิดแอปดูวันไหนอยู่)
 async function lotPendingStock_(productId){
   const lots = await loadRawLots();
   let qty = 0, costSum = 0;
@@ -3465,7 +3475,7 @@ async function lotPendingStock_(productId){
     for(const d of (lot.draws||[])){
       const pend = drawPendingQty_(d);
       if(pend<=0.001) continue;
-      const cpu = drawCostPerUnit_(d);
+      const cpu = drawCostPerUnit_(d, lot);
       qty += pend; costSum += pend*cpu;
       items.push({lotId:lot.id, drawId:d.id, date:d.date, pend, cpu});
     }
@@ -3473,10 +3483,14 @@ async function lotPendingStock_(productId){
   items.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.drawId).localeCompare(String(b.drawId)));
   return {qty: Math.round(qty*100)/100, avgCostPerUnit: qty>0 ? costSum/qty : 0, items};
 }
-// จำนวนที่ตัดต้นทุนจากสต็อกล็อตไปแล้ว "วันนี้" ของสินค้านี้ (กันแนะนำจำนวนซ้ำถ้ากดยืนยันไปแล้วบางส่วนของวันเดียวกัน)
-function lotSettledToday_(productId){
-  return (dayData.purchases||[]).filter(e=>e.productId===productId && e.lotSettle).reduce((s,e)=>s+Number(e.qty||0),0);
+// จำนวนที่บันทึก "ต้นทุนซื้อ" ของสินค้านี้ไว้แล้วในวันที่กำลังดูอยู่ (นับทุกแหล่ง: กรอกมือเอง หรือตัดจากสต็อกล็อตไปแล้วก่อนหน้า)
+// ใช้เทียบกับยอดที่ต้องใช้จริงของวันนี้ กันแนะนำตัดซ้ำ/แนะนำทั้งที่วันนี้บันทึกครบแล้ว
+function purchasedTodayQty_(productId){
+  return (dayData.purchases||[]).filter(e=>e.productId===productId).reduce((s,e)=>s+purchaseSellableQty(e),0);
 }
+// การ์ดนี้เดิมโชว์ทุกวันที่มีสต็อกค้างตัดต้นทุนอยู่ ไม่ว่าจะเปิดดูวันไหน (แม้วันที่บันทึกต้นทุนครบแล้ว หรือวันก่อนจะมีล็อตด้วยซ้ำ)
+// ทำให้งงว่าทำไมต้องตัดอีก — ตอนนี้เช็คให้ตรงกับ "ความต้องการจริงของวันที่กำลังดูอยู่" เท่านั้น (เหมือนตรรกะเดียวกับ
+// "ยังไม่ได้บันทึกต้นทุนซื้อ" ที่การ์ดแจ้งเตือนใช้) โชว์เฉพาะสินค้าที่วันนี้ยังต้องการเพิ่ม และมีสต็อกให้ตัดได้จริงเท่านั้น
 async function renderLotSettleCards_(){
   const wrap = document.getElementById('lotSettleCards');
   if(!wrap) return;
@@ -3486,26 +3500,25 @@ async function renderLotSettleCards_(){
   for(const pid of productIdsWithLots){
     const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid);
     if(pendingQty<=0.001) continue;
+    const neededToday = await computeNeededQtyToday(pid);
+    const boughtToday = purchasedTodayQty_(pid);
+    const remainingNeedToday = Math.max(0, Math.round((neededToday - boughtToday)*100)/100);
+    if(remainingNeedToday<=0.001) continue; // วันนี้บันทึกต้นทุนครบตามที่ต้องการแล้ว (หรือวันนี้ไม่ได้ต้องการสินค้านี้เลย) ไม่ต้องโชว์
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const orderedQty = computeTotals(dayData.orders)[pid]||0;
-    const settledToday = lotSettledToday_(pid);
-    const suggested = Math.max(0, Math.round((Math.min(pendingQty, orderedQty) - settledToday)*100)/100);
-    rows.push({pid, p, pendingQty, avgCostPerUnit, suggested, settledToday});
+    const suggested = Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100;
+    rows.push({pid, p, pendingQty, avgCostPerUnit, suggested});
   }
   if(rows.length===0){ wrap.innerHTML=''; return; }
   wrap.innerHTML = `<div class="card">
-    <h3>📦 ตัดต้นทุนสต็อกล็อตวันนี้</h3>
-    <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้าจะยังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ "ใช้/ส่งจริง" วันนี้ของแต่ละสินค้าแล้วกดยืนยัน ระบบจะตัดต้นทุนจากรอบเบิกเก่าสุดก่อน (FIFO) ให้ตัวเลขต้นทุนตรงกับวันที่ใช้จริง ไม่ใช่วันที่ไปเบิกมา (ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำจากยอดออเดอร์วันนี้ แก้ได้ถ้าจริงไม่ตรง)</div>
-    ${rows.map(r=>`
-      <div class="lrow" style="flex-direction:column;align-items:stretch;margin-top:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <div class="lname">${r.p.emoji} ${r.p.name} <span style="color:var(--text-dim);font-size:11.5px;">(ค้างตัดต้นทุน ${r.pendingQty} ${r.p.unit} • เฉลี่ย ~${money(r.avgCostPerUnit)}/${r.p.unit})</span></div>
-          <div><input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${r.p.unit}</span></div>
-        </div>
-        ${r.settledToday>0?`<div class="hint" style="margin-top:2px;">ตัดต้นทุนวันนี้ไปแล้ว ${r.settledToday} ${r.p.unit}</div>`:''}
-        <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;align-self:flex-end;margin-top:6px;">✅ ยืนยันตัดต้นทุนวันนี้</button>
-      </div>`).join('')}
+    <h3>📦 ตัดต้นทุนสต็อกล็อต</h3>
+    <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้ายังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ใช้จริงวันนี้แล้วกดตัด (FIFO จากรอบเบิกเก่าสุดก่อน) ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำ แก้ได้</div>
+    <div style="margin-top:6px;">${rows.map(r=>`
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);">
+        <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.pendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div></div>
+        <input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
+        <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
+      </div>`).join('')}</div>
   </div>`;
   wrap.querySelectorAll('[data-lotsettleconfirm]').forEach(btn=>btn.addEventListener('click', ()=>confirmLotSettle_(btn.getAttribute('data-lotsettleconfirm'))));
 }
@@ -5143,6 +5156,54 @@ function computeBranchOrderAnalysis(sortedBills){
   });
   return {latest, prevBill, weekBill, monthBill, yearBill, avgGap, lastGap, gapAnomaly, productAnalysis};
 }
+// ---- แจ้งเตือน "ออเดอร์วันนี้ผิดปกติ" บนแดชบอร์ด ----
+// เดิมระบบวิเคราะห์ความผิดปกติของแต่ละสาขา (computeBranchOrderAnalysis) มีอยู่แล้ว แต่ดูได้ทีละสาขาเท่านั้น (ต้องเลือกที่
+// การ์ด "เช็คยอดรายสาขา") เจ้าของร้านมี ~22 สาขา จะไล่เช็คทีละสาขาทุกวันไม่ไหว — เอาเอนจิ้นเดิมมารันรวบทุกสาขาที่มีออเดอร์
+// วันนี้ทีเดียว แล้วโชว์เฉพาะสาขาที่เจอความผิดปกติจริงๆ ไว้บนสุดของแดชบอร์ด จะได้เห็นภาพรวมแวบเดียวโดยไม่ต้องคลิกทีละสาขา
+function computeTodayOrderAnomalies(aggAll){
+  const results = [];
+  Object.entries(dayData.orders).forEach(([code,row])=>{
+    if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return; // สาขานี้ไม่มีออเดอร์วันนี้ ข้าม
+    const a = aggAll[code];
+    if(!a) return;
+    const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=>y.iso.localeCompare(x.iso));
+    if(!sortedBills.length || sortedBills[0].iso !== currentDate) return; // กันกรณีข้อมูลไม่ตรงวันที่กำลังดูอยู่
+    const analysis = computeBranchOrderAnalysis(sortedBills);
+    if(!analysis) return;
+    const anomalies = analysis.productAnalysis.filter(x=>x.isAnomaly);
+    if(anomalies.length){
+      const branch = settings.branches.find(b=>b.code===code);
+      results.push({code, branch, anomalies});
+    }
+  });
+  return results;
+}
+function renderTodayAnomalies(aggAll){
+  const card = document.getElementById('todayAnomalyCard');
+  const list = document.getElementById('todayAnomalyList');
+  if(!card || !list) return;
+  const results = computeTodayOrderAnomalies(aggAll);
+  if(results.length===0){ card.style.display='none'; return; }
+  card.style.display='';
+  list.innerHTML = results.map(r=>{
+    const name = r.branch ? branchDisplayName(r.branch) : r.code;
+    const items = r.anomalies.map(x=>{
+      const unit = x.p.id==='p7' ? 'ปุก' : x.p.unit;
+      const dir = x.anomalyPct>0 ? 'สูงกว่าปกติ' : 'ต่ำกว่าปกติ';
+      return `${x.p.emoji}${x.p.name} ${x.latestQty} ${unit} (${dir} ${Math.abs(x.anomalyPct)}% — ปกติเฉลี่ย ${Math.round(x.avgQty*10)/10} ${unit})`;
+    }).join(' • ');
+    return `<div class="lrow" style="flex-direction:column;align-items:stretch;cursor:pointer;" data-anomalybranch="${r.code}">
+      <div style="font-weight:600;">🏪 ${name}</div>
+      <div class="hint" style="margin-top:2px;">${items}</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-anomalybranch]').forEach(el=>el.addEventListener('click', async ()=>{
+    const code = el.getAttribute('data-anomalybranch');
+    document.getElementById('dashBranchSelect').value = code;
+    await renderBranchDetail(code);
+    document.getElementById('dashBranchDetail').scrollIntoView({behavior:'smooth', block:'start'});
+  }));
+}
 function renderBranchAnalysisHtml(sortedBills){
   const a = computeBranchOrderAnalysis(sortedBills);
   if(!a || sortedBills.length<2) return '';
@@ -5395,6 +5456,26 @@ async function computeDataGaps(){
       gaps.push({iso, type:'leftover', text:`มีออเดอร์แต่ยังไม่ได้เช็ค/บันทึก "ของเหลือค้าง"`, tab:'leftover'});
     }
   }
+  // เช็คสต็อกที่เบิกจากล็อตมาแล้วแต่ค้างไม่ได้ตัดต้นทุนนานผิดปกติ (ระบบตัดต้นทุนล็อตรายวันต้องกดยืนยันเอง — ถ้าลืมกด
+  // ของจะค้างเงียบๆ ไม่มีใครรู้ ไม่เหมือนเมื่อก่อนที่ตัดต้นทุนให้อัตโนมัติทันทีตอนเบิก) แจ้งเตือนถ้าค้างเกิน 5 วัน
+  const staleThresholdDays = 5;
+  const staleByProduct = {};
+  rawLots.forEach(lot=>{
+    (lot.draws||[]).forEach(d=>{
+      const pend = drawPendingQty_(d);
+      if(pend<=0.001) return;
+      const ageDays = Math.round((new Date(today+'T00:00:00Z') - new Date(d.date+'T00:00:00Z'))/86400000);
+      if(ageDays < staleThresholdDays) return;
+      if(!staleByProduct[lot.productId]) staleByProduct[lot.productId] = {pend:0, maxAge:0};
+      staleByProduct[lot.productId].pend += pend;
+      staleByProduct[lot.productId].maxAge = Math.max(staleByProduct[lot.productId].maxAge, ageDays);
+    });
+  });
+  Object.entries(staleByProduct).forEach(([pid, info])=>{
+    const p = PRODUCTS.find(x=>x.id===pid);
+    if(!p) return;
+    gaps.push({iso: today, type:'lot-stale', text:`${p.emoji}${p.name}: มีสต็อกล็อตที่เบิกมาแล้ว ${Math.round(info.pend*100)/100} ${p.unit} ค้างไม่ได้ตัดต้นทุนมา ${info.maxAge} วันแล้ว — เช็คที่การ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" ว่าลืมกดยืนยัน หรือของหายไปโดยไม่รู้ตัวหรือเปล่า`, tab:'purchase'});
+  });
   return gaps;
 }
 async function jumpToGap(iso, tab){
@@ -5548,6 +5629,7 @@ async function renderDashboard(){
 
   lastTopOutstandingAgg = aggAll;
   renderTopOutstandingTable();
+  renderTodayAnomalies(aggAll);
 
   populateDashBranchSelect();
   await renderBranchDetail(document.getElementById('dashBranchSelect').value, aggAll);

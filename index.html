@@ -181,16 +181,23 @@ table.plain td{padding:7px 6px;border-bottom:1px solid var(--border-soft);white-
 table.plain td.num,table.plain th.num{text-align:right;}
 .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .leftover-grid{display:flex;flex-direction:column;gap:8px;}
+.leftover-grid.wrap{flex-direction:row;flex-wrap:wrap;gap:6px;}
 .lrow{display:flex;align-items:center;gap:10px;}
 .lrow .lname{width:76px;font-size:13px;color:var(--text-dim);flex:none;}
 .lrow .lin{width:64px;flex:none;background:var(--surface-3);border-radius:7px;padding:6px 8px;text-align:center;font-size:13px;color:var(--text-faint);}
 .lrow input{flex:1;}
+.lchip{display:flex;align-items:center;gap:5px;background:var(--surface-3);border-radius:7px;padding:5px 7px;font-size:12.5px;flex:none;}
+.lchip .lname{color:var(--text-dim);white-space:nowrap;}
+.lchip input{width:48px;flex:none;text-align:center;padding:4px 3px;font-size:12.5px;}
+.lchip.suggested{border:1px solid var(--accent);}
 .feebig{font-size:30px;color:var(--accent);font-weight:600;}
 .feebig .unit{font-size:14px;color:var(--text-dim);margin-left:6px;font-weight:400;}
 .branchbill{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:10px 11px;margin-bottom:8px;}
 .branchbill .toprow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.branchbill .toprow .left{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:left;}
+.branchbill .toprow .left .d{flex-basis:100%;}
 .branchbill .left .n{font-size:13.5px;}
-.branchbill .left .amt{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.branchbill .left .amt{font-size:12px;color:var(--text-dim);margin-top:0;}
 .branchbill .acts2{display:flex;gap:6px;flex:none;align-items:center;}
 .billrow{margin-bottom:4px;}
 .billrow-body{border-top:1px solid var(--border-soft);margin-top:8px;padding-top:8px;}
@@ -324,11 +331,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
       <div id="dataGapsList"></div>
     </div>
-    <div class="card" id="todayAnomalyCard" style="display:none;border-color:var(--accent);">
-      <h3>🚨 ออเดอร์วันนี้ที่ดูผิดปกติ (เทียบค่าเฉลี่ยที่ผ่านมา)</h3>
-      <div class="hint">เทียบจำนวนที่สั่งวันนี้กับค่าเฉลี่ยของแต่ละสาขา/สินค้าเอง ถ้าต่างจากปกติมาก (±40% ขึ้นไป) จะแจ้งไว้ที่นี่ — ช่วยจับกรอกผิด/สาขาสั่งผิดปกติได้ทันทีโดยไม่ต้องไล่เช็คทีละสาขา แตะแถวไหนเพื่อดูรายละเอียดสาขานั้น</div>
-      <div id="todayAnomalyList" style="margin-top:8px;"></div>
-    </div>
     <div class="card">
       <h3>📊 ภาพรวมวันที่ <span id="dashDateLabel" class="num" style="color:var(--accent);"></span></h3>
       <div class="dash-grid">
@@ -418,6 +420,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="rowlist" id="orderList"></div>
     </div>
+    <div class="card" id="todayAnomalyCard" style="display:none;border-color:var(--accent);">
+      <h3>🚨 ออเดอร์วันนี้ที่ดูผิดปกติ (เทียบค่าเฉลี่ยที่ผ่านมา)</h3>
+      <div class="hint">เทียบจำนวนที่สั่งวันนี้กับค่าเฉลี่ยของแต่ละสาขา/สินค้าเอง ถ้าต่างจากปกติมาก (±40% ขึ้นไป) จะแจ้งไว้ที่นี่ — ช่วยจับกรอกผิด/สาขาสั่งผิดปกติได้ทันทีโดยไม่ต้องไล่เช็คทีละสาขา แตะแถวไหนเพื่อดูรายละเอียดสาขานั้น</div>
+      <div id="todayAnomalyList" style="margin-top:8px;"></div>
+    </div>
     <div class="card">
       <h3>👀 สาขาที่ยังไม่ได้บันทึกวันนี้</h3>
       <div class="hint">รายชื่อทุกสาขาที่มีในระบบแต่ยังไม่มีออเดอร์วันนี้ — ไม่ใช่ทุกสาขาต้องสั่งทุกคืน ใช้เช็คเผื่อมีข้อความ LINE ตกหล่น</div>
@@ -431,18 +438,23 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card" style="border-color:var(--accent);">
       <div class="hint" style="color:var(--accent);font-size:12.5px;">⚠️ แท็บนี้อ้างอิงตามวันที่ที่เลือกอยู่ด้านบนเสมอ (ตอนนี้คือ <b id="leftoverActiveDate" class="num" style="color:var(--accent);"></b>) เลื่อนวันที่ให้ตรงก่อนกรอกทุกครั้ง</div>
     </div>
-    <div class="card">
-      <h3>📦 วัตถุดิบล็อตคงเหลือ (ยังไม่ได้เบิกใช้)</h3>
-      <div class="hint">คนละเรื่องกับ "ของเหลือที่ต้องเก็บ" ด้านล่าง — อันนี้คือวัตถุดิบดิบที่ซื้อเป็นล็อต (เช่น ปูจืด/เชอรี่/นางรม) ที่ยังไม่ได้เบิกไปทำเลย ไม่ใช่ของที่ทำเสร็จแล้วเหลือจากส่งสาขา</div>
-      <div id="leftoverLotStock" class="loading">กำลังโหลด…</div>
+    <div class="card" data-no-collapse="1">
+      <div id="leftoverLotStockToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <h3 style="margin:0;">📦 วัตถุดิบล็อตคงเหลือ (ยังไม่ได้เบิกใช้)</h3>
+        <span id="leftoverLotStockChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
+      </div>
+      <div id="leftoverLotStockBody">
+        <div class="hint">คนละเรื่องกับ "ของเหลือที่ต้องเก็บ" ด้านล่าง — อันนี้คือวัตถุดิบดิบที่ซื้อเป็นล็อต (เช่น ปูจืด/เชอรี่/นางรม) ที่ยังไม่ได้เบิกไปทำเลย ไม่ใช่ของที่ทำเสร็จแล้วเหลือจากส่งสาขา</div>
+        <div id="leftoverLotStock" class="loading">กำลังโหลด…</div>
+      </div>
     </div>
     <div class="card">
       <h3 id="leftoverInHeader">เหลือรับเข้า</h3>
-      <div class="leftover-grid" id="leftoverInView"></div>
+      <div class="leftover-grid wrap" id="leftoverInView"></div>
     </div>
     <div class="card">
       <h3 id="leftoverOutHeader">ของเหลือที่ต้องเก็บ</h3>
-      <div class="leftover-grid" id="leftoverOutForm"></div>
+      <div class="leftover-grid wrap" id="leftoverOutForm"></div>
       <button class="btn" id="saveLeftoverBtn" style="margin-top:10px;">บันทึกของเหลือ</button>
       <button class="btn secondary" id="noLeftoverBtn" style="margin-top:8px;">✅ วันนี้ไม่มีของเหลือ</button>
       <div class="hint">พี่พัฒน์แจ้งจำนวนที่มนต์ทำเกิน/เก็บไว้ กรอกที่นี่แล้วระบบจะไปหักในข้อความสั่งมนต์ของวันถัดไปอัตโนมัติ ถ้าวันนี้ไม่มีของเหลือเลย กดปุ่ม "วันนี้ไม่มีของเหลือ" เพื่อยืนยันว่าเช็คแล้ว ระบบจะได้ไม่เตือนซ้ำ</div>
@@ -1210,7 +1222,15 @@ function renderOrderMissingList(){
     });
   });
 }
-function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); updateOrderFormAutoFold(); }
+function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); }
+// การ์ด "ออเดอร์วันนี้ที่ดูผิดปกติ" ย้ายมาอยู่ในแท็บ order แล้ว (ต่อจาก "สาขาที่บันทึกแล้ววันนี้") — ต้องอัปเดตทุกครั้งที่ข้อมูลออเดอร์เปลี่ยน
+// ไม่ผูกกับ renderDashboard() อีกต่อไปเพราะบางคนอาจไม่เปิดแท็บแดชบอร์ดเลยในแต่ละวัน ทำงานแบบ fire-and-forget ไม่ await เพื่อไม่ให้บันทึกออเดอร์ช้าลง
+async function refreshTodayAnomalyCard_(){
+  try{
+    const aggAll = await computeBranchAggregates();
+    renderTodayAnomalies(aggAll);
+  }catch(e){ /* เงียบไว้ ไม่ให้กระทบการบันทึกออเดอร์หลัก ถ้าเน็ตมีปัญหาแค่การ์ดนี้จะไม่อัปเดต */ }
+}
 
 // ---- Read order from photo (Claude vision) ----
 function fileToBase64(file){
@@ -1617,7 +1637,7 @@ async function renderLeftover(){
   document.getElementById('leftoverActiveDate').textContent = formatDDMMYYYY(currentDate);
   document.getElementById('leftoverInHeader').textContent = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} (จากวันที่ ${formatDDMMYYYY(prevIso)})`;
   document.getElementById('leftoverOutHeader').textContent = `ของเหลือที่ต้องเก็บจากวันที่ ${formatDDMMYYYY(currentDate)} (จะหักออกจากออเดอร์วันที่ ${formatDDMMYYYY(nextIso)})`;
-  document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
+  document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lchip"><span class="lname">${p.emoji}${LEFTOVER_SHORT[id]||p.name}</span><span class="num">${leftIn[id]||0}${p.unit}</span></div>`; }).join('');
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
   // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
   document.getElementById('leftoverOutForm').innerHTML = '<div class="loading">กำลังโหลด…</div>';
@@ -1627,12 +1647,11 @@ async function renderLeftover(){
     const {suggested, carriedIn, yieldQty, orderedQty} = await computeSuggestedLeftover(id);
     const showSuggestHint = !alreadyRecorded && (yieldQty>0 || carriedIn>0);
     const val = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
-    return `<div class="lrow" style="flex-direction:column;align-items:stretch;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <div class="lname">${p.emoji} ${p.name}</div>
-        <div><input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0"> <span style="color:var(--text-dim);font-size:12px;">${p.unit}</span></div>
-      </div>
-      ${showSuggestHint ? `<div class="hint" style="margin-top:2px;">ระบบคำนวณให้อัตโนมัติ: เหลือยกมา ${carriedIn} + ทำได้วันนี้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)</div>` : ''}
+    const hintTitle = showSuggestHint ? `ระบบคำนวณให้อัตโนมัติ: เหลือยกมา ${carriedIn} + ทำได้วันนี้ ${yieldQty} - ออเดอร์ ${orderedQty} = แนะนำเหลือ ${suggested} ${p.unit} (แก้ตัวเลขได้ถ้าจริงไม่ตรง)` : '';
+    return `<div class="lchip${showSuggestHint?' suggested':''}"${hintTitle?` title="${hintTitle}"`:''}>
+      <span class="lname">${p.emoji}${LEFTOVER_SHORT[id]||p.name}${showSuggestHint?' 💡':''}</span>
+      <input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0">
+      <span style="color:var(--text-dim);">${p.unit}</span>
     </div>`;
   }));
   document.getElementById('leftoverOutForm').innerHTML = rowsHtml.join('');
@@ -2112,7 +2131,7 @@ function renderExpenseList(){
     return `
     <div class="orow billrow" style="flex-direction:column;align-items:stretch;padding:8px 10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div style="cursor:pointer;" data-billrowtoggle="${rowKey}"><div class="name">${e.category}${e.seller?` — ${e.seller}`:''}</div><div class="items num">${money(e.amount)}${e.paid?' <span style="color:var(--text-faint);font-size:11.5px;">• จ่ายแล้ว</span>':''}</div></div>
+        <div style="cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:left;" data-billrowtoggle="${rowKey}"><span class="name">${e.category}${e.seller?` — ${e.seller}`:''}</span><span class="items num">${money(e.amount)}${e.paid?' <span style="color:var(--text-faint);font-size:11.5px;">• จ่ายแล้ว</span>':''}</span></div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
           <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>
@@ -2708,7 +2727,10 @@ async function renderAllExpenseList(skipReload){
       const editing = allExpEditingKey===r.key;
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div><div style="font-weight:600;">${r.seller || 'ไม่ระบุคู่ค้า'}</div><div class="d">${formatDDMMYYYY(r.iso)} • ${r.label} • ${money(r.amount)}</div></div>
+          <div style="text-align:left;">
+            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span style="font-weight:600;">${r.seller || 'ไม่ระบุคู่ค้า'}</span><span class="num" style="font-weight:600;">${money(r.amount)}</span></div>
+            <div class="d">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
+          </div>
           <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
@@ -3462,6 +3484,9 @@ function drawCostPerUnit_(draw, lot){
   return totalCost/sq;
 }
 function drawPendingQty_(draw){
+  // รอบเบิกเก่าก่อนมีระบบตัดต้นทุนสต็อกล็อต (ไม่มีฟิลด์ costedQty เลย) ถือว่าตัดต้นทุนเต็มจำนวนไปแล้วตั้งแต่ตอนเบิก
+  // (ตามพฤติกรรมเดิมของระบบตอนนั้น) — ไม่งั้นจะโผล่มาเป็น "ค้างตัดต้นทุน" ย้อนหลังหลายเดือนทั้งที่จ่ายจบไปแล้วจริง
+  if(draw.costedQty===undefined) return 0;
   return Math.max(0, Math.round((Number(draw.sellableQty||0) - Number(draw.costedQty||0))*100)/100);
 }
 // รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย — เป็นก้อนกลาง
@@ -3740,6 +3765,8 @@ async function addLot(){
 async function renderLotStockSummary(){
   const wrap = document.getElementById('leftoverLotStock');
   if(!wrap) return;
+  const body = document.getElementById('leftoverLotStockBody');
+  const chevron = document.getElementById('leftoverLotStockChevron');
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   let lots;
   try{ lots = await loadRawLots(); }
@@ -3751,7 +3778,13 @@ async function renderLotStockSummary(){
     byProduct[lot.productId] = (byProduct[lot.productId]||0) + remain;
   });
   const pids = Object.keys(byProduct);
-  if(pids.length===0){ wrap.innerHTML = '<div class="empty">ไม่มีวัตถุดิบล็อตค้างเบิก</div>'; return; }
+  // ไม่มีวัตถุดิบล็อตค้างเบิกเลย — พับการ์ดนี้ไว้เป็นค่าเริ่มต้น กันจอรกเปล่าๆ (กดหัวข้อเพื่อกางดูเองได้เสมอ)
+  if(pids.length===0){
+    wrap.innerHTML = '<div class="empty">ไม่มีวัตถุดิบล็อตค้างเบิก</div>';
+    if(body && chevron){ body.style.display='none'; chevron.textContent='▸'; }
+    return;
+  }
+  if(body && chevron){ body.style.display=''; chevron.textContent='▾'; }
   wrap.innerHTML = `<div class="leftover-grid">${pids.map(pid=>{
     const p = PRODUCTS.find(x=>x.id===pid);
     return `<div class="dash-metric accent" data-goto="purchase" style="cursor:pointer;"><div class="dm-label">${p.emoji} ${p.name} ›</div><div class="dm-value num">${Math.round(byProduct[pid]*100)/100} กก.</div></div>`;
@@ -3763,6 +3796,7 @@ let lotDepletedSectionOpen = false; // พับ "บิลที่ใช้ห
 let multiLotDrawOpen = false; // เบิกรวมหลายล็อตในทีเดียว (เผื่อลืมแยกนับว่าใช้จากล็อตไหนเท่าไหร่) — ระบบหักลบให้อัตโนมัติแบบ FIFO (ล็อตเก่าสุดก่อน)
 let multiLotDrawInFlight = false;
 let lotHistoryOpenIds = new Set(); // พับ "ประวัติการเบิก" ของแต่ละล็อตไว้เป็นค่าเริ่มต้น กันจอรกเวลามีล็อตเยอะๆ
+let lotRowOpenIds = new Set(); // ล็อต(สินค้าแต่ละตัวในบิล)ที่ใช้หมดแล้ว พับรายละเอียดไว้เป็นค่าเริ่มต้นเสมอ — ต้องกดเปิดเองถึงจะเห็น (ล็อตที่ยังมีของเหลืออยู่ไม่พับ โชว์เต็มตามปกติ)
 async function renderLotList(){
   const wrap = document.getElementById('lotList');
   if(!wrap) return;
@@ -3832,14 +3866,17 @@ async function renderLotList(){
       const historyOpen = lotHistoryOpenIds.has(lot.id);
       const pct = Number(lot.qtyTotal)>0 ? Math.max(0, Math.min(100, (remain/Number(lot.qtyTotal))*100)) : 0;
       const barColor = closed ? 'var(--text-faint)' : (pct<25 ? 'var(--danger)' : 'var(--accent)');
+      // ล็อตที่ใช้หมดแล้วพับรายละเอียดไว้เป็นค่าเริ่มต้นเสมอ (ต้องกดหัวข้อเพื่อกางดูเอง) — ล็อตที่ยังเหลือของอยู่โชว์เต็มตามปกติไม่ต้องพับ
+      const rowOpen = !closed || lotRowOpenIds.has(lot.id);
       return `<div style="padding:12px 0;border-top:1px solid var(--border-soft);${closed?'opacity:0.55;':''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div style="font-weight:600;font-size:14.5px;">${p.emoji} ${p.name}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;${closed?'cursor:pointer;':''}"${closed?` data-lotrowtoggle="${lot.id}"`:''}>
+          <div style="font-weight:600;font-size:14.5px;display:flex;align-items:center;gap:5px;">${closed?`<span style="font-size:12px;color:var(--text-faint);">${rowOpen?'▾':'▸'}</span>`:''}${p.emoji} ${p.name}</div>
           <div style="display:flex;align-items:center;gap:6px;flex:none;">
             <span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;background:${closed?'var(--surface-3)':'var(--accent-soft)'};color:${closed?'var(--text-faint)':'var(--accent)'};">${closed?'ใช้หมดแล้ว':`เหลือ ${remain} กก.`}</span>
             <button class="iconbtn" data-lotdel="${lot.id}" aria-label="ลบสินค้านี้ในบิล" style="width:26px;height:26px;font-size:12px;">✕</button>
           </div>
         </div>
+        ${rowOpen ? `
         <div style="height:6px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin-top:8px;">
           <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
         </div>
@@ -3868,6 +3905,7 @@ async function renderLotList(){
             ${draws.slice().reverse().map(d=>`<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${d.note}`:''}</div>`).join('')}
           </div>` : ''}
         </div>`:''}
+        ` : ''}
       </div>`;
     }).join('');
     return `<div class="card" style="background:var(--surface-2);padding:14px;margin-bottom:10px;">
@@ -3925,6 +3963,11 @@ async function renderLotList(){
   wrap.querySelectorAll('[data-lothistorytoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lothistorytoggle');
     if(lotHistoryOpenIds.has(id)) lotHistoryOpenIds.delete(id); else lotHistoryOpenIds.add(id);
+    renderLotList();
+  }));
+  wrap.querySelectorAll('[data-lotrowtoggle]').forEach(el=>el.addEventListener('click', ()=>{
+    const id = el.getAttribute('data-lotrowtoggle');
+    if(lotRowOpenIds.has(id)) lotRowOpenIds.delete(id); else lotRowOpenIds.add(id);
     renderLotList();
   }));
   wrap.querySelectorAll('[data-lotdrawconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -6001,6 +6044,14 @@ async function init(){
   document.getElementById('billSummaryToggle').addEventListener('click', ()=>{
     const body = document.getElementById('billSummaryBody');
     const chevron = document.getElementById('billSummaryChevron');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    chevron.textContent = open ? '▸' : '▾';
+  });
+  // พับ/กางการ์ด "วัตถุดิบล็อตคงเหลือ" ด้วยปุ่มของตัวเอง (default พับไว้เมื่อไม่มีข้อมูล — ตั้งค่าเริ่มต้นทำใน renderLotStockSummary())
+  document.getElementById('leftoverLotStockToggle').addEventListener('click', ()=>{
+    const body = document.getElementById('leftoverLotStockBody');
+    const chevron = document.getElementById('leftoverLotStockChevron');
     const open = body.style.display !== 'none';
     body.style.display = open ? 'none' : '';
     chevron.textContent = open ? '▸' : '▾';

@@ -3847,19 +3847,28 @@ let multiLotDrawOpen = false; // เบิกรวมหลายล็อต�
 let multiLotDrawInFlight = false;
 let lotHistoryOpenIds = new Set(); // พับ "ประวัติการเบิก" ของแต่ละล็อตไว้เป็นค่าเริ่มต้น กันจอรกเวลามีล็อตเยอะๆ
 let lotDepletedBillOpenIds = new Set(); // แต่ละบิลในกลุ่ม "ล็อตที่ใช้หมดแล้ว" พับรายละเอียดไว้เป็นค่าเริ่มต้น เห็นแค่วันที่+คู่ค้าเรียงกัน กดทีละบิลเพื่อดูรายละเอียดเอง
-async function renderLotList(){
+let lotDrawEditId = null; // id ของ "รอบเบิก" (draw) ที่กำลังแก้ไขตัวเลขอยู่ (เผื่อนับผิด/พิมพ์ผิดตอนเบิก) — null = ไม่ได้แก้อะไรอยู่
+async function renderLotList(preloadedLots){
   const wrap = document.getElementById('lotList');
   if(!wrap) return;
-  wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   let lots;
-  try{
-    lots = await loadRawLots();
-    if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
-    await ensureLotBillRecords(lots);
-  }catch(e){
-    wrap.innerHTML = '<div class="empty">โหลดข้อมูลลอตไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหน้าใหม่ — ข้อมูลไม่ได้หาย แค่โหลดไม่ขึ้น</div>';
-    return;
+  if(preloadedLots){
+    // มีข้อมูลล็อตที่โหลด/เซฟไว้แล้วจากจุดที่เรียกมา (เช่น เพิ่งเบิก/แก้ไข/ลบเสร็จ หรือแค่กดพับ-กาง) ไม่ต้องยิง loadRawLots() ซ้ำ
+    // กันจอกระพริบเป็น "กำลังโหลด…" ทั้งการ์ด + กันเน็ตช้าแล้วเหมือนค้าง/รีโหลดทั้งหน้าทุกครั้งที่กดปุ่มอะไรในนี้
+    lots = preloadedLots;
+    try{ await ensureLotBillRecords(lots); }catch(e){ /* เงียบไว้ ไม่กระทบการแสดงผล ถ้าเน็ตมีปัญหาแค่จุดนี้ */ }
+  } else {
+    wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+    try{
+      lots = await loadRawLots();
+      if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
+      await ensureLotBillRecords(lots);
+    }catch(e){
+      wrap.innerHTML = '<div class="empty">โหลดข้อมูลลอตไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหน้าใหม่ — ข้อมูลไม่ได้หาย แค่โหลดไม่ขึ้น</div>';
+      return;
+    }
   }
+  if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
   const groups = {};
   lots.forEach(lot=>{ const bid = lot.billId || lot.id; (groups[bid] = groups[bid]||[]).push(lot); });
   const allBillIds = Object.keys(groups).sort((a,b)=>{
@@ -3929,7 +3938,14 @@ async function renderLotList(){
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;">
           <span style="font-size:12px;color:var(--text-faint);">${lot.qtyTotal} กก. × ${lot.pricePerKg}${lot.extra?` +ขนส่ง${Math.round(lot.extra)}`:''} = ${money(lotCostTotal(lot))} (${money(costPerKg)}/กก.)</span>
-          ${closed?'':`<button class="btn small secondary" data-lotdraw="${lot.id}" style="width:auto;flex:none;padding:5px 12px;font-size:12.5px;">🔻 เบิกใช้</button>`}
+          ${(()=>{
+            if(closed) return '';
+            // เลือกดูวันที่ย้อนหลังก่อนวันที่ซื้อล็อตนี้จริง — ยังเบิกจากล็อตนี้ไม่ได้ (ของยังไม่ถูกซื้อเข้ามาตอนนั้น) ปุ่มเลยต้องกดไม่ได้ ไม่ใช่ซ่อนไปเฉยๆ
+            // (ซ่อนไปเลยจะดูเหมือนล็อตหาย งงกว่า) แค่กดไม่ได้ + มีคำอธิบายสั้นๆ ว่าทำไม
+            const notYetBought = String(currentDate) < String(lot.buyDate);
+            if(notYetBought) return `<button class="btn small secondary" disabled title="ล็อตนี้ซื้อวันที่ ${formatDDMMYYYY(lot.buyDate)} — ย้อนหลังไปเบิกก่อนวันซื้อไม่ได้" style="width:auto;flex:none;padding:5px 12px;font-size:12.5px;opacity:0.45;cursor:not-allowed;">🔻 เบิกใช้ (ยังไม่ถึงวันซื้อ)</button>`;
+            return `<button class="btn small secondary" data-lotdraw="${lot.id}" style="width:auto;flex:none;padding:5px 12px;font-size:12.5px;">🔻 เบิกใช้</button>`;
+          })()}
         </div>
         ${lot.note?`<div style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">📝 ${lot.note}</div>`:''}
         ${drawOpen? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-3);">
@@ -3949,7 +3965,26 @@ async function renderLotList(){
             <span id="lotHistoryChevron-${lot.id}">${historyOpen?'▾':'▸'}</span><span>ประวัติการเบิก (${draws.length} ครั้ง)</span>
           </div>
           <div id="lotHistoryBody-${lot.id}" style="display:${historyOpen?'':'none'};margin-top:6px;padding-left:12px;border-left:2px solid var(--border-soft);">
-            ${draws.slice().reverse().map(d=>`<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${d.note}`:''}</div>`).join('')}
+            ${draws.slice().reverse().map(d=>{
+              const editing = lotDrawEditId===d.id;
+              if(editing){
+                return `<div style="margin:6px 0;padding:8px;border-radius:8px;background:var(--surface-3);">
+                  <div class="grid7">
+                    <div><label style="font-size:11px;color:var(--text-dim);">ใช้ไปกี่กก. (เบิก)</label><input type="number" step="0.01" id="lotDrawEditQty-${d.id}" value="${d.qtyUsed}"></div>
+                    <div><label style="font-size:11px;color:var(--text-dim);">ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
+                  </div>
+                  <input type="text" id="lotDrawEditNote-${d.id}" value="${(d.note||'').replace(/"/g,'&quot;')}" placeholder="หมายเหตุ" style="margin-top:6px;font-size:12px;">
+                  <div style="display:flex;gap:6px;margin-top:6px;">
+                    <button class="btn small" data-lotdraweditsave="${d.id}" data-lotid="${lot.id}" style="width:auto;">บันทึก</button>
+                    <button class="btn small secondary" data-lotdraweditcancel="1" style="width:auto;">ยกเลิก</button>
+                  </div>
+                </div>`;
+              }
+              return `<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;display:flex;align-items:center;gap:6px;">
+                <span style="flex:1;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${d.note}`:''}</span>
+                <button class="iconbtn" data-lotdrawedit="${d.id}" aria-label="แก้ไขรอบเบิกนี้" style="width:22px;height:22px;font-size:11px;flex:none;">✏️</button>
+              </div>`;
+            }).join('')}
           </div>
         </div>`:''}
       </div>`;
@@ -4011,24 +4046,24 @@ async function renderLotList(){
   }));
   wrap.querySelectorAll('[data-lotdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotdel');
-    const lots2 = await loadRawLots();
-    const lot = lots2.find(x=>x.id===id);
+    const lot = lots.find(x=>x.id===id);
     if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
     try{
-      await saveRawLots(removeFirstById(lots2, id));
+      const updated = removeFirstById(lots, id);
+      await saveRawLots(updated);
       showToast('ลบล็อตแล้ว');
-      await renderLotList();
+      renderLotList(updated);
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));
   wrap.querySelectorAll('[data-lotdraw]').forEach(btn=>btn.addEventListener('click', ()=>{
     lotDrawOpenId = btn.getAttribute('data-lotdraw');
-    renderLotList();
+    renderLotList(lots); // แค่เปิดฟอร์มเบิก ไม่มีอะไรเปลี่ยนในข้อมูล ไม่ต้องยิงโหลดซ้ำ
   }));
   wrap.querySelectorAll('[data-lotdrawcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     lotDrawOpenId = null;
-    renderLotList();
+    renderLotList(lots);
   }));
   wrap.querySelectorAll('[data-lothistorytoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lothistorytoggle');
@@ -4038,6 +4073,40 @@ async function renderLotList(){
     const chevronEl = document.getElementById(`lotHistoryChevron-${id}`);
     if(bodyEl) bodyEl.style.display = open ? 'none' : '';
     if(chevronEl) chevronEl.textContent = open ? '▸' : '▾';
+  }));
+  wrap.querySelectorAll('[data-lotdrawedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotDrawEditId = btn.getAttribute('data-lotdrawedit');
+    renderLotList(lots);
+  }));
+  wrap.querySelectorAll('[data-lotdraweditcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotDrawEditId = null;
+    renderLotList(lots);
+  }));
+  wrap.querySelectorAll('[data-lotdraweditsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const drawId = btn.getAttribute('data-lotdraweditsave');
+    const lotId = btn.getAttribute('data-lotid');
+    const qtyUsed = Number(document.getElementById(`lotDrawEditQty-${drawId}`).value||0);
+    const sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
+    const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
+    if(qtyUsed<=0 || sellableQty<=0){ showToast('กรอกจำนวนที่ใช้และจำนวนที่ได้ให้ครบ'); return; }
+    const lot = lots.find(x=>x.id===lotId);
+    if(!lot) return;
+    const d = (lot.draws||[]).find(x=>x.id===drawId);
+    if(!d) return;
+    d.qtyUsed = qtyUsed; d.sellableQty = sellableQty; d.note = note;
+    // ถ้ารอบเบิกนี้มี totalCost/costedQty อยู่แล้ว (เบิกผ่านระบบใหม่) ต้องคำนวณ totalCost ใหม่ตามจำนวนที่แก้
+    // และกันไม่ให้ costedQty (ตัดต้นทุนไปแล้วเท่าไหร่) ค้างเกินจำนวนที่ทำได้ใหม่ (เช่น แก้ยอดทำได้ให้น้อยลงกว่าที่ตัดไปแล้ว)
+    if(d.totalCost!==undefined){ d.totalCost = Math.round(qtyUsed*lotCostPerKg(lot)*100)/100; }
+    if(d.costedQty!==undefined){ d.costedQty = Math.min(d.costedQty, sellableQty); }
+    try{
+      await saveRawLots(lots);
+      lotDrawEditId = null;
+      showToast('แก้ไขรอบเบิกแล้ว');
+      renderLotList(lots);
+      renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การแก้ไขยังไม่ถูกบันทึก');
+    }
   }));
   wrap.querySelectorAll('[data-lotdrawconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(lotDrawConfirmInFlight) return; // กันบันทึกการเบิกซ้ำถ้ากดรัวๆ/เน็ตช้า
@@ -4049,9 +4118,9 @@ async function renderLotList(){
     const sellableQty = Number(document.getElementById(`lotDrawSellable-${id}`).value||0);
     const note = document.getElementById(`lotDrawNote-${id}`).value.trim();
     if(qtyUsed<=0 || sellableQty<=0){ showToast('กรอกจำนวนที่ใช้และจำนวนที่ได้ให้ครบ'); return; }
-    const lots2 = await loadRawLots();
-    const lot = lots2.find(x=>x.id===id);
+    const lot = lots.find(x=>x.id===id);
     if(!lot) return;
+    if(String(currentDate) < String(lot.buyDate)){ showToast('ล็อตนี้ยังไม่ถึงวันที่ซื้อ เบิกไม่ได้'); return; }
     const remain = lotRemaining(lot);
     if(qtyUsed > remain + 0.001){
       const ok = confirm(`ล็อตนี้เหลืออยู่ ${remain} กก. แต่กำลังจะเบิก ${qtyUsed} กก. (มากกว่าที่เหลือ)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
@@ -4065,23 +4134,23 @@ async function renderLotList(){
     // อาจถูกใช้/ส่งจริงกระจายไปหลายวันข้างหน้า ถ้าตัดต้นทุนเต็มจำนวนในวันที่เบิกจะทำให้ต้นทุนซื้อวันนั้นพุ่งผิดปกติ
     // ไม่ตรงกับของที่ใช้จริงวันนั้น — ต้นทุนจะถูกตัดทีหลังผ่านการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน
     lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note, totalCost, costedQty:0});
-    await saveRawLots(lots2);
+    await saveRawLots(lots);
     await autoFillLeftoverIfNeeded(lot.productId); // ถ้าเบิกเกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     lotDrawOpenId = null;
     showToast('บันทึกการเบิกใช้แล้ว — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยัน "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน');
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
-    await renderLotList();
+    renderLotList(lots);
     } catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
     } finally { lotDrawConfirmInFlight = false; btn.disabled = false; }
   }));
   const multiLotToggleEl = document.getElementById('multiLotDrawToggle');
   if(multiLotToggleEl){
-    multiLotToggleEl.addEventListener('click', ()=>{ multiLotDrawOpen = !multiLotDrawOpen; renderLotList(); });
+    multiLotToggleEl.addEventListener('click', ()=>{ multiLotDrawOpen = !multiLotDrawOpen; renderLotList(lots); });
   }
   const multiLotCancelBtn = document.getElementById('multiLotCancelBtn');
   if(multiLotCancelBtn){
-    multiLotCancelBtn.addEventListener('click', ()=>{ multiLotDrawOpen = false; renderLotList(); });
+    multiLotCancelBtn.addEventListener('click', ()=>{ multiLotDrawOpen = false; renderLotList(lots); });
   }
   const multiLotQtyAllBtn = document.getElementById('multiLotQtyAllBtn');
   if(multiLotQtyAllBtn){
@@ -4112,7 +4181,7 @@ async function renderLotList(){
         const sellableTotal = Number(document.getElementById('multiLotSellable').value||0);
         const note = document.getElementById('multiLotNote').value.trim();
         if(qtyUsedTotal<=0 || sellableTotal<=0){ showToast('กรอกจำนวนที่ใช้รวมและที่ได้รวมให้ครบ'); return; }
-        const lots2 = await loadRawLots();
+        const lots2 = lots;
         // หักเบิก (ใช้ไป) แบบเต็มลอต: FIFO — ตัดล็อตที่ซื้อมาก่อนสุดให้หมดก่อน แล้วค่อยไล่ไปล็อตถัดไปจนครบยอดที่เบิก
         const activeLots = lots2.filter(l=>l.productId===productId && lotRemaining(l)>0)
           .sort((a,b)=> String(a.buyDate).localeCompare(String(b.buyDate)) || String(a.id).localeCompare(String(b.id)));
@@ -4161,7 +4230,7 @@ async function renderLotList(){
         multiLotDrawOpen = false;
         showToast(`บันทึกการเบิกรวมแล้ว (แบ่งให้ ${allocations.length} ล็อตอัตโนมัติ) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยันตัดต้นทุนตามที่ใช้จริงแต่ละวันแทน`);
         renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
-        await renderLotList();
+        renderLotList(lots2);
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
       } finally {

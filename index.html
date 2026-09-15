@@ -182,10 +182,10 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .leftover-grid{display:flex;flex-direction:column;gap:8px;}
 .lrow{display:flex;align-items:center;gap:10px;}
-.lrow .lname{width:96px;font-size:13px;color:var(--text-dim);flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lrow .lname{width:112px;font-size:13px;color:var(--text-dim);flex:none;white-space:normal;line-height:1.25;}
 .lrow .lin{width:64px;flex:none;background:var(--surface-3);border-radius:7px;padding:6px 8px;text-align:center;font-size:13px;color:var(--text-faint);}
 .lrow input{flex:1;}
-.lrow-hint{font-size:10.5px;color:var(--text-faint);line-height:1.35;margin-top:2px;padding-left:106px;}
+.lrow-hint{font-size:10.5px;color:var(--text-faint);line-height:1.35;margin-top:2px;padding-left:122px;}
 .feebig{font-size:30px;color:var(--accent);font-weight:600;}
 .feebig .unit{font-size:14px;color:var(--text-dim);margin-left:6px;font-weight:400;}
 .branchbill{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:10px 11px;margin-bottom:8px;}
@@ -314,8 +314,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="tab" data-tab="messages">💬 ข้อความส่ง</button>
       <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
       <button class="tab" data-tab="leftover">📦 ของเหลือค้าง</button>
-      <button class="tab" data-tab="fee">🏷️ Brand fee</button>
       <button class="tab" data-tab="billing">🧾 บิล & โอนเงิน</button>
+      <button class="tab" data-tab="fee">🏷️ Brand fee</button>
       <button class="tab" data-tab="debts">💳 หนี้สิน</button>
       <button class="tab" data-tab="personal">👛 การเงินส่วนตัว</button>
       <button class="tab" data-tab="settings">⚙️ ตั้งค่า</button>
@@ -353,16 +353,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="yearSummary" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>⚡ บันทึกด่วน</h3>
-      <div class="qr-types" id="qrTypeTabs">
-        <button class="qr-type active" data-qrtype="purchase">ต้นทุนซื้อ</button>
-        <button class="qr-type" data-qrtype="expense">รายจ่ายกิจการ</button>
-        <button class="qr-type" data-qrtype="pincome">รายรับส่วนตัว</button>
-        <button class="qr-type" data-qrtype="pexpense">รายจ่ายส่วนตัว</button>
-      </div>
-      <div id="qrFormArea"></div>
-    </div>
-    <div class="card">
       <h3>🏷️ เทรนด์ Brand fee 14 วันล่าสุด</h3>
       <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
       <div id="dashTrend" class="loading">กำลังโหลด…</div>
@@ -370,26 +360,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card">
       <h3>⚠️ สาขาที่ต้องติดตามด่วน (กดหัวตารางเพื่อเรียงลำดับ)</h3>
       <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
-    </div>
-    <div class="card">
-      <h3>🔍 เช็คยอดรายสาขา</h3>
-      <div class="field"><label>เลือกสาขา</label><select id="dashBranchSelect"></select></div>
-      <div id="dashBranchDetail" class="empty">เลือกสาขาเพื่อดูรายละเอียด</div>
-    </div>
-    <div class="card">
-      <h3>🏆 จัดอันดับสาขา (เทียบกันเป็น %)</h3>
-      <div class="hint">เทียบสาขาไหนสั่งเยอะ/จ่ายเยอะ/สั่งบ่อยสุด ในแต่ละช่วงเวลา</div>
-      <div style="display:flex;gap:6px;margin:10px 0;">
-        <button class="tab active" data-rankperiod="week">สัปดาห์นี้</button>
-        <button class="tab" data-rankperiod="month">เดือนนี้</button>
-        <button class="tab" data-rankperiod="year">ปีนี้</button>
-      </div>
-      <div class="hint" style="margin-bottom:2px;">💰 ยอดรวมจ่ายมากสุด</div>
-      <div id="rankAmtList" class="loading">กำลังโหลด…</div>
-      <div class="hint" style="margin-top:12px;margin-bottom:2px;">🔢 จำนวนครั้งที่สั่งมากสุด (นับเป็นวัน)</div>
-      <div id="rankCountList" class="loading">กำลังโหลด…</div>
-      <div class="field" style="margin-top:12px;"><label>📦 จัดอันดับตามจำนวนสั่งสินค้า</label><select id="rankProductSelect"></select></div>
-      <div id="rankProductList" class="loading">กำลังโหลด…</div>
+      <select id="dashBranchSelect" style="display:none;"></select>
+      <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
     </div>
   </div>
 
@@ -415,16 +387,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card">
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="rowlist" id="orderList"></div>
-    </div>
-    <div class="card" id="todayAnomalyCard" style="display:none;border-color:var(--accent);">
-      <h3>🚨 ออเดอร์วันนี้ที่ดูผิดปกติ (เทียบค่าเฉลี่ยที่ผ่านมา)</h3>
-      <div class="hint">เทียบจำนวนที่สั่งวันนี้กับค่าเฉลี่ยของแต่ละสาขา/สินค้าเอง ถ้าต่างจากปกติมาก (±40% ขึ้นไป) จะแจ้งไว้ที่นี่ — ช่วยจับกรอกผิด/สาขาสั่งผิดปกติได้ทันทีโดยไม่ต้องไล่เช็คทีละสาขา แตะแถวไหนเพื่อดูรายละเอียดสาขานั้น</div>
-      <div id="todayAnomalyList" style="margin-top:8px;"></div>
-    </div>
-    <div class="card">
-      <h3>👀 สาขาที่ยังไม่ได้บันทึกวันนี้</h3>
-      <div class="hint">รายชื่อทุกสาขาที่มีในระบบแต่ยังไม่มีออเดอร์วันนี้ — ไม่ใช่ทุกสาขาต้องสั่งทุกคืน ใช้เช็คเผื่อมีข้อความ LINE ตกหล่น</div>
-      <div class="rowlist" id="orderMissingList" style="margin-top:8px;"></div>
     </div>
   </div>
 
@@ -715,11 +677,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field"><label>ที่อยู่ร้าน บรรทัด 1</label><input type="text" id="biSellerAddr1"></div>
       <div class="field"><label>ที่อยู่ร้าน บรรทัด 2</label><input type="text" id="biSellerAddr2"></div>
       <div class="field"><label>โทร / Line</label><input type="text" id="biSellerContact"></div>
-      <div class="field"><label>ชื่อลูกค้าเริ่มต้น (ใช้ตอนกด "คัดลอกไปสาขาที่ว่าง" เท่านั้น)</label><input type="text" id="biBuyerName"></div>
-      <div class="field"><label>เลขประจำตัวผู้เสียภาษีเริ่มต้น</label><input type="text" id="biBuyerTax"></div>
       <button class="btn secondary" id="saveBillInfoBtn">บันทึกข้อมูลบิล</button>
-      <button class="btn secondary" id="fillEmptyBranchBillBtn" style="margin-top:8px;">📋 คัดลอกข้อมูลนี้ไปยังสาขาที่ยังว่างอยู่</button>
-      <div class="hint">ชื่อผู้ซื้อจะใส่ชื่อสาขาอัตโนมัติถ้าไม่กรอกเฉพาะ ส่วนที่อยู่จัดส่งต้องกรอกเองในรายชื่อสาขาด้านล่างถ้าอยากได้รายละเอียดเพิ่ม (เช่น เลขที่) — ปุ่มนี้เติมให้แค่ชื่อลูกค้า/เลขภาษีที่มักซ้ำกันทุกสาขาเท่านั้น</div>
+      <div class="hint">ชื่อผู้ซื้อในบิลจะใส่ชื่อสาขาอัตโนมัติถ้าไม่กรอกเฉพาะ — แก้ชื่อ/เลขภาษี/ที่อยู่จัดส่งของแต่ละสาขาได้ที่ "รายชื่อสาขา" ด้านล่าง</div>
     </div>
     <div class="card">
       <h3>🏪 รายชื่อสาขา</h3>
@@ -1222,21 +1181,7 @@ async function saveRow(){
   }
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
-function renderOrderMissingList(){
-  const list = document.getElementById('orderMissingList');
-  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
-  const missing = settings.branches.filter(b=>!orderedCodes.has(b.code));
-  if(missing.length===0){ list.innerHTML = '<div class="empty">ทุกสาขาในระบบมีออเดอร์วันนี้แล้ว 🎉</div>'; return; }
-  list.innerHTML = missing.map(b=>`<div class="orow" style="cursor:pointer;" data-quickselectbranch="${b.code}"><div class="name">${branchDisplayName(b)}</div></div>`).join('');
-  list.querySelectorAll('[data-quickselectbranch]').forEach(row=>{
-    row.addEventListener('click', ()=>{
-      document.getElementById('branchSelect').value = row.getAttribute('data-quickselectbranch');
-      renderProductInputs();
-      window.scrollTo({top:0, behavior:'smooth'});
-    });
-  });
-}
-function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); renderOrderMissingList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); }
+function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); }
 // การ์ด "ออเดอร์วันนี้ที่ดูผิดปกติ" ย้ายมาอยู่ในแท็บ order แล้ว (ต่อจาก "สาขาที่บันทึกแล้ววันนี้") — ต้องอัปเดตทุกครั้งที่ข้อมูลออเดอร์เปลี่ยน
 // ไม่ผูกกับ renderDashboard() อีกต่อไปเพราะบางคนอาจไม่เปิดแท็บแดชบอร์ดเลยในแต่ละวัน ทำงานแบบ fire-and-forget ไม่ await เพื่อไม่ให้บันทึกออเดอร์ช้าลง
 async function refreshTodayAnomalyCard_(){
@@ -3173,31 +3118,17 @@ function renderBillInfoForm(){
   document.getElementById('biSellerAddr1').value = bi.sellerAddr1;
   document.getElementById('biSellerAddr2').value = bi.sellerAddr2;
   document.getElementById('biSellerContact').value = bi.sellerContact;
-  document.getElementById('biBuyerName').value = bi.buyerName;
-  document.getElementById('biBuyerTax').value = bi.buyerTax;
 }
 async function saveBillInfo(){
   settings.billInfo = {
+    ...settings.billInfo,
     sellerName: document.getElementById('biSellerName').value,
     sellerAddr1: document.getElementById('biSellerAddr1').value,
     sellerAddr2: document.getElementById('biSellerAddr2').value,
     sellerContact: document.getElementById('biSellerContact').value,
-    buyerName: document.getElementById('biBuyerName').value,
-    buyerTax: document.getElementById('biBuyerTax').value,
   };
   await saveSettings();
   showToast('บันทึกข้อมูลบิลแล้ว');
-}
-async function fillEmptyBranchBillInfo(){
-  const bi = settings.billInfo;
-  let count = 0;
-  settings.branches.forEach(b=>{
-    if(!b.billName){ b.billName = bi.buyerName; count++; }
-    if(!b.billTax){ b.billTax = bi.buyerTax; }
-  });
-  await saveSettings();
-  renderBranchSettings();
-  showToast(`เติมข้อมูลให้ ${count} สาขาที่ว่างอยู่แล้ว`);
 }
 function renderBranchSettings(){
   const summaryEl = document.getElementById('branchExemptSummary');
@@ -5375,80 +5306,6 @@ function addDebtType(){
   renderDebtTypeSettings();
 }
 
-// ---- Quick record (dashboard) ----
-let qrType = 'purchase';
-function renderQuickRecordTypeTabs(){
-  document.querySelectorAll('.qr-type').forEach(b=>b.classList.toggle('active', b.getAttribute('data-qrtype')===qrType));
-}
-function renderQuickRecordForm(){
-  const area = document.getElementById('qrFormArea');
-  if(qrType==='purchase'){
-    area.innerHTML = `
-      <div class="field"><label>สินค้า</label><select id="qrProduct"></select></div>
-      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="qrSeller"></select></div>
-      <div class="grid7">
-        <div><label>จำนวนซื้อ</label><input type="number" step="0.01" id="qrQty" placeholder="0"></div>
-        <div><label>ราคาซื้อ/หน่วย</label><input type="number" step="0.01" id="qrPrice" placeholder="0"></div>
-      </div>
-      <button class="btn" id="qrSubmitBtn" style="margin-top:8px;">+ บันทึกต้นทุนซื้อ</button>
-      <div class="hint">รายละเอียดเพิ่มเติม (ค่าใช้จ่ายเพิ่ม/จำนวนที่ทำได้/หมายเหตุ) ไปกรอกเพิ่มได้ที่แท็บ "ต้นทุนซื้อ"</div>`;
-    const prodSel = document.getElementById('qrProduct');
-    prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
-    const sellerSel = document.getElementById('qrSeller');
-    sellerSel.innerHTML = settings.purchaseSellers.map(s=>`<option value="${s}">${s}</option>`).join('');
-    const syncSeller = ()=>{ const auto = purchaseAutoSeller(prodSel.value); if(auto && Array.from(sellerSel.options).some(o=>o.value===auto)) sellerSel.value = auto; };
-    prodSel.onchange = syncSeller; syncSeller();
-    document.getElementById('qrSubmitBtn').addEventListener('click', submitQuickRecord);
-  }else{
-    const catMap = {expense: settings.expenseCategories, pincome: settings.personalIncomeCategories, pexpense: settings.personalExpenseCategories};
-    const labelMap = {expense:'+ เพิ่มรายจ่ายกิจการ', pincome:'+ เพิ่มรายรับส่วนตัว', pexpense:'+ เพิ่มรายจ่ายส่วนตัว'};
-    const cats = catMap[qrType];
-    const needsPerson = qrType==='pincome' || qrType==='pexpense';
-    area.innerHTML = `
-      ${needsPerson ? `<div class="field"><label>เจ้าของ</label><select id="qrPerson">${personOptionsList().map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>` : ''}
-      <div class="field"><label>หมวด</label><select id="qrCategory">${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
-      <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="qrNote" placeholder=""></div>
-      <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="qrAmount" placeholder="0"></div>
-      <button class="btn" id="qrSubmitBtn" style="margin-top:8px;">${labelMap[qrType]}</button>`;
-    document.getElementById('qrSubmitBtn').addEventListener('click', submitQuickRecord);
-  }
-}
-let quickRecordInFlight = false;
-async function submitQuickRecord(){
-  if(quickRecordInFlight) return; // กันบันทึกด่วนซ้ำถ้ากดรัวๆ/เน็ตช้า
-  quickRecordInFlight = true;
-  const btn = document.getElementById('qrSubmitBtn');
-  if(btn) btn.disabled = true;
-  try{
-  if(qrType==='purchase'){
-    const productId = document.getElementById('qrProduct').value;
-    const seller = document.getElementById('qrSeller').value;
-    const qty = Number(document.getElementById('qrQty').value||0);
-    const price = Number(document.getElementById('qrPrice').value||0);
-    if(!productId || qty<=0 || price<=0){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
-    dayData.purchases.push({id:uid('pu'), productId, seller, qty, price, extra:0, sellableQty:null, note:'', paid:false});
-    await saveDay(currentDate, dayData);
-    showToast('บันทึกต้นทุนซื้อแล้ว — ดูรายละเอียดเพิ่มได้ที่แท็บต้นทุนซื้อ');
-    if(document.getElementById('purchaseList')) renderPurchaseList();
-    if(document.getElementById('purchaseGroups')) renderPurchaseGroups();
-  }else{
-    const category = document.getElementById('qrCategory').value;
-    const note = document.getElementById('qrNote').value.trim();
-    const amount = Number(document.getElementById('qrAmount').value||0);
-    const personSel = document.getElementById('qrPerson');
-    const person = personSel ? personSel.value : null;
-    if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-    if(qrType==='expense'){ dayData.expenses.push({id:uid('e'), category, note, amount, paid:false}); if(document.getElementById('expenseList')) renderExpenseList(); }
-    if(qrType==='pincome'){ dayData.personalIncome.push({id:uid('pi'), person, category, note, amount}); if(document.getElementById('pIncomeList')) renderPersonalLists(); }
-    if(qrType==='pexpense'){ dayData.personalExpense.push({id:uid('pe'), person, category, note, amount}); if(document.getElementById('pExpenseList')) renderPersonalLists(); }
-    await saveDay(currentDate, dayData);
-    showToast('บันทึกแล้ว');
-  }
-  renderQuickRecordForm();
-  renderStats();
-  } finally { quickRecordInFlight = false; }
-}
-
 // ---- Dashboard tab ----
 async function computeBranchAggregates(){
   const listRes = await window.storage.list('day:');
@@ -5523,77 +5380,6 @@ function renderTopOutstandingTable(){
       renderTopOutstandingTable();
     });
   });
-}
-// ---- จัดอันดับสาขา (เทียบยอดสั่ง/ยอดจ่าย/จำนวนครั้ง เป็น % ของทั้งหมด) ----
-let rankPeriod = 'week';
-function getRankPeriodRange(period){
-  const today = todayISO();
-  const d = new Date(today+'T00:00:00Z');
-  if(period==='month'){ return {start: today.slice(0,7)+'-01', end: today}; }
-  if(period==='year'){ return {start: today.slice(0,4)+'-01-01', end: today}; }
-  // สัปดาห์นี้ = จันทร์-อาทิตย์ของสัปดาห์ปัจจุบัน (นับถึงวันนี้)
-  const dow = d.getUTCDay(); // 0=อาทิตย์..6=เสาร์
-  const diffToMon = (dow===0 ? 6 : dow-1);
-  const start = new Date(d); start.setUTCDate(d.getUTCDate()-diffToMon);
-  return {start: start.toISOString().slice(0,10), end: today};
-}
-async function computeBranchLeaderboard(period){
-  const {start, end} = getRankPeriodRange(period);
-  const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso>=start && iso<=end);
-  const dayMap = await loadDaysBulk(isoList);
-  const amtByBranch = {}, countByBranch = {}, qtyByBranchProduct = {};
-  PRODUCTS.forEach(p=>{ qtyByBranchProduct[p.id] = {}; });
-  isoList.forEach(iso=>{
-    const d = dayMap[iso];
-    Object.entries(d.orders||{}).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
-      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
-      amtByBranch[code] = (amtByBranch[code]||0) + amt;
-      countByBranch[code] = (countByBranch[code]||0) + 1;
-      PRODUCTS.forEach(p=>{
-        const qty = Number(row[p.id]||0);
-        if(qty>0) qtyByBranchProduct[p.id][code] = (qtyByBranchProduct[p.id][code]||0) + qty;
-      });
-    });
-  });
-  return {amtByBranch, countByBranch, qtyByBranchProduct};
-}
-function rankListHtml(dataMap, formatVal, unit){
-  const entries = Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
-  if(entries.length===0) return '<div class="empty">ยังไม่มีข้อมูลในช่วงนี้</div>';
-  const total = entries.reduce((s,[,v])=>s+v,0);
-  const medalFor = i=> i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`;
-  return entries.map(([code,v],i)=>{
-    const pct = total>0 ? Math.round((v/total)*1000)/10 : 0;
-    return `<div class="lrow"><div class="lname">${medalFor(i)} ${branchName(code)}</div><div class="lin num">${formatVal(v)}${unit?' '+unit:''} <span style="color:var(--text-faint);font-size:11px;">(${pct}%)</span></div></div>`;
-  }).join('');
-}
-function populateRankProductSelect(){
-  const sel = document.getElementById('rankProductSelect');
-  if(sel.options.length>0) return;
-  sel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
-}
-async function renderBranchLeaderboard(){
-  populateRankProductSelect();
-  const amtEl = document.getElementById('rankAmtList');
-  const countEl = document.getElementById('rankCountList');
-  const prodEl = document.getElementById('rankProductList');
-  amtEl.className='loading'; amtEl.innerHTML='กำลังโหลด…';
-  countEl.className='loading'; countEl.innerHTML='กำลังโหลด…';
-  prodEl.className='loading'; prodEl.innerHTML='กำลังโหลด…';
-  try{
-    const {amtByBranch, countByBranch, qtyByBranchProduct} = await computeBranchLeaderboard(rankPeriod);
-    amtEl.className=''; amtEl.innerHTML = rankListHtml(amtByBranch, v=>money(v));
-    countEl.className=''; countEl.innerHTML = rankListHtml(countByBranch, v=>v, 'ครั้ง');
-    const pid = document.getElementById('rankProductSelect').value || PRODUCTS[0].id;
-    const p = PRODUCTS.find(x=>x.id===pid);
-    prodEl.className=''; prodEl.innerHTML = rankListHtml(qtyByBranchProduct[pid]||{}, v=>Math.round(v*10)/10, p.unit);
-  }catch(e){
-    amtEl.className='empty'; amtEl.innerHTML = 'โหลดข้อมูลไม่สำเร็จ';
-    countEl.className=''; countEl.innerHTML=''; prodEl.className=''; prodEl.innerHTML='';
-  }
 }
 function populateDashBranchSelect(){
   const sel = document.getElementById('dashBranchSelect');
@@ -6066,9 +5852,6 @@ async function renderDataGaps(){
   }
 }
 async function renderDashboard(){
-  renderQuickRecordTypeTabs();
-  renderQuickRecordForm();
-
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
   const fee = computeFee(feeTotals);
@@ -6148,7 +5931,6 @@ async function renderDashboard(){
 
   populateDashBranchSelect();
   await renderBranchDetail(document.getElementById('dashBranchSelect').value, aggAll);
-  await renderBranchLeaderboard();
 }
 
 // ---- Tab switching / date ----
@@ -6381,14 +6163,16 @@ function guardedClick(btnId, fn){
 }
 function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
-  const collapsedByDefaultKeywords = ['รายชื่อสาขา', 'ข้อมูลออกบิล', 'เพิ่มล็อตใหม่', 'บันทึกด่วน', 'ประวัติราคาขายสินค้า', 'จัดอันดับสาขา']; // หัวข้อที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาวสุด/ไม่ค่อยได้แก้บ่อย
+  const collapsedByDefaultKeywords = ['เพิ่มล็อตใหม่']; // หัวข้อนอกหน้าตั้งค่าที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาว/ไม่ค่อยได้แก้บ่อย
   document.querySelectorAll('.panel .card').forEach(card=>{
     if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');
     if(!h3 || h3.dataset.collapsibleInit) return;
     h3.dataset.collapsibleInit = '1';
     const titleText = h3.textContent;
-    const startCollapsed = collapsedByDefaultKeywords.some(k=>titleText.includes(k));
+    // หน้าตั้งค่าให้พับทุกการ์ดไว้เป็นค่าเริ่มต้นเสมอ (เนื้อหายาว ไม่ค่อยต้องแก้บ่อย) — นอกนั้นใช้รายการคำที่ระบุไว้ด้านบน
+    const inSettings = !!card.closest('#panel-settings');
+    const startCollapsed = inSettings || collapsedByDefaultKeywords.some(k=>titleText.includes(k));
     const body = document.createElement('div');
     body.className = 'card-body' + (startCollapsed?' collapsed':'');
     let node = h3.nextSibling;
@@ -6450,18 +6234,11 @@ async function init(){
   document.getElementById('addPriceBtn').addEventListener('click', addPriceHistory);
   document.getElementById('saveShelfLifeBtn').addEventListener('click', saveShelfLifeSettings);
   document.getElementById('saveBillInfoBtn').addEventListener('click', saveBillInfo);
-  document.getElementById('fillEmptyBranchBillBtn').addEventListener('click', fillEmptyBranchBillInfo);
   document.getElementById('saveBranchesBtn').addEventListener('click', saveBranches);
   document.getElementById('addBranchBtn').addEventListener('click', addBranch);
   document.getElementById('exportDataBtn').addEventListener('click', exportAllData);
   document.getElementById('importDataInput').addEventListener('change', e=>{ if(e.target.files[0]) importAllData(e.target.files[0]); });
   document.getElementById('dashBranchSelect').addEventListener('change', e=>renderBranchDetail(e.target.value));
-  document.querySelectorAll('[data-rankperiod]').forEach(btn=>btn.addEventListener('click', async ()=>{
-    rankPeriod = btn.getAttribute('data-rankperiod');
-    document.querySelectorAll('[data-rankperiod]').forEach(b=>b.classList.toggle('active', b===btn));
-    await renderBranchLeaderboard();
-  }));
-  document.getElementById('rankProductSelect').addEventListener('change', renderBranchLeaderboard);
   document.getElementById('plMonthInput').addEventListener('change', renderMonthPL);
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
   guardedClick('addExpenseBtn', addExpense);
@@ -6550,7 +6327,6 @@ async function init(){
       if(action==='jumpLongestOverdue') jumpToLongestOverdue();
     }
   });
-  document.querySelectorAll('.qr-type').forEach(b=>b.addEventListener('click', ()=>{ qrType = b.getAttribute('data-qrtype'); renderQuickRecordTypeTabs(); renderQuickRecordForm(); }));
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{

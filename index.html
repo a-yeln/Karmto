@@ -5604,7 +5604,9 @@ async function computeDataGaps(){
   const today = todayISO();
   // สินค้าที่มีล็อตวัตถุดิบเหลืออยู่ — ถ้ายังไม่ได้ "เบิกใช้" วันนั้น ให้เตือนแบบเบิกจากล็อต ไม่ใช่เตือนแบบซื้อใหม่ (กันสับสนว่าซื้อไปแล้วทำไมยังเตือน)
   const rawLots = await loadRawLots();
-  const lotProductIds = new Set(rawLots.filter(l=>lotRemaining(l)>0).map(l=>l.productId));
+  // ใช้ "เคยมีล็อตของสินค้านี้ไหม" (ไม่สนว่าล็อตนั้นเบิกหมดแล้วหรือยัง) ให้ตรงกับเกณฑ์เดียวกับการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" (renderLotSettleCards_)
+  // เดิมใช้ lotRemaining(l)>0 ซึ่งพลาดกรณีล็อตเบิกหมดแล้ว (remaining=0) แต่ของเหลือยกมายังเป็นก้อนสต็อกจากล็อตอยู่ดี เลยยังโดนหักซ้ำผิดๆ
+  const lotProductIds = new Set(rawLots.map(l=>l.productId));
   // เช็คทุกวันที่มีข้อมูลจริง ไม่จำกัดแค่ 14 วันล่าสุด — เดิมจำกัดไว้เพื่อความเร็ว แต่จริงๆ ข้อมูลของวันอื่นๆ
   // ถูกโหลดแคชไว้แล้วจาก computeBranchAggregates() ที่ทำงานก่อนหน้านี้ในหน้าแดชบอร์ด จึงแทบไม่เสียเวลาเพิ่ม
   const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso<=today).sort();

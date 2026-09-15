@@ -558,6 +558,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <h3>📦 เพิ่มล็อตใหม่</h3>
         <div class="hint">สำหรับทริปที่สั่งหลายสินค้าพร้อมกันเป็นบิลเดียว (เช่น ปูจืด+เชอรี่+หอยนางรมจากตลาดใหม่) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน</div>
         <div class="field" style="margin-top:8px;"><label>ผู้ขายสินค้า (บิลเดียวกัน)</label><select id="lotSeller"></select></div>
+        <div class="field"><label>หมายเหตุผู้ขาย (ถ้ามี — เช่น ระบุคนขายจริงเป็นรายล็อต)</label><input type="text" id="lotSellerNote" placeholder="เช่น เจ๊ต๊อกล็อตเช้า / คุณสมชาย"></div>
         <div class="field"><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
         <div id="lotItemRows" style="margin-top:6px;"></div>
         <button class="btn small secondary" id="addLotItemRowBtn" style="width:auto;margin-top:4px;">+ เพิ่มสินค้า</button>
@@ -2674,7 +2675,7 @@ async function buildAllExpenseRows_(){
   const productBills = await loadLotProductBills();
   productBills.forEach(b=>{
     const delay = b.paid ? null : Math.round((new Date(today)-new Date(b.buyDate))/86400000);
-    rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
+    rows.push({iso:b.buyDate, label:`📦 บิลสินค้าล็อต${b.productLabel?` — ${b.productLabel}`:''}`, amount:b.amount, paid:b.paid, delay, seller:b.seller||'', sellerNote:b.sellerNote||'', type:'pp', key:`pp:${b.id}`, billId:b.id});
   });
   return rows;
 }
@@ -2732,7 +2733,7 @@ async function renderAllExpenseList(skipReload){
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <div style="text-align:left;">
-            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span style="font-weight:600;">${r.seller || 'ไม่ระบุคู่ค้า'}</span><span class="num" style="font-weight:600;">${money(r.amount)}</span></div>
+            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span style="font-weight:600;">${r.seller || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${r.sellerNote})`:''}</span><span class="num" style="font-weight:600;">${money(r.amount)}</span></div>
             <div class="d">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
           </div>
           <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
@@ -3687,7 +3688,7 @@ async function ensureLotBillRecords(lots){
       const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
       if(amount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
-        productBills.push({id:'lp'+bid, billId: bid, seller: rows[0].seller||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+        productBills.push({id:'lp'+bid, billId: bid, seller: rows[0].seller||'', sellerNote: rows[0].sellerNote||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null});
         changed = true;
       }
     }
@@ -3783,6 +3784,7 @@ let addLotInFlight = false;
 async function addLot(){
   if(addLotInFlight) return; // กันกดซ้ำ/บันทึกซ้ำตอนรอ apps script ตอบกลับ
   const seller = document.getElementById('lotSeller').value;
+  const sellerNote = document.getElementById('lotSellerNote').value.trim();
   const buyDate = document.getElementById('lotBuyDate').value || currentDate;
   const transportTotal = Number(document.getElementById('lotTransportTotal').value||0);
   const transportPayee = document.getElementById('lotTransportPayee').value;
@@ -3806,14 +3808,14 @@ async function addLot(){
       productLabels.push(`${p.emoji}${p.name}`);
       productAmountTotal += Number(r.qty)*Number(r.price);
       lots.push({
-        id: `${billId}-${i}`, productId: r.productId, seller, buyDate,
+        id: `${billId}-${i}`, productId: r.productId, seller, sellerNote, buyDate,
         qtyTotal: Number(r.qty), pricePerKg: Number(r.price), extra: transportShare,
         note: `${note}${transportNote}`.trim(), draws:[], billId
       });
     });
     await saveRawLots(lots);
     const productBills = await loadLotProductBills();
-    productBills.push({id:'lp'+billId, billId, seller, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+    productBills.push({id:'lp'+billId, billId, seller, sellerNote, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
     await saveLotProductBills(productBills);
     if(transportTotal>0){
       const bills = await loadLotTransportBills();
@@ -3823,7 +3825,7 @@ async function addLot(){
     settings.lastLotSeller = seller;
     await saveSettings();
     lotFormRows = [{rid: ++lotFormRowSeq, productId:'p4', qty:'', price:''}];
-    document.getElementById('lotTransportTotal').value=''; document.getElementById('lotTransportPayee').value=''; document.getElementById('lotNote').value='';
+    document.getElementById('lotTransportTotal').value=''; document.getElementById('lotTransportPayee').value=''; document.getElementById('lotNote').value=''; document.getElementById('lotSellerNote').value='';
     renderLotItemRows();
     showToast(`เพิ่มล็อตแล้ว ${validRows.length} รายการ`);
     await renderLotProductBillList();
@@ -3976,7 +3978,12 @@ async function renderLotList(preloadedLots){
         ${lot.note?`<div style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">📝 ${lot.note}</div>`:''}
         ${drawOpen? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-3);">
           <div class="grid7">
-            <div><label style="font-size:11.5px;color:var(--text-dim);">ใช้ไปกี่กก.วันนี้ (เบิก)</label><input type="number" step="0.01" id="lotDrawQty-${lot.id}" placeholder="0"></div>
+            <div><label style="font-size:11.5px;color:var(--text-dim);">ใช้ไปกี่กก.วันนี้ (เบิก)</label>
+              <div style="display:flex;gap:6px;">
+                <input type="number" step="0.01" id="lotDrawQty-${lot.id}" placeholder="0" style="flex:1;">
+                <button type="button" class="iconbtn" data-lotdrawallbtn="${lot.id}" aria-label="เบิกทั้งล็อต" title="เบิกทั้งล็อต (เหลือ ${remain} กก.)" style="flex:none;">📥</button>
+              </div>
+            </div>
             <div><label style="font-size:11.5px;color:var(--text-dim);">ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
           </div>
           <div class="hint" style="margin-top:4px;">ช่อง "ทำได้ทั้งหมด" คือจำนวนที่แปรรูปได้จากของที่เบิกมา ไม่ใช่จำนวนที่ขายได้จริงวันนี้${LEFTOVER_IDS.includes(lot.productId)?' — ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก (เช่น เบิก 15 ทำได้ 14.5 ขายจริง 14 เหลือ 0.5 → กรอกเหลือ 0.5 ที่นั่น)':''}</div>
@@ -4018,7 +4025,7 @@ async function renderLotList(preloadedLots){
     return `<div class="card" style="background:var(--surface-2);padding:14px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
-          <div style="font-weight:700;font-size:14.5px;">${head.seller||'ไม่ระบุผู้ขาย'}</div>
+          <div style="font-weight:700;font-size:14.5px;">${head.seller||'ไม่ระบุผู้ขาย'}${head.sellerNote?` <span style="font-weight:400;color:var(--text-faint);">(${head.sellerNote})</span>`:''}</div>
           <div style="font-size:12px;color:var(--text-faint);margin-top:2px;">${formatDDMMYYYY(head.buyDate)} • ${rows.length} รายการ • รวม ${money(billTotal)}${transportTotal?` (สินค้า ${money(productTotal)}+ขนส่ง ${money(transportTotal)})`:''}</div>
         </div>
         <button class="btn small secondary" data-lotbilldel="${bid}" style="width:auto;flex:none;padding:5px 10px;font-size:12px;">🗑️ ลบบิล</button>
@@ -4037,7 +4044,7 @@ async function renderLotList(preloadedLots){
     return `<div style="border-top:1px solid var(--border-soft);">
       <div class="lrow" data-lotbilltoggle="${bid}" style="cursor:pointer;padding:8px 0;">
         <span id="lotBillChevron-${bid}" style="font-size:12px;color:var(--text-faint);flex:none;">${billOpen?'▾':'▸'}</span>
-        <div class="lname" style="width:auto;flex:1;color:var(--text-dim);">${formatDDMMYYYY(head.buyDate)} • ${head.seller||'ไม่ระบุผู้ขาย'}</div>
+        <div class="lname" style="width:auto;flex:1;color:var(--text-dim);">${formatDDMMYYYY(head.buyDate)} • ${head.seller||'ไม่ระบุผู้ขาย'}${head.sellerNote?` (${head.sellerNote})`:''}</div>
       </div>
       <div id="lotBillDetail-${bid}" style="display:${billOpen?'':'none'};">${renderBillCard(bid)}</div>
     </div>`;
@@ -4090,6 +4097,12 @@ async function renderLotList(preloadedLots){
   wrap.querySelectorAll('[data-lotdrawcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     lotDrawOpenId = null;
     renderLotList(lots);
+  }));
+  wrap.querySelectorAll('[data-lotdrawallbtn]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('data-lotdrawallbtn');
+    const lot = lots.find(l=>l.id===id);
+    const qtyEl = document.getElementById(`lotDrawQty-${id}`);
+    if(lot && qtyEl) qtyEl.value = lotRemaining(lot);
   }));
   wrap.querySelectorAll('[data-lothistorytoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lothistorytoggle');
@@ -4390,7 +4403,7 @@ async function renderLotProductBillList(){
     const rowKey = 'lotprod-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.seller||'ไม่ระบุผู้ขาย'}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.seller||'ไม่ระบุผู้ขาย'}${b.sellerNote?` (${b.sellerNote})`:''}</div>
           <div class="amt num">${money(b.amount)}</div>
           ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}</div>`:''}
         </div>

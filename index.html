@@ -4280,6 +4280,7 @@ async function renderLotList(preloadedLots){
   }
 }
 let lotTransportEditingId = null;
+let lotTransportFieldEditId = null; // id ของบิลค่าขนส่งล็อตที่กำลังแก้ไข "ยอดบิล/ความคิดเห็น" อยู่ (คนละสถานะกับตอนยืนยันจ่าย)
 let lotTransActionInFlight = false;
 async function renderLotTransportList(){
   const wrap = document.getElementById('lotTransportList');
@@ -4296,20 +4297,41 @@ async function renderLotTransportList(){
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotTransportEditingId===b.id;
+    const fieldEditOpen = lotTransportFieldEditId===b.id;
     const rowKey = 'lottrans-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
         <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.payee||'ไม่ระบุผู้รับ'}</div>
           <div class="amt num">${money(b.amount)}</div>
-          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}</div>`:''}
+          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}${b.paid && b.paidAmount!=null ? billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) : ''}</div>`:''}
         </div>
         <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lottranspay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
-      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${(showDatePicker||fieldEditOpen)?'':'none'};">
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
-        <div style="margin-top:8px;"><button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button></div>
+        ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${b.note}</div>`:''}
+        ${fieldEditOpen ? `<div style="margin-top:8px;">
+          <label style="font-size:11.5px;color:var(--text-dim);">ยอดบิล</label>
+          <input type="number" step="1" id="lottransamt-${b.id}" value="${b.amount}">
+          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
+          <input type="text" id="lottransnote-${b.id}" value="${(b.note||'').replace(/"/g,'&quot;')}" placeholder="เช่น ค่าขนส่งเที่ยวพิเศษ">
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn small" data-lottransfieldsave="${b.id}" style="width:auto;">บันทึก</button>
+            <button class="btn small secondary" data-lottransfieldcancel="1" style="width:auto;">ยกเลิก</button>
+          </div>
+        </div>` : `<div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="iconbtn" data-lottransedit="${b.id}" aria-label="แก้ไข">✎ แก้ไข</button>
+          <button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button>
+        </div>`}
         ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+          <label style="flex:none;font-size:12px;color:var(--text-dim);">จ่ายจริง</label>
+          <input type="number" step="1" id="lottranspaidamt-${b.id}" value="${b.amount}" placeholder="${b.amount}" style="flex:1;">
+        </div>
+        <div class="hint" style="margin-top:4px;">ถ้าจ่ายไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "จ่ายจริง" ให้ตรงกับที่จ่ายจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
           <button class="btn small" data-lottransconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
           <button class="btn small secondary" data-lottranscancel="${b.id}" style="width:auto;">ยกเลิก</button>
         </div>` : ''}
@@ -4326,7 +4348,7 @@ async function renderLotTransportList(){
     if(b.paid){
       lotTransActionInFlight = true;
       btn.disabled = true;
-      b.paid = false; b.paidDate = null;
+      b.paid = false; b.paidDate = null; b.paidAmount = null;
       try{
         await saveLotTransportBills(bills2);
         await renderLotTransportList();
@@ -4362,11 +4384,13 @@ async function renderLotTransportList(){
     const dateInput = document.getElementById(`lottransdate-${id}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
+    const paidAmtInput = document.getElementById(`lottranspaidamt-${id}`);
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
       const bills2 = await loadLotTransportBills();
       const b = bills2.find(x=>x.id===id);
-      if(b){ b.paid = true; b.paidDate = paidDate; }
+      const paidAmount = paidAmtInput && paidAmtInput.value!=='' ? Number(paidAmtInput.value) : (b?b.amount:0);
+      if(b){ b.paid = true; b.paidDate = paidDate; b.paidAmount = paidAmount; }
       await saveLotTransportBills(bills2);
       lastUsedPayDate = paidDate;
       lotTransportEditingId = null;
@@ -4381,9 +4405,40 @@ async function renderLotTransportList(){
     lotTransportEditingId = null;
     await renderLotTransportList();
   }));
+  wrap.querySelectorAll('[data-lottransedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotTransportFieldEditId = btn.getAttribute('data-lottransedit');
+    renderLotTransportList();
+  }));
+  wrap.querySelectorAll('[data-lottransfieldcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotTransportFieldEditId = null;
+    renderLotTransportList();
+  }));
+  wrap.querySelectorAll('[data-lottransfieldsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotTransActionInFlight) return;
+    const id = btn.getAttribute('data-lottransfieldsave');
+    const amtInput = document.getElementById(`lottransamt-${id}`);
+    const noteInput = document.getElementById(`lottransnote-${id}`);
+    const newAmount = Number((amtInput && amtInput.value) || 0);
+    if(newAmount<=0){ showToast('กรอกยอดบิลให้ถูกต้องก่อน'); return; }
+    lotTransActionInFlight = true;
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      const bills2 = await loadLotTransportBills();
+      const b = bills2.find(x=>x.id===id);
+      if(b){ b.amount = newAmount; b.note = (noteInput && noteInput.value.trim()) || ''; }
+      await saveLotTransportBills(bills2);
+      lotTransportFieldEditId = null;
+      await renderLotTransportList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ยังไม่ได้แก้');
+      btn.disabled = false; btn.textContent = 'บันทึก';
+    } finally { lotTransActionInFlight = false; }
+  }));
   updateBillSummaryVisibility();
 }
 let lotProductBillEditingId = null;
+let lotProductBillFieldEditId = null; // id ของบิลสินค้าล็อตที่กำลังแก้ไข "ยอดบิล/ความคิดเห็น" อยู่ (คนละสถานะกับตอนยืนยันจ่าย)
 let lotProdActionInFlight = false;
 async function renderLotProductBillList(){
   const wrap = document.getElementById('lotProductBillList');
@@ -4400,20 +4455,41 @@ async function renderLotProductBillList(){
   const sorted = bills.slice().sort((a,b)=> (a.paid===b.paid) ? String(b.buyDate).localeCompare(String(a.buyDate)) : (a.paid?1:-1));
   wrap.innerHTML = sorted.map(b=>{
     const showDatePicker = lotProductBillEditingId===b.id;
+    const fieldEditOpen = lotProductBillFieldEditId===b.id;
     const rowKey = 'lotprod-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
         <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${b.seller||'ไม่ระบุผู้ขาย'}${b.sellerNote?` (${b.sellerNote})`:''}</div>
           <div class="amt num">${money(b.amount)}</div>
-          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}</div>`:''}
+          ${b.paid && b.paidDate? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">จ่ายแล้ว ${formatDDMMYYYY(b.paidDate)}${b.paid && b.paidAmount!=null ? billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) : ''}</div>`:''}
         </div>
         <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lotprodpay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
-      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
+      <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${(showDatePicker||fieldEditOpen)?'':'none'};">
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
-        <div style="margin-top:8px;"><button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button></div>
+        ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${b.note}</div>`:''}
+        ${fieldEditOpen ? `<div style="margin-top:8px;">
+          <label style="font-size:11.5px;color:var(--text-dim);">ยอดบิล</label>
+          <input type="number" step="1" id="lotprodamt-${b.id}" value="${b.amount}">
+          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
+          <input type="text" id="lotprodnote-${b.id}" value="${(b.note||'').replace(/"/g,'&quot;')}" placeholder="เช่น ราคาพิเศษเพราะซื้อเยอะ">
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn small" data-lotprodfieldsave="${b.id}" style="width:auto;">บันทึก</button>
+            <button class="btn small secondary" data-lotprodfieldcancel="1" style="width:auto;">ยกเลิก</button>
+          </div>
+        </div>` : `<div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="iconbtn" data-lotprodedit="${b.id}" aria-label="แก้ไข">✎ แก้ไข</button>
+          <button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button>
+        </div>`}
         ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="lotproddate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+          <label style="flex:none;font-size:12px;color:var(--text-dim);">จ่ายจริง</label>
+          <input type="number" step="1" id="lotprodpaidamt-${b.id}" value="${b.amount}" placeholder="${b.amount}" style="flex:1;">
+        </div>
+        <div class="hint" style="margin-top:4px;">ถ้าจ่ายไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "จ่ายจริง" ให้ตรงกับที่จ่ายจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
           <button class="btn small" data-lotprodconfirm="${b.id}" style="width:auto;">ยืนยัน</button>
           <button class="btn small secondary" data-lotprodcancel="${b.id}" style="width:auto;">ยกเลิก</button>
         </div>` : ''}
@@ -4430,7 +4506,7 @@ async function renderLotProductBillList(){
     if(b.paid){
       lotProdActionInFlight = true;
       btn.disabled = true;
-      b.paid = false; b.paidDate = null;
+      b.paid = false; b.paidDate = null; b.paidAmount = null;
       try{
         await saveLotProductBills(bills2);
         await renderLotProductBillList();
@@ -4466,11 +4542,13 @@ async function renderLotProductBillList(){
     const dateInput = document.getElementById(`lotproddate-${id}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
+    const paidAmtInput = document.getElementById(`lotprodpaidamt-${id}`);
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
       const bills2 = await loadLotProductBills();
       const b = bills2.find(x=>x.id===id);
-      if(b){ b.paid = true; b.paidDate = paidDate; }
+      const paidAmount = paidAmtInput && paidAmtInput.value!=='' ? Number(paidAmtInput.value) : (b?b.amount:0);
+      if(b){ b.paid = true; b.paidDate = paidDate; b.paidAmount = paidAmount; }
       await saveLotProductBills(bills2);
       lotProductBillEditingId = null;
       await renderLotProductBillList();
@@ -4483,6 +4561,36 @@ async function renderLotProductBillList(){
   wrap.querySelectorAll('[data-lotprodcancel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     lotProductBillEditingId = null;
     await renderLotProductBillList();
+  }));
+  wrap.querySelectorAll('[data-lotprodedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotProductBillFieldEditId = btn.getAttribute('data-lotprodedit');
+    renderLotProductBillList();
+  }));
+  wrap.querySelectorAll('[data-lotprodfieldcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotProductBillFieldEditId = null;
+    renderLotProductBillList();
+  }));
+  wrap.querySelectorAll('[data-lotprodfieldsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(lotProdActionInFlight) return;
+    const id = btn.getAttribute('data-lotprodfieldsave');
+    const amtInput = document.getElementById(`lotprodamt-${id}`);
+    const noteInput = document.getElementById(`lotprodnote-${id}`);
+    const newAmount = Number((amtInput && amtInput.value) || 0);
+    if(newAmount<=0){ showToast('กรอกยอดบิลให้ถูกต้องก่อน'); return; }
+    lotProdActionInFlight = true;
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try{
+      const bills2 = await loadLotProductBills();
+      const b = bills2.find(x=>x.id===id);
+      if(b){ b.amount = newAmount; b.note = (noteInput && noteInput.value.trim()) || ''; }
+      await saveLotProductBills(bills2);
+      lotProductBillFieldEditId = null;
+      await renderLotProductBillList();
+      renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ยังไม่ได้แก้');
+      btn.disabled = false; btn.textContent = 'บันทึก';
+    } finally { lotProdActionInFlight = false; }
   }));
   updateBillSummaryVisibility();
 }

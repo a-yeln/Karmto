@@ -3661,18 +3661,25 @@ function purchaseCostPerUnit(entry){ const sq = purchaseSellableQty(entry); cons
 // เก็บแยกจาก dayData.purchases เพราะล็อตหนึ่งใช้ข้ามหลายวันได้ ไม่ผูกกับวันใดวันหนึ่ง
 // ตอน "เบิกใช้" แต่ละวัน จะสร้างรายการใน dayData.purchases ของวันนั้นให้อัตโนมัติ (paid:true เพราะจ่ายเงินไปตอนซื้อล็อตแล้ว)
 // เพื่อให้สรุปต้นทุนรายเดือน/แดชบอร์ด/ยอดขาดออเดอร์ ใช้ฟังก์ชันเดิมได้หมดโดยไม่ต้องแก้จุดอื่น
+// แคชในหน่วยความจำแบบเดียวกับ lotTransportBills/lotProductBills ข้างบน — เดิมฟังก์ชันนี้ยิงเน็ตทุกครั้งที่เรียก
+// ไม่มีแคชเลย ทั้งที่ถูกเรียกซ้ำหลายจุดในแอ็กชันเดียวกัน (เช่น settle ล็อตครั้งเดียวเรียก loadRawLots() 4+ รอบ) ทำให้ช้าโดยไม่จำเป็น
+let rawLotsCache_ = null;
 async function loadRawLots(){
-  try{ const r = await window.storage.get('rawLots'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
-  catch(e){
-    // สำคัญมาก: ต้องแยกให้ออกว่า "ยังไม่เคยมีข้อมูล" (Key not found = คืนค่าว่างได้จริง)
-    // กับ "เน็ต/เซิร์ฟเวอร์มีปัญหาชั่วคราว" (ต้อง throw ต่อ ห้ามคืนค่าว่างเด็ดขาด — เพราะถ้าคืน [] แล้วโค้ดที่เรียกเผลอเอาไป push แล้วบันทึกทับ
-    // จะกลายเป็นบันทึกทับข้อมูลลอตทั้งหมดที่มีอยู่จริงบนเซิร์ฟเวอร์ด้วยค่าว่าง/ค่าไม่ครบ — ของหายจริงตามที่เจอ)
-    const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-    if(isNotFound) return [];
-    throw e;
+  if(!rawLotsCache_){
+    try{ const r = await window.storage.get('rawLots'); const v = JSON.parse(r.value); rawLotsCache_ = Array.isArray(v)?v:[]; }
+    catch(e){
+      // สำคัญมาก: ต้องแยกให้ออกว่า "ยังไม่เคยมีข้อมูล" (Key not found = คืนค่าว่างได้จริง)
+      // กับ "เน็ต/เซิร์ฟเวอร์มีปัญหาชั่วคราว" (ต้อง throw ต่อ ห้ามคืนค่าว่างเด็ดขาด — เพราะถ้าคืน [] แล้วโค้ดที่เรียกเผลอเอาไป push แล้วบันทึกทับ
+      // จะกลายเป็นบันทึกทับข้อมูลลอตทั้งหมดที่มีอยู่จริงบนเซิร์ฟเวอร์ด้วยค่าว่าง/ค่าไม่ครบ — ของหายจริงตามที่เจอ)
+      const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
+      if(isNotFound){ rawLotsCache_ = []; }
+      else{ throw e; }
+    }
   }
+  // คืนค่าสำเนา (deep clone) ทุกครั้ง ไม่ใช่ตัวแคชตรงๆ — กันปัญหาแก้ไข object ในแคชไปเลยก่อนบันทึกจริงสำเร็จ
+  return JSON.parse(JSON.stringify(rawLotsCache_));
 }
-async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); }
+async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); rawLotsCache_ = lots; }
 // บิลค่าขนส่งของล็อต — เก็บแยกจากล็อตสินค้า เพราะจ่ายให้คนละคน/คนละเวลากับบิลสินค้า ต้องมีสถานะจ่าย/รอจ่ายของตัวเอง
 // แคชไว้ในหน่วยความจำกันโหลดซ้ำจากเซิร์ฟเวอร์ทุกครั้งที่กดเปลี่ยนสถานะ (เดิมทำให้กดแล้วหน่วง/จอกระตุก)
 let lotTransportBillsCache_ = null;
@@ -3926,15 +3933,20 @@ async function confirmLotSettle_(productId){
       if(!draw) continue;
       draw.costedQty = Math.round((Number(draw.costedQty||0) + take)*100)/100;
       const cost = take*it.cpu;
-      const sellableTake = Math.round(take); // "ทำได้"/เบิกจริง เป็นจำนวนเต็มเสมอในทางปฏิบัติ (นับเป็นหน่วย ไม่มีทศนิยม)
+      // ปัด 2 ตำแหน่งทศนิยมให้ตรงกับ draw.costedQty ด้านบน (ไม่ปัดเป็นจำนวนเต็ม) — เดิม Math.round(take) ปัดเป็นเลขเต็ม
+      // ทำให้ sellableQty ที่บันทึกไว้ในรายการต้นทุนซื้อเพี้ยนไปจาก take จริงที่ไปบวกเข้า draw.costedQty แล้ว (เช่น take=2.4
+      // แต่บันทึก sellableQty=2) purchasedTodayQty_() ที่รวม sellableQty จึงนับคลาดเคลื่อนจากสต็อกจริงที่ถูกตัดไปแล้ว
+      const sellableTake = Math.round(take*100)/100;
       // totalQty/take ตรงนี้เป็นหน่วย "ทำได้" (sellableQty) เสมอ — เท่ากับหน่วยซื้อ(กก.)พอดีสำหรับสินค้าส่วนใหญ่
       // แต่บางสินค้า (เช่น หอยนางรม p7 หรือปูจืดที่ผ่านการแกะ/ตัดแต่งจนน้ำหนักดิบกับที่ทำได้ไม่เท่ากัน) ต้องคำนวณ
-      // กก.ดิบที่เบิกจริงแยกต่างหากตามสัดส่วน แล้วปัดเป็นจำนวนเต็มกก. — ของจริงซื้อ/เบิกกันเป็นกก.เต็มๆ เสมอ ไม่มีทศนิยม
-      // (เดิมปัดแค่ 2 ตำแหน่งทศนิยม ทำให้ตัวเลขซื้อของสินค้าที่มีอัตราแปลงไม่ลงตัวโผล่เป็นทศนิยมแปลกๆ เช่น 6.83 กก.)
+      // กก.ดิบที่เบิกจริงแยกต่างหากตามสัดส่วน
       const drawSellable = Number(draw.sellableQty||0);
       const drawRawUsed = Number(draw.qtyUsed||0);
       const rawQtyPortion = drawSellable>0 ? (take/drawSellable)*drawRawUsed : take;
-      const rawQtyRounded = Math.max(1, Math.round(rawQtyPortion));
+      // ปัด 2 ตำแหน่งทศนิยมเหมือนช่องกรอกจำนวนซื้อมือปกติ (step 0.01) — เดิม Math.max(1, Math.round(rawQtyPortion)) บังคับ
+      // ปัดขึ้นเป็นอย่างน้อย 1 กก.เต็มเสมอ พอ settle ครั้งเดียวแตกเป็นหลายรอบเบิก (หลายแถว) เศษที่เหลือน้อยๆ ของแต่ละรอบ
+      // (เช่น 0.05 กก.) จะถูกบวกเป็น 1 กก.เต็มทุกครั้ง ทำให้ยอด "ซื้อ" ของสินค้ารวมพุ่งเกินจริง — floor 0.01 กันแค่หารด้วยศูนย์
+      const rawQtyRounded = Math.max(0.01, Math.round(rawQtyPortion*100)/100);
       const lotLabel = lot ? `ล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}` : 'ล็อต';
       newEntries.push({
         id: uid('pu'), productId, seller: lot ? lot.seller : '',

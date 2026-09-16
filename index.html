@@ -1719,9 +1719,10 @@ async function renderLeftover(){
     const atRisk = currentOnHand>0 && ageDays>=shelfLimit;
     const wasteFormOpen = wasteEditPid===id;
     const warnLine = atRisk ? `<div class="lrow-hint" style="color:var(--danger);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">🔴 เก็บมาแล้ว ${ageDays} วัน (เกณฑ์ ${shelfLimit} วัน) เสี่ยงเสีย <button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;">🗑️ บันทึกของเสีย</button></div>` : '';
-    // เดิมกดบันทึก "ของเสีย" ได้แค่ตอนของเหลือค้างอยู่ในมือจริงๆ เกินเกณฑ์อายุ (ปุ่มแดงข้างบน) — แต่ "เคลม" คือของที่
-    // ส่งให้สาขาไปแล้ว สาขาโทรแจ้งทีหลังว่าเสีย ไม่มีของเหลืออยู่ในมือให้ตัดทิ้ง จึงต้องมีทางเปิดฟอร์มนี้ได้เสมอ ไม่ผูกกับ
-    // เกณฑ์ของเหลือค้าง — ปุ่มนี้โชว์เพิ่มไว้เผื่อกรณีนั้น (ตอน atRisk มีปุ่มแดงให้กดอยู่แล้ว ไม่ต้องซ้ำ)
+    // เดิมกดบันทึก "ของเสีย" ได้แค่ตอนของเหลือค้างอยู่ในมือจริงๆ เกินเกณฑ์อายุ (ปุ่มแดงข้างบน) — แต่ "เคลม" (ของใหม่ที่
+    // ส่งไปชดเชยสาขาให้ฟรี แทนของเก่าที่เสีย) อาจต้องส่งวันไหนก็ได้ที่สาขาโทรแจ้งมา ไม่จำเป็นต้องรอให้ของเหลือค้างถึง
+    // เกณฑ์อายุเสี่ยงเสียก่อน จึงต้องมีทางเปิดฟอร์มนี้ได้เสมอ ไม่ผูกกับเกณฑ์ของเหลือค้าง — ปุ่มนี้โชว์เพิ่มไว้เผื่อกรณีนั้น
+    // (ตอน atRisk มีปุ่มแดงให้กดอยู่แล้ว ไม่ต้องซ้ำ)
     const claimTriggerLine = (!atRisk && !wasteFormOpen) ? `<div class="lrow-hint"><button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;font-size:11px;">🗑️ บันทึกของเสีย/เคลม</button></div>` : '';
     const wasteFormHtml = wasteFormOpen ? `<div style="margin-top:6px;padding:8px;border:1px solid var(--danger);border-radius:8px;">
       <label style="font-size:11.5px;color:var(--text-dim);">เหตุผล</label>
@@ -1729,11 +1730,11 @@ async function renderLeftover(){
         <option value="waste">ของเสียทั่วไป (มีของเหลือค้างอยู่ในมือ ตัดทิ้ง)</option>
         <option value="claim">เคลมจากสาขา (ส่งไปแล้ว สาขาแจ้งว่าเสีย)</option>
       </select>
-      <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จำนวน (${p.unit})</label>
+      <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จำนวน (${p.unit}) — สำหรับเคลม คือจำนวนที่ส่งชดเชยให้สาขาใหม่</label>
       <input type="number" min="0" step="0.1" inputmode="decimal" id="wasteQty-${id}" value="${currentOnHand}">
       <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">หมายเหตุ (ถ้ามี)</label>
       <input type="text" id="wasteNote-${id}" placeholder="เช่น กลิ่นเปลี่ยน สีคล้ำ หรือชื่อสาขาที่เคลม">
-      <div class="hint" style="margin-top:4px;">"ของเสียทั่วไป" หักออกจากยอดของเหลือค้างวันนี้ด้วย ส่วน "เคลมจากสาขา" แค่บันทึกต้นทุนที่เสียไป ไม่กระทบยอดของเหลือ/บิลสาขา (ส่งของเคลมชดเชยในรอบสั่งถัดไปแยกต่างหาก) — ทั้งสองแบบถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน</div>
+      <div class="hint" style="margin-top:4px;">ทั้งสองแบบหักออกจากยอดของเหลือค้างวันนี้เหมือนกัน (ของที่ส่งออกจริงต้องมาจากของที่มีอยู่ในมือตอนนี้) และถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน — ต่างกันแค่ "เคลม" ไม่กระทบบิลสาขา (ของที่เสียถูกตัดไปแล้วตอนเคลม ของใหม่ที่ส่งไปให้ฟรี ไม่มีบิลมาหักออกให้)</div>
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button class="btn small" data-wastesave="${id}" style="width:auto;">บันทึก</button>
         <button class="btn small secondary" data-wastecancel="${id}" style="width:auto;">ยกเลิก</button>
@@ -1773,9 +1774,11 @@ async function renderLeftover(){
     const currentLeftover = alreadyRecorded ? Number(dayData.leftoverOut[pid]||0) : Number((lpidInput && lpidInput.value) || 0);
     let qty = Number((qtyInput && qtyInput.value) || 0);
     if(qty<=0){ showToast('กรอกจำนวนให้ถูกต้องก่อน'); return; }
-    // "เคลมจากสาขา" คือของที่ส่งออกไปแล้ว ไม่ได้อยู่ในของเหลือค้างของเราอีกต่อไป เลยไม่ผูก/ไม่จำกัดด้วยยอดของเหลือ
-    // ค้างวันนี้ (ต่างจาก "ของเสียทั่วไป" ที่ต้องตัดทิ้งได้ไม่เกินของที่ยังมีอยู่ในมือจริง)
-    if(reason!=='claim' && qty>currentLeftover) qty = currentLeftover;
+    // เดิมคิดว่า "เคลม" ไม่แตะของเหลือค้างเลยเพราะของเก่าที่เสียถูกส่งไปแล้ว — แต่ของที่ส่งไปเคลม/ชดเชยให้สาขาใหม่
+    // ก็ต้องเอาออกมาจากของที่มีอยู่ในมือจริงตอนนี้เหมือนกัน (เชื่อมโยงกับของเหลือค้างจริงๆ เหมือน "ของเสียทั่วไป") ต่างกัน
+    // แค่ปลายทาง: ของเสียทั่วไปโยนทิ้ง เคลมส่งให้สาขาฟรีแทนของเก่าที่เสีย ไม่มีบิลมาตัดออกให้ ทั้งสองแบบตัดทิ้งได้ไม่เกิน
+    // ของเหลือที่มีอยู่จริงวันนี้เหมือนกัน
+    if(qty>currentLeftover) qty = currentLeftover;
     wasteActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     const wasteId = 'waste'+Date.now()+pid;
@@ -1786,23 +1789,20 @@ async function renderLeftover(){
       records.push({id:wasteId, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason});
       await saveWasteRecords(records);
       wasteRecordSaved = true;
-      if(reason!=='claim'){
-        // เฉพาะ "ของเสียทั่วไป" เท่านั้นที่หักยอดของเหลือค้างวันนี้ลง — "เคลม" ไม่แตะยอดของเหลือ/ไม่ต้องบันทึกวันที่เลย
-        const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
-        dayData.leftoverOut[pid] = remain;
-        if(remain<=0){
-          delete dayData.leftoverSince[pid];
-        } else if(!dayData.leftoverSince[pid]){
-          // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสียเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
-          const prevIso = addDaysISO(currentDate,-1);
-          const prevDayX = await loadDay(prevIso);
-          const prevSinceX = prevDayX.leftoverSince || {};
-          const leftInX = prevDayX.leftoverOut || {};
-          dayData.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : currentDate;
-        }
-        if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
-        await saveDay(currentDate, dayData);
+      const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
+      dayData.leftoverOut[pid] = remain;
+      if(remain<=0){
+        delete dayData.leftoverSince[pid];
+      } else if(!dayData.leftoverSince[pid]){
+        // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสีย/เคลมเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
+        const prevIso = addDaysISO(currentDate,-1);
+        const prevDayX = await loadDay(prevIso);
+        const prevSinceX = prevDayX.leftoverSince || {};
+        const leftInX = prevDayX.leftoverOut || {};
+        dayData.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : currentDate;
       }
+      if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
+      await saveDay(currentDate, dayData);
       wasteEditPid = null;
       showToast(reason==='claim' ? 'บันทึกเคลมแล้ว' : 'บันทึกของเสียแล้ว');
       await renderLeftover();

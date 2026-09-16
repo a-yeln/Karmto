@@ -3909,6 +3909,10 @@ async function confirmLotSettle_(productId){
   lotSettleInFlight_ = true;
   try{
     const lots2 = await loadRawLots();
+    // สำเนาก่อนแก้ไข costedQty ในลูปข้างล่าง — เผื่อ saveRawLots(lots2) สำเร็จ (ตัดสต็อกไปแล้วจริงบนเซิร์ฟเวอร์)
+    // แต่ saveDay ที่บันทึกรายการต้นทุนซื้อคู่กันดันล้มเหลว (เน็ตมีปัญหาเฉพาะจังหวะนั้น) จะได้เอาไว้ "คืน" สต็อกล็อตกลับ
+    // ไม่งั้นจะเกิดของหาย: สต็อกถูกตัดว่าตัดต้นทุนไปแล้ว แต่ไม่มีรายการต้นทุนซื้อของวันนี้บันทึกไว้ที่ไหนเลย
+    const lots2Snapshot = JSON.parse(JSON.stringify(lots2));
     const {items} = await lotPendingStock_(productId, lots2, currentDate);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
@@ -3979,12 +3983,24 @@ async function confirmLotSettle_(productId){
     dayData.purchases = dayData.purchases || [];
     const prevPurchases = dayData.purchases;
     dayData.purchases = dayData.purchases.concat(newEntries);
+    let rawLotsSaved = false;
     try{
       await saveRawLots(lots2);
+      rawLotsSaved = true;
       await saveDay(currentDate, dayData);
     }catch(e){
       dayData.purchases = prevPurchases;
-      showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      if(rawLotsSaved){
+        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิมก่อน
+        try{
+          await saveRawLots(lots2Snapshot);
+          showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        }catch(revertErr){
+          showToast('ตัดต้นทุนไม่สำเร็จ และคืนสถานะสต็อกล็อตไม่สำเร็จด้วย (เน็ตมีปัญหา?) — สต็อกกับรายการต้นทุนซื้ออาจไม่ตรงกัน ลองรีเฟรชแล้วเช็คที่การ์ด "ล็อตที่มีอยู่" กับ "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
+        }
+      }else{
+        showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      }
       return;
     }
     showToast('ตัดต้นทุนวันนี้แล้ว');

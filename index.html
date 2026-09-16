@@ -69,6 +69,20 @@
       const data = await res.json();
       if(data.error){ throw new Error(data.message||data.error); }
       return {key: data.key, value: data.value, shared:false};
+    },
+    // เหมือน patchField แต่ทำได้หลายการแก้ไขพร้อมกันในคำขอเดียว ภายใต้ lock เดียวกันฝั่งเซิร์ฟเวอร์ (Apps Script v5 ขึ้นไป)
+    // ops: [{path, value} | {arrayPath, matchField, matchValue, matchDefault?, matchAll?, set}] — ดูรายละเอียดใน Code.gs
+    // rootIsArray: true ถ้าค่าทั้งก้อนของ key นี้เป็นอาเรย์เอง (เช่น lotTransportBills) ไม่ใช่ object ที่มีอาเรย์เป็นฟิลด์ย่อย
+    async patchOps(key, ops, rootIsArray){
+      const res = await withApiTimeout(fetch(SHEET_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'patchOps', key, ops, rootIsArray: !!rootIsArray})
+      }), 'patchOps');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      if(data.error){ throw new Error(data.message||data.error); }
+      return {key: data.key, value: data.value, shared:false};
     }
   };
 
@@ -1153,6 +1167,51 @@ async function writeBillingPaid_(iso, code, value){
   dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์ เหมือนที่ saveDay() ทำ
   writeDayToLocalStorage_(iso, fresh);
   return fresh;
+}
+// เขียนสถานะจ่าย/รอจ่ายของ "รายจ่ายกิจการ" 1 รายการ — ความเสี่ยงชนกันเดียวกับ writeBillingPaid_ (เดิม saveDay() เขียนทับ
+// ทั้งวัน) แต่จุดที่ต้องแก้อยู่ใน expenses[] ซึ่งเป็นอาเรย์ ไม่ใช่ object กุญแจตรงๆ แบบ billingPaid เลยใช้ patchOps แบบ
+// arrayPath หา item ด้วย id แล้วแก้เฉพาะรายการนั้นแทน
+async function writeExpensePaid_(iso, expenseId, paid, paidDate){
+  const ops = [{arrayPath:['expenses'], matchField:'id', matchValue:expenseId, set:{paid, paidDate: paid?paidDate:null}}];
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  if(!(fresh.expenses||[]).some(x=>x.id===expenseId)) throw new Error('รายการนี้ถูกลบไปแล้ว');
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  return fresh;
+}
+// เขียนสถานะจ่าย/รอจ่ายของ "บิลรวมค่าซื้อของ" ตามคู่ค้า 1 ราย — ต้องแก้ 2 จุดพร้อมกันแบบ atomic: สถานะบิลรวม
+// (purchaseGroupPayment[seller]) และสถานะของทุกรายการซื้อของคู่ค้านั้นใน purchases[] (matchAll:true) ทำในคำขอ
+// patchOps เดียว ภายใต้ lock เดียวกันฝั่งเซิร์ฟเวอร์ กันไม่ให้ 2 จุดนี้ไม่ตรงกันถ้ามีคำขออื่นแทรกกลางคัน
+async function writePurchaseGroupPaid_(iso, seller, paid, paidDate){
+  const ops = [
+    {path:['purchaseGroupPayment', seller, 'paid'], value: paid},
+    {path:['purchaseGroupPayment', seller, 'paidDate'], value: paid?paidDate:null},
+    {arrayPath:['purchases'], matchField:'seller', matchValue: seller, matchDefault:'ไม่ระบุ', matchAll:true, set:{paid}}
+  ];
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  return fresh;
+}
+// เขียนสถานะจ่าย/รอจ่ายของบิลค่าขนส่งล็อต/บิลสินค้าล็อต 1 บิล — which: 'transport' | 'product' เลือก key ที่เก็บ
+// (lotTransportBills / lotProductBills เก็บเป็นอาเรย์ล้วนๆ ไม่ใช่ object ที่มีอาเรย์เป็นฟิลด์ย่อย จึงใช้ rootIsArray:true
+// และ arrayPath:[] หมายถึง root เองคืออาเรย์ที่ต้องการ) fields คือ object ของฟิลด์ที่จะแก้ตรงๆ (เช่น {paid, paidDate,
+// paidAmount} หรือแค่ {paid, paidDate} ถ้าจุดที่เรียกไม่มีช่อง "จ่ายจริง" ให้แก้ — ผู้เรียกกำหนดเองว่าจะแตะฟิลด์ไหนบ้าง)
+// อัปเดตแคชในเครื่อง (lotTransportBillsCache_/lotProductBillsCache_) ให้ตรงกับของจริงบนเซิร์ฟเวอร์เหมือนที่
+// saveLotTransportBills()/saveLotProductBills() ทำ
+async function writeLotBillPaid_(which, billId, fields){
+  const key = which==='transport' ? 'lotTransportBills' : 'lotProductBills';
+  const ops = [{arrayPath:[], matchField:'id', matchValue:billId, set:fields}];
+  const res = await window.storage.patchOps(key, ops, true);
+  let bills;
+  try{ bills = JSON.parse(res.value); }catch(e){ bills = []; }
+  if(!Array.isArray(bills)) bills = [];
+  if(!bills.some(x=>x.id===billId)) throw new Error('บิลนี้ถูกลบไปแล้ว');
+  if(which==='transport') lotTransportBillsCache_ = bills;
+  else lotProductBillsCache_ = bills;
+  return bills;
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
@@ -2465,14 +2524,12 @@ function renderExpenseList(){
     if(e.paid){
       if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่ายที่เคยบันทึกไว้จะถูกล้าง)')) return;
       btn.disabled = true;
-      const prevPaid = e.paid, prevDate = e.paidDate;
-      e.paid = false; e.paidDate = null;
       try{
-        await saveDay(currentDate, dayData);
+        const fresh = await writeExpensePaid_(currentDate, id, false, null);
+        dayData = fresh;
         renderExpenseList();
         renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
       }catch(err){
-        e.paid = prevPaid; e.paidDate = prevDate;
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false;
       }
@@ -2486,17 +2543,14 @@ function renderExpenseList(){
     const dateInput = document.getElementById(`expdate-${id}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
-    const e = dayData.expenses.find(x=>x.id===id);
-    const prevPaid = e.paid, prevDate = e.paidDate;
-    e.paid = true; e.paidDate = paidDate;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeExpensePaid_(currentDate, id, true, paidDate);
+      dayData = fresh;
       expPayEditingId = null;
       renderExpenseList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }catch(err){
-      e.paid = prevPaid; e.paidDate = prevDate;
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
       btn.disabled = false; btn.textContent = 'ยืนยัน';
     }
@@ -3079,33 +3133,15 @@ async function renderAllExpenseList(skipReload){
     // สลับสถานะจ่าย/รอจ่ายได้ตรงนี้เลย ไม่ต้องไปหาแก้ทีละวัน — รองรับ 4 แบบ: รายจ่ายกิจการ, บิลรวมค่าซื้อของ (ตามคู่ค้า), ค่าขนส่งล็อต, บิลสินค้าล็อต
     async function allExpSetPaid(r, paid, paidDate){
       if(r.type==='exp'){
-        const isToday = r.iso===currentDate;
-        const d = isToday ? dayData : await loadDay(r.iso);
-        const e = (d.expenses||[]).find(x=>x.id===r.expId);
-        if(!e) throw new Error('รายการนี้ถูกลบไปแล้ว');
-        e.paid = paid; e.paidDate = paid ? paidDate : null;
-        await saveDay(r.iso, d);
+        const fresh = await writeExpensePaid_(r.iso, r.expId, paid, paidDate);
+        if(r.iso===currentDate) dayData = fresh;
       } else if(r.type==='pg'){
-        const isToday = r.iso===currentDate;
-        const d = isToday ? dayData : await loadDay(r.iso);
-        d.purchaseGroupPayment = d.purchaseGroupPayment || {};
-        const info = d.purchaseGroupPayment[r.seller] || {paid:false, paidDate:null, extra:0, note:''};
-        info.paid = paid; info.paidDate = paid ? paidDate : null;
-        d.purchaseGroupPayment[r.seller] = info;
-        (d.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===r.seller) e.paid = paid; });
-        await saveDay(r.iso, d);
+        const fresh = await writePurchaseGroupPaid_(r.iso, r.seller, paid, paidDate);
+        if(r.iso===currentDate) dayData = fresh;
       } else if(r.type==='pt'){
-        const bills = await loadLotTransportBills();
-        const b = bills.find(x=>x.id===r.billId);
-        if(!b) throw new Error('บิลนี้ถูกลบไปแล้ว');
-        b.paid = paid; b.paidDate = paid ? paidDate : null;
-        await saveLotTransportBills(bills);
+        await writeLotBillPaid_('transport', r.billId, {paid, paidDate: paid ? paidDate : null});
       } else if(r.type==='pp'){
-        const bills = await loadLotProductBills();
-        const b = bills.find(x=>x.id===r.billId);
-        if(!b) throw new Error('บิลนี้ถูกลบไปแล้ว');
-        b.paid = paid; b.paidDate = paid ? paidDate : null;
-        await saveLotProductBills(bills);
+        await writeLotBillPaid_('product', r.billId, {paid, paidDate: paid ? paidDate : null});
       }
     }
     function refreshRelatedViews(r){
@@ -4847,16 +4883,14 @@ async function renderLotTransportList(){
   wrap.querySelectorAll('[data-lottranspay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(lotTransActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     const id = btn.getAttribute('data-lottranspay');
-    const bills2 = await loadLotTransportBills();
-    const b = bills2.find(x=>x.id===id);
+    const b = allBills.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
       if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่าย/ยอดจ่ายจริงที่เคยบันทึกไว้จะถูกล้าง)')) return;
       lotTransActionInFlight = true;
       btn.disabled = true;
-      b.paid = false; b.paidDate = null; b.paidAmount = null;
       try{
-        await saveLotTransportBills(bills2);
+        await writeLotBillPaid_('transport', id, {paid:false, paidDate:null, paidAmount:null});
         await renderLotTransportList();
         renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
       }catch(e){
@@ -4893,11 +4927,9 @@ async function renderLotTransportList(){
     const paidAmtInput = document.getElementById(`lottranspaidamt-${id}`);
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      const bills2 = await loadLotTransportBills();
-      const b = bills2.find(x=>x.id===id);
+      const b = allBills.find(x=>x.id===id);
       const paidAmount = paidAmtInput && paidAmtInput.value!=='' ? Number(paidAmtInput.value) : (b?b.amount:0);
-      if(b){ b.paid = true; b.paidDate = paidDate; b.paidAmount = paidAmount; }
-      await saveLotTransportBills(bills2);
+      await writeLotBillPaid_('transport', id, {paid:true, paidDate, paidAmount});
       lastUsedPayDate = paidDate;
       lotTransportEditingId = null;
       await renderLotTransportList();
@@ -5006,16 +5038,14 @@ async function renderLotProductBillList(){
   wrap.querySelectorAll('[data-lotprodpay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(lotProdActionInFlight) return; // กันกดซ้ำ/บันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
     const id = btn.getAttribute('data-lotprodpay');
-    const bills2 = await loadLotProductBills();
-    const b = bills2.find(x=>x.id===id);
+    const b = allBills.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
       if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่าย/ยอดจ่ายจริงที่เคยบันทึกไว้จะถูกล้าง)')) return;
       lotProdActionInFlight = true;
       btn.disabled = true;
-      b.paid = false; b.paidDate = null; b.paidAmount = null;
       try{
-        await saveLotProductBills(bills2);
+        await writeLotBillPaid_('product', id, {paid:false, paidDate:null, paidAmount:null});
         await renderLotProductBillList();
         renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
       }catch(e){
@@ -5052,11 +5082,9 @@ async function renderLotProductBillList(){
     const paidAmtInput = document.getElementById(`lotprodpaidamt-${id}`);
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      const bills2 = await loadLotProductBills();
-      const b = bills2.find(x=>x.id===id);
+      const b = allBills.find(x=>x.id===id);
       const paidAmount = paidAmtInput && paidAmtInput.value!=='' ? Number(paidAmtInput.value) : (b?b.amount:0);
-      if(b){ b.paid = true; b.paidDate = paidDate; b.paidAmount = paidAmount; }
-      await saveLotProductBills(bills2);
+      await writeLotBillPaid_('product', id, {paid:true, paidDate, paidAmount});
       lotProductBillEditingId = null;
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -5394,17 +5422,11 @@ function renderPurchaseGroups(){
     if(info.paid){
       if(!confirm(`เปลี่ยนบิลของ "${seller}" กลับเป็น "รอจ่าย" ทั้งบิล? (ทุกรายการในบิลนี้จะกลับเป็นรอจ่ายด้วย วันที่จ่ายที่เคยบันทึกไว้จะถูกล้าง)`)) return;
       btn.disabled = true;
-      const prevPaid = info.paid, prevDate = info.paidDate;
-      const prevItemPaid = (dayData.purchases||[]).filter(e=>(e.seller||'ไม่ระบุ')===seller).map(e=>({e, paid:e.paid}));
-      info.paid = false; info.paidDate = null;
-      dayData.purchaseGroupPayment[seller] = info;
-      (dayData.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===seller) e.paid = false; });
       try{
-        await saveDay(currentDate, dayData);
+        const fresh = await writePurchaseGroupPaid_(currentDate, seller, false, null);
+        dayData = fresh;
         renderPurchaseGroups(); renderPurchaseList(); renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
       }catch(err){
-        info.paid = prevPaid; info.paidDate = prevDate;
-        prevItemPaid.forEach(({e,paid})=>{ e.paid = paid; });
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false;
       }
@@ -5418,20 +5440,13 @@ function renderPurchaseGroups(){
     const dateInput = document.getElementById(`groupdate-${seller}`);
     const paidDate = dateInput.value || todayISO();
     lastUsedPayDate = paidDate;
-    const info = dayData.purchaseGroupPayment[seller] || {extra:0, note:''};
-    const prevPaid = info.paid, prevDate = info.paidDate;
-    const prevItemPaid = (dayData.purchases||[]).filter(e=>(e.seller||'ไม่ระบุ')===seller).map(e=>({e, paid:e.paid}));
-    info.paid = true; info.paidDate = paidDate;
-    dayData.purchaseGroupPayment[seller] = info;
-    (dayData.purchases||[]).forEach(e=>{ if((e.seller||'ไม่ระบุ')===seller) e.paid = true; });
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writePurchaseGroupPaid_(currentDate, seller, true, paidDate);
+      dayData = fresh;
       purchGroupEditingSeller = null;
       renderPurchaseGroups(); renderPurchaseList(); renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }catch(err){
-      info.paid = prevPaid; info.paidDate = prevDate;
-      prevItemPaid.forEach(({e,paid})=>{ e.paid = paid; });
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
       btn.disabled = false; btn.textContent = 'ยืนยัน';
     }

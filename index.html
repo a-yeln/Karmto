@@ -5010,6 +5010,10 @@ async function findNextUnrecordedPurchaseProduct(){
 function startEditPurchase(id){
   const e = dayData.purchases.find(x=>x.id===id);
   if(!e) return;
+  // การ์ด "บันทึกต้นทุนซื้อวันนี้" ถูกพับอัตโนมัติทันทีที่มีรายการอย่างน้อย 1 รายการ (updatePurchaseFormAutoFold)
+  // ซึ่งแทบทุกวันเป็นแบบนั้นอยู่แล้ว — เดิมฟังก์ชันนี้กรอกฟอร์มแล้วเลื่อนจอขึ้นบนเฉยๆ โดยไม่ได้กางการ์ดที่พับอยู่ออกมาด้วย
+  // กดแก้ไขแล้วค่าถูกกรอกจริงแต่มองไม่เห็นฟอร์มเลยเพราะซ่อนอยู่หลังหัวข้อที่พับไว้ (ดูเหมือน "กดแล้วไม่มีอะไรเกิดขึ้น")
+  setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', false);
   purchEditingId = id;
   document.getElementById('purchProduct').value = e.productId;
   updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();

@@ -1327,13 +1327,19 @@ function renderOrderList(){
   list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     const code = b.getAttribute('data-del');
     if(!confirm(`ลบออเดอร์สาขา ${code} ${branchName(code)} ของวันนี้ทั้งหมดเลยใช่ไหม?`)) return;
-    const prevRow = dayData.orders[code];
-    delete dayData.orders[code];
+    const iso = currentDate;
     try{
-      await saveDay(currentDate, dayData);
+      // ลบแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps ไม่เขียนทับทั้งก้อน) แทนลบเองแล้ว saveDay() ทั้งวัน — เดิมถ้ากดลบ
+      // หลายสาขาติดๆ กันเร็วๆ (ยังรอ saveDay ของสาขาก่อนหน้าไม่เสร็จ) คำขอที่ยิงออกไปพร้อมกันอาจมาถึงเซิร์ฟเวอร์สลับคิวกัน
+      // คำขอที่มีข้อมูลเก่ากว่า (ยังมีสาขาที่เพิ่งลบไปติดอยู่) มาถึงทีหลังจะเขียนทับ ทำให้สาขาที่ลบไปแล้วโผล่กลับมาใหม่
+      // แบบเงียบๆ (ตรงกับปัญหาจริงที่เจอ: ลบหมดแล้วแต่ยังเหลือค้างอยู่บางสาขา) patchOps ล็อกฝั่งเซิร์ฟเวอร์แก้ตรงนี้โดยตรง
+      const res = await window.storage.patchOps('day:'+iso, [{path:['orders', code], deleteKey:true}], false);
+      const fresh = normalizeDay_(JSON.parse(res.value));
+      dayCache_[iso] = fresh;
+      writeDayToLocalStorage_(iso, fresh);
+      if(iso===currentDate) dayData = fresh;
       refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
     }catch(e){
-      dayData.orders[code] = prevRow;
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));

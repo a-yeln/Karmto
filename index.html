@@ -5110,7 +5110,8 @@ async function addPurchase(){
     const nextPid = await findNextUnrecordedPurchaseProduct();
     if(nextPid){
       const p = PRODUCTS.find(x=>x.id===nextPid);
-      showToast(`ยังไม่ได้กรอกต้นทุน: ${p.emoji} ${p.name} (มีออเดอร์วันนี้) — เลือกที่ช่อง "สินค้า" เพื่อกรอกต่อ`);
+      const stillNeeded = await computeNeededQtyToday(nextPid);
+      showToast(`ยังไม่ได้กรอกต้นทุน: ${p.emoji} ${p.name} (ยังขาดอีก ${stillNeeded} ${p.unit}) — เลือกที่ช่อง "สินค้า" เพื่อกรอกต่อ`);
     }
   }
 }

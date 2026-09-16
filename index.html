@@ -1719,13 +1719,23 @@ async function renderLeftover(){
     const atRisk = currentOnHand>0 && ageDays>=shelfLimit;
     const wasteFormOpen = wasteEditPid===id;
     const warnLine = atRisk ? `<div class="lrow-hint" style="color:var(--danger);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">🔴 เก็บมาแล้ว ${ageDays} วัน (เกณฑ์ ${shelfLimit} วัน) เสี่ยงเสีย <button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;">🗑️ บันทึกของเสีย</button></div>` : '';
+    // เดิมกดบันทึก "ของเสีย" ได้แค่ตอนของเหลือค้างอยู่ในมือจริงๆ เกินเกณฑ์อายุ (ปุ่มแดงข้างบน) — แต่ "เคลม" คือของที่
+    // ส่งให้สาขาไปแล้ว สาขาโทรแจ้งทีหลังว่าเสีย ไม่มีของเหลืออยู่ในมือให้ตัดทิ้ง จึงต้องมีทางเปิดฟอร์มนี้ได้เสมอ ไม่ผูกกับ
+    // เกณฑ์ของเหลือค้าง — ปุ่มนี้โชว์เพิ่มไว้เผื่อกรณีนั้น (ตอน atRisk มีปุ่มแดงให้กดอยู่แล้ว ไม่ต้องซ้ำ)
+    const claimTriggerLine = (!atRisk && !wasteFormOpen) ? `<div class="lrow-hint"><button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;font-size:11px;">🗑️ บันทึกของเสีย/เคลม</button></div>` : '';
     const wasteFormHtml = wasteFormOpen ? `<div style="margin-top:6px;padding:8px;border:1px solid var(--danger);border-radius:8px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">จำนวนที่ตัดทิ้ง (${p.unit})</label>
+      <label style="font-size:11.5px;color:var(--text-dim);">เหตุผล</label>
+      <select id="wasteReason-${id}">
+        <option value="waste">ของเสียทั่วไป (มีของเหลือค้างอยู่ในมือ ตัดทิ้ง)</option>
+        <option value="claim">เคลมจากสาขา (ส่งไปแล้ว สาขาแจ้งว่าเสีย)</option>
+      </select>
+      <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จำนวน (${p.unit})</label>
       <input type="number" min="0" step="0.1" inputmode="decimal" id="wasteQty-${id}" value="${currentOnHand}">
       <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">หมายเหตุ (ถ้ามี)</label>
-      <input type="text" id="wasteNote-${id}" placeholder="เช่น กลิ่นเปลี่ยน สีคล้ำ">
+      <input type="text" id="wasteNote-${id}" placeholder="เช่น กลิ่นเปลี่ยน สีคล้ำ หรือชื่อสาขาที่เคลม">
+      <div class="hint" style="margin-top:4px;">"ของเสียทั่วไป" หักออกจากยอดของเหลือค้างวันนี้ด้วย ส่วน "เคลมจากสาขา" แค่บันทึกต้นทุนที่เสียไป ไม่กระทบยอดของเหลือ/บิลสาขา (ส่งของเคลมชดเชยในรอบสั่งถัดไปแยกต่างหาก) — ทั้งสองแบบถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน</div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="btn small" data-wastesave="${id}" style="width:auto;">บันทึกของเสีย</button>
+        <button class="btn small" data-wastesave="${id}" style="width:auto;">บันทึก</button>
         <button class="btn small secondary" data-wastecancel="${id}" style="width:auto;">ยกเลิก</button>
       </div>
     </div>` : '';
@@ -1737,6 +1747,7 @@ async function renderLeftover(){
       </div>
       ${hintLine}
       ${warnLine}
+      ${claimTriggerLine}
       ${wasteFormHtml}
     </div>`;
   }));
@@ -1754,13 +1765,17 @@ async function renderLeftover(){
     const pid = btn.getAttribute('data-wastesave');
     const qtyInput = document.getElementById(`wasteQty-${pid}`);
     const noteInput = document.getElementById(`wasteNote-${pid}`);
+    const reasonInput = document.getElementById(`wasteReason-${pid}`);
+    const reason = (reasonInput && reasonInput.value) || 'waste';
     const lpidInput = document.querySelector(`[data-lpid="${pid}"]`);
     // ใช้ตัวเลขที่ตกค้างจริงเป็นฐาน (ค่าที่บันทึกไว้แล้วถ้ามี ไม่งั้นใช้ค่าที่โชว์ในช่องกรอกตอนนี้) — ไม่ใช้ชื่อ carriedIn เพราะอาจไม่ตรงกับตัวเลขที่กำลังแสดงอยู่จริง
     const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, pid);
     const currentLeftover = alreadyRecorded ? Number(dayData.leftoverOut[pid]||0) : Number((lpidInput && lpidInput.value) || 0);
     let qty = Number((qtyInput && qtyInput.value) || 0);
-    if(qty<=0){ showToast('กรอกจำนวนที่ตัดทิ้งให้ถูกต้องก่อน'); return; }
-    if(qty>currentLeftover) qty = currentLeftover; // ตัดทิ้งได้ไม่เกินจำนวนของเหลือที่ตกค้างจริงวันนี้
+    if(qty<=0){ showToast('กรอกจำนวนให้ถูกต้องก่อน'); return; }
+    // "เคลมจากสาขา" คือของที่ส่งออกไปแล้ว ไม่ได้อยู่ในของเหลือค้างของเราอีกต่อไป เลยไม่ผูก/ไม่จำกัดด้วยยอดของเหลือ
+    // ค้างวันนี้ (ต่างจาก "ของเสียทั่วไป" ที่ต้องตัดทิ้งได้ไม่เกินของที่ยังมีอยู่ในมือจริง)
+    if(reason!=='claim' && qty>currentLeftover) qty = currentLeftover;
     wasteActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     const wasteId = 'waste'+Date.now()+pid;
@@ -1768,25 +1783,28 @@ async function renderLeftover(){
     try{
       const estCostPerKg = priceOnDate(pid, currentDate);
       const records = await loadWasteRecords();
-      records.push({id:wasteId, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg)});
+      records.push({id:wasteId, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason});
       await saveWasteRecords(records);
       wasteRecordSaved = true;
-      const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
-      dayData.leftoverOut[pid] = remain;
-      if(remain<=0){
-        delete dayData.leftoverSince[pid];
-      } else if(!dayData.leftoverSince[pid]){
-        // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสียเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
-        const prevIso = addDaysISO(currentDate,-1);
-        const prevDayX = await loadDay(prevIso);
-        const prevSinceX = prevDayX.leftoverSince || {};
-        const leftInX = prevDayX.leftoverOut || {};
-        dayData.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : currentDate;
+      if(reason!=='claim'){
+        // เฉพาะ "ของเสียทั่วไป" เท่านั้นที่หักยอดของเหลือค้างวันนี้ลง — "เคลม" ไม่แตะยอดของเหลือ/ไม่ต้องบันทึกวันที่เลย
+        const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
+        dayData.leftoverOut[pid] = remain;
+        if(remain<=0){
+          delete dayData.leftoverSince[pid];
+        } else if(!dayData.leftoverSince[pid]){
+          // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสียเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
+          const prevIso = addDaysISO(currentDate,-1);
+          const prevDayX = await loadDay(prevIso);
+          const prevSinceX = prevDayX.leftoverSince || {};
+          const leftInX = prevDayX.leftoverOut || {};
+          dayData.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : currentDate;
+        }
+        if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
+        await saveDay(currentDate, dayData);
       }
-      if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
-      await saveDay(currentDate, dayData);
       wasteEditPid = null;
-      showToast('บันทึกของเสียแล้ว');
+      showToast(reason==='claim' ? 'บันทึกเคลมแล้ว' : 'บันทึกของเสียแล้ว');
       await renderLeftover();
       renderWasteRecordList();
       renderMessages();
@@ -1814,7 +1832,7 @@ async function renderWasteRecordList(){
   const totalCost = todays.reduce((s,r)=>s+Number(r.estCost||0),0);
   wrap.innerHTML = `<div class="hint" style="margin-bottom:6px;">รวมวันนี้ ${todays.length} รายการ ประมาณ ${money(totalCost)} (ประเมินจากราคาสินค้า ไม่ใช่ต้นทุนซื้อจริงเป๊ะๆ)</div>` +
     todays.map(r=>{ const p=PRODUCTS.find(x=>x.id===r.productId); return `<div class="lrow">
-      <div class="lname">${p?p.emoji:''} ${p?p.name:r.productId}${r.note?` <span style="color:var(--text-faint);font-weight:400;">(${r.note})</span>`:''}</div>
+      <div class="lname">${p?p.emoji:''} ${p?p.name:r.productId}${r.reason==='claim'?' <span style="color:var(--accent);font-weight:600;">(เคลม)</span>':''}${r.note?` <span style="color:var(--text-faint);font-weight:400;">(${r.note})</span>`:''}</div>
       <div class="lin num">${r.qty} ${p?p.unit:''} • ${money(r.estCost)}</div>
       <button class="iconbtn" data-wastedel="${r.id}" aria-label="ลบรายการนี้">✕</button>
     </div>`; }).join('');
@@ -2555,7 +2573,8 @@ function addExpenseCategory(){
   el.value='';
   renderExpenseCategorySettings();
 }
-function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner){
+function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal){
+  wasteTotal = Number(wasteTotal||0);
   let revenue=0, revenuePaid=0, revenueUnpaid=0, cogsTotal=0, expenseTotal=0, feeTotal=0;
   const daily = {};
   for(const iso of isoList){
@@ -2577,18 +2596,28 @@ function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner){
     if(dayRevenue>0 || dayExpense>0 || dayCogs>0) daily[iso] = {revenue: dayRevenue, expense: dayExpense + dayCogs};
   }
   const grossProfit = revenue - cogsTotal;
-  const netProfit = grossProfit - expenseTotal - feeTotal;
+  // ของเสีย/เคลม (wasteTotal) — ของที่จ่ายเงินซื้อมาแล้วแต่ไม่ได้แปลงเป็นยอดขาย (ตัดทิ้ง หรือส่งไปแล้วสาขาเคลมกลับมา)
+  // เดิมมีการ์ดบันทึกอยู่แล้วแต่ไม่เคยถูกดึงไปหักกำไรในสรุปไหนเลยจริงๆ — หักออกจากกำไรสุทธิเหมือนรายจ่ายอื่นๆ (แต่ไม่ใช่เงินสดจ่ายออกจริง
+  // จึงไม่หักใน netCashFlow ด้านล่าง ซึ่งเป็นเรื่องเงินเข้า-ออกบัญชีจริงคนละเรื่องกัน)
+  const netProfit = grossProfit - expenseTotal - feeTotal - wasteTotal;
   const orgDebtPayments = (debtsByOwner['ก้ามโต'] || {principal:0}).principal;
   const orgDebtInterest = (debtsByOwner['ก้ามโต'] || {interest:0}).interest;
   const netCashFlow = revenuePaid - expenseTotal - cogsTotal - feeTotal - orgDebtPayments;
-  return {revenue, revenuePaid, revenueUnpaid, cogsTotal, expenseTotal, feeTotal, grossProfit, netProfit, orgDebtPayments, orgDebtInterest, netCashFlow, daily};
+  return {revenue, revenuePaid, revenueUnpaid, cogsTotal, expenseTotal, feeTotal, wasteTotal, grossProfit, netProfit, orgDebtPayments, orgDebtInterest, netCashFlow, daily};
+}
+// รวมยอดของเสีย/เคลม (ประมาณต้นทุน) ของเดือนที่ระบุ — wasteRecords เก็บแยกจาก dayData (ใช้ข้ามวันได้เหมือนล็อต) เลย
+// ต้องกรองเอาเองตาม prefix วันที่ ไม่ได้มากับ loadDaysBulk เหมือนข้อมูลรายวันอื่นๆ
+function sumWasteForMonth_(wasteRecords, monthVal){
+  return wasteRecords.filter(r=>String(r.date||'').startsWith(monthVal)).reduce((s,r)=>s+Number(r.estCost||0),0);
 }
 async function computeMonthFinancials(monthVal){
   const listRes = await window.storage.list('day:'+monthVal);
   const isoList = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
   const dayMap = await loadDaysBulk(isoList);
   const debtsByOwner = await computeDebtPaymentsByOwnerForMonth(monthVal);
-  return computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner);
+  const wasteRecords = await loadWasteRecords();
+  const wasteTotal = sumWasteForMonth_(wasteRecords, monthVal);
+  return computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal);
 }
 function computeDebtsByOwnerForMonthFromDebts_(debts, monthVal){
   const result = {};
@@ -2689,6 +2718,7 @@ async function renderMonthPL(){
       <tr><td><b>กำไรขั้นต้น</b></td><td class="num num"><b>${money(r.grossProfit)}</b></td></tr>
       <tr><td>รายจ่ายกิจการอื่นๆ${pctChangeBadge(r.expenseTotal, prevR.expenseTotal)}</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal)}</td></tr>
       <tr><td>ค่าธรรมเนียมบริษัท (Brand fee)</td><td class="num num" style="color:var(--danger);">-${money(r.feeTotal)}</td></tr>
+      <tr><td>ของเสีย/เคลม${pctChangeBadge(r.wasteTotal, prevR.wasteTotal)}</td><td class="num num" style="color:var(--danger);">-${money(r.wasteTotal)}</td></tr>
       </table>
       <div class="grand" style="display:flex;justify-content:space-between;padding:10px 12px;margin-top:8px;border-radius:8px;background:${r.netProfit>=0?'var(--success-soft)':'var(--danger-soft)'};">
         <span style="font-weight:600;">กำไรสุทธิโดยประมาณ</span>
@@ -2739,9 +2769,10 @@ async function computeYearFinancials(year){
   const allIso = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
   const dayMap = await loadDaysBulk(allIso);
   const debts = await loadDebts();
+  const wasteRecords = await loadWasteRecords();
   const byMonth = {};
   allIso.forEach(iso=>{ const mv = iso.slice(0,7); (byMonth[mv]=byMonth[mv]||[]).push(iso); });
-  let revenue=0, revenuePaid=0, cogsTotal=0, expenseTotal=0, feeTotal=0, netProfit=0;
+  let revenue=0, revenuePaid=0, cogsTotal=0, expenseTotal=0, feeTotal=0, wasteTotal=0, netProfit=0;
   const monthly = [];
   const curMonth = todayISO().slice(0,7);
   for(let m=1; m<=12; m++){
@@ -2749,13 +2780,13 @@ async function computeYearFinancials(year){
     if(monthVal > curMonth) break;
     const isoList = byMonth[monthVal] || [];
     const debtsByOwner = computeDebtsByOwnerForMonthFromDebts_(debts, monthVal);
-    const r = computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner);
+    const r = computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, sumWasteForMonth_(wasteRecords, monthVal));
     revenue += r.revenue; revenuePaid += r.revenuePaid; cogsTotal += r.cogsTotal;
-    expenseTotal += r.expenseTotal; feeTotal += r.feeTotal; netProfit += r.netProfit;
+    expenseTotal += r.expenseTotal; feeTotal += r.feeTotal; wasteTotal += r.wasteTotal; netProfit += r.netProfit;
     monthly.push({month:m, monthVal, revenue:r.revenue, netProfit:r.netProfit});
   }
   const monthCount = monthly.filter(x=>x.revenue>0 || x.netProfit!==0).length || monthly.length || 1;
-  return {revenue, revenuePaid, cogsTotal, expenseTotal, feeTotal, netProfit, monthly, avgProfitPerMonth: netProfit/monthCount};
+  return {revenue, revenuePaid, cogsTotal, expenseTotal, feeTotal, wasteTotal, netProfit, monthly, avgProfitPerMonth: netProfit/monthCount};
 }
 // สร้างแผนภูมิวงกลม (โดนัท) จากรายการ [{label, value, color}] พร้อมคำอธิบายสีด้านล่าง
 function buildPieChartSVG(segments){
@@ -2842,6 +2873,7 @@ async function renderYearSummary(){
       <tr><td>ต้นทุนซื้อ (COGS) รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.cogsTotal)}</td></tr>
       <tr><td>รายจ่ายกิจการอื่นๆ รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal)}</td></tr>
       <tr><td>Brand fee รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.feeTotal)}</td></tr>
+      <tr><td>ของเสีย/เคลม รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.wasteTotal)}</td></tr>
       </table>`;
     const yearSelectedEl = document.getElementById('yearSelectedValue');
     el.querySelectorAll('[data-monthidx]').forEach(rect=>{

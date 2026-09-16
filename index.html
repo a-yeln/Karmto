@@ -339,7 +339,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="statrow" id="statRow"></div>
     </div>
     <div class="tabs" id="tabs">
-      <button class="tab active" data-tab="dashboard">📊 แดชบอร์ด</button>
+      <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
       <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
       <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
       <button class="tab" data-tab="leftover">📦 เหลือ&Claim</button>
@@ -1233,6 +1233,29 @@ async function writeLotBillPaid_(which, billId, fields){
   if(which==='transport') lotTransportBillsCache_ = bills;
   else lotProductBillsCache_ = bills;
   return bills;
+}
+// เพิ่ม/ลบ/แก้ไข 1 รายการในอาเรย์ที่เป็นฟิลด์หนึ่งของเอกสารวัน (เช่น expenses/purchases/personalIncome/personalExpense)
+// แบบล็อกกันชนกันจริงฝั่งเซิร์ฟเวอร์ — ไม่ต้องโหลดทั้งวันมาต่อท้าย/ลบ/แก้เองแล้วเขียนทับทั้งก้อนแบบ saveDay() เหมือนเดิม
+// (เสี่ยงข้อมูลหายถ้ามีคนอื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน) op ส่งเป็น {push:item} หรือ {remove:{matchField,
+// matchValue,...}} หรือ {matchField,matchValue,set:{...}} — รูปแบบเดียวกับที่ Code.gs (patchOps_) รองรับ
+async function writeDayArrayOp_(iso, arrayField, op){
+  const fullOp = Object.assign({arrayPath:[arrayField]}, op);
+  const res = await window.storage.patchOps('day:'+iso, [fullOp], false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  return fresh;
+}
+// เหมือน writeDayArrayOp_ ด้านบนแต่สำหรับ key ที่เก็บค่าทั้งก้อนเป็นอาเรย์ล้วนๆ เอง ไม่ใช่ object ที่มีอาเรย์เป็นฟิลด์ย่อย
+// (เช่น debts/rawLots/wasteRecords) — setCache รับอาเรย์ล่าสุดไปอัปเดตตัวแปรแคชในเครื่องของแต่ละ key เอง (ชื่อไม่เหมือนกัน)
+async function writeRootArrayOp_(key, op, setCache){
+  const fullOp = Object.assign({arrayPath:[]}, op);
+  const res = await window.storage.patchOps(key, [fullOp], true);
+  let arr;
+  try{ arr = JSON.parse(res.value); }catch(e){ arr = []; }
+  if(!Array.isArray(arr)) arr = [];
+  setCache(arr);
+  return arr;
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
@@ -2610,16 +2633,14 @@ function renderExpenseList(){
   wrap.querySelectorAll('[data-expdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-expdel');
     if(!confirm('ลบรายจ่ายนี้?')) return;
-    const removed = dayData.expenses.find(x=>x.id===id);
-    const removedIdx = dayData.expenses.indexOf(removed);
-    dayData.expenses = removeFirstById(dayData.expenses, id);
+    const iso = currentDate;
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeDayArrayOp_(iso, 'expenses', {remove:{matchField:'id', matchValue:id}});
+      if(iso===currentDate) dayData = fresh;
       renderExpenseList();
       showToast('ลบรายจ่ายแล้ว');
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }catch(err){
-      if(removed && removedIdx>=0) dayData.expenses.splice(removedIdx, 0, removed);
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));
@@ -2633,25 +2654,23 @@ function renderExpenseList(){
   }));
   wrap.querySelectorAll('[data-expfieldsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-expfieldsave');
-    const e = dayData.expenses.find(x=>x.id===id);
-    if(!e) return;
     const category = document.getElementById(`expeditcat-${id}`).value;
     const seller = document.getElementById(`expeditpayee-${id}`).value;
     const note = document.getElementById(`expeditnote-${id}`).value.trim();
     const amount = Number(document.getElementById(`expeditamt-${id}`).value||0);
     if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-    const prev = {category:e.category, seller:e.seller, note:e.note, amount:e.amount};
-    Object.assign(e, {category, seller, note, amount});
+    const iso = currentDate;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeDayArrayOp_(iso, 'expenses', {matchField:'id', matchValue:id, set:{category, seller, note, amount}});
+      if(!(fresh.expenses||[]).some(x=>x.id===id)) throw new Error('รายการนี้ถูกลบไปแล้ว');
+      if(iso===currentDate) dayData = fresh;
       expenseFieldEditId = null;
       showToast('แก้ไขรายจ่ายแล้ว');
       renderExpenseList();
       renderStats();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     }catch(err){
-      Object.assign(e, prev);
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       btn.disabled = false; btn.textContent = 'บันทึก';
     }
@@ -2665,9 +2684,13 @@ async function addExpense(){
   const note = document.getElementById('expNote').value.trim();
   const amount = Number(document.getElementById('expAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.expenses.push({id: uid('e'), category, seller, note, amount, paid:false});
+  const iso = currentDate;
+  const expense = {id: uid('e'), category, seller, note, amount, paid:false};
+  // เพิ่มรายการแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทน push เข้า dayData แล้ว saveDay() ทั้งก้อน — เดิมถ้ามีคน
+  // อื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกต้นทุนซื้อพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคนแบบเงียบๆ
+  const fresh = await writeDayArrayOp_(iso, 'expenses', {push: expense});
+  if(iso===currentDate) dayData = fresh;
   showToast('เพิ่มรายจ่ายแล้ว');
-  await saveDay(currentDate, dayData);
   document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
   document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
   renderExpenseList();
@@ -5424,6 +5447,9 @@ async function addPurchase(){
     }
   }
   const wasNewEntry = !purchEditingId;
+  const iso = currentDate;
+  // เพิ่ม/แก้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push/set) แทน push/Object.assign เข้า dayData แล้ว saveDay() ทั้งก้อน
+  // — เดิมถ้ามีคนอื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกรายจ่ายพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคน
   if(purchEditingId){
     const existing = dayData.purchases.find(x=>x.id===purchEditingId);
     // รายการเบิกจากล็อต: ช่อง "สินค้า"/"จำนวนที่ทำได้" ถูกปิดไว้ไม่ให้แก้อยู่แล้ว (startEditPurchase) แต่กันเผื่อไว้อีกชั้น —
@@ -5435,15 +5461,16 @@ async function addPurchase(){
     const finalPrice = purchaseHasLotCostBasis_(existing)
       ? (qty>0 ? Math.round((purchaseLotTotalCost_(existing)/qty)*10000)/10000 : price)
       : price;
-    Object.assign(existing, {productId:finalProductId, seller, qty, price: finalPrice, extra, sellableQty: finalSellableQty, note});
+    const fresh = await writeDayArrayOp_(iso, 'purchases', {matchField:'id', matchValue:purchEditingId, set:{productId:finalProductId, seller, qty, price: finalPrice, extra, sellableQty: finalSellableQty, note}});
+    if(iso===currentDate) dayData = fresh;
     purchEditingId = null;
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
   }else{
-    dayData.purchases.push({id:uid('pu'), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false});
+    const fresh = await writeDayArrayOp_(iso, 'purchases', {push:{id:uid('pu'), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false}});
+    if(iso===currentDate) dayData = fresh;
     showToast('บันทึกต้นทุนซื้อแล้ว');
   }
-  await saveDay(currentDate, dayData);
   await autoFillLeftoverIfNeeded(productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
@@ -5574,12 +5601,11 @@ function renderPurchaseList(){
       ? `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้? (ของจะกลับไปเป็น "ค้างตัดต้นทุน" ในสต็อกล็อตเหมือนเดิม ไม่ได้ลบรอบเบิก)`
       : `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้?`;
     if(!confirm(confirmMsg)) return;
-    const prevList = dayData.purchases;
-    dayData.purchases = removeFirstById(dayData.purchases, id);
+    const iso = currentDate;
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeDayArrayOp_(iso, 'purchases', {remove:{matchField:'id', matchValue:id}});
+      if(iso===currentDate) dayData = fresh;
     }catch(e){
-      dayData.purchases = prevList;
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       return;
     }

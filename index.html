@@ -55,6 +55,20 @@
       if(!res.ok){ throw new Error('Network error: '+res.status); }
       const data = await res.json();
       return {keys: data.keys||[], prefix, shared:false};
+    },
+    // แก้ "แค่ฟิลด์เดียว" ภายในค่า JSON ของ key นั้นๆ โดยฝั่งเซิร์ฟเวอร์ล็อกกันชนกันจริงๆ (Apps Script v4 ขึ้นไป) — path
+    // เป็น array ไล่ชื่อฟิลด์ลงไป เช่น ['billingPaid','07'] ต่างจาก set() ที่เขียนทับค่าทั้งก้อนเสมอและไม่มีการล็อกใดๆ
+    // (เสี่ยงข้อมูลหายถ้าสองอุปกรณ์/สองแท็บบันทึก key เดียวกันใกล้ๆ กัน) ใช้จุดไหนที่เสี่ยงชนกันสูงแทน set()
+    async patchField(key, path, value){
+      const res = await withApiTimeout(fetch(SHEET_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'patchField', key, path, value})
+      }), 'patchField');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      if(data.error){ throw new Error(data.message||data.error); }
+      return {key: data.key, value: data.value, shared:false};
     }
   };
 
@@ -1126,40 +1140,18 @@ async function saveDay(iso, data){
   dayCache_[iso] = data; // keep the cache in sync with what was just saved
   writeDayToLocalStorage_(iso, data);
 }
-// อ่านข้อมูลวันนั้นสดจากเซิร์ฟเวอร์ตรงๆ เสมอ ไม่ผ่านแคชในหน่วยความจำ/เครื่องเลยไม่ว่าจะเป็นวันไหน — ต่างจาก loadDay()
-// ที่ยอมใช้แคชได้สำหรับวันที่ไม่ใหม่ ใช้เฉพาะจุดที่เสี่ยงชนกับการบันทึกคนอื่น/เครื่องอื่นพร้อมกันมากที่สุด (ดู writeBillingPaid_)
-async function loadDayFreshFromServer_(iso){
-  try{
-    const r = await window.storage.get('day:'+iso);
-    return normalizeDay_(JSON.parse(r.value));
-  }catch(e){
-    const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-    if(isNotFound) return emptyDay();
-    throw e;
-  }
-}
-// เขียนสถานะ "จ่ายแล้ว/รอจ่าย" ของบิลสาขาให้ปลอดภัยที่สุดเท่าที่ทำได้ฝั่ง client โดยไม่แตะ backend — saveDay() เขียนทับ
-// เอกสารของวันนั้นทั้งก้อนเสมอ (ไม่ใช่แก้เฉพาะฟิลด์) เดิมทุกจุดที่บันทึกสถานะจ่ายเงินใช้ข้อมูลวันนั้นที่โหลดไว้ตั้งแต่ตอน
-// เปิดฟอร์ม/เปิดหน้าจอ ซึ่งอาจเก่ากว่าความจริงไปแล้วหลายวินาทีถึงหลายนาที (ระหว่างผู้ใช้เลือกวันที่/พิมพ์ยอดโอน) — ถ้าช่วงนั้น
-// มีการบันทึกอื่นเข้ามาที่วันเดียวกัน (เช่น อีกเครื่อง/อีกคนกดจ่ายสาขาอื่นพร้อมกัน) การเขียนทับทั้งก้อนแบบนี้จะทำให้การ
-// เปลี่ยนแปลงนั้นหายไปเงียบๆ โดยไม่มีใครรู้ (สถานะจ่ายเงินเด้งกลับ/มั่วข้ามสาขา — ปัญหาที่เจอจริง) ฟังก์ชันนี้ลดความเสี่ยงโดย
-// (1) อ่านสดจากเซิร์ฟเวอร์ให้ใกล้เวลาที่จะเขียนที่สุด แทนที่จะใช้ข้อมูลเก่าที่โหลดไว้ก่อนหน้า ลดช่วงเวลาที่จะชนกันให้เหลือ
-// น้อยที่สุด (2) หลังบันทึกแล้วอ่านซ้ำอีกรอบเพื่อยืนยันว่าค่าที่ตั้งใจเขียนยังอยู่จริง ถ้าไม่ตรง (มีคนบันทึกชนกันในช่วงเสี้ยว
-// วินาทีที่เหลือ) จะโยน error ชัดเจนให้ผู้เรียกแจ้งผู้ใช้ แทนที่จะบอกว่า "บันทึกแล้ว" ทั้งที่อาจถูกทับไปแล้วจริงๆ — ไม่การันตี
-// ร้อยเปอร์เซ็นต์ (ต้องแก้ backend ให้เป็น transaction ถึงจะสมบูรณ์จริง) แต่ลดโอกาสเกิดและอย่างน้อยรู้ตัวทันทีถ้าเกิดขึ้น
+// เขียนสถานะ "จ่ายแล้ว/รอจ่าย" ของบิลสาขา — ใช้ window.storage.patchField() ซึ่ง Apps Script backend (v4 ขึ้นไป) ล็อก
+// การอ่าน-แก้-เขียนฟิลด์นี้ไว้เป็นสเต็ปเดียวฝั่งเซิร์ฟเวอร์ (LockService) ไม่มีช่วงเวลาให้คำขออื่นแทรกเข้ามาชนกันได้เลย —
+// เดิมทุกจุดที่บันทึกสถานะจ่ายเงินใช้ saveDay() ซึ่งเขียนทับเอกสารทั้งวันเสมอ โดยอ่านข้อมูลมาตั้งแต่ตอนเปิดฟอร์ม/หน้าจอ
+// (อาจเก่ากว่าความจริงไปแล้วหลายวินาทีถึงหลายนาที ระหว่างผู้ใช้เลือกวันที่/พิมพ์ยอดโอน) ถ้าระหว่างนั้นมีการบันทึกอื่นเข้ามา
+// ที่วันเดียวกัน (เช่น อีกเครื่อง/อีกคนกดจ่ายสาขาอื่นพร้อมกัน) การเขียนทับทั้งก้อนจะทำให้การเปลี่ยนแปลงนั้นหายไปเงียบๆ
+// (สถานะจ่ายเงินเด้งกลับ/มั่วข้ามสาขา — ปัญหาที่เจอจริง) ย้ายมาใช้ patchField แก้ที่รากของปัญหาโดยตรงแทนการลดโอกาสชน
+// เฉยๆ — สำคัญ: ต้อง deploy Apps Script เวอร์ชัน v4 (มี action "patchField") ก่อน ไม่งั้นฟังก์ชันนี้จะพังทุกครั้ง
 async function writeBillingPaid_(iso, code, value){
-  const fresh = await loadDayFreshFromServer_(iso);
-  fresh.billingPaid[code] = value;
-  await saveDay(iso, fresh);
-  const matches = (v)=> value===false ? !v.billingPaid[code] : JSON.stringify(v.billingPaid[code])===JSON.stringify(value);
-  let verify = await loadDayFreshFromServer_(iso);
-  if(!matches(verify)){
-    // เผื่อ backend มีดีเลย์สั้นๆ กว่าจะอ่านเห็นค่าที่เพิ่งเขียนไป (ไม่ใช่ทุก backend อ่าน-หลัง-เขียนแล้วเห็นค่าล่าสุดทันที)
-    // ลองอ่านซ้ำอีกครั้งก่อนสรุปว่าชนกันจริง กันแจ้งเตือน "ชนกัน" หลอกๆ ทั้งที่จริงๆ บันทึกสำเร็จแล้ว แค่อ่านเร็วไปหน่อย
-    await new Promise(r=>setTimeout(r, 700));
-    verify = await loadDayFreshFromServer_(iso);
-  }
-  if(!matches(verify)){ const err = new Error('บันทึกชนกับการบันทึกอื่นที่เกิดขึ้นพร้อมกัน'); err.isConflict = true; throw err; }
+  const res = await window.storage.patchField('day:'+iso, ['billingPaid', code], value);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์ เหมือนที่ saveDay() ทำ
+  writeDayToLocalStorage_(iso, fresh);
   return fresh;
 }
 
@@ -2108,7 +2100,7 @@ function renderBillingList(){
           renderBillingList();
           renderStats();
         }catch(e){
-          showToast(e && e.isConflict ? 'บันทึกชนกับการบันทึกอื่นที่เกิดขึ้นพร้อมกัน (อาจมีอีกเครื่อง/อีกคนกำลังบันทึกวันนี้อยู่) — เช็คสถานะแล้วลองใหม่' : 'บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+          showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
           btn.disabled = false;
         }
       }else{
@@ -2135,7 +2127,7 @@ function renderBillingList(){
         renderBillingList();
         renderStats();
       }catch(e){
-        showToast(e && e.isConflict ? 'บันทึกชนกับการบันทึกอื่นที่เกิดขึ้นพร้อมกัน (อาจมีอีกเครื่อง/อีกคนกำลังบันทึกวันนี้อยู่) — เช็คสถานะแล้วลองใหม่' : 'บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false; btn.textContent = 'ยืนยัน';
       }
     });
@@ -3312,7 +3304,7 @@ async function renderOutstanding(){
         if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
         renderStats();
       }catch(e){
-        showToast(e && e.isConflict ? 'บันทึกชนกับการบันทึกอื่นที่เกิดขึ้นพร้อมกัน (อาจมีอีกเครื่อง/อีกคนกำลังบันทึกวันเดียวกันอยู่) — เช็คสถานะแล้วลองใหม่' : 'บันทึกไม่สำเร็จ เช็คอินเทอร์เน็ตแล้วลองใหม่');
+        showToast('บันทึกไม่สำเร็จ เช็คอินเทอร์เน็ตแล้วลองใหม่');
         btn.disabled = false; btn.textContent = 'ยืนยัน';
       }
     }));
@@ -6143,14 +6135,14 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
           if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
           succeeded.push(iso);
         }catch(e){
-          failed.push({iso, conflict: !!(e && e.isConflict)});
+          failed.push({iso});
         }
       }
       confirmBtn.disabled = false; confirmBtn.textContent = 'ยืนยันว่าชำระแล้ว';
       if(failed.length===0){
         showToast(isos.length>1 ? `บันทึกชำระรวม ${isos.length} บิลแล้ว` : 'บันทึกว่าโอนแล้ว');
       }else if(succeeded.length===0){
-        showToast(`บันทึกไม่สำเร็จเลยทั้ง ${failed.length} บิล (เน็ตมีปัญหา หรือชนกับการบันทึกอื่น?) ลองใหม่อีกครั้ง`);
+        showToast(`บันทึกไม่สำเร็จเลยทั้ง ${failed.length} บิล (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง`);
       }else{
         const failedDates = failed.map(f=>formatDDMMYYYY(f.iso)).join(', ');
         alert(`บันทึกสำเร็จ ${succeeded.length}/${isos.length} บิล — ที่ยังไม่สำเร็จ: ${failedDates}\n\nบิลที่ไม่สำเร็จยังอยู่ในสถานะ "รอโอน" เหมือนเดิม (ไม่ได้ถูกทำเครื่องหมายผิดๆ ว่าจ่ายแล้ว) กรุณาเลือกบิลที่เหลือแล้วกดยืนยันซ้ำอีกครั้ง`);
@@ -6344,7 +6336,7 @@ async function toggleBranchBillPaidQuick(iso, code, btn){
     if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
     if(outstandingBranchFilterValue===code) await renderOutstanding();
   }catch(e){
-    showToast(e && e.isConflict ? 'บันทึกชนกับการบันทึกอื่นที่เกิดขึ้นพร้อมกัน (อาจมีอีกเครื่อง/อีกคนกำลังบันทึกวันนี้อยู่) — เช็คสถานะแล้วลองใหม่' : 'บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
+    showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
     if(btn) btn.disabled = false;
   }
 }

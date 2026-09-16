@@ -171,6 +171,7 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
 .card h3{font-size:15px;color:var(--text);margin-bottom:10px;}
 .card .hint{color:var(--text-faint);font-size:12px;margin-top:4px;text-align:left;}
+.subhint{font-size:11px;font-weight:400;color:var(--text-faint);}
 .card h3.collapsible{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0;user-select:none;}
 .card h3.collapsible .chev{font-size:12px;color:var(--text-faint);transition:transform .2s;flex:none;}
 .card h3.collapsible.open .chev{transform:rotate(180deg);}
@@ -385,7 +386,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="dashTrend" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>⚠️ สาขาที่ต้องติดตามด่วน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
+      <h3>⚠️ สาขาที่ต้องติดตามด่วน <span class="subhint">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
       <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
       <select id="dashBranchSelect" style="display:none;"></select>
       <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
@@ -432,7 +433,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card" data-no-collapse="1">
       <div id="leftoverLotStockToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 id="leftoverLotStockHeader" style="margin:0;">📦 วัตถุดิบล็อตคงเหลือ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ยังไม่ได้เบิกใช้)</span></h3>
+        <h3 id="leftoverLotStockHeader" style="margin:0;">📦 วัตถุดิบล็อตคงเหลือ <span class="subhint">(ยังไม่ได้เบิกใช้)</span></h3>
         <span id="leftoverLotStockChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="leftoverLotStockBody">
@@ -473,13 +474,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </table>
     </div>
     <div class="card">
-      <h3>📊 สรุปรายเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(สไตล์ตารางสะสมยอด)</span></h3>
+      <h3>📊 สรุปรายเดือน <span class="subhint">(สไตล์ตารางสะสมยอด)</span></h3>
       <div class="hint">ไม่รวมสาขา "แยกส่ง" — ตารางนี้คือยอดที่ใช้คิดค่าธรรมเนียมจ่ายบริษัทเท่านั้น</div>
       <div class="field"><label>เดือน</label><input type="month" id="monthInput"></div>
       <div id="monthLedger" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(แยกตามสินค้า)</span></h3>
+      <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน <span class="subhint">(แยกตามสินค้า)</span></h3>
       <div id="monthProductSummary" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -508,7 +509,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div id="lotSettleCards"></div>
     <div class="card" data-no-collapse="1">
       <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 style="margin:0;">📋 ล็อตที่มีอยู่ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(แยกตามบิล)</span></h3>
+        <h3 style="margin:0;">📋 ล็อตที่มีอยู่ <span class="subhint">(แยกตามบิล)</span></h3>
         <span id="lotListChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="lotListBody">
@@ -517,14 +518,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="card">
-      <h3>📋 รายการต้นทุนซื้อวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(รายละเอียดแยกสินค้า)</span></h3>
+      <h3>📋 รายการต้นทุนซื้อวันนี้ <span class="subhint">(รายละเอียดแยกสินค้า)</span></h3>
       <div class="hint">เช็คว่าที่เพิ่งกรอกไปถูกต้องหรือเปล่า ก่อนไปดูสรุปตามผู้ขาย</div>
       <div id="purchaseGapsToday" style="margin-bottom:8px;"></div>
       <div id="purchaseList" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card" data-no-collapse="1">
       <div id="billSummaryToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 style="margin:0;">🧾 สรุปบิลวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(รอจ่าย/จ่ายแล้ว)</span></h3>
+        <h3 style="margin:0;">🧾 สรุปบิลวันนี้ <span class="subhint">(รอจ่าย/จ่ายแล้ว)</span></h3>
         <span id="billSummaryChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="billSummaryBody">
@@ -574,7 +575,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="card">
-      <h3>💸 รายจ่ายกิจการวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</span></h3>
+      <h3>💸 รายจ่ายกิจการวันนี้ <span class="subhint">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</span></h3>
       <div class="field">
         <label>หมวด</label>
         <select id="expCategory"></select>
@@ -586,7 +587,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint" style="margin-top:8px;">รายการที่บันทึกแล้ว ดูและเปลี่ยนสถานะจ่าย/รอจ่ายได้ที่การ์ด "สรุปบิลวันนี้" ด้านบน</div>
     </div>
     <div class="card">
-      <h3>📊 สรุปต้นทุนรายเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">แยกตามสินค้า — รายงาน/สรุปภาพรวม ไม่ใช่การกรอกข้อมูล</span></h3>
+      <h3>📊 สรุปต้นทุนรายเดือน <span class="subhint">แยกตามสินค้า — รายงาน/สรุปภาพรวม ไม่ใช่การกรอกข้อมูล</span></h3>
       <div class="field"><label>เดือน</label><input type="month" id="purMonthInput"></div>
       <div id="purMonthSummary" class="loading">กำลังโหลด…</div>
     </div>
@@ -611,7 +612,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="billingList"></div>
     </div>
     <div class="card">
-      <h3>⏳ รายการที่ต้องตามโอน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ทุกวันที่ยังไม่ปิด)</span></h3>
+      <h3>⏳ รายการที่ต้องตามโอน <span class="subhint">(ทุกวันที่ยังไม่ปิด)</span></h3>
       <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
@@ -687,7 +688,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
   <div class="panel" id="panel-settings">
     <div class="card">
-      <h3>💲 ประวัติราคาขายสินค้า <span style="font-size:11px;font-weight:400;color:var(--text-faint);">รองรับกรอกย้อนหลัง</span></h3>
+      <h3>💲 ประวัติราคาขายสินค้า <span class="subhint">รองรับกรอกย้อนหลัง</span></h3>
       <div class="field">
         <label>เลือกสินค้า</label>
         <select id="priceProductSelect"></select>
@@ -729,7 +730,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveBranchesBtn" style="margin-top:8px;">บันทึกรายชื่อสาขา</button>
     </div>
     <div class="card">
-      <h3>🚚 รายชื่อผู้ขาย/แหล่งซื้อ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ต้นทุน)</span></h3>
+      <h3>🚚 รายชื่อผู้ขาย/แหล่งซื้อ <span class="subhint">(ต้นทุน)</span></h3>
       <div id="purchSellerSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newPurchSeller" placeholder="เช่น ม๊ะก๊าด, มนต์, พี่พัฒน์/ตลาด">
@@ -1783,8 +1784,8 @@ async function renderLeftover(){
   const leftIn = prevDay.leftoverOut || {};
   const prevSince = prevDay.leftoverSince || {};
   document.getElementById('leftoverActiveDate').textContent = formatDDMMYYYY(currentDate);
-  document.getElementById('leftoverInHeader').innerHTML = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(จากวันที่ ${formatDDMMYYYY(prevIso)})</span>`;
-  document.getElementById('leftoverOutHeader').innerHTML = `👉🏻 เหลือจากวันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(หักออกวันที่ ${formatDDMMYYYY(nextIso)})</span>`;
+  document.getElementById('leftoverInHeader').innerHTML = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(จากวันที่ ${formatDDMMYYYY(prevIso)})</span>`;
+  document.getElementById('leftoverOutHeader').innerHTML = `👉🏻 เหลือจากวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(หักออกวันที่ ${formatDDMMYYYY(nextIso)})</span>`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
   // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
@@ -1813,21 +1814,21 @@ async function renderLeftover(){
     // (ตอน atRisk มีปุ่มแดงให้กดอยู่แล้ว ไม่ต้องซ้ำ)
     const claimTriggerLine = (!atRisk && !wasteFormOpen) ? `<div class="lrow-hint"><button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;font-size:11px;">🗑️ บันทึกของเสีย/เคลม</button></div>` : '';
     const wasteFormHtml = wasteFormOpen ? `<div style="margin-top:6px;padding:8px;border:1px solid var(--danger);border-radius:8px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">เหตุผล</label>
+      <label>เหตุผล</label>
       <select id="wasteReason-${id}">
         <option value="waste">ของเสียทั่วไป (มีของเหลือค้างอยู่ในมือ ตัดทิ้ง)</option>
         <option value="claim">เคลมจากสาขา (ส่งไปแล้ว สาขาแจ้งว่าเสีย)</option>
       </select>
-      <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จำนวน (${p.unit}) — สำหรับเคลม คือจำนวนที่ส่งชดเชยให้สาขาใหม่</label>
+      <label style="margin-top:6px;">จำนวน (${p.unit}) — สำหรับเคลม คือจำนวนที่ส่งชดเชยให้สาขาใหม่</label>
       <input type="number" min="0" step="0.1" inputmode="decimal" id="wasteQty-${id}" value="${currentOnHand}">
-      <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">หมายเหตุ (ถ้ามี)</label>
+      <label style="margin-top:6px;">หมายเหตุ (ถ้ามี)</label>
       <input type="text" id="wasteNote-${id}" placeholder="เช่น กลิ่นเปลี่ยน สีคล้ำ หรือชื่อสาขาที่เคลม">
       <div class="hint" style="margin-top:4px;">ทั้งสองแบบหักออกจากยอดของเหลือค้างวันนี้เหมือนกัน (ของที่ส่งออกจริงต้องมาจากของที่มีอยู่ในมือตอนนี้) และถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน — ต่างกันแค่ "เคลม" ไม่กระทบยอดเงินในบิลสาขา</div>
       <div id="wasteClaimBillFields-${id}" style="display:none;margin-top:8px;padding:8px;border-radius:8px;background:var(--surface-3);">
-        <label style="font-size:11.5px;color:var(--text-dim);">แจ้งในบิลสาขา (ถ้ามี — แค่ข้อความแจ้งเฉยๆ ไม่มียอดเงินเพิ่ม)</label>
+        <label>แจ้งในบิลสาขา (ถ้ามี — แค่ข้อความแจ้งเฉยๆ ไม่มียอดเงินเพิ่ม)</label>
         <select id="wasteClaimBranch-${id}"><option value="">— ไม่ต้องแจ้งในบิล —</option>${settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('')}</select>
         <input type="text" id="wasteClaimBillNote-${id}" placeholder="ข้อความที่จะโชว์ในบิล เช่น เคลมสินค้าใน Order #xxxxxx" style="margin-top:6px;">
-        <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">วันที่บิล (วันที่ส่งเคลมจริง — จะโชว์ข้อความนี้ในบิลของวันนั้น)</label>
+        <label style="margin-top:6px;">วันที่บิล (วันที่ส่งเคลมจริง — จะโชว์ข้อความนี้ในบิลของวันนั้น)</label>
         <input type="date" id="wasteClaimBillDate-${id}" value="${currentDate}">
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
@@ -2135,7 +2136,7 @@ function renderBillingList(){
           <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-          <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+          <label style="flex:none;">โอนจริง</label>
           <input type="number" step="1" id="payamt-${code}" value="${amt}" placeholder="${amt}" style="flex:1;">
         </div>
         <div class="hint" style="margin-top:4px;">ถ้าโอนไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "โอนจริง" ให้ตรงกับที่ได้รับจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
@@ -2490,13 +2491,13 @@ function renderExpenseList(){
       </div>
       <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${(showDatePicker||fieldEditOpen)?'':'none'};">
         ${fieldEditOpen ? `<div style="margin-top:2px;">
-          <label style="font-size:11.5px;color:var(--text-dim);">หมวด</label>
+          <label>หมวด</label>
           <select id="expeditcat-${e.id}">${categoryOptionsForEdit.map(c=>`<option value="${c}" ${c===e.category?'selected':''}>${c}</option>`).join('')}</select>
-          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จ่ายให้ใคร (ถ้ามี)</label>
+          <label style="margin-top:6px;">จ่ายให้ใคร (ถ้ามี)</label>
           <select id="expeditpayee-${e.id}"><option value="">— ไม่ระบุ —</option>${payeeOptionsForEdit.map(s=>`<option value="${s}" ${s===(e.seller||'')?'selected':''}>${s}</option>`).join('')}</select>
-          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">รายละเอียด (ถ้ามี)</label>
+          <label style="margin-top:6px;">รายละเอียด (ถ้ามี)</label>
           <input type="text" id="expeditnote-${e.id}" value="${(e.note||'').replace(/"/g,'&quot;')}" placeholder="เช่น น้ำแข็ง 5 ถุง">
-          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">จำนวนเงิน</label>
+          <label style="margin-top:6px;">จำนวนเงิน</label>
           <input type="number" step="1" id="expeditamt-${e.id}" value="${e.amount}">
           <div style="display:flex;gap:6px;margin-top:8px;">
             <button class="btn small" data-expfieldsave="${e.id}" style="width:auto;">บันทึก</button>
@@ -3292,7 +3293,7 @@ async function renderOutstanding(){
         <div style="margin-top:8px;display:none;" data-outstandingeditor="${key}">
           <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
           <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-            <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+            <label style="flex:none;">โอนจริง</label>
             <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
           </div>
           <div style="display:flex;gap:6px;margin-top:6px;">
@@ -3965,7 +3966,7 @@ async function renderPendingStockValueCard_(){
   if(items.length===0){ wrap.innerHTML=''; return; }
   wrap.innerHTML = `<div class="card" style="border-color:var(--accent);">
     <div id="pendingStockValueToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;">
-      <h3 style="margin:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">💰 เงินค้างสต็อก <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(เบิกมาทำไว้แล้ว ยังไม่ตัดต้นทุน)</span> <span class="num" style="color:var(--accent);font-size:15px;">${money(totalValue)}</span></h3>
+      <h3 style="margin:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">💰 เงินค้างสต็อก <span class="subhint">(เบิกมาทำไว้แล้ว ยังไม่ตัดต้นทุน)</span> <span class="num" style="color:var(--accent);font-size:15px;">${money(totalValue)}</span></h3>
       <span id="pendingStockValueChevron" style="font-size:14px;color:var(--accent);flex:none;">${pendingStockValueOpen?'▾':'▸'}</span>
     </div>
     <div id="pendingStockValueBody" style="display:${pendingStockValueOpen?'':'none'};margin-top:8px;">
@@ -4240,13 +4241,13 @@ function renderLotItemRows(){
   const wrap = document.getElementById('lotItemRows');
   wrap.innerHTML = lotFormRows.map((row,i)=>`
     <div class="grid7" style="margin-bottom:6px;align-items:end;" data-lotrow="${row.rid}">
-      <div style="grid-column:1/3;"><label style="font-size:11.5px;color:var(--text-dim);">สินค้า</label>
+      <div style="grid-column:1/3;"><label>สินค้า</label>
         <select data-lotrowproduct="${row.rid}">${PRODUCTS.map(p=>`<option value="${p.id}" ${p.id===row.productId?'selected':''}>${p.emoji} ${p.name}</option>`).join('')}</select>
       </div>
     </div>
     <div class="grid7" style="margin-bottom:10px;">
-      <div><label style="font-size:11.5px;color:var(--text-dim);">จำนวนซื้อ (กก.)</label><input type="number" step="0.01" data-lotrowqty="${row.rid}" value="${row.qty}" placeholder="0"></div>
-      <div><label style="font-size:11.5px;color:var(--text-dim);">ราคา/กก.</label><input type="number" step="0.01" data-lotrowprice="${row.rid}" value="${row.price}" placeholder="0"></div>
+      <div><label>จำนวนซื้อ (กก.)</label><input type="number" step="0.01" data-lotrowqty="${row.rid}" value="${row.qty}" placeholder="0"></div>
+      <div><label>ราคา/กก.</label><input type="number" step="0.01" data-lotrowprice="${row.rid}" value="${row.price}" placeholder="0"></div>
       <div>${lotFormRows.length>1?`<button type="button" class="iconbtn" data-lotrowdel="${row.rid}" aria-label="ลบสินค้านี้" style="margin-top:18px;">✕</button>`:''}</div>
     </div>`).join('');
   wrap.querySelectorAll('[data-lotrowproduct]').forEach(sel=>sel.addEventListener('change', ()=>{
@@ -4359,7 +4360,7 @@ async function renderLotStockSummary(){
   const body = document.getElementById('leftoverLotStockBody');
   const chevron = document.getElementById('leftoverLotStockChevron');
   const headerEl = document.getElementById('leftoverLotStockHeader');
-  if(headerEl) headerEl.innerHTML = `📦 วัตถุดิบล็อตคงเหลือ ณ วันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ยังไม่ได้เบิกใช้)</span>`;
+  if(headerEl) headerEl.innerHTML = `📦 วัตถุดิบล็อตคงเหลือ ณ วันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(ยังไม่ได้เบิกใช้)</span>`;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   let lots;
   try{ lots = await loadRawLots(); }
@@ -4430,7 +4431,7 @@ async function renderLotList(preloadedLots){
     ${multiLotDrawOpen ? `
     <div class="hint" style="margin-top:6px;">กรอกยอดรวมที่ใช้/ที่ได้ครั้งเดียว ระบบจะหักลบให้อัตโนมัติจากล็อตที่ซื้อมาก่อนสุดไปหาล่าสุด (FIFO) จนครบยอด</div>
     <div style="margin-top:8px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">สินค้า</label>
+      <label>สินค้า</label>
       <select id="multiLotProduct">${activeProductIds.map(pid=>{
         const p = PRODUCTS.find(x=>x.id===pid);
         const remainTotal = Math.round(lots.filter(l=>l.productId===pid && lotRemaining(l)>0).reduce((s,l)=>s+lotRemaining(l),0)*100)/100;
@@ -4438,13 +4439,13 @@ async function renderLotList(preloadedLots){
       }).join('')}</select>
     </div>
     <div class="grid7" style="margin-top:8px;">
-      <div><label style="font-size:11.5px;color:var(--text-dim);">ใช้ไปกี่กก.รวมทั้งหมด (เบิก)</label>
+      <div><label>ใช้ไปกี่กก.รวมทั้งหมด (เบิก)</label>
         <div style="display:flex;gap:6px;">
           <input type="number" step="0.01" id="multiLotQty" placeholder="0" style="flex:1;">
           <button type="button" id="multiLotQtyAllBtn" class="btn small secondary" style="width:auto;flex:none;padding:0 12px;font-size:12px;">ทั้งหมด</button>
         </div>
       </div>
-      <div><label style="font-size:11.5px;color:var(--text-dim);">ทำได้ทั้งหมดรวมกัน</label><input type="number" step="0.01" id="multiLotSellable" placeholder="0"></div>
+      <div><label>ทำได้ทั้งหมดรวมกัน</label><input type="number" step="0.01" id="multiLotSellable" placeholder="0"></div>
     </div>
     <input type="text" id="multiLotNote" placeholder="หมายเหตุ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
     <div style="display:flex;gap:6px;margin-top:8px;">
@@ -4503,13 +4504,13 @@ async function renderLotList(preloadedLots){
         ${lot.note?`<div style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">📝 ${lot.note}</div>`:''}
         ${drawOpen? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-3);">
           <div class="grid7">
-            <div><label style="font-size:11.5px;color:var(--text-dim);">ใช้ไปกี่กก.วันนี้ (เบิก)</label>
+            <div><label>ใช้ไปกี่กก.วันนี้ (เบิก)</label>
               <div style="display:flex;gap:6px;">
                 <input type="number" step="0.01" id="lotDrawQty-${lot.id}" placeholder="0" style="flex:1;">
                 <button type="button" class="iconbtn" data-lotdrawallbtn="${lot.id}" aria-label="เบิกทั้งล็อต" title="เบิกทั้งล็อต (เหลือ ${remain} กก.)" style="flex:none;">📥</button>
               </div>
             </div>
-            <div><label style="font-size:11.5px;color:var(--text-dim);">ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
+            <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
           </div>
           <div class="hint" style="margin-top:4px;">ช่อง "ทำได้ทั้งหมด" คือจำนวนที่แปรรูปได้จากของที่เบิกมา ไม่ใช่จำนวนที่ขายได้จริงวันนี้${LEFTOVER_IDS.includes(lot.productId)?' — ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก (เช่น เบิก 15 ทำได้ 14.5 ขายจริง 14 เหลือ 0.5 → กรอกเหลือ 0.5 ที่นั่น)':''}</div>
           <input type="text" id="lotDrawNote-${lot.id}" placeholder="หมายเหตุ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
@@ -4528,8 +4529,8 @@ async function renderLotList(preloadedLots){
               if(editing){
                 return `<div style="margin:6px 0;padding:8px;border-radius:8px;background:var(--surface-3);">
                   <div class="grid7">
-                    <div><label style="font-size:11px;color:var(--text-dim);">ใช้ไปกี่กก. (เบิก)</label><input type="number" step="0.01" id="lotDrawEditQty-${d.id}" value="${d.qtyUsed}"></div>
-                    <div><label style="font-size:11px;color:var(--text-dim);">ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
+                    <div><label>ใช้ไปกี่กก. (เบิก)</label><input type="number" step="0.01" id="lotDrawEditQty-${d.id}" value="${d.qtyUsed}"></div>
+                    <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
                   </div>
                   <input type="text" id="lotDrawEditNote-${d.id}" value="${(d.note||'').replace(/"/g,'&quot;')}" placeholder="หมายเหตุ" style="margin-top:6px;font-size:12px;">
                   <div style="display:flex;gap:6px;margin-top:6px;">
@@ -4852,9 +4853,9 @@ async function renderLotTransportList(){
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
         ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${b.note}</div>`:''}
         ${fieldEditOpen ? `<div style="margin-top:8px;">
-          <label style="font-size:11.5px;color:var(--text-dim);">ยอดบิล</label>
+          <label>ยอดบิล</label>
           <input type="number" step="1" id="lottransamt-${b.id}" value="${b.amount}">
-          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
+          <label style="margin-top:6px;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
           <input type="text" id="lottransnote-${b.id}" value="${(b.note||'').replace(/"/g,'&quot;')}" placeholder="เช่น ค่าขนส่งเที่ยวพิเศษ">
           <div style="display:flex;gap:6px;margin-top:6px;">
             <button class="btn small" data-lottransfieldsave="${b.id}" style="width:auto;">บันทึก</button>
@@ -4868,7 +4869,7 @@ async function renderLotTransportList(){
           <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-          <label style="flex:none;font-size:12px;color:var(--text-dim);">จ่ายจริง</label>
+          <label style="flex:none;">จ่ายจริง</label>
           <input type="number" step="1" id="lottranspaidamt-${b.id}" value="${b.amount}" placeholder="${b.amount}" style="flex:1;">
         </div>
         <div class="hint" style="margin-top:4px;">ถ้าจ่ายไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "จ่ายจริง" ให้ตรงกับที่จ่ายจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
@@ -5007,9 +5008,9 @@ async function renderLotProductBillList(){
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
         ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${b.note}</div>`:''}
         ${fieldEditOpen ? `<div style="margin-top:8px;">
-          <label style="font-size:11.5px;color:var(--text-dim);">ยอดบิล</label>
+          <label>ยอดบิล</label>
           <input type="number" step="1" id="lotprodamt-${b.id}" value="${b.amount}">
-          <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
+          <label style="margin-top:6px;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
           <input type="text" id="lotprodnote-${b.id}" value="${(b.note||'').replace(/"/g,'&quot;')}" placeholder="เช่น ราคาพิเศษเพราะซื้อเยอะ">
           <div style="display:flex;gap:6px;margin-top:6px;">
             <button class="btn small" data-lotprodfieldsave="${b.id}" style="width:auto;">บันทึก</button>
@@ -5023,7 +5024,7 @@ async function renderLotProductBillList(){
           <input type="date" id="lotproddate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-          <label style="flex:none;font-size:12px;color:var(--text-dim);">จ่ายจริง</label>
+          <label style="flex:none;">จ่ายจริง</label>
           <input type="number" step="1" id="lotprodpaidamt-${b.id}" value="${b.amount}" placeholder="${b.amount}" style="flex:1;">
         </div>
         <div class="hint" style="margin-top:4px;">ถ้าจ่ายไม่ตรงยอดบิล (ขาด/เกิน) แก้ตัวเลขช่อง "จ่ายจริง" ให้ตรงกับที่จ่ายจริงได้เลย ระบบจะคำนวณส่วนต่างให้อัตโนมัติ</div>
@@ -5390,7 +5391,7 @@ function renderPurchaseGroups(){
       <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${showDatePicker?'':'none'};">
         <div class="hint" style="margin-top:6px;">${itemsText}</div>
         <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-          <label style="flex:none;font-size:12px;color:var(--text-dim);">ค่าใช้จ่ายเพิ่มเติม(+/-)</label>
+          <label style="flex:none;">ค่าใช้จ่ายเพิ่มเติม(+/-)</label>
           <input type="number" step="1" data-groupextra="${seller}" value="${info.extra||''}" placeholder="0 = ยอดตรงกับรายการด้านบน">
         </div>
         <input type="text" data-groupnote="${seller}" value="${info.note||''}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
@@ -6087,7 +6088,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
         <div class="hint">เลือกแล้ว <b id="branchPaySelCount">0</b> บิล ยอดบิลรวม <b id="branchPaySelSum">฿0</b></div>
         <input type="date" id="branchPayDate" value="${lastUsedPayDate}" style="margin-top:8px;width:100%;">
         <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-          <label style="flex:none;font-size:12px;color:var(--text-dim);">โอนจริง</label>
+          <label style="flex:none;">โอนจริง</label>
           <input type="number" step="1" id="branchPayAmount" style="flex:1;">
         </div>
         <div class="hint" style="margin-top:4px;">ถ้าโอนไม่ตรงยอดบิลรวม (ขาด/เกิน) หรือโอนรวมหลายบิลมาทีเดียว แก้ตัวเลขช่อง "โอนจริง" ให้ตรงกับที่ได้รับจริงได้เลย</div>
@@ -6439,7 +6440,7 @@ async function renderDashboard(){
   const day14Map = await loadDaysBulk(days14);
 
   const totalUnpaidCount = Object.values(aggAll).reduce((s,a)=>s+a.unpaidCount,0);
-  document.getElementById('dashUnpaid').innerHTML = `${totalUnpaidCount} บิล <span style="font-size:10.5px;font-weight:400;color:var(--text-faint);">(ทุกวัน)</span>`;
+  document.getElementById('dashUnpaid').innerHTML = `${totalUnpaidCount} บิล <span class="subhint">(ทุกวัน)</span>`;
   document.getElementById('dashPayableToday').textContent = money(payables.total);
   // เงินที่โอนเข้าจริงวันนี้ (นับทุกบิลที่โอนวันนี้ ไม่ว่าจะเป็นบิลของวันไหนก็ตาม) — คู่กับ "รอจ่ายทั้งหมด" ให้เห็นเงินเข้า-ออกคู่กัน และให้กริดลงตัวพอดี
   let paidTodayTotal = 0;
@@ -6707,7 +6708,9 @@ function guardedClick(btnId, fn){
 }
 function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
-  const collapsedByDefaultKeywords = ['เพิ่มล็อตใหม่']; // หัวข้อนอกหน้าตั้งค่าที่พับไว้ก่อนเป็นค่าเริ่มต้น เพราะยาว/ไม่ค่อยได้แก้บ่อย
+  // หัวข้อนอกหน้าตั้งค่าที่พับไว้ก่อนเป็นค่าเริ่มต้น: "เพิ่มล็อตใหม่" เพราะยาว/ไม่ค่อยได้แก้บ่อย ส่วนที่เหลือเป็นการ์ดรายงาน/สรุปย้อนหลัง
+  // (ดูเป็นครั้งคราว ไม่ใช่ทุกวัน) พับไว้ก่อนกันจอรกตั้งแต่เปิดแท็บมา กดกางดูได้เองเมื่อต้องการ
+  const collapsedByDefaultKeywords = ['เพิ่มล็อตใหม่', 'สรุปรวมรายปี', 'สรุปต้นทุนรายเดือน', 'สรุปรายเดือน', 'สรุปยอดโอนบริษัทสิ้นเดือน'];
   document.querySelectorAll('.panel .card').forEach(card=>{
     if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');

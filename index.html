@@ -906,7 +906,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -1031,6 +1031,7 @@ function branchShortLabel(code){ return code==='00' ? 'ธง' : code.replace(/^
 function normalizeDay_(d){
   d.orders = d.orders || {}; d.leftoverOut = d.leftoverOut || {}; d.leftoverSince = d.leftoverSince || {}; // วันที่เริ่มค้างของของเหลือแต่ละสินค้า (รอบปัจจุบัน) ใช้คำนวณความเสี่ยงเสีย
   d.billingPaid = d.billingPaid || {}; d.billExtra = d.billExtra || {}; d.billNote = d.billNote || {}; d.expenses = d.expenses || [];
+  d.billClaimNotes = d.billClaimNotes || {}; // ข้อความแจ้งเคลม (ไม่มียอดเพิ่ม) ที่โชว์ในบิลของสาขานั้นจริงๆ — ต่างจาก billNote ที่เป็นโน้ตภายใน ไม่โชว์ในบิลที่พิมพ์
   d.personalIncome = d.personalIncome || []; d.personalExpense = d.personalExpense || [];
   d.purchases = d.purchases || [];
   d.purchaseGroupPayment = d.purchaseGroupPayment || {};
@@ -1734,7 +1735,14 @@ async function renderLeftover(){
       <input type="number" min="0" step="0.1" inputmode="decimal" id="wasteQty-${id}" value="${currentOnHand}">
       <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">หมายเหตุ (ถ้ามี)</label>
       <input type="text" id="wasteNote-${id}" placeholder="เช่น กลิ่นเปลี่ยน สีคล้ำ หรือชื่อสาขาที่เคลม">
-      <div class="hint" style="margin-top:4px;">ทั้งสองแบบหักออกจากยอดของเหลือค้างวันนี้เหมือนกัน (ของที่ส่งออกจริงต้องมาจากของที่มีอยู่ในมือตอนนี้) และถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน — ต่างกันแค่ "เคลม" ไม่กระทบบิลสาขา (ของที่เสียถูกตัดไปแล้วตอนเคลม ของใหม่ที่ส่งไปให้ฟรี ไม่มีบิลมาหักออกให้)</div>
+      <div class="hint" style="margin-top:4px;">ทั้งสองแบบหักออกจากยอดของเหลือค้างวันนี้เหมือนกัน (ของที่ส่งออกจริงต้องมาจากของที่มีอยู่ในมือตอนนี้) และถูกหักเป็นต้นทุน/กำไรในสรุปรายเดือนเหมือนกัน — ต่างกันแค่ "เคลม" ไม่กระทบยอดเงินในบิลสาขา</div>
+      <div id="wasteClaimBillFields-${id}" style="display:none;margin-top:8px;padding:8px;border-radius:8px;background:var(--surface-3);">
+        <label style="font-size:11.5px;color:var(--text-dim);">แจ้งในบิลสาขา (ถ้ามี — แค่ข้อความแจ้งเฉยๆ ไม่มียอดเงินเพิ่ม)</label>
+        <select id="wasteClaimBranch-${id}"><option value="">— ไม่ต้องแจ้งในบิล —</option>${settings.branches.map(b=>`<option value="${b.code}">${branchDisplayName(b)}</option>`).join('')}</select>
+        <input type="text" id="wasteClaimBillNote-${id}" placeholder="ข้อความที่จะโชว์ในบิล เช่น เคลมสินค้าใน Order #xxxxxx" style="margin-top:6px;">
+        <label style="font-size:11.5px;color:var(--text-dim);margin-top:6px;display:block;">วันที่บิล (วันที่ส่งเคลมจริง — จะโชว์ข้อความนี้ในบิลของวันนั้น)</label>
+        <input type="date" id="wasteClaimBillDate-${id}" value="${currentDate}">
+      </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button class="btn small" data-wastesave="${id}" style="width:auto;">บันทึก</button>
         <button class="btn small secondary" data-wastecancel="${id}" style="width:auto;">ยกเลิก</button>
@@ -1760,6 +1768,12 @@ async function renderLeftover(){
   document.querySelectorAll('[data-wastecancel]').forEach(btn=>btn.addEventListener('click', ()=>{
     wasteEditPid = null;
     renderLeftover();
+  }));
+  // ช่อง "แจ้งในบิลสาขา" มีประโยชน์แค่ตอนเลือกเหตุผล "เคลม" เท่านั้น — โผล่/ซ่อนตามที่เลือกในช่อง "เหตุผล" สด ไม่ต้องเรนเดอร์ใหม่ทั้งฟอร์ม
+  document.querySelectorAll('[id^="wasteReason-"]').forEach(sel=>sel.addEventListener('change', ()=>{
+    const pid = sel.id.replace('wasteReason-','');
+    const fieldsEl = document.getElementById(`wasteClaimBillFields-${pid}`);
+    if(fieldsEl) fieldsEl.style.display = sel.value==='claim' ? '' : 'none';
   }));
   document.querySelectorAll('[data-wastesave]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(wasteActionInFlight) return;
@@ -1803,8 +1817,29 @@ async function renderLeftover(){
       }
       if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
       await saveDay(currentDate, dayData);
+      // ข้อความแจ้งเคลมในบิลสาขา (ถ้ามีการกรอก) — เป็นส่วนเสริมนอกเหนือจากตัวเคลมเอง (ตัวเคลมบันทึกสำเร็จไปแล้วข้างบน)
+      // จึงทำแยก try/catch ของตัวเอง ไม่ให้พังตรงนี้แล้วดันลบเคลมที่บันทึกสำเร็จไปแล้วทิ้งไปด้วย (คนละเรื่องกัน)
+      let billNoteWarning = '';
+      if(reason==='claim'){
+        const branchSel = document.getElementById(`wasteClaimBranch-${pid}`);
+        const billNoteInput = document.getElementById(`wasteClaimBillNote-${pid}`);
+        const billDateInput = document.getElementById(`wasteClaimBillDate-${pid}`);
+        const claimBranchCode = branchSel && branchSel.value;
+        const claimNoteText = (billNoteInput && billNoteInput.value.trim()) || '';
+        if(claimBranchCode && claimNoteText){
+          const billDate = (billDateInput && billDateInput.value) || currentDate;
+          try{
+            const targetDay = billDate===currentDate ? dayData : await loadDay(billDate);
+            targetDay.billClaimNotes = targetDay.billClaimNotes || {};
+            targetDay.billClaimNotes[claimBranchCode] = (targetDay.billClaimNotes[claimBranchCode] || []).concat([claimNoteText]);
+            await saveDay(billDate, targetDay);
+          }catch(noteErr){
+            billNoteWarning = ' (แต่ใส่ข้อความแจ้งในบิลไม่สำเร็จ เน็ตมีปัญหา? ลองใส่ใหม่จากหน้าเช็คยอดรายสาขาของวันที่นั้นแทน)';
+          }
+        }
+      }
       wasteEditPid = null;
-      showToast(reason==='claim' ? 'บันทึกเคลมแล้ว' : 'บันทึกของเสียแล้ว');
+      showToast((reason==='claim' ? 'บันทึกเคลมแล้ว' : 'บันทึกของเสียแล้ว') + billNoteWarning);
       await renderLeftover();
       renderWasteRecordList();
       renderMessages();
@@ -2191,11 +2226,12 @@ function computeReceiptData(code, iso, d){
   const bi = settings.billInfo;
   const b = branchByCode(code);
   const buyer = buyerInfoFor(b);
-  return {row, billNo, items, subtotal, extra, total, bi, b, buyer};
+  const claimNotes = (d.billClaimNotes && d.billClaimNotes[code]) || [];
+  return {row, billNo, items, subtotal, extra, total, bi, b, buyer, claimNotes};
 }
 function buildReceiptCardHTML(code, iso, d, cardId){
   iso = iso || currentDate; d = d || dayData;
-  const {billNo, items, subtotal, extra, total, bi, buyer} = computeReceiptData(code, iso, d);
+  const {billNo, items, subtotal, extra, total, bi, buyer, claimNotes} = computeReceiptData(code, iso, d);
   return `
     <div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
       <div class="rheadtop">
@@ -2223,6 +2259,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       <div class="totline"><span>ค่าใช้จ่ายเพิ่มเติม / เคลม (+/-)</span><span class="num"><input type="number" step="1" data-extra="${code}" value="${extra||''}" placeholder="0" style="width:80px;background:#fff;border:1px solid #ccc;border-radius:5px;padding:3px 6px;color:#111;text-align:right;font-size:12.5px;"></span></div>
       <div class="grand"><span>รวมเงินทั้งหมด</span><span class="num" id="grandtotal-${code}">${money(total)}</span></div>
       <div class="bahttext" id="bahttext-${code}">(${bahtText(total)})</div>
+      ${claimNotes.length ? `<div class="kv" style="margin-top:6px;font-size:12px;color:#555;">${claimNotes.map(n=>`📌 ${n}`).join('<br>')}</div>` : ''}
       <div class="sign">ผู้รับเงิน .....................................</div>
       <div class="thanks">🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀</div>
       <div class="rno">№ ${billNo} • ${formatDDMMYYYY(iso)}</div>
@@ -2238,7 +2275,7 @@ async function toggleReceipt(code){
       <button class="btn secondary" data-copybill="${code}" style="width:auto;">คัดลอกข้อความบิล</button>
     </div>
     <input type="text" data-billnote="${code}" value="${(dayData.billNote&&dayData.billNote[code])||''}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี, ไม่แสดงในบิลที่พิมพ์)" style="margin-top:8px;font-size:12.5px;">`;
-  const {items, subtotal, extra, total, bi, buyer, billNo} = computeReceiptData(code);
+  const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
   holder.querySelector(`[data-billnote="${code}"]`).addEventListener('change', async (e)=>{
     dayData.billNote = dayData.billNote || {};
@@ -2265,6 +2302,7 @@ async function toggleReceipt(code){
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
       ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
+      ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
     ].join('\n');
     try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
@@ -2285,7 +2323,7 @@ async function toggleBranchDetailReceipt(iso, code){
       <button class="btn secondary" data-bdsavebillimg="1" style="width:auto;">🖼️ บันทึกเป็นรูปภาพ</button>
       <button class="btn secondary" data-bdcopybill="1" style="width:auto;">คัดลอกข้อความบิล</button>
     </div>`;
-  const {items, subtotal, extra, total, bi, buyer, billNo} = computeReceiptData(code, iso, d);
+  const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code, iso, d);
   holder.querySelector('[data-bdsavebillimg]').addEventListener('click', async ()=>{
     const node = document.getElementById(cardId);
     if(!node){ showToast('ไม่พบบิล'); return; }
@@ -2323,6 +2361,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
       ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
+      ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
     ].join('\n');
     try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }

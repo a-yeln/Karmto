@@ -357,7 +357,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="dashTrend" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>⚠️ สาขาที่ต้องติดตามด่วน (กดหัวตารางเพื่อเรียงลำดับ)</h3>
+      <h3>⚠️ สาขาที่ต้องติดตามด่วน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
       <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
       <select id="dashBranchSelect" style="display:none;"></select>
       <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
@@ -404,7 +404,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card" data-no-collapse="1">
       <div id="leftoverLotStockToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 id="leftoverLotStockHeader" style="margin:0;">📦 วัตถุดิบล็อตคงเหลือ (ยังไม่ได้เบิกใช้)</h3>
+        <h3 id="leftoverLotStockHeader" style="margin:0;">📦 วัตถุดิบล็อตคงเหลือ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ยังไม่ได้เบิกใช้)</span></h3>
         <span id="leftoverLotStockChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="leftoverLotStockBody">
@@ -421,7 +421,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="leftover-grid" id="leftoverOutForm"></div>
       <button class="btn" id="saveLeftoverBtn" style="margin-top:10px;">บันทึกของเหลือ</button>
       <button class="btn secondary" id="noLeftoverBtn" style="margin-top:8px;">✅ วันนี้ไม่มีของเหลือ</button>
-      <div class="hint">พี่พัฒน์แจ้งจำนวนที่มนต์ทำเกิน/เก็บไว้ กรอกที่นี่แล้วระบบจะไปหักในข้อความสั่งมนต์ของวันถัดไปอัตโนมัติ ถ้าวันนี้ไม่มีของเหลือเลย กดปุ่ม "วันนี้ไม่มีของเหลือ" เพื่อยืนยันว่าเช็คแล้ว ระบบจะได้ไม่เตือนซ้ำ</div>
+      <button class="btn secondary" id="clearLeftoverBtn" style="margin-top:8px;">🔄 ล้างข้อมูล คำนวณแนะนำใหม่</button>
+      <div class="hint">พี่พัฒน์แจ้งจำนวนที่มนต์ทำเกิน/เก็บไว้ กรอกที่นี่แล้วระบบจะไปหักในข้อความสั่งมนต์ของวันถัดไปอัตโนมัติ ถ้าวันนี้ไม่มีของเหลือเลย กดปุ่ม "วันนี้ไม่มีของเหลือ" เพื่อยืนยันว่าเช็คแล้ว ระบบจะได้ไม่เตือนซ้ำ — ถ้ากรอก/ยืนยันของวันนี้ไว้ผิด กด "ล้างข้อมูล" เพื่อล้างค่าที่บันทึกไว้ของวันนี้ทั้งหมด แล้วระบบจะคำนวณค่าแนะนำใหม่ให้กรอกยืนยันอีกครั้ง</div>
     </div>
     <div class="card">
       <h3>🗑️ ของเสีย/ตัดทิ้ง</h3>
@@ -444,13 +445,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </table>
     </div>
     <div class="card">
-      <h3>📊 สรุปรายเดือน (สไตล์ตารางสะสมยอด)</h3>
+      <h3>📊 สรุปรายเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(สไตล์ตารางสะสมยอด)</span></h3>
       <div class="hint">ไม่รวมสาขา "แยกส่ง" — ตารางนี้คือยอดที่ใช้คิดค่าธรรมเนียมจ่ายบริษัทเท่านั้น</div>
       <div class="field"><label>เดือน</label><input type="month" id="monthInput"></div>
       <div id="monthLedger" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card">
-      <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน (แยกตามสินค้า)</h3>
+      <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(แยกตามสินค้า)</span></h3>
       <div id="monthProductSummary" class="loading">กำลังโหลด…</div>
     </div>
   </div>
@@ -463,6 +464,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนที่ทำได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนที่ทำได้เท่ากับจำนวนซื้อ ช่องนี้คือจำนวนที่แปลงหน่วยได้ทั้งหมด ไม่ใช่จำนวนที่ขายได้จริงวันนั้น ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก</div>
       <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
       <div id="purchLeftoverHint" class="hint" style="margin-top:-4px;margin-bottom:6px;"></div>
+      <div id="purchLotEditHint" class="hint" style="color:var(--accent);"></div>
       <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select></div>
       <div class="grid7">
         <div><label>จำนวนซื้อ (<span id="purchBuyUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchQty" placeholder="0"></div>
@@ -478,7 +480,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div id="lotSettleCards"></div>
     <div class="card" data-no-collapse="1">
       <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 style="margin:0;">📋 ล็อตที่มีอยู่ (แยกตามบิล)</h3>
+        <h3 style="margin:0;">📋 ล็อตที่มีอยู่ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(แยกตามบิล)</span></h3>
         <span id="lotListChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="lotListBody">
@@ -487,13 +489,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
     </div>
     <div class="card">
-      <h3>📋 รายการต้นทุนซื้อวันนี้ (รายละเอียดแยกสินค้า)</h3>
+      <h3>📋 รายการต้นทุนซื้อวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(รายละเอียดแยกสินค้า)</span></h3>
       <div class="hint">เช็คว่าที่เพิ่งกรอกไปถูกต้องหรือเปล่า ก่อนไปดูสรุปตามผู้ขาย</div>
       <div id="purchaseList" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card" data-no-collapse="1">
       <div id="billSummaryToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <h3 style="margin:0;">🧾 สรุปบิลวันนี้ (รอจ่าย/จ่ายแล้ว)</h3>
+        <h3 style="margin:0;">🧾 สรุปบิลวันนี้ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(รอจ่าย/จ่ายแล้ว)</span></h3>
         <span id="billSummaryChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="billSummaryBody">
@@ -580,7 +582,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="billingList"></div>
     </div>
     <div class="card">
-      <h3>⏳ รายการที่ต้องตามโอน (ทุกวันที่ยังไม่ปิด)</h3>
+      <h3>⏳ รายการที่ต้องตามโอน <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ทุกวันที่ยังไม่ปิด)</span></h3>
       <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
@@ -698,7 +700,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" id="saveBranchesBtn" style="margin-top:8px;">บันทึกรายชื่อสาขา</button>
     </div>
     <div class="card">
-      <h3>🚚 รายชื่อผู้ขาย/แหล่งซื้อ (ต้นทุน)</h3>
+      <h3>🚚 รายชื่อผู้ขาย/แหล่งซื้อ <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ต้นทุน)</span></h3>
       <div id="purchSellerSettings"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="newPurchSeller" placeholder="เช่น ม๊ะก๊าด, มนต์, พี่พัฒน์/ตลาด">
@@ -1213,6 +1215,7 @@ function renderOrderList(){
   }));
   list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     const code = b.getAttribute('data-del');
+    if(!confirm(`ลบออเดอร์สาขา ${code} ${branchName(code)} ของวันนี้ทั้งหมดเลยใช่ไหม?`)) return;
     const prevRow = dayData.orders[code];
     delete dayData.orders[code];
     try{
@@ -1689,7 +1692,7 @@ async function renderLeftover(){
   const leftIn = prevDay.leftoverOut || {};
   const prevSince = prevDay.leftoverSince || {};
   document.getElementById('leftoverActiveDate').textContent = formatDDMMYYYY(currentDate);
-  document.getElementById('leftoverInHeader').textContent = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} (จากวันที่ ${formatDDMMYYYY(prevIso)})`;
+  document.getElementById('leftoverInHeader').innerHTML = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(จากวันที่ ${formatDDMMYYYY(prevIso)})</span>`;
   document.getElementById('leftoverOutHeader').innerHTML = `👉🏻 เหลือจากวันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(หักออกวันที่ ${formatDDMMYYYY(nextIso)})</span>`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
@@ -1839,6 +1842,17 @@ async function confirmNoLeftover(){
   showToast('ยืนยันแล้วว่าวันนี้ไม่มีของเหลือ');
   renderMessages();
 }
+// ล้างค่าของเหลือที่เคยบันทึก/ยืนยันไว้ของวันนี้ทั้งหมดทิ้ง (ไม่ใช่ตั้งเป็น 0 แบบ "วันนี้ไม่มีของเหลือ" — คือเอาออกไปเลยจนกลายเป็น
+// "ยังไม่เคยบันทึก") ให้ renderLeftover() กลับไปคำนวณค่าแนะนำใหม่จากยอดออเดอร์/ต้นทุนซื้อของวันนี้ แล้วให้ผู้ใช้ยืนยันบันทึกใหม่เอง
+// ใช้ตอนกรอก/ยืนยันของวันนั้นผิดไปแล้ว อยากเริ่มใหม่จากค่าที่ระบบคำนวณให้สดๆ แทนที่จะไปนั่งแก้ทีละช่อง
+async function clearLeftoverToday(){
+  if(!confirm(`ล้างข้อมูลของเหลือที่บันทึก/ยืนยันไว้ของวันที่ ${formatDDMMYYYY(currentDate)} ทั้งหมด แล้วให้ระบบคำนวณแนะนำใหม่? (ต้องกดบันทึกยืนยันใหม่อีกครั้ง)`)) return;
+  LEFTOVER_IDS.forEach(id=>{ delete dayData.leftoverOut[id]; delete dayData.leftoverSince[id]; });
+  await saveDay(currentDate, dayData);
+  renderLeftover();
+  showToast('ล้างข้อมูลของเหลือวันนี้แล้ว — ระบบคำนวณค่าแนะนำใหม่ให้แล้ว รอกดบันทึกยืนยันอีกครั้ง');
+  renderMessages();
+}
 
 // ---- Fee tab ----
 function renderFeeToday(){
@@ -1953,12 +1967,12 @@ function renderBillingList(){
     let delayInfo = '';
     if(paid && paidDate){
       const delay = Math.round((new Date(paidDate+'T00:00:00Z')-new Date(currentDate+'T00:00:00Z'))/86400000);
-      delayInfo = `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">ดีเลย์ ${delay} วัน${billPaidDiffHtml(payInfo, amt)}</div>`;
+      delayInfo = ` <span style="color:var(--text-faint);font-size:11px;font-weight:400;">(ดีเลย์ ${delay} วัน)</span>${billPaidDiffHtml(payInfo, amt)}`;
     }
     const showDatePicker = payDateEditingCode===code;
     return `<div class="branchbill" id="bb-${code}">
       <div class="toprow">
-        <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${branchName(code)}</div><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;"><span class="amt num">${money(amt)}</span>${paidTagHtml(paid,paidDate)}</div>${delayInfo}</div>
+        <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${branchName(code)}</div><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;"><span class="amt num">${money(amt)}</span>${paidTagHtml(paid,paidDate)}${delayInfo}</div></div>
         <div class="acts2">
           <button class="iconbtn" data-viewbill="${code}" aria-label="ดูบิล">🧾</button>
           <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
@@ -1985,6 +1999,7 @@ function renderBillingList(){
     btn.addEventListener('click', async ()=>{
       const code = btn.getAttribute('data-pay');
       if(dayData.billingPaid[code]){
+        if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
         btn.disabled = true;
         const prev = dayData.billingPaid[code];
         dayData.billingPaid[code] = false;
@@ -2351,6 +2366,7 @@ function renderExpenseList(){
     const id = btn.getAttribute('data-exppay');
     const e = dayData.expenses.find(x=>x.id===id);
     if(e.paid){
+      if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่ายที่เคยบันทึกไว้จะถูกล้าง)')) return;
       btn.disabled = true;
       const prevPaid = e.paid, prevDate = e.paidDate;
       e.paid = false; e.paidDate = null;
@@ -2394,6 +2410,7 @@ function renderExpenseList(){
   }));
   wrap.querySelectorAll('[data-expdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-expdel');
+    if(!confirm('ลบรายจ่ายนี้?')) return;
     const removed = dayData.expenses.find(x=>x.id===id);
     const removedIdx = dayData.expenses.indexOf(removed);
     dayData.expenses = removeFirstById(dayData.expenses, id);
@@ -2993,6 +3010,7 @@ async function renderAllExpenseList(skipReload){
       if(!r) return;
       if(r.paid){
         if(allExpActionInFlight) return;
+        if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่ายที่เคยบันทึกไว้จะถูกล้าง)')) return;
         allExpActionInFlight = true;
         btn.disabled = true;
         try{
@@ -3197,6 +3215,7 @@ function renderPriceHistory(){
   document.getElementById('priceHistoryList').innerHTML = hist.map((h,i)=>`<div class="pricehist"><span class="pd num">${formatDDMMYYYY(h.date)}</span><span class="pp num">${money(h.price)}</span><button class="iconbtn" data-delprice="${pid}|${h.date}" aria-label="ลบ">✕</button></div>`).join('') || '<div class="hint">ยังไม่มีประวัติราคา</div>';
   document.getElementById('priceHistoryList').querySelectorAll('[data-delprice]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
+      if(!confirm('ลบประวัติราคานี้?')) return;
       const [ppid, pdate] = btn.getAttribute('data-delprice').split('|');
       settings.priceHistory[ppid] = settings.priceHistory[ppid].filter(h=>h.date!==pdate);
       await saveSettings();
@@ -3277,7 +3296,10 @@ function renderBranchSettings(){
       <textarea data-bbilladdr="${i}" placeholder="รายละเอียดที่อยู่เพิ่มเติม เช่น เลขที่ 28/1 หมู่ 7 ต.บางรัก... (ไม่ต้องพิมพ์ชื่อสาขาซ้ำ ระบบใส่ให้ในชื่อผู้ซื้อแล้ว) ว่าง = ว่างบนบิล" rows="2" style="margin-bottom:6px;resize:vertical;">${b.billAddr||''}</textarea>
       <input type="text" data-bbilltax="${i}" value="${b.billTax||''}" placeholder="เลขภาษีเฉพาะ (ว่าง = ว่างบนบิล)">
     </div>`).join('');
-  wrap.querySelectorAll('[data-brdel]').forEach(btn=>btn.addEventListener('click', ()=>{ settings.branches.splice(Number(btn.getAttribute('data-brdel')),1); renderBranchSettings(); }));
+  wrap.querySelectorAll('[data-brdel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    if(!confirm('ลบสาขานี้ออกจากรายชื่อสาขา? (ออเดอร์เก่าที่เคยบันทึกไว้ของสาขานี้จะยังอยู่ แต่จะไม่มีในรายชื่อให้เลือกอีก)')) return;
+    settings.branches.splice(Number(btn.getAttribute('data-brdel')),1); renderBranchSettings();
+  }));
   // อัปเดตสรุปด้านบนทันทีเวลามีคนติ๊ก/เลิกติ๊ก โดยยังไม่ต้องกดบันทึก จะได้เห็นผลตอบรับทันที
   wrap.querySelectorAll('[data-bsep]').forEach((cb,i)=>cb.addEventListener('change', ()=>{
     settings.branches[i].separate = cb.checked;
@@ -3408,6 +3430,7 @@ function renderPersonalLists(){
     </div>`).join('') : '<div class="empty">ยังไม่มีรายรับส่วนตัววันนี้</div>';
   incWrap.querySelectorAll('[data-pincdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pincdel');
+    if(!confirm('ลบรายรับส่วนตัวนี้?')) return;
     const prevList = dayData.personalIncome;
     dayData.personalIncome = removeFirstById(dayData.personalIncome, id);
     try{
@@ -3429,6 +3452,7 @@ function renderPersonalLists(){
     </div>`).join('') : '<div class="empty">ยังไม่มีรายจ่ายส่วนตัววันนี้</div>';
   expWrap.querySelectorAll('[data-pexpdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pexpdel');
+    if(!confirm('ลบรายจ่ายส่วนตัวนี้?')) return;
     const prevList = dayData.personalExpense;
     dayData.personalExpense = removeFirstById(dayData.personalExpense, id);
     try{
@@ -3730,13 +3754,16 @@ function drawPendingQty_(draw){
 // ไม่ผูกกับวันใดวันหนึ่ง (ของมันอยู่ตรงนั้นจริงๆ ไม่ว่าจะเปิดแอปดูวันไหนอยู่)
 // preloadedLots (ถ้ามี) = ล็อตทั้งหมดที่โหลดมาแล้วจากที่อื่น ส่งเข้ามาเพื่อไม่ต้องยิง loadRawLots() ซ้ำ (เน็ตช้า ยิงซ้ำหลายรอบแล้วรวมกันช้ามาก
 // โดยเฉพาะตอนมีสินค้าหลายตัว — จุดที่เรียกฟังก์ชันนี้วนหลายรอบต้อง loadRawLots() ครั้งเดียวข้างนอกแล้วส่งเข้ามาเสมอ)
-async function lotPendingStock_(productId, preloadedLots){
+// asOfDate (ถ้าใส่) = นับเฉพาะรอบเบิกที่เกิดขึ้นถึงวันนั้นแล้วเท่านั้น (d.date<=asOfDate) — กันเวลาย้อนไปดูวันเก่าๆ
+// แล้วดันเห็น/ตัดต้นทุนของที่เพิ่งเบิกมาทีหลัง (อนาคตของวันที่กำลังดูอยู่) ซึ่งวันนั้นยังไม่มีของจริงๆ ไม่ควรตัดต้นทุนย้อนไปได้
+async function lotPendingStock_(productId, preloadedLots, asOfDate){
   const lots = preloadedLots || await loadRawLots();
   let qty = 0, costSum = 0;
   const items = [];
   for(const lot of lots){
     if(lot.productId!==productId) continue;
     for(const d of (lot.draws||[])){
+      if(asOfDate && String(d.date) > String(asOfDate)) continue;
       const pend = drawPendingQty_(d);
       if(pend<=0.001) continue;
       const cpu = drawCostPerUnit_(d, lot);
@@ -3811,7 +3838,9 @@ async function renderLotSettleCards_(){
   const rawTotalsToday = computeTotals(dayData.orders);
   const rows = [];
   for(const pid of productIdsWithLots){
-    const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid, lots);
+    // จำกัดแค่รอบเบิกที่เกิดขึ้นถึงวันที่กำลังดูอยู่แล้วเท่านั้น (asOfDate=currentDate) — กันย้อนไปดูวันเก่าๆ
+    // แล้วเห็นการ์ดเสนอให้ตัดต้นทุนของที่เพิ่งเบิกมาทีหลัง (อนาคตของวันนั้น) ทั้งที่วันนั้นยังไม่มีของจริง
+    const {qty:pendingQty, avgCostPerUnit} = await lotPendingStock_(pid, lots, currentDate);
     if(pendingQty<=0.001) continue;
     const neededToday = rawTotalsToday[pid] || 0;
     const boughtToday = purchasedTodayQty_(pid);
@@ -3847,7 +3876,7 @@ async function confirmLotSettle_(productId){
   lotSettleInFlight_ = true;
   try{
     const lots2 = await loadRawLots();
-    const {items} = await lotPendingStock_(productId, lots2);
+    const {items} = await lotPendingStock_(productId, lots2, currentDate);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
     if(totalPending < useQty - 0.001){
@@ -4084,7 +4113,7 @@ async function renderLotStockSummary(){
   const body = document.getElementById('leftoverLotStockBody');
   const chevron = document.getElementById('leftoverLotStockChevron');
   const headerEl = document.getElementById('leftoverLotStockHeader');
-  if(headerEl) headerEl.textContent = `📦 วัตถุดิบล็อตคงเหลือ ณ วันที่ ${formatDDMMYYYY(currentDate)} (ยังไม่ได้เบิกใช้)`;
+  if(headerEl) headerEl.innerHTML = `📦 วัตถุดิบล็อตคงเหลือ ณ วันที่ ${formatDDMMYYYY(currentDate)} <span style="font-size:11px;font-weight:400;color:var(--text-faint);">(ยังไม่ได้เบิกใช้)</span>`;
   wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   let lots;
   try{ lots = await loadRawLots(); }
@@ -4586,6 +4615,7 @@ async function renderLotTransportList(){
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่าย/ยอดจ่ายจริงที่เคยบันทึกไว้จะถูกล้าง)')) return;
       lotTransActionInFlight = true;
       btn.disabled = true;
       b.paid = false; b.paidDate = null; b.paidAmount = null;
@@ -4744,6 +4774,7 @@ async function renderLotProductBillList(){
     const b = bills2.find(x=>x.id===id);
     if(!b) return;
     if(b.paid){
+      if(!confirm('เปลี่ยนสถานะกลับเป็น "รอจ่าย"? (วันที่จ่าย/ยอดจ่ายจริงที่เคยบันทึกไว้จะถูกล้าง)')) return;
       lotProdActionInFlight = true;
       btn.disabled = true;
       b.paid = false; b.paidDate = null; b.paidAmount = null;
@@ -4868,7 +4899,11 @@ async function addPurchase(){
   const wasNewEntry = !purchEditingId;
   if(purchEditingId){
     const existing = dayData.purchases.find(x=>x.id===purchEditingId);
-    Object.assign(existing, {productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note});
+    // รายการเบิกจากล็อต: ช่อง "สินค้า"/"จำนวนที่ทำได้" ถูกปิดไว้ไม่ให้แก้อยู่แล้ว (startEditPurchase) แต่กันเผื่อไว้อีกชั้น —
+    // บังคับใช้ค่าเดิมเสมอ ไม่ให้หลุดไปเปลี่ยน productId/sellableQty ซึ่งผูกกับบัญชีสต็อกล็อต/costedQty ของรอบเบิกอยู่
+    const finalProductId = existing.fromLot ? existing.productId : productId;
+    const finalSellableQty = existing.fromLot ? existing.sellableQty : (sellableRaw!==''?Number(sellableRaw):null);
+    Object.assign(existing, {productId:finalProductId, seller, qty, price, extra, sellableQty: finalSellableQty, note});
     purchEditingId = null;
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
@@ -4880,6 +4915,11 @@ async function addPurchase(){
   await autoFillLeftoverIfNeeded(productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
+  // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกสองช่องนี้ไว้)
+  document.getElementById('purchProduct').disabled = false;
+  document.getElementById('purchSellable').disabled = false;
+  const lotEditHintEl = document.getElementById('purchLotEditHint');
+  if(lotEditHintEl) lotEditHintEl.textContent = '';
   renderPurchaseList();
   renderPurchaseGroups();
   // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข) แจ้งเตือนสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อ กันลืมกรอกตกหล่น
@@ -4918,6 +4958,13 @@ function startEditPurchase(id){
   document.getElementById('purchExtra').value = e.extra||'';
   document.getElementById('purchSellable').value = e.sellableQty!=null ? e.sellableQty : '';
   document.getElementById('purchNote').value = e.note||'';
+  // รายการที่เบิกจากล็อต (fromLot) — ห้ามแก้ "สินค้า" กับ "จำนวนที่ทำได้" เพราะสองช่องนี้ผูกกับรอบเบิก/ยอดตัดต้นทุนของล็อตอยู่
+  // (เปลี่ยนแล้วบัญชีสต็อกล็อตจะเพี้ยน) แก้ได้แค่ จำนวนซื้อ/ราคา/ค่าใช้จ่ายเพิ่ม/ผู้ขาย/หมายเหตุ — พอสำหรับแก้ตัวเลขพิมพ์ผิด
+  const lockLotFields = !!e.fromLot;
+  document.getElementById('purchProduct').disabled = lockLotFields;
+  document.getElementById('purchSellable').disabled = lockLotFields;
+  const lotEditHint = document.getElementById('purchLotEditHint');
+  if(lotEditHint) lotEditHint.textContent = lockLotFields ? '📦 รายการนี้เบิกจากล็อตวัตถุดิบ — แก้ได้เฉพาะจำนวนซื้อ/ราคา/ค่าใช้จ่ายเพิ่ม/ผู้ขาย/หมายเหตุ (แก้ "สินค้า"/"จำนวนที่ทำได้" ไม่ได้ เพราะผูกกับสต็อกล็อตอยู่)' : '';
   document.getElementById('addPurchaseBtn').textContent = '💾 บันทึกการแก้ไข';
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -4953,12 +5000,12 @@ function renderPurchaseList(){
         <td class="num num" style="color:${profitColor};">${moneyP(e.productId, profitPerUnit)}</td>
         <td class="num num" style="color:${profitColor};font-weight:600;">${moneyP(e.productId, profitTotal)}</td>
         <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
-        <td><div style="display:flex;gap:4px;">${e.fromLot?'':`<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
+        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
     }).join('')}
   </table></div>
   <div class="hint" style="margin-top:8px;">${purchaseNoteHint(list)}</div>
-  <div class="hint" style="margin-top:4px;">สถานะจ่าย/รอจ่ายจัดการรวมเป็นบิลได้ที่การ์ด "สรุปบิลตามผู้ขายวันนี้" ด้านบน — รายการที่มี 📦 คือเบิกจากล็อตวัตถุดิบ จ่ายเงินไปตอนซื้อล็อตแล้ว แก้ไข/ลบได้ที่การ์ด "ล็อตที่มีอยู่" ด้านบนแทน</div>
+  <div class="hint" style="margin-top:4px;">สถานะจ่าย/รอจ่ายจัดการรวมเป็นบิลได้ที่การ์ด "สรุปบิลตามผู้ขายวันนี้" ด้านบน — รายการที่มี 📦 คือเบิกจากล็อตวัตถุดิบ จ่ายเงินไปตอนซื้อล็อตแล้ว กดดินสอแก้ตัวเลขที่พิมพ์ผิดได้ (แก้ "สินค้า"/"จำนวนที่ทำได้" ไม่ได้ ต้องไปที่การ์ด "ล็อตที่มีอยู่" ด้านบนแทน)</div>
   <div class="hint" style="margin-top:4px;">กำไรคำนวณจาก (ราคาขาย/หน่วย ณ วันนี้ − ต้นทุน/หน่วยขาย) × จำนวนที่ "ทำได้" — เป็นกำไรตามจำนวนที่ผลิตได้จริง ยังไม่ได้หักของเหลือค้าง/ของเสียที่ขายไม่หมด</div>
   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
     <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมวันนี้</span>
@@ -4968,6 +5015,12 @@ function renderPurchaseList(){
   wrap.querySelectorAll('[data-purchdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-purchdel');
     const entry = dayData.purchases.find(x=>x.id===id);
+    if(!entry) return;
+    const p = PRODUCTS.find(x=>x.id===entry.productId);
+    const confirmMsg = entry.fromLot
+      ? `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้? (ของจะกลับไปเป็น "ค้างตัดต้นทุน" ในสต็อกล็อตเหมือนเดิม ไม่ได้ลบรอบเบิก)`
+      : `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้?`;
+    if(!confirm(confirmMsg)) return;
     const prevList = dayData.purchases;
     dayData.purchases = removeFirstById(dayData.purchases, id);
     try{
@@ -5072,6 +5125,7 @@ function renderPurchaseGroups(){
     const seller = btn.getAttribute('data-grouppay');
     const info = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
     if(info.paid){
+      if(!confirm(`เปลี่ยนบิลของ "${seller}" กลับเป็น "รอจ่าย" ทั้งบิล? (ทุกรายการในบิลนี้จะกลับเป็นรอจ่ายด้วย วันที่จ่ายที่เคยบันทึกไว้จะถูกล้าง)`)) return;
       btn.disabled = true;
       const prevPaid = info.paid, prevDate = info.paidDate;
       const prevItemPaid = (dayData.purchases||[]).filter(e=>(e.seller||'ไม่ระบุ')===seller).map(e=>({e, paid:e.paid}));
@@ -5923,9 +5977,12 @@ async function jumpToBillReceipt(iso, code){
 // สลับสถานะโอนแล้ว/รอโอน ของบิลวันไหนก็ได้ โดยไม่ต้องออกจากหน้าเช็คยอดรายสาขา
 // (ใช้วันนี้เป็นวันที่โอนโดยอัตโนมัติเวลากดยืนยันจ่าย — ถ้าอยากระบุวันที่โอนเอง ให้กดไอคอนบิล 🧾 แล้วไปทำที่หน้าบิลโอนเงินแทน)
 async function toggleBranchBillPaidQuick(iso, code, btn){
-  if(btn) btn.disabled = true;
   const d = await loadDay(iso);
   const prev = d.billingPaid[code];
+  if(d.billingPaid[code]){
+    if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
+  }
+  if(btn) btn.disabled = true;
   if(d.billingPaid[code]){
     d.billingPaid[code] = false;
   }else{
@@ -6360,6 +6417,7 @@ async function init(){
   document.getElementById('clearRowBtn').addEventListener('click', ()=>{ editingCode=null; renderProductInputs(); });
   guardedClick('saveLeftoverBtn', saveLeftover);
   document.getElementById('noLeftoverBtn').addEventListener('click', confirmNoLeftover);
+  document.getElementById('clearLeftoverBtn').addEventListener('click', clearLeftoverToday);
   document.getElementById('monthInput').addEventListener('change', renderMonthFee);
   document.getElementById('addPriceBtn').addEventListener('click', addPriceHistory);
   document.getElementById('saveShelfLifeBtn').addEventListener('click', saveShelfLifeSettings);

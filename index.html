@@ -126,7 +126,7 @@
   --radius:10px;
 }
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;}
+html,body{margin:0;padding:0;overscroll-behavior-y:contain;}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
 h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight:700;margin:0;}
@@ -194,7 +194,8 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orow .code{color:var(--accent);font-weight:600;margin-right:6px;}
 .orow .items{color:var(--text-dim);font-size:12px;margin-top:2px;}
 .orow .acts{display:flex;gap:6px;flex:none;}
-.iconbtn{background:var(--surface-3);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;width:30px;height:30px;font-size:13px;cursor:pointer;}
+.iconbtn{background:var(--surface-3);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;width:30px;height:30px;font-size:13px;cursor:pointer;flex:none;}
+.iconbtn.danger{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
 .msgblock{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:12px;margin-bottom:10px;}
 .msgblock .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:8px;font-weight:600;}
 .tag.mahkard{background:var(--mahkard-soft);color:var(--mahkard);}
@@ -341,7 +342,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="tab active" data-tab="dashboard">📊 แดชบอร์ด</button>
       <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
       <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
-      <button class="tab" data-tab="leftover">📦 ของเหลือค้าง</button>
+      <button class="tab" data-tab="leftover">📦 เหลือ&Claim</button>
       <button class="tab" data-tab="billing">🧾 บิล & โอนเงิน</button>
       <button class="tab" data-tab="fee">🏷️ Brand fee</button>
       <button class="tab" data-tab="debts">💳 หนี้สิน</button>
@@ -1807,12 +1808,10 @@ async function renderLeftover(){
     const shelfLimit = settings.shelfLifeDays[id] || DEFAULT_SHELF_LIFE_DAYS[id] || 2;
     const atRisk = currentOnHand>0 && ageDays>=shelfLimit;
     const wasteFormOpen = wasteEditPid===id;
-    const warnLine = atRisk ? `<div class="lrow-hint" style="color:var(--danger);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">🔴 เก็บมาแล้ว ${ageDays} วัน (เกณฑ์ ${shelfLimit} วัน) เสี่ยงเสีย <button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;">🗑️ บันทึกของเสีย</button></div>` : '';
-    // เดิมกดบันทึก "ของเสีย" ได้แค่ตอนของเหลือค้างอยู่ในมือจริงๆ เกินเกณฑ์อายุ (ปุ่มแดงข้างบน) — แต่ "เคลม" (ของใหม่ที่
-    // ส่งไปชดเชยสาขาให้ฟรี แทนของเก่าที่เสีย) อาจต้องส่งวันไหนก็ได้ที่สาขาโทรแจ้งมา ไม่จำเป็นต้องรอให้ของเหลือค้างถึง
-    // เกณฑ์อายุเสี่ยงเสียก่อน จึงต้องมีทางเปิดฟอร์มนี้ได้เสมอ ไม่ผูกกับเกณฑ์ของเหลือค้าง — ปุ่มนี้โชว์เพิ่มไว้เผื่อกรณีนั้น
-    // (ตอน atRisk มีปุ่มแดงให้กดอยู่แล้ว ไม่ต้องซ้ำ)
-    const claimTriggerLine = (!atRisk && !wasteFormOpen) ? `<div class="lrow-hint"><button type="button" class="iconbtn" data-wasteedit="${id}" style="padding:2px 8px;font-size:11px;">🗑️ บันทึกของเสีย/เคลม</button></div>` : '';
+    // ปุ่มบันทึกของเสีย/เคลมอยู่ท้ายแถวเดียวกับชื่อสินค้า/ช่องกรอกเสมอ (ไม่ผูกกับเกณฑ์ของเหลือค้างถึงจะกดได้ — "เคลม" ส่งวันไหนก็ได้
+    // ที่สาขาโทรแจ้งมา) แดงเป็นสัญญาณเตือนเมื่อเกินเกณฑ์อายุเสี่ยงเสีย ข้อความเตือนแยกไว้เป็นบรรทัดล่างเฉยๆ ไม่มีปุ่มซ้ำอีกจุด
+    const warnLine = atRisk ? `<div class="lrow-hint" style="color:var(--danger);">🔴 เก็บมาแล้ว ${ageDays} วัน (เกณฑ์ ${shelfLimit} วัน) เสี่ยงเสีย</div>` : '';
+    const claimBtnHtml = `<button type="button" class="iconbtn${atRisk?' danger':''}" data-wasteedit="${id}" aria-label="บันทึกของเสีย/เคลม">🗑️</button>`;
     const wasteFormHtml = wasteFormOpen ? `<div style="margin-top:6px;padding:8px;border:1px solid var(--danger);border-radius:8px;">
       <label>เหตุผล</label>
       <select id="wasteReason-${id}">
@@ -1841,10 +1840,10 @@ async function renderLeftover(){
         <div class="lname">${p.emoji} ${p.name}</div>
         <input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0">
         <span style="color:var(--text-dim);font-size:12px;flex:none;">${p.unit}</span>
+        ${claimBtnHtml}
       </div>
       ${hintLine}
       ${warnLine}
-      ${claimTriggerLine}
       ${wasteFormHtml}
     </div>`;
   }));

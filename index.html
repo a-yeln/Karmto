@@ -3661,18 +3661,25 @@ function purchaseCostPerUnit(entry){ const sq = purchaseSellableQty(entry); cons
 // เก็บแยกจาก dayData.purchases เพราะล็อตหนึ่งใช้ข้ามหลายวันได้ ไม่ผูกกับวันใดวันหนึ่ง
 // ตอน "เบิกใช้" แต่ละวัน จะสร้างรายการใน dayData.purchases ของวันนั้นให้อัตโนมัติ (paid:true เพราะจ่ายเงินไปตอนซื้อล็อตแล้ว)
 // เพื่อให้สรุปต้นทุนรายเดือน/แดชบอร์ด/ยอดขาดออเดอร์ ใช้ฟังก์ชันเดิมได้หมดโดยไม่ต้องแก้จุดอื่น
+// แคชในหน่วยความจำแบบเดียวกับ lotTransportBills/lotProductBills ข้างบน — เดิมฟังก์ชันนี้ยิงเน็ตทุกครั้งที่เรียก
+// ไม่มีแคชเลย ทั้งที่ถูกเรียกซ้ำหลายจุดในแอ็กชันเดียวกัน (เช่น settle ล็อตครั้งเดียวเรียก loadRawLots() 4+ รอบ) ทำให้ช้าโดยไม่จำเป็น
+let rawLotsCache_ = null;
 async function loadRawLots(){
-  try{ const r = await window.storage.get('rawLots'); const v = JSON.parse(r.value); return Array.isArray(v)?v:[]; }
-  catch(e){
-    // สำคัญมาก: ต้องแยกให้ออกว่า "ยังไม่เคยมีข้อมูล" (Key not found = คืนค่าว่างได้จริง)
-    // กับ "เน็ต/เซิร์ฟเวอร์มีปัญหาชั่วคราว" (ต้อง throw ต่อ ห้ามคืนค่าว่างเด็ดขาด — เพราะถ้าคืน [] แล้วโค้ดที่เรียกเผลอเอาไป push แล้วบันทึกทับ
-    // จะกลายเป็นบันทึกทับข้อมูลลอตทั้งหมดที่มีอยู่จริงบนเซิร์ฟเวอร์ด้วยค่าว่าง/ค่าไม่ครบ — ของหายจริงตามที่เจอ)
-    const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-    if(isNotFound) return [];
-    throw e;
+  if(!rawLotsCache_){
+    try{ const r = await window.storage.get('rawLots'); const v = JSON.parse(r.value); rawLotsCache_ = Array.isArray(v)?v:[]; }
+    catch(e){
+      // สำคัญมาก: ต้องแยกให้ออกว่า "ยังไม่เคยมีข้อมูล" (Key not found = คืนค่าว่างได้จริง)
+      // กับ "เน็ต/เซิร์ฟเวอร์มีปัญหาชั่วคราว" (ต้อง throw ต่อ ห้ามคืนค่าว่างเด็ดขาด — เพราะถ้าคืน [] แล้วโค้ดที่เรียกเผลอเอาไป push แล้วบันทึกทับ
+      // จะกลายเป็นบันทึกทับข้อมูลลอตทั้งหมดที่มีอยู่จริงบนเซิร์ฟเวอร์ด้วยค่าว่าง/ค่าไม่ครบ — ของหายจริงตามที่เจอ)
+      const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
+      if(isNotFound){ rawLotsCache_ = []; }
+      else{ throw e; }
+    }
   }
+  // คืนค่าสำเนา (deep clone) ทุกครั้ง ไม่ใช่ตัวแคชตรงๆ — กันปัญหาแก้ไข object ในแคชไปเลยก่อนบันทึกจริงสำเร็จ
+  return JSON.parse(JSON.stringify(rawLotsCache_));
 }
-async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); }
+async function saveRawLots(lots){ await window.storage.set('rawLots', JSON.stringify(lots)); rawLotsCache_ = lots; }
 // บิลค่าขนส่งของล็อต — เก็บแยกจากล็อตสินค้า เพราะจ่ายให้คนละคน/คนละเวลากับบิลสินค้า ต้องมีสถานะจ่าย/รอจ่ายของตัวเอง
 // แคชไว้ในหน่วยความจำกันโหลดซ้ำจากเซิร์ฟเวอร์ทุกครั้งที่กดเปลี่ยนสถานะ (เดิมทำให้กดแล้วหน่วง/จอกระตุก)
 let lotTransportBillsCache_ = null;
@@ -3917,6 +3924,13 @@ async function confirmLotSettle_(productId){
     // ตอนนี้เปลี่ยนเป็นสร้าง "1 รายการต้นทุนซื้อ ต่อ 1 รอบเบิก" แยกกันตรงๆ จะได้เห็นผู้ขาย/ราคา/ล็อตของแต่ละก้อนชัดเจน
     // ในตารางรายการต้นทุนซื้อวันนี้เลย ไม่ต้องเปิดดูรายละเอียดซ่อนอยู่ข้างใน
     const newEntries = [];
+    // จำนวนซื้อ (qty) ยังคงเป็นจำนวนเต็มกก.เสมอตามที่ซื้อ/เบิกกันจริง — แต่แทนที่จะปัดแต่ละรอบเบิกเป็นเลขเต็มแยกกัน
+    // (เดิม Math.max(1, Math.round(...)) ทำให้เศษเล็กๆ ของแต่ละรอบ เช่น 0.05 กก. ถูกปัดขึ้นเป็น 1 กก.เต็มทุกรอบ พอ settle
+    // เดียวแตกเป็นหลายแถวยอดรวมจะพุ่งเกินจริง) ตอนนี้ปัดแบบสะสม (largest-remainder): รวมกก.ดิบที่แม่นยำของทุกรอบเบิก
+    // ไปเรื่อยๆ แล้วค่อย "ปล่อย" เป็นกก.เต็มออกมาก็ต่อเมื่อยอดสะสมข้ามเลขเต็มจริงๆ เท่านั้น ผลรวมทั้งหมดจึงเท่ากับ
+    // ยอดจริงปัดเลขเต็มครั้งเดียว ไม่มีการปัดพองซ้ำซ้อนต่อแถว รอบเบิกที่เศษไม่ถึงจะไม่ออกเป็นแถวใหม่ แต่รวมต้นทุน/จำนวน
+    // ที่ทำได้เข้ากับแถวก่อนหน้าแทน (ยังคงเห็นล็อต/ผู้ขาย/ราคาของรอบเบิกนั้นในบันทึก lotSettleAllocations เหมือนเดิม)
+    let cumulativeRawExact = 0, cumulativeRawEmitted = 0;
     for(const it of items){
       if(remaining<=0.001) break;
       const take = Math.min(it.pend, remaining);
@@ -3926,23 +3940,39 @@ async function confirmLotSettle_(productId){
       if(!draw) continue;
       draw.costedQty = Math.round((Number(draw.costedQty||0) + take)*100)/100;
       const cost = take*it.cpu;
-      const sellableTake = Math.round(take); // "ทำได้"/เบิกจริง เป็นจำนวนเต็มเสมอในทางปฏิบัติ (นับเป็นหน่วย ไม่มีทศนิยม)
+      // ปัด 2 ตำแหน่งทศนิยมให้ตรงกับ draw.costedQty ด้านบน (ไม่ปัดเป็นจำนวนเต็ม) — เดิม Math.round(take) ปัดเป็นเลขเต็ม
+      // ทำให้ sellableQty ที่บันทึกไว้ในรายการต้นทุนซื้อเพี้ยนไปจาก take จริงที่ไปบวกเข้า draw.costedQty แล้ว (เช่น take=2.4
+      // แต่บันทึก sellableQty=2) purchasedTodayQty_() ที่รวม sellableQty จึงนับคลาดเคลื่อนจากสต็อกจริงที่ถูกตัดไปแล้ว
+      const sellableTake = Math.round(take*100)/100;
       // totalQty/take ตรงนี้เป็นหน่วย "ทำได้" (sellableQty) เสมอ — เท่ากับหน่วยซื้อ(กก.)พอดีสำหรับสินค้าส่วนใหญ่
       // แต่บางสินค้า (เช่น หอยนางรม p7 หรือปูจืดที่ผ่านการแกะ/ตัดแต่งจนน้ำหนักดิบกับที่ทำได้ไม่เท่ากัน) ต้องคำนวณ
-      // กก.ดิบที่เบิกจริงแยกต่างหากตามสัดส่วน แล้วปัดเป็นจำนวนเต็มกก. — ของจริงซื้อ/เบิกกันเป็นกก.เต็มๆ เสมอ ไม่มีทศนิยม
-      // (เดิมปัดแค่ 2 ตำแหน่งทศนิยม ทำให้ตัวเลขซื้อของสินค้าที่มีอัตราแปลงไม่ลงตัวโผล่เป็นทศนิยมแปลกๆ เช่น 6.83 กก.)
+      // กก.ดิบที่เบิกจริงแยกต่างหากตามสัดส่วน แล้วปัดสะสมเป็นจำนวนเต็มกก. (ดูคอมเมนต์ด้านบน)
       const drawSellable = Number(draw.sellableQty||0);
       const drawRawUsed = Number(draw.qtyUsed||0);
       const rawQtyPortion = drawSellable>0 ? (take/drawSellable)*drawRawUsed : take;
-      const rawQtyRounded = Math.max(1, Math.round(rawQtyPortion));
-      const lotLabel = lot ? `ล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}` : 'ล็อต';
-      newEntries.push({
-        id: uid('pu'), productId, seller: lot ? lot.seller : '',
-        qty: rawQtyRounded, price: Math.round((cost/rawQtyRounded)*10000)/10000, extra:0,
-        sellableQty: sellableTake,
-        note: `ตัดต้นทุนจากสต็อกล็อตตามที่ใช้จริงวันนี้ (${lotLabel})`,
-        paid:true, fromLot:true, lotSettle:true, lotSettleAllocations: [{lotId:it.lotId, drawId:it.drawId, qty:Math.round(take*100)/100, cost:Math.round(cost*100)/100}]
-      });
+      cumulativeRawExact += rawQtyPortion;
+      let rawQtyRounded = Math.round(cumulativeRawExact) - cumulativeRawEmitted;
+      const lastEntry = newEntries.length ? newEntries[newEntries.length-1] : null;
+      if(rawQtyRounded<=0 && lastEntry){
+        // เศษของรอบเบิกนี้ยังไม่ทำให้ยอดสะสมข้ามเลขเต็ม — รวมต้นทุน/จำนวนที่ทำได้เข้ากับแถวก่อนหน้าแทนที่จะสร้างแถว
+        // ใหม่ด้วยจำนวนซื้อ 0 กก. (ราคา/หน่วยจะหารด้วยศูนย์ไม่ได้)
+        lastEntry.sellableQty = Math.round((lastEntry.sellableQty + sellableTake)*100)/100;
+        const mergedCost = lastEntry.qty*lastEntry.price + cost;
+        lastEntry.price = Math.round((mergedCost/lastEntry.qty)*10000)/10000;
+        lastEntry.lotSettleAllocations.push({lotId:it.lotId, drawId:it.drawId, qty:Math.round(take*100)/100, cost:Math.round(cost*100)/100});
+      } else {
+        // กันหารด้วยศูนย์ในกรณีแถวแรกสุดที่เศษยังไม่ถึง 1 กก. (ไม่มีแถวก่อนหน้าให้รวม) — ยังต้องมีจำนวนซื้ออย่างน้อย 1 กก.
+        if(rawQtyRounded<=0) rawQtyRounded = 1;
+        cumulativeRawEmitted += rawQtyRounded;
+        const lotLabel = lot ? `ล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}` : 'ล็อต';
+        newEntries.push({
+          id: uid('pu'), productId, seller: lot ? lot.seller : '',
+          qty: rawQtyRounded, price: Math.round((cost/rawQtyRounded)*10000)/10000, extra:0,
+          sellableQty: sellableTake,
+          note: `ตัดต้นทุนจากสต็อกล็อตตามที่ใช้จริงวันนี้ (${lotLabel})`,
+          paid:true, fromLot:true, lotSettle:true, lotSettleAllocations: [{lotId:it.lotId, drawId:it.drawId, qty:Math.round(take*100)/100, cost:Math.round(cost*100)/100}]
+        });
+      }
       remaining -= take;
     }
     if(newEntries.length===0){ showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return; }

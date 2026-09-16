@@ -1252,6 +1252,16 @@ async function writeDayArrayOp_(iso, arrayField, op){
   writeDayToLocalStorage_(iso, fresh);
   return fresh;
 }
+// เขียนค่า 1 ฟิลด์ (ไม่ใช่รายการในอาเรย์) ของเอกสารวัน แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทนแก้ dayData เองแล้ว
+// saveDay() ทั้งก้อน — ใช้กับฟิลด์ตรงๆ อย่าง billNote/billExtra/purchaseGroupPayment[seller].xxx ที่ path ชี้ตรงจุดเดียว
+// ไม่ต้องหา item ในอาเรย์ก่อนแบบ writeDayArrayOp_ (path เป็นอาเรย์ของชื่อฟิลด์ที่ไล่ตามลงไป เช่น ['billNote', code])
+async function writeDayFieldPath_(iso, path, value){
+  const res = await window.storage.patchField('day:'+iso, path, value);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  return fresh;
+}
 // เหมือน writeDayArrayOp_ ด้านบนแต่สำหรับ key ที่เก็บค่าทั้งก้อนเป็นอาเรย์ล้วนๆ เอง ไม่ใช่ object ที่มีอาเรย์เป็นฟิลด์ย่อย
 // (เช่น debts/rawLots/wasteRecords) — setCache รับอาเรย์ล่าสุดไปอัปเดตตัวแปรแคชในเครื่องของแต่ละ key เอง (ชื่อไม่เหมือนกัน)
 async function writeRootArrayOp_(key, op, setCache){
@@ -1804,17 +1814,24 @@ async function renderMessages(){
     const idx = Number(btn.getAttribute('data-msgsave'));
     const tag = blocks[idx].tag;
     const newText = document.getElementById(`msgeditarea-${idx}`).value;
-    dayData.messageOverrides = dayData.messageOverrides || {};
-    dayData.messageOverrides[tag] = newText;
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const res = await window.storage.patchField('day:'+iso, ['messageOverrides', tag], newText);
+    const fresh = normalizeDay_(JSON.parse(res.value));
+    dayCache_[iso] = fresh;
+    writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate) dayData = fresh;
     showToast('บันทึกข้อความแล้ว');
     renderMessages();
   }));
   area.querySelectorAll('[data-msgreset]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const idx = Number(btn.getAttribute('data-msgreset'));
     const tag = blocks[idx].tag;
-    if(dayData.messageOverrides) delete dayData.messageOverrides[tag];
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const res = await window.storage.patchOps('day:'+iso, [{path:['messageOverrides', tag], deleteKey:true}], false);
+    const fresh = normalizeDay_(JSON.parse(res.value));
+    dayCache_[iso] = fresh;
+    writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate) dayData = fresh;
     showToast('รีเซ็ตเป็นข้อความอัตโนมัติแล้ว');
     renderMessages();
   }));
@@ -1989,19 +2006,24 @@ async function renderLeftover(){
       await saveWasteRecords(records);
       wasteRecordSaved = true;
       const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
-      data.leftoverOut[pid] = remain;
+      const leftoverOps = [{path:['leftoverOut', pid], value: remain}];
       if(remain<=0){
-        delete data.leftoverSince[pid];
+        leftoverOps.push({path:['leftoverSince', pid], deleteKey:true});
       } else if(!data.leftoverSince[pid]){
         // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสีย/เคลมเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
         const prevIso = addDaysISO(iso,-1);
         const prevDayX = await loadDay(prevIso);
         const prevSinceX = prevDayX.leftoverSince || {};
         const leftInX = prevDayX.leftoverOut || {};
-        data.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : iso;
+        leftoverOps.push({path:['leftoverSince', pid], value: (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : iso});
       }
       if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
-      await saveDay(iso, data);
+      // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps) แทนแก้ data.leftoverOut/leftoverSince เองแล้ว saveDay() ทั้งก้อน
+      const wasteRes = await window.storage.patchOps('day:'+iso, leftoverOps, false);
+      const wasteFresh = normalizeDay_(JSON.parse(wasteRes.value));
+      dayCache_[iso] = wasteFresh;
+      writeDayToLocalStorage_(iso, wasteFresh);
+      if(iso===currentDate) dayData = wasteFresh;
       // ข้อความแจ้งเคลมในบิลสาขา (ถ้ามีการกรอก) — เป็นส่วนเสริมนอกเหนือจากตัวเคลมเอง (ตัวเคลมบันทึกสำเร็จไปแล้วข้างบน)
       // จึงทำแยก try/catch ของตัวเอง ไม่ให้พังตรงนี้แล้วดันลบเคลมที่บันทึกสำเร็จไปแล้วทิ้งไปด้วย (คนละเรื่องกัน)
       let billNoteWarning = '';
@@ -2014,10 +2036,13 @@ async function renderLeftover(){
         if(claimBranchCode && claimNoteText){
           const billDate = (billDateInput && billDateInput.value) || iso;
           try{
-            const targetDay = billDate===iso ? data : await loadDay(billDate);
-            targetDay.billClaimNotes = targetDay.billClaimNotes || {};
-            targetDay.billClaimNotes[claimBranchCode] = (targetDay.billClaimNotes[claimBranchCode] || []).concat([claimNoteText]);
-            await saveDay(billDate, targetDay);
+            // เพิ่มข้อความเข้าอาเรย์ billClaimNotes[สาขา] แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทนโหลดทั้งวันนั้นมา
+            // concat เองแล้ว saveDay() ทั้งก้อน — บิลนี้อาจเป็นคนละวันกับ iso ของของเสีย/เคลมเอง (billDate เลือกแยกได้)
+            const noteRes = await window.storage.patchOps('day:'+billDate, [{arrayPath:['billClaimNotes', claimBranchCode], push: claimNoteText}], false);
+            const noteFresh = normalizeDay_(JSON.parse(noteRes.value));
+            dayCache_[billDate] = noteFresh;
+            writeDayToLocalStorage_(billDate, noteFresh);
+            if(billDate===currentDate) dayData = noteFresh;
           }catch(noteErr){
             billNoteWarning = ' (แต่ใส่ข้อความแจ้งในบิลไม่สำเร็จ เน็ตมีปัญหา? ลองใส่ใหม่จากหน้าเช็คยอดรายสาขาของวันที่นั้นแทน)';
           }
@@ -2066,29 +2091,46 @@ async function renderWasteRecordList(){
     renderWasteRecordList();
   }));
 }
+// เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps หลาย path ในคำขอเดียว) แทนแก้ dayData.leftoverOut/leftoverSince เองแล้ว
+// saveDay() ทั้งก้อน — จับ iso/data ไว้ตั้งแต่ต้นฟังก์ชันเสมอ (ไม่อ่าน currentDate/dayData สดๆ อีกทีหลัง await โหลดวันก่อนหน้า)
+// กันปัญหา currentDate เปลี่ยนไปแล้วระหว่างรอ (เคยเป็นสาเหตุบั๊กข้อมูลข้ามวันเพี้ยนมาแล้ว)
 async function saveLeftover(){
-  const prevIso = addDaysISO(currentDate,-1);
+  const iso = currentDate;
+  const data = dayData;
+  const prevIso = addDaysISO(iso,-1);
   const prevDay = await loadDay(prevIso);
   const leftIn = prevDay.leftoverOut || {};
   const prevSince = prevDay.leftoverSince || {};
+  const ops = [];
   document.querySelectorAll('[data-lpid]').forEach(inp=>{
     const pid = inp.getAttribute('data-lpid');
     const newVal = Number(inp.value||0);
-    dayData.leftoverOut[pid] = newVal;
+    ops.push({path:['leftoverOut', pid], value:newVal});
     if(newVal<=0){
-      delete dayData.leftoverSince[pid];
-    } else if(!dayData.leftoverSince[pid]){
+      ops.push({path:['leftoverSince', pid], deleteKey:true});
+    } else if(!data.leftoverSince[pid]){
       // ยังไม่เคยบันทึกวันที่เริ่มค้างของวันนี้ไว้ — ถ้ามีของยกมาจากเมื่อวานอยู่แล้วให้สืบอายุต่อจากเดิม ไม่ใช่นับ 1 ใหม่
-      dayData.leftoverSince[pid] = (Number(leftIn[pid]||0)>0) ? (prevSince[pid] || prevIso) : currentDate;
+      ops.push({path:['leftoverSince', pid], value: (Number(leftIn[pid]||0)>0) ? (prevSince[pid] || prevIso) : iso});
     }
   });
-  await saveDay(currentDate, dayData);
+  if(ops.length===0) return;
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  if(iso===currentDate) dayData = fresh;
   showToast('บันทึกของเหลือแล้ว');
   renderMessages();
 }
 async function confirmNoLeftover(){
-  LEFTOVER_IDS.forEach(id=>{ dayData.leftoverOut[id] = 0; delete dayData.leftoverSince[id]; });
-  await saveDay(currentDate, dayData);
+  const iso = currentDate;
+  const ops = [];
+  LEFTOVER_IDS.forEach(id=>{ ops.push({path:['leftoverOut', id], value:0}); ops.push({path:['leftoverSince', id], deleteKey:true}); });
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  if(iso===currentDate) dayData = fresh;
   renderLeftover();
   showToast('ยืนยันแล้วว่าวันนี้ไม่มีของเหลือ');
   renderMessages();
@@ -2098,8 +2140,14 @@ async function confirmNoLeftover(){
 // ใช้ตอนกรอก/ยืนยันของวันนั้นผิดไปแล้ว อยากเริ่มใหม่จากค่าที่ระบบคำนวณให้สดๆ แทนที่จะไปนั่งแก้ทีละช่อง
 async function clearLeftoverToday(){
   if(!confirm(`ล้างข้อมูลของเหลือที่บันทึก/ยืนยันไว้ของวันที่ ${formatDDMMYYYY(currentDate)} ทั้งหมด แล้วให้ระบบคำนวณแนะนำใหม่? (ต้องกดบันทึกยืนยันใหม่อีกครั้ง)`)) return;
-  LEFTOVER_IDS.forEach(id=>{ delete dayData.leftoverOut[id]; delete dayData.leftoverSince[id]; });
-  await saveDay(currentDate, dayData);
+  const iso = currentDate;
+  const ops = [];
+  LEFTOVER_IDS.forEach(id=>{ ops.push({path:['leftoverOut', id], deleteKey:true}); ops.push({path:['leftoverSince', id], deleteKey:true}); });
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  if(iso===currentDate) dayData = fresh;
   renderLeftover();
   showToast('ล้างข้อมูลของเหลือวันนี้แล้ว — ระบบคำนวณค่าแนะนำใหม่ให้แล้ว รอกดบันทึกยืนยันอีกครั้ง');
   renderMessages();
@@ -2461,14 +2509,15 @@ async function toggleReceipt(code){
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
   holder.querySelector(`[data-billnote="${code}"]`).addEventListener('change', async (e)=>{
-    dayData.billNote = dayData.billNote || {};
-    dayData.billNote[code] = e.target.value;
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const fresh = await writeDayFieldPath_(iso, ['billNote', code], e.target.value);
+    if(iso===currentDate) dayData = fresh;
   });
   const extraInput = holder.querySelector(`[data-extra="${code}"]`);
   extraInput.addEventListener('change', async ()=>{
-    dayData.billExtra[code] = Number(extraInput.value||0);
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const fresh = await writeDayFieldPath_(iso, ['billExtra', code], Number(extraInput.value||0));
+    if(iso===currentDate) dayData = fresh;
     const newTotal = subtotal + Number(extraInput.value||0);
     document.getElementById(`grandtotal-${code}`).textContent = money(newTotal);
     document.getElementById(`bahttext-${code}`).textContent = `(${bahtText(newTotal)})`;
@@ -2527,8 +2576,8 @@ async function toggleBranchDetailReceipt(iso, code){
   });
   const extraInput = holder.querySelector(`[data-extra="${code}"]`);
   extraInput.addEventListener('change', async ()=>{
-    d.billExtra[code] = Number(extraInput.value||0);
-    await saveDay(iso, d);
+    const fresh = await writeDayFieldPath_(iso, ['billExtra', code], Number(extraInput.value||0));
+    if(iso===currentDate) dayData = fresh;
     const newTotal = subtotal + Number(extraInput.value||0);
     document.getElementById(`grandtotal-${code}`).textContent = money(newTotal);
     document.getElementById(`bahttext-${code}`).textContent = `(${bahtText(newTotal)})`;
@@ -3886,14 +3935,13 @@ function renderPersonalLists(){
   incWrap.querySelectorAll('[data-pincdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pincdel');
     if(!confirm('ลบรายรับส่วนตัวนี้?')) return;
-    const prevList = dayData.personalIncome;
-    dayData.personalIncome = removeFirstById(dayData.personalIncome, id);
+    const iso = currentDate;
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeDayArrayOp_(iso, 'personalIncome', {remove:{matchField:'id', matchValue:id}});
+      if(iso===currentDate) dayData = fresh;
       renderPersonalLists();
       showToast('ลบแล้ว');
     }catch(e){
-      dayData.personalIncome = prevList;
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));
@@ -3908,14 +3956,13 @@ function renderPersonalLists(){
   expWrap.querySelectorAll('[data-pexpdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-pexpdel');
     if(!confirm('ลบรายจ่ายส่วนตัวนี้?')) return;
-    const prevList = dayData.personalExpense;
-    dayData.personalExpense = removeFirstById(dayData.personalExpense, id);
+    const iso = currentDate;
     try{
-      await saveDay(currentDate, dayData);
+      const fresh = await writeDayArrayOp_(iso, 'personalExpense', {remove:{matchField:'id', matchValue:id}});
+      if(iso===currentDate) dayData = fresh;
       renderPersonalLists();
       showToast('ลบแล้ว');
     }catch(e){
-      dayData.personalExpense = prevList;
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));
@@ -3926,8 +3973,9 @@ async function addPersonalIncome(){
   const note = document.getElementById('pIncomeNote').value.trim();
   const amount = Number(document.getElementById('pIncomeAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.personalIncome.push({id:uid('pi'), person, category, note, amount});
-  await saveDay(currentDate, dayData);
+  const iso = currentDate;
+  const fresh = await writeDayArrayOp_(iso, 'personalIncome', {push:{id:uid('pi'), person, category, note, amount}});
+  if(iso===currentDate) dayData = fresh;
   document.getElementById('pIncomeNote').value=''; document.getElementById('pIncomeAmount').value='';
   renderPersonalLists();
   showToast('เพิ่มรายรับแล้ว');
@@ -3938,8 +3986,9 @@ async function addPersonalExpense(){
   const note = document.getElementById('pExpenseNote').value.trim();
   const amount = Number(document.getElementById('pExpenseAmount').value||0);
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
-  dayData.personalExpense.push({id:uid('pe'), person, category, note, amount});
-  await saveDay(currentDate, dayData);
+  const iso = currentDate;
+  const fresh = await writeDayArrayOp_(iso, 'personalExpense', {push:{id:uid('pe'), person, category, note, amount}});
+  if(iso===currentDate) dayData = fresh;
   document.getElementById('pExpenseNote').value=''; document.getElementById('pExpenseAmount').value='';
   renderPersonalLists();
   showToast('เพิ่มรายจ่ายแล้ว');
@@ -5877,16 +5926,16 @@ function renderPurchaseGroups(){
   wireBillRowToggles(wrap);
   wrap.querySelectorAll('[data-groupextra]').forEach(inp=>inp.addEventListener('change', async ()=>{
     const seller = inp.getAttribute('data-groupextra');
-    dayData.purchaseGroupPayment[seller] = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
-    dayData.purchaseGroupPayment[seller].extra = Number(inp.value||0);
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const fresh = await writeDayFieldPath_(iso, ['purchaseGroupPayment', seller, 'extra'], Number(inp.value||0));
+    if(iso===currentDate) dayData = fresh;
     renderPurchaseGroups();
   }));
   wrap.querySelectorAll('[data-groupnote]').forEach(inp=>inp.addEventListener('change', async ()=>{
     const seller = inp.getAttribute('data-groupnote');
-    dayData.purchaseGroupPayment[seller] = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
-    dayData.purchaseGroupPayment[seller].note = inp.value;
-    await saveDay(currentDate, dayData);
+    const iso = currentDate;
+    const fresh = await writeDayFieldPath_(iso, ['purchaseGroupPayment', seller, 'note'], inp.value);
+    if(iso===currentDate) dayData = fresh;
   }));
   wrap.querySelectorAll('[data-grouppay]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const seller = btn.getAttribute('data-grouppay');
@@ -6114,8 +6163,7 @@ async function renderDebts(){
     if(!confirm('ลบรายการหนี้นี้? (ประวัติการจ่ายที่บันทึกไปแล้วจะหายไปด้วย)')) return;
     const id = btn.getAttribute('data-debtdel');
     try{
-      const all = await loadDebts();
-      await saveDebts(all.filter(d=>d.id!==id));
+      await writeRootArrayOp_('debts', {remove:{matchField:'id', matchValue:id}}, arr=>{debtsCache_=arr;});
       renderDebts();
       showToast('ลบหนี้แล้ว');
     }catch(e){
@@ -6138,36 +6186,29 @@ async function renderDebts(){
     if(interest>amount){ showToast('ดอกเบี้ยต้องไม่มากกว่ายอดที่จ่ายทั้งหมด'); return; }
     const all = await loadDebts();
     const d = all.find(x=>x.id===id);
-    d.payments = d.payments || [];
-    d.payments.push({date: payDate, amount, interest});
+    if(!d){ showToast('ไม่พบรายการหนี้นี้แล้ว (อาจถูกลบไปแล้ว)'); return; }
+    // เพิ่มรายการจ่ายแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested push บนอาเรย์ payments ของหนี้ตัวนี้โดยตรง) แทนโหลด
+    // debts ทั้งก้อนมาต่อท้ายเองแล้ว saveDebts() ทับทั้งอาเรย์ — ให้ id ของ payment แต่ละอันด้วย เพื่อ rollback ได้แม่นยำ
+    // ถ้าจุดที่สอง (รายจ่ายคู่กันของวันนั้น) พังทีหลัง (ไม่ต้องเทียบ date/amount/interest แบบเดาแล้วลบตัวสุดท้ายที่ตรงเหมือนเดิม)
+    const paymentId = uid('pay');
+    const payment = {id:paymentId, date: payDate, amount, interest};
     // บันทึก 2 จุดแยกกัน (ยอดจ่ายหนี้ แล้วค่อยรายจ่ายคู่กันของวันนั้น) — เดิมถ้าจุดแรกสำเร็จแต่จุดสองพัง (เน็ตสะดุดพอดี)
     // ยอดจ่ายหนี้ถูกบันทึกจริงไปแล้ว แต่ toast บอกว่า "การจ่ายยังไม่ถูกบันทึก" คนจะกดจ่ายซ้ำ ได้ยอดจ่ายซ้ำสอง (หนี้ดู
-    // เหมือนจ่ายไปมากกว่าที่จ่ายจริง) ตอนนี้ถ้าจุดสองพัง จะลบรายการจ่ายที่เพิ่งเพิ่มออกจากหนี้ก่อน กันกดซ้ำแล้วซ้ำสอง
+    // เหมือนจ่ายไปมากกว่าที่จ่ายจริง) ตอนนี้ถ้าจุดสองพัง จะลบรายการจ่ายที่เพิ่งเพิ่มออกจากหนี้ก่อน (ด้วย id เป๊ะๆ) กันกดซ้ำแล้วซ้ำสอง
     let debtsSaved = false;
     try{
-      await saveDebts(all);
+      await writeRootArrayOp_('debts', {matchField:'id', matchValue:id, nested:{field:'payments', push:payment}}, arr=>{debtsCache_=arr;});
       debtsSaved = true;
       if(d.owner==='AY' || d.owner==='WJ'){
-        const dayRec = await loadDay(payDate);
-        dayRec.personalExpense = dayRec.personalExpense || [];
-        dayRec.personalExpense.push({id:uid('pe'), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount});
-        await saveDay(payDate, dayRec);
-        if(payDate===currentDate) dayData = dayRec;
+        const fresh = await writeDayArrayOp_(payDate, 'personalExpense', {push:{id:uid('pe'), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount}});
+        if(payDate===currentDate) dayData = fresh;
       } else if(d.owner==='ก้ามโต' && interest>0){
-        const dayRec = await loadDay(payDate);
-        dayRec.expenses = dayRec.expenses || [];
-        dayRec.expenses.push({id:uid('e'), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true});
-        await saveDay(payDate, dayRec);
-        if(payDate===currentDate) dayData = dayRec;
+        const fresh = await writeDayArrayOp_(payDate, 'expenses', {push:{id:uid('e'), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true}});
+        if(payDate===currentDate) dayData = fresh;
       }
     }catch(dayErr){
       if(debtsSaved){
-        try{
-          const all2 = await loadDebts();
-          const d2 = all2.find(x=>x.id===id);
-          const lastIdx = d2 && d2.payments ? d2.payments.map(p=>p.date===payDate && p.amount===amount && p.interest===interest).lastIndexOf(true) : -1;
-          if(lastIdx>=0){ d2.payments.splice(lastIdx,1); await saveDebts(all2); }
-        }catch(_){}
+        try{ await writeRootArrayOp_('debts', {matchField:'id', matchValue:id, nested:{field:'payments', remove:{matchField:'id', matchValue:paymentId}}}, arr=>{debtsCache_=arr;}); }catch(_){}
       }
       throw dayErr;
     }
@@ -6187,21 +6228,23 @@ async function addDebt(){
   const principalStart = Number(document.getElementById('debtPrincipal').value||0);
   const remainNowRaw = document.getElementById('debtRemainNow').value;
   if(!creditor || principalStart<=0){ showToast('กรอกชื่อเจ้าหนี้และเงินต้นให้ครบ'); return; }
-  const all = await loadDebts();
+  // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push/set บนอาเรย์ debts โดยตรง) แทนโหลด debts ทั้งก้อนมาแก้แล้ว
+  // saveDebts() ทับทั้งอาเรย์ — ยังต้องโหลดมาดูรายการจ่ายเดิมก่อนถ้าเป็นการแก้ไข (ใช้กับ applyInitialAdjustment เท่านั้น
+  // ไม่ได้เอาไปเขียนทับทั้งก้อน)
   if(editingDebtId){
-    const d = all.find(x=>x.id===editingDebtId);
-    if(d){
-      Object.assign(d, {creditor, type, owner, interestRate, dueDate, principalStart});
-      applyInitialAdjustment(d, principalStart, remainNowRaw);
-    }
+    const all = await loadDebts();
+    const existing = all.find(x=>x.id===editingDebtId);
+    if(!existing){ showToast('ไม่พบรายการหนี้นี้แล้ว (อาจถูกลบไปแล้ว)'); cancelDebtEdit(); renderDebts(); return; }
+    const tmp = {payments: existing.payments};
+    applyInitialAdjustment(tmp, principalStart, remainNowRaw);
+    await writeRootArrayOp_('debts', {matchField:'id', matchValue:editingDebtId, set:{creditor, type, owner, interestRate, dueDate, principalStart, payments: tmp.payments}}, arr=>{debtsCache_=arr;});
     showToast('แก้ไขหนี้แล้ว');
   }else{
     const newDebt = {id:uid('d'), creditor, type, owner, interestRate, dueDate, principalStart, payments:[]};
     applyInitialAdjustment(newDebt, principalStart, remainNowRaw);
-    all.push(newDebt);
+    await writeRootArrayOp_('debts', {push:newDebt}, arr=>{debtsCache_=arr;});
     showToast('เพิ่มหนี้แล้ว');
   }
-  await saveDebts(all);
   cancelDebtEdit();
   renderDebts();
 }

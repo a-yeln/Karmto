@@ -1757,34 +1757,51 @@ async function renderMessages(){
 // ---- Leftover tab ----
 // สูตรกลาง (ใช้ทั้งหน้าของเหลือ และตอนเติมอัตโนมัติจากฟอร์มซื้อ/เบิกล็อต ให้เป็นสูตรเดียวกัน กันตัวเลขไม่ตรงกัน)
 // ของเหลือที่ต้องเก็บวันนี้ = (ของเหลือที่ยกมาจากเมื่อวาน + ที่ซื้อ/ทำได้เพิ่มวันนี้) - ยอดออเดอร์วันนี้
-async function computeSuggestedLeftover(pid){
+// iso/data เป็น parameter ไม่บังคับ (ไม่ใส่ = ใช้ currentDate/dayData สดปัจจุบัน เหมือนเดิม สำหรับตอนเรียกจากการเรนเดอร์หน้า
+// ของเหลือค้างตรงๆ) — แต่ autoFillLeftoverIfNeeded() ด้านล่างจะส่งค่าที่จับไว้ตั้งแต่ต้นมาให้เสมอ กันปัญหา currentDate
+// เปลี่ยนไปแล้วระหว่างที่ฟังก์ชันนี้ยัง await โหลดของหลายจุดอยู่ (เคยเป็นสาเหตุของบั๊กข้อมูลข้ามวันเพี้ยนมาแล้ว)
+async function computeSuggestedLeftover(pid, iso, data){
+  iso = iso || currentDate; data = data || dayData;
   if(!LEFTOVER_IDS.includes(pid)) return {suggested:0, carriedIn:0, yieldQty:0, orderedQty:0};
-  const prevDay = await loadDay(addDaysISO(currentDate,-1));
+  const prevDay = await loadDay(addDaysISO(iso,-1));
   const carriedIn = Number((prevDay.leftoverOut||{})[pid]||0);
-  let yieldQty = (dayData.purchases||[]).filter(e=>e.productId===pid && !e.lotSettle).reduce((s,e)=>s+purchaseSellableQty(e),0);
+  let yieldQty = (data.purchases||[]).filter(e=>e.productId===pid && !e.lotSettle).reduce((s,e)=>s+purchaseSellableQty(e),0);
   // ของที่เบิกจากล็อตมาทำไว้วันนี้ นับเป็น "ทำได้" ทันทีตามน้ำหนักจริง แม้จะยังไม่ตัดต้นทุน (ต้นทุนกับของจริงเป็นคนละเรื่องกัน
   // — ของทำเสร็จแล้ววันนี้จริงๆ ต้องนับรวมในของเหลือ ไม่งั้นของเหลือจะคำนวณตกหล่นไป)
   try{
     const lots = await loadRawLots();
     for(const lot of lots){
       if(lot.productId!==pid) continue;
-      for(const d of (lot.draws||[])){ if(d.date===currentDate) yieldQty += Number(d.sellableQty||0); }
+      for(const d of (lot.draws||[])){ if(d.date===iso) yieldQty += Number(d.sellableQty||0); }
     }
   }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
-  const orderedQty = computeTotals(dayData.orders)[pid]||0;
+  const orderedQty = computeTotals(data.orders)[pid]||0;
   const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
   return {suggested, carriedIn, yieldQty, orderedQty};
 }
 // เติม "ของเหลือ" ให้อัตโนมัติทันทีหลังบันทึกต้นทุนซื้อ/เบิกล็อต ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ — จะได้ไม่ต้องมาเข้าหน้าของเหลือเพื่อกดบันทึกซ้ำเอง
 // จะไม่ทับถ้าผู้ใช้เคยกรอกของเหลือของวันนี้ไว้เองแล้ว (เคารพตัวเลขที่นับจริงเสมอ)
+// จับ iso/dayData ของวันที่ตั้งใจเติมให้ไว้ตั้งแต่ต้นฟังก์ชันเสมอ (ไม่อ่าน currentDate/dayData สดๆ ตอนท้ายฟังก์ชัน) เพราะ
+// ฟังก์ชันนี้ await หลายจุด (computeSuggestedLeftover โหลดทั้งวันก่อนหน้า+ล็อต) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ
+// (ผู้ใช้สลับวันที่พอดี) จะเผลอเอาค่าที่คำนวณจากวันเดิมไปเติมให้วันใหม่แทน — เขียนแค่ฟิลด์เดียวแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์
+// (patchField) ด้วย ไม่ใช่ saveDay() ทั้งก้อน กันชนกับการบันทึกอื่นของวันเดียวกันไปในตัว
 async function autoFillLeftoverIfNeeded(pid){
   if(!LEFTOVER_IDS.includes(pid)) return;
-  if(Object.prototype.hasOwnProperty.call(dayData.leftoverOut, pid)) return;
-  const {suggested} = await computeSuggestedLeftover(pid);
+  const iso = currentDate;
+  const data = dayData;
+  if(Object.prototype.hasOwnProperty.call(data.leftoverOut, pid)) return;
+  const {suggested} = await computeSuggestedLeftover(pid, iso, data);
   if(suggested<=0) return;
-  dayData.leftoverOut[pid] = suggested;
-  await saveDay(currentDate, dayData);
-  if(document.querySelector('.panel.active')?.id==='panel-leftover') renderLeftover();
+  try{
+    const res = await window.storage.patchField('day:'+iso, ['leftoverOut', pid], suggested);
+    const fresh = normalizeDay_(JSON.parse(res.value));
+    dayCache_[iso] = fresh;
+    writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate){
+      dayData = fresh;
+      if(document.querySelector('.panel.active')?.id==='panel-leftover') renderLeftover();
+    }
+  }catch(e){ /* เติมอัตโนมัติพลาดก็ไม่เป็นไร ไม่ใช่ข้อมูลสำคัญที่ห้ามพลาด ผู้ใช้ไปกรอกเองที่แท็บของเหลือค้างได้ */ }
 }
 let wasteEditPid = null; // pid ของสินค้าที่กำลังกรอกฟอร์ม "บันทึกของเสีย/ตัดทิ้ง" อยู่ (ในแท็บของเหลือค้าง)
 let wasteActionInFlight = false;
@@ -1880,9 +1897,14 @@ async function renderLeftover(){
     const reasonInput = document.getElementById(`wasteReason-${pid}`);
     const reason = (reasonInput && reasonInput.value) || 'waste';
     const lpidInput = document.querySelector(`[data-lpid="${pid}"]`);
+    // จับวันที่/ข้อมูลของวันนั้นไว้ตั้งแต่ต้นเลย ไม่อ่าน currentDate/dayData สดๆ อีกทีตอนท้ายฟังก์ชัน — ข้างล่างนี้ await
+    // หลายจุด (โหลด/บันทึกของเสีย, โหลดวันก่อนหน้า) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะเอา
+    // ตัวเลขที่คำนวณจากวันเดิมไปบันทึกทับวันใหม่แทนแบบเงียบๆ (เคยเป็นสาเหตุบั๊กข้อมูลข้ามวันเพี้ยนมาแล้ว)
+    const iso = currentDate;
+    const data = dayData;
     // ใช้ตัวเลขที่ตกค้างจริงเป็นฐาน (ค่าที่บันทึกไว้แล้วถ้ามี ไม่งั้นใช้ค่าที่โชว์ในช่องกรอกตอนนี้) — ไม่ใช้ชื่อ carriedIn เพราะอาจไม่ตรงกับตัวเลขที่กำลังแสดงอยู่จริง
-    const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, pid);
-    const currentLeftover = alreadyRecorded ? Number(dayData.leftoverOut[pid]||0) : Number((lpidInput && lpidInput.value) || 0);
+    const alreadyRecorded = Object.prototype.hasOwnProperty.call(data.leftoverOut, pid);
+    const currentLeftover = alreadyRecorded ? Number(data.leftoverOut[pid]||0) : Number((lpidInput && lpidInput.value) || 0);
     let qty = Number((qtyInput && qtyInput.value) || 0);
     if(qty<=0){ showToast('กรอกจำนวนให้ถูกต้องก่อน'); return; }
     // เดิมคิดว่า "เคลม" ไม่แตะของเหลือค้างเลยเพราะของเก่าที่เสียถูกส่งไปแล้ว — แต่ของที่ส่งไปเคลม/ชดเชยให้สาขาใหม่
@@ -1895,25 +1917,25 @@ async function renderLeftover(){
     const wasteId = 'waste'+Date.now()+pid;
     let wasteRecordSaved = false;
     try{
-      const estCostPerKg = priceOnDate(pid, currentDate);
+      const estCostPerKg = priceOnDate(pid, iso);
       const records = await loadWasteRecords();
-      records.push({id:wasteId, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason});
+      records.push({id:wasteId, productId:pid, qty, date:iso, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason});
       await saveWasteRecords(records);
       wasteRecordSaved = true;
       const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
-      dayData.leftoverOut[pid] = remain;
+      data.leftoverOut[pid] = remain;
       if(remain<=0){
-        delete dayData.leftoverSince[pid];
-      } else if(!dayData.leftoverSince[pid]){
+        delete data.leftoverSince[pid];
+      } else if(!data.leftoverSince[pid]){
         // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสีย/เคลมเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
-        const prevIso = addDaysISO(currentDate,-1);
+        const prevIso = addDaysISO(iso,-1);
         const prevDayX = await loadDay(prevIso);
         const prevSinceX = prevDayX.leftoverSince || {};
         const leftInX = prevDayX.leftoverOut || {};
-        dayData.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : currentDate;
+        data.leftoverSince[pid] = (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : iso;
       }
       if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
-      await saveDay(currentDate, dayData);
+      await saveDay(iso, data);
       // ข้อความแจ้งเคลมในบิลสาขา (ถ้ามีการกรอก) — เป็นส่วนเสริมนอกเหนือจากตัวเคลมเอง (ตัวเคลมบันทึกสำเร็จไปแล้วข้างบน)
       // จึงทำแยก try/catch ของตัวเอง ไม่ให้พังตรงนี้แล้วดันลบเคลมที่บันทึกสำเร็จไปแล้วทิ้งไปด้วย (คนละเรื่องกัน)
       let billNoteWarning = '';
@@ -1924,9 +1946,9 @@ async function renderLeftover(){
         const claimBranchCode = branchSel && branchSel.value;
         const claimNoteText = (billNoteInput && billNoteInput.value.trim()) || '';
         if(claimBranchCode && claimNoteText){
-          const billDate = (billDateInput && billDateInput.value) || currentDate;
+          const billDate = (billDateInput && billDateInput.value) || iso;
           try{
-            const targetDay = billDate===currentDate ? dayData : await loadDay(billDate);
+            const targetDay = billDate===iso ? data : await loadDay(billDate);
             targetDay.billClaimNotes = targetDay.billClaimNotes || {};
             targetDay.billClaimNotes[claimBranchCode] = (targetDay.billClaimNotes[claimBranchCode] || []).concat([claimNoteText]);
             await saveDay(billDate, targetDay);
@@ -1937,9 +1959,10 @@ async function renderLeftover(){
       }
       wasteEditPid = null;
       showToast((reason==='claim' ? 'บันทึกเคลมแล้ว' : 'บันทึกของเสียแล้ว') + billNoteWarning);
-      await renderLeftover();
+      // รีเฟรชหน้าจอเฉพาะตอนยังอยู่วันเดียวกับตอนเริ่มบันทึก — ถ้าสลับวันไปแล้วระหว่างรอ ปล่อยจอปัจจุบันไว้เฉยๆ (ข้อมูลบันทึกถูกวันแล้ว
+      // แค่ไม่ต้องไปรีเฟรชหน้าที่กำลังดูวันอื่นอยู่ให้งงเปล่าๆ)
+      if(iso===currentDate){ await renderLeftover(); renderMessages(); }
       renderWasteRecordList();
-      renderMessages();
     }catch(e){
       // เดิม: ถ้า saveWasteRecords สำเร็จแล้วแต่ saveDay (บันทึกของเหลือที่ลดลง) พังทีหลัง จะโชว์ "บันทึกไม่สำเร็จ ลองใหม่"
       // เฉยๆ ทั้งที่รายการของเสียถูกบันทึกจริงไปแล้ว — กดลองใหม่จะสร้างรายการของเสียซ้ำอีกอัน (นับความเสียหายซ้ำสอง)
@@ -4067,13 +4090,18 @@ async function confirmLotSettle_(productId){
   const useQty = Number((input && input.value) || 0);
   if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
   lotSettleInFlight_ = true;
+  // จับวันที่/ข้อมูลของวันนั้นไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate/dayData สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/
+  // บันทึกสต็อก) เพราะฟังก์ชันนี้กินเวลา (รอเน็ตหลายจุด) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะ
+  // เอารายการต้นทุนซื้อที่ตัดจากสต็อกล็อตของวันเดิมไปยัดใส่/บันทึกทับวันใหม่แทนแบบเงียบๆ
+  const iso = currentDate;
+  const data = dayData;
   try{
     const lots2 = await loadRawLots();
     // สำเนาก่อนแก้ไข costedQty ในลูปข้างล่าง — เผื่อ saveRawLots(lots2) สำเร็จ (ตัดสต็อกไปแล้วจริงบนเซิร์ฟเวอร์)
     // แต่ saveDay ที่บันทึกรายการต้นทุนซื้อคู่กันดันล้มเหลว (เน็ตมีปัญหาเฉพาะจังหวะนั้น) จะได้เอาไว้ "คืน" สต็อกล็อตกลับ
     // ไม่งั้นจะเกิดของหาย: สต็อกถูกตัดว่าตัดต้นทุนไปแล้ว แต่ไม่มีรายการต้นทุนซื้อของวันนี้บันทึกไว้ที่ไหนเลย
     const lots2Snapshot = JSON.parse(JSON.stringify(lots2));
-    const {items} = await lotPendingStock_(productId, lots2, currentDate);
+    const {items} = await lotPendingStock_(productId, lots2, iso);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
     if(totalPending < useQty - 0.001){
@@ -4140,16 +4168,16 @@ async function confirmLotSettle_(productId){
       remaining -= take;
     }
     if(newEntries.length===0){ showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return; }
-    dayData.purchases = dayData.purchases || [];
-    const prevPurchases = dayData.purchases;
-    dayData.purchases = dayData.purchases.concat(newEntries);
+    data.purchases = data.purchases || [];
+    const prevPurchases = data.purchases;
+    data.purchases = data.purchases.concat(newEntries);
     let rawLotsSaved = false;
     try{
       await saveRawLots(lots2);
       rawLotsSaved = true;
-      await saveDay(currentDate, dayData);
+      await saveDay(iso, data);
     }catch(e){
-      dayData.purchases = prevPurchases;
+      data.purchases = prevPurchases;
       if(rawLotsSaved){
         // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิมก่อน
         try{
@@ -4164,7 +4192,8 @@ async function confirmLotSettle_(productId){
       return;
     }
     showToast('ตัดต้นทุนวันนี้แล้ว');
-    renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
+    if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
+    await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
   }catch(e){
     showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
   } finally { lotSettleInFlight_ = false; }

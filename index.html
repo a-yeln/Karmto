@@ -3656,6 +3656,10 @@ function updatePurchaseUnitLabels(){
 function purchaseCostTotal(entry){ return Number(entry.qty||0)*Number(entry.price||0) + Number(entry.extra||0); }
 function purchaseSellableQty(entry){ return entry.sellableQty!=null && entry.sellableQty!=='' ? Number(entry.sellableQty) : Number(entry.qty||0); }
 function purchaseCostPerUnit(entry){ const sq = purchaseSellableQty(entry); const ct = purchaseCostTotal(entry); return sq>0 ? ct/sq : 0; }
+// เงินที่จ่ายจริงตอนซื้อล็อต (บันทึกไว้ตอนตัดต้นทุนสต็อกล็อต ไม่เปลี่ยนตามการแก้ไขทีหลัง) — ใช้เป็นค่าความจริงตายตัว
+// สำหรับรายการที่เบิกจากล็อต กันแก้ "จำนวนซื้อ" แล้ว "ราคา/หน่วย" เพี้ยนไม่ตรงกับเงินที่จ่ายจริง (ดู purchaseLotLockedPrice_)
+function purchaseLotTotalCost_(entry){ return (entry.lotSettleAllocations||[]).reduce((s,a)=>s+Number(a.cost||0),0); }
+function purchaseHasLotCostBasis_(entry){ return !!(entry && Array.isArray(entry.lotSettleAllocations) && entry.lotSettleAllocations.length); }
 
 // ---- ล็อตวัตถุดิบ (ซื้อเผื่อหลายวัน แล้วทยอยเบิกใช้) ----
 // เก็บแยกจาก dayData.purchases เพราะล็อตหนึ่งใช้ข้ามหลายวันได้ ไม่ผูกกับวันใดวันหนึ่ง
@@ -3909,6 +3913,10 @@ async function confirmLotSettle_(productId){
   lotSettleInFlight_ = true;
   try{
     const lots2 = await loadRawLots();
+    // สำเนาก่อนแก้ไข costedQty ในลูปข้างล่าง — เผื่อ saveRawLots(lots2) สำเร็จ (ตัดสต็อกไปแล้วจริงบนเซิร์ฟเวอร์)
+    // แต่ saveDay ที่บันทึกรายการต้นทุนซื้อคู่กันดันล้มเหลว (เน็ตมีปัญหาเฉพาะจังหวะนั้น) จะได้เอาไว้ "คืน" สต็อกล็อตกลับ
+    // ไม่งั้นจะเกิดของหาย: สต็อกถูกตัดว่าตัดต้นทุนไปแล้ว แต่ไม่มีรายการต้นทุนซื้อของวันนี้บันทึกไว้ที่ไหนเลย
+    const lots2Snapshot = JSON.parse(JSON.stringify(lots2));
     const {items} = await lotPendingStock_(productId, lots2, currentDate);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
@@ -3979,12 +3987,24 @@ async function confirmLotSettle_(productId){
     dayData.purchases = dayData.purchases || [];
     const prevPurchases = dayData.purchases;
     dayData.purchases = dayData.purchases.concat(newEntries);
+    let rawLotsSaved = false;
     try{
       await saveRawLots(lots2);
+      rawLotsSaved = true;
       await saveDay(currentDate, dayData);
     }catch(e){
       dayData.purchases = prevPurchases;
-      showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      if(rawLotsSaved){
+        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิมก่อน
+        try{
+          await saveRawLots(lots2Snapshot);
+          showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        }catch(revertErr){
+          showToast('ตัดต้นทุนไม่สำเร็จ และคืนสถานะสต็อกล็อตไม่สำเร็จด้วย (เน็ตมีปัญหา?) — สต็อกกับรายการต้นทุนซื้ออาจไม่ตรงกัน ลองรีเฟรชแล้วเช็คที่การ์ด "ล็อตที่มีอยู่" กับ "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
+        }
+      }else{
+        showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      }
       return;
     }
     showToast('ตัดต้นทุนวันนี้แล้ว');
@@ -4964,7 +4984,12 @@ async function addPurchase(){
     // บังคับใช้ค่าเดิมเสมอ ไม่ให้หลุดไปเปลี่ยน productId/sellableQty ซึ่งผูกกับบัญชีสต็อกล็อต/costedQty ของรอบเบิกอยู่
     const finalProductId = existing.fromLot ? existing.productId : productId;
     const finalSellableQty = existing.fromLot ? existing.sellableQty : (sellableRaw!==''?Number(sellableRaw):null);
-    Object.assign(existing, {productId:finalProductId, seller, qty, price, extra, sellableQty: finalSellableQty, note});
+    // รายการที่มีเงินที่จ่ายจริงจากล็อตผูกอยู่ (lotSettleAllocations) — คำนวณราคา/หน่วยจากเงินจริง ÷ จำนวนซื้อที่บันทึกเสมอ
+    // ไม่เชื่อค่าจากช่องราคาในฟอร์มตรงๆ (กันเผื่ออีกชั้นเหมือน productId/sellableQty ด้านบน แม้ช่องราคาจะถูกล็อกไว้แล้วก็ตาม)
+    const finalPrice = purchaseHasLotCostBasis_(existing)
+      ? (qty>0 ? Math.round((purchaseLotTotalCost_(existing)/qty)*10000)/10000 : price)
+      : price;
+    Object.assign(existing, {productId:finalProductId, seller, qty, price: finalPrice, extra, sellableQty: finalSellableQty, note});
     purchEditingId = null;
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
@@ -4976,9 +5001,10 @@ async function addPurchase(){
   await autoFillLeftoverIfNeeded(productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
-  // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกสองช่องนี้ไว้)
+  // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้"/"ราคา" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกไว้)
   document.getElementById('purchProduct').disabled = false;
   document.getElementById('purchSellable').disabled = false;
+  document.getElementById('purchPrice').disabled = false;
   const lotEditHintEl = document.getElementById('purchLotEditHint');
   if(lotEditHintEl) lotEditHintEl.textContent = '';
   renderPurchaseList();
@@ -5019,7 +5045,12 @@ function startEditPurchase(id){
   updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
   document.getElementById('purchSeller').value = e.seller||'';
   document.getElementById('purchQty').value = e.qty;
-  document.getElementById('purchPrice').value = e.price;
+  // ถ้ามีเงินที่จ่ายจริงจากล็อตผูกอยู่ โชว์ราคาที่คำนวณสดจากเงินจริง ÷ จำนวนซื้อเสมอ (เผื่อ e.price ที่บันทึกไว้เดิม
+  // เพี้ยนไปจากเงินจริงอยู่แล้วจากการแก้ไขก่อนหน้านี้ ก่อนจะมีการล็อกช่องนี้)
+  const hasLotCostBasisOnOpen = purchaseHasLotCostBasis_(e);
+  document.getElementById('purchPrice').value = hasLotCostBasisOnOpen
+    ? (e.qty>0 ? Math.round((purchaseLotTotalCost_(e)/e.qty)*10000)/10000 : e.price)
+    : e.price;
   document.getElementById('purchExtra').value = e.extra||'';
   document.getElementById('purchSellable').value = e.sellableQty!=null ? e.sellableQty : '';
   document.getElementById('purchNote').value = e.note||'';
@@ -5028,8 +5059,17 @@ function startEditPurchase(id){
   const lockLotFields = !!e.fromLot;
   document.getElementById('purchProduct').disabled = lockLotFields;
   document.getElementById('purchSellable').disabled = lockLotFields;
+  // เดิม "ราคาซื้อ/หน่วย" แก้ได้อิสระแยกจาก "จำนวนซื้อ" ทั้งที่รายการเบิกจากล็อตมีเงินที่จ่ายจริงตายตัวอยู่แล้ว
+  // (lotSettleAllocations) — พอแก้แค่จำนวนซื้อ (เช่น แก้ตัวเลขพิมพ์ผิด) โดยไม่ได้ตั้งใจแตะราคา ราคา/หน่วยเดิมที่ค้างอยู่
+  // ในฟอร์มจะไม่ตรงกับเงินที่จ่ายจริงอีกต่อไป (ราคารวม = จำนวนใหม่ x ราคาเดิม เพี้ยนไปจากที่จ่ายจริง) ตอนนี้ล็อกช่อง
+  // ราคาไว้ ให้คำนวณจาก "เงินที่จ่ายจริง ÷ จำนวนซื้อ" เสมอ (มี input listener คำนวณสดตอนแก้จำนวนซื้อ ดูด้านล่าง)
+  document.getElementById('purchPrice').disabled = hasLotCostBasisOnOpen;
   const lotEditHint = document.getElementById('purchLotEditHint');
-  if(lotEditHint) lotEditHint.textContent = lockLotFields ? '📦 รายการนี้เบิกจากล็อตวัตถุดิบ — แก้ได้เฉพาะจำนวนซื้อ/ราคา/ค่าใช้จ่ายเพิ่ม/ผู้ขาย/หมายเหตุ (แก้ "สินค้า"/"จำนวนที่ทำได้" ไม่ได้ เพราะผูกกับสต็อกล็อตอยู่)' : '';
+  if(lotEditHint) lotEditHint.textContent = lockLotFields
+    ? (hasLotCostBasisOnOpen
+        ? '📦 รายการนี้เบิกจากล็อตวัตถุดิบ — แก้ได้แค่ "จำนวนซื้อ" (ราคา/หน่วยคำนวณจากเงินที่จ่ายจริงให้อัตโนมัติ แก้เองไม่ได้ กันเพี้ยนจากยอดที่จ่ายจริง)'
+        : '📦 รายการนี้เบิกจากล็อตวัตถุดิบ — แก้ได้เฉพาะจำนวนซื้อ/ราคา/ค่าใช้จ่ายเพิ่ม/ผู้ขาย/หมายเหตุ (แก้ "สินค้า"/"จำนวนที่ทำได้" ไม่ได้ เพราะผูกกับสต็อกล็อตอยู่)')
+    : '';
   document.getElementById('addPurchaseBtn').textContent = '💾 บันทึกการแก้ไข';
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -5126,6 +5166,11 @@ function renderPurchaseList(){
       document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
       document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
       document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
+      document.getElementById('purchProduct').disabled = false;
+      document.getElementById('purchSellable').disabled = false;
+      document.getElementById('purchPrice').disabled = false;
+      const lotEditHintEl = document.getElementById('purchLotEditHint');
+      if(lotEditHintEl) lotEditHintEl.textContent = '';
     }
     renderPurchaseList();
     showToast('ลบแล้ว');
@@ -6567,6 +6612,16 @@ async function init(){
   document.getElementById('addPExpenseCategoryBtn').addEventListener('click', addPExpenseCategory);
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   guardedClick('addPurchaseBtn', addPurchase);
+  // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
+  // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว
+  document.getElementById('purchQty').addEventListener('input', ()=>{
+    if(!purchEditingId) return;
+    const existing = dayData.purchases.find(x=>x.id===purchEditingId);
+    if(!purchaseHasLotCostBasis_(existing)) return;
+    const qty = Number(document.getElementById('purchQty').value||0);
+    const totalCost = purchaseLotTotalCost_(existing);
+    document.getElementById('purchPrice').value = qty>0 ? Math.round((totalCost/qty)*10000)/10000 : '';
+  });
   document.getElementById('addLotBtn').addEventListener('click', addLot);
   document.getElementById('addLotItemRowBtn').addEventListener('click', addLotItemRow);
   document.getElementById('lotSectionToggle').addEventListener('click', ()=>{

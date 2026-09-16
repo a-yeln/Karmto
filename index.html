@@ -1264,9 +1264,10 @@ async function writeDayFieldPath_(iso, path, value){
 }
 // เหมือน writeDayArrayOp_ ด้านบนแต่สำหรับ key ที่เก็บค่าทั้งก้อนเป็นอาเรย์ล้วนๆ เอง ไม่ใช่ object ที่มีอาเรย์เป็นฟิลด์ย่อย
 // (เช่น debts/rawLots/wasteRecords) — setCache รับอาเรย์ล่าสุดไปอัปเดตตัวแปรแคชในเครื่องของแต่ละ key เอง (ชื่อไม่เหมือนกัน)
+// op เป็นได้ทั้ง object เดียว หรืออาเรย์ของหลาย op ในคำขอเดียว (atomic) — เหมือน writeDayArrayOp_ ด้านบน
 async function writeRootArrayOp_(key, op, setCache){
-  const fullOp = Object.assign({arrayPath:[]}, op);
-  const res = await window.storage.patchOps(key, [fullOp], true);
+  const ops = (Array.isArray(op) ? op : [op]).map(o=>Object.assign({arrayPath:[]}, o));
+  const res = await window.storage.patchOps(key, ops, true);
   let arr;
   try{ arr = JSON.parse(res.value); }catch(e){ arr = []; }
   if(!Array.isArray(arr)) arr = [];
@@ -4414,17 +4415,12 @@ async function confirmLotSettle_(productId){
   const useQty = Number((input && input.value) || 0);
   if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
   lotSettleInFlight_ = true;
-  // จับวันที่/ข้อมูลของวันนั้นไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate/dayData สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/
-  // บันทึกสต็อก) เพราะฟังก์ชันนี้กินเวลา (รอเน็ตหลายจุด) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะ
-  // เอารายการต้นทุนซื้อที่ตัดจากสต็อกล็อตของวันเดิมไปยัดใส่/บันทึกทับวันใหม่แทนแบบเงียบๆ
+  // จับวันที่ไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/บันทึกสต็อก) เพราะ
+  // ฟังก์ชันนี้กินเวลา (รอเน็ตหลายจุด) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะเอารายการต้นทุนซื้อ
+  // ที่ตัดจากสต็อกล็อตของวันเดิมไปยัดใส่/บันทึกทับวันใหม่แทนแบบเงียบๆ
   const iso = currentDate;
-  const data = dayData;
   try{
     const lots2 = await loadRawLots();
-    // สำเนาก่อนแก้ไข costedQty ในลูปข้างล่าง — เผื่อ saveRawLots(lots2) สำเร็จ (ตัดสต็อกไปแล้วจริงบนเซิร์ฟเวอร์)
-    // แต่ saveDay ที่บันทึกรายการต้นทุนซื้อคู่กันดันล้มเหลว (เน็ตมีปัญหาเฉพาะจังหวะนั้น) จะได้เอาไว้ "คืน" สต็อกล็อตกลับ
-    // ไม่งั้นจะเกิดของหาย: สต็อกถูกตัดว่าตัดต้นทุนไปแล้ว แต่ไม่มีรายการต้นทุนซื้อของวันนี้บันทึกไว้ที่ไหนเลย
-    const lots2Snapshot = JSON.parse(JSON.stringify(lots2));
     const {items} = await lotPendingStock_(productId, lots2, iso);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
@@ -4440,6 +4436,10 @@ async function confirmLotSettle_(productId){
     // ตอนนี้เปลี่ยนเป็นสร้าง "1 รายการต้นทุนซื้อ ต่อ 1 รอบเบิก" แยกกันตรงๆ จะได้เห็นผู้ขาย/ราคา/ล็อตของแต่ละก้อนชัดเจน
     // ในตารางรายการต้นทุนซื้อวันนี้เลย ไม่ต้องเปิดดูรายละเอียดซ่อนอยู่ข้างใน
     const newEntries = [];
+    // เก็บรอบเบิกที่ถูกแก้ costedQty ไว้ (lotId/drawId/ค่าใหม่/ค่าเดิม) — ใช้ส่งเป็น patchOps nested set หลายรอบเบิกใน
+    // คำขอเดียว (atomic) แทนเขียนทับทั้งอาเรย์ rawLots และใช้ค่าเดิมตรงนี้ rollback แบบเจาะจงเฉพาะรอบเบิกที่แตะไป ถ้า
+    // ขั้นถัดไป (บันทึกรายการต้นทุนซื้อคู่กัน) ล้มเหลว
+    const touchedDraws = [];
     // จำนวนซื้อ (qty) ยังคงเป็นจำนวนเต็มกก.เสมอตามที่ซื้อ/เบิกกันจริง — แต่แทนที่จะปัดแต่ละรอบเบิกเป็นเลขเต็มแยกกัน
     // (เดิม Math.max(1, Math.round(...)) ทำให้เศษเล็กๆ ของแต่ละรอบ เช่น 0.05 กก. ถูกปัดขึ้นเป็น 1 กก.เต็มทุกรอบ พอ settle
     // เดียวแตกเป็นหลายแถวยอดรวมจะพุ่งเกินจริง) ตอนนี้ปัดแบบสะสม (largest-remainder): รวมกก.ดิบที่แม่นยำของทุกรอบเบิก
@@ -4454,7 +4454,12 @@ async function confirmLotSettle_(productId){
       const lot = lots2.find(l=>l.id===it.lotId);
       const draw = lot && (lot.draws||[]).find(d=>d.id===it.drawId);
       if(!draw) continue;
-      draw.costedQty = Math.round((Number(draw.costedQty||0) + take)*100)/100;
+      const prevCostedQty = Number(draw.costedQty||0);
+      const newCostedQty = Math.round((prevCostedQty + take)*100)/100;
+      draw.costedQty = newCostedQty;
+      const touched = touchedDraws.find(t=>t.lotId===it.lotId && t.drawId===it.drawId);
+      if(touched){ touched.newCostedQty = newCostedQty; }
+      else{ touchedDraws.push({lotId:it.lotId, drawId:it.drawId, newCostedQty, prevCostedQty}); }
       const cost = take*it.cpu;
       // ปัด 2 ตำแหน่งทศนิยมให้ตรงกับ draw.costedQty ด้านบน (ไม่ปัดเป็นจำนวนเต็ม) — เดิม Math.round(take) ปัดเป็นเลขเต็ม
       // ทำให้ sellableQty ที่บันทึกไว้ในรายการต้นทุนซื้อเพี้ยนไปจาก take จริงที่ไปบวกเข้า draw.costedQty แล้ว (เช่น take=2.4
@@ -4492,20 +4497,23 @@ async function confirmLotSettle_(productId){
       remaining -= take;
     }
     if(newEntries.length===0){ showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return; }
-    data.purchases = data.purchases || [];
-    const prevPurchases = data.purchases;
-    data.purchases = data.purchases.concat(newEntries);
+    // ตัดสต็อกล็อต (costedQty ของแต่ละรอบเบิกที่เกี่ยวข้อง) แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set เฉพาะรอบ
+    // เบิกที่แตะไปจริง ในคำขอเดียว) แทนโหลด rawLots ทั้งก้อนมาแก้แล้วเขียนทับทั้งอาเรย์ — กันเผลอทับการเปลี่ยนแปลงของ
+    // รอบเบิก/ล็อตอื่นที่ไม่เกี่ยวข้องเลย ถ้ามีคนบันทึกอย่างอื่นของล็อตคาบเกี่ยวกันพอดี
+    const rawLotsOps = touchedDraws.map(t=>({matchField:'id', matchValue:t.lotId, nested:{field:'draws', matchField:'id', matchValue:t.drawId, set:{costedQty:t.newCostedQty}}}));
     let rawLotsSaved = false;
     try{
-      await saveRawLots(lots2);
+      await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
       rawLotsSaved = true;
-      await saveDay(iso, data);
+      const fresh = await writeDayArrayOp_(iso, 'purchases', newEntries.map(e=>({push:e})));
+      if(iso===currentDate) dayData = fresh;
     }catch(e){
-      data.purchases = prevPurchases;
       if(rawLotsSaved){
-        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิมก่อน
+        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิม
+        // (เจาะจงแค่รอบเบิกที่แตะไปเท่านั้น ไม่ใช่เขียนทับทั้งอาเรย์แบบเดิม)
         try{
-          await saveRawLots(lots2Snapshot);
+          const revertOps = touchedDraws.map(t=>({matchField:'id', matchValue:t.lotId, nested:{field:'draws', matchField:'id', matchValue:t.drawId, set:{costedQty:t.prevCostedQty}}}));
+          await writeRootArrayOp_('rawLots', revertOps, arr=>{rawLotsCache_=arr;});
           showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
         }catch(revertErr){
           showToast('ตัดต้นทุนไม่สำเร็จ และคืนสถานะสต็อกล็อตไม่สำเร็จด้วย (เน็ตมีปัญหา?) — สต็อกกับรายการต้นทุนซื้ออาจไม่ตรงกัน ลองรีเฟรชแล้วเช็คที่การ์ด "ล็อตที่มีอยู่" กับ "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
@@ -4535,16 +4543,17 @@ async function ensureLotBillRecords(lots){
     if(!groups[bid]) groups[bid] = [];
     groups[bid].push(lot);
   });
-  let changed = false;
-  let transportChanged = false;
+  // เพิ่มบิลที่ยังไม่มีเข้าไปทีเดียวแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push หลายรายการในคำขอเดียวต่อคอลเลกชัน) แทน
+  // push เข้าอาเรย์ที่โหลดมาเองแล้วเขียนทับทั้งก้อน
+  const productOps = [];
+  const transportOps = [];
   Object.keys(groups).forEach(bid=>{
     const rows = groups[bid];
     if(!haveBillIds.has(bid)){
       const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
       if(amount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
-        productBills.push({id:'lp'+bid, billId: bid, seller: rows[0].seller||'', sellerNote: rows[0].sellerNote||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-        changed = true;
+        productOps.push({push:{id:'lp'+bid, billId: bid, seller: rows[0].seller||'', sellerNote: rows[0].sellerNote||'', buyDate: rows[0].buyDate, amount, productLabel: productLabels.join(' '), paid:false, paidDate:null}});
       }
     }
     // เผื่อกรณีตอนบันทึกล็อตมีค่าขนส่ง (ติดอยู่ใน extra ของแต่ละล็อตแล้ว นับเป็นต้นทุนถูกต้องอยู่แล้ว) แต่บิลค่าขนส่งที่ต้องตามจ่ายไม่ถูกสร้างขึ้น (เช่น เน็ตสะดุดตอนบันทึกขั้นที่สอง) — สร้างย้อนหลังให้อัตโนมัติ กันตกหล่นไม่มีให้ตามจ่าย
@@ -4552,13 +4561,12 @@ async function ensureLotBillRecords(lots){
       const transportAmount = Math.round(rows.reduce((s,l)=>s+Number(l.extra||0),0)*100)/100;
       if(transportAmount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
-        transportBills.push({id:'lt'+bid, billId: bid, payee:'', amount: transportAmount, buyDate: rows[0].buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-        transportChanged = true;
+        transportOps.push({push:{id:'lt'+bid, billId: bid, payee:'', amount: transportAmount, buyDate: rows[0].buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null}});
       }
     }
   });
-  if(changed) await saveLotProductBills(productBills);
-  if(transportChanged) await saveLotTransportBills(transportBills);
+  if(productOps.length) await writeRootArrayOp_('lotProductBills', productOps, arr=>{lotProductBillsCache_=arr;});
+  if(transportOps.length) await writeRootArrayOp_('lotTransportBills', transportOps, arr=>{lotTransportBillsCache_=arr;});
 }
 // ลบทั้งบิล = ลบทุกล็อตในบิลนี้ + บิลต้นทุนสินค้า + บิลค่าขนส่งที่ผูกกับบิลนี้
 async function deleteWholeBill(billId){
@@ -4572,11 +4580,14 @@ async function deleteWholeBill(billId){
     : 'ต้องการลบทั้งบิลนี้ไหม? (ล็อตสินค้าทุกรายการ + บิลต้นทุนสินค้า + ค่าขนส่งของบิลนี้)';
   if(!confirm(msg)) return;
   try{
-    await saveRawLots(lots.filter(l=>(l.billId||l.id)!==billId));
-    const productBills = await loadLotProductBills();
-    await saveLotProductBills(productBills.filter(b=>b.billId!==billId));
-    const transportBills = await loadLotTransportBills();
-    await saveLotTransportBills(transportBills.filter(b=>b.billId!==billId));
+    // ลบทุกล็อตของบิลนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps remove 2 เงื่อนไขในคำขอเดียว — ล็อตใหม่มี billId ตรงๆ,
+    // ล็อตเก่าก่อนมีระบบ billId ใช้ id ตัวเองแทน billId) แทนโหลดทั้งก้อนมากรองเองแล้วเขียนทับทั้งอาเรย์
+    await writeRootArrayOp_('rawLots', [
+      {remove:{matchField:'billId', matchValue:billId, matchAll:true}},
+      {remove:{matchField:'id', matchValue:billId}}
+    ], arr=>{rawLotsCache_=arr;});
+    await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;});
+    await writeRootArrayOp_('lotTransportBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotTransportBillsCache_=arr;});
     showToast('ลบทั้งบิลแล้ว');
     await renderLotList();
     await renderLotProductBillList();
@@ -4652,45 +4663,43 @@ async function addLot(){
   btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
   try{
     const totalQtyAll = validRows.reduce((s,r)=>s+Number(r.qty), 0);
-    const lots = await loadRawLots();
     const billId = uid('bill');
     const productLabels = [];
     let productAmountTotal = 0;
+    const newLots = [];
     validRows.forEach((r,i)=>{
       const transportShare = totalQtyAll>0 ? Math.round((Number(r.qty)/totalQtyAll)*transportTotal*100)/100 : 0;
       const transportNote = transportTotal>0 ? ` • ส่วนค่าขนส่ง ${money(transportShare)}${transportPayee?` (จ่ายแยกให้ ${transportPayee})`:''}` : '';
       const p = PRODUCTS.find(x=>x.id===r.productId);
       productLabels.push(`${p.emoji}${p.name}`);
       productAmountTotal += Number(r.qty)*Number(r.price);
-      lots.push({
+      newLots.push({
         id: `${billId}-${i}`, productId: r.productId, seller, sellerNote, buyDate,
         qtyTotal: Number(r.qty), pricePerKg: Number(r.price), extra: transportShare,
         note: `${note}${transportNote}`.trim(), draws:[], billId
       });
     });
     // เดิม toast ตอน error บอกว่า "ข้อมูลที่กรอกไว้ยังอยู่ ยังไม่หาย" ทุกครั้งไม่ว่าจะพังตรงจุดไหนในลำดับบันทึก 3 ขั้นนี้
-    // (ล็อต → บิลสินค้า → บิลขนส่ง) ถ้า saveRawLots สำเร็จไปแล้วแต่ขั้นถัดไปพัง ของจริงถูกบันทึกไปแล้วบนเซิร์ฟเวอร์
-    // แต่ toast บอกให้ "กดบันทึกอีกครั้ง" — เพราะ billId สุ่มใหม่ทุกครั้ง กดซ้ำจะสร้างล็อต/สต็อกซ้ำสอง (ของจริงไม่ได้มี 2
-    // เท่า) ตอนนี้ถ้าขั้นหลังพัง จะลบส่วนที่เพิ่งบันทึกไปแล้วออกก่อน (ด้วย billId เดียวกัน) กันกดซ้ำแล้วซ้ำสอง
+    // (ล็อต → บิลสินค้า → บิลขนส่ง) ถ้า rawLots สำเร็จไปแล้วแต่ขั้นถัดไปพัง ของจริงถูกบันทึกไปแล้วบนเซิร์ฟเวอร์ แต่ toast
+    // บอกให้ "กดบันทึกอีกครั้ง" — เพราะ billId สุ่มใหม่ทุกครั้ง กดซ้ำจะสร้างล็อต/สต็อกซ้ำสอง (ของจริงไม่ได้มี 2 เท่า)
+    // ตอนนี้ถ้าขั้นหลังพัง จะลบส่วนที่เพิ่งบันทึกไปแล้วออกก่อน (ด้วย billId เดียวกัน) กันกดซ้ำแล้วซ้ำสอง — เขียนแต่ละขั้น
+    // แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทนโหลดทั้งก้อนมาต่อท้ายเองแล้วเขียนทับทั้งอาเรย์ ไม่ต้องโหลด rawLots
+    // มาก่อนด้วยซ้ำเพราะล็อตใหม่ทุกตัวมี id ไม่ซ้ำกับของเดิมอยู่แล้ว (ผูกกับ billId ที่สุ่มใหม่)
     let rawLotsSaved = false, productBillsSaved = false;
     try{
-      await saveRawLots(lots);
+      await writeRootArrayOp_('rawLots', newLots.map(l=>({push:l})), arr=>{rawLotsCache_=arr;});
       rawLotsSaved = true;
-      const productBills = await loadLotProductBills();
-      productBills.push({id:'lp'+billId, billId, seller, sellerNote, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-      await saveLotProductBills(productBills);
+      await writeRootArrayOp_('lotProductBills', {push:{id:'lp'+billId, billId, seller, sellerNote, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null}}, arr=>{lotProductBillsCache_=arr;});
       productBillsSaved = true;
       if(transportTotal>0){
-        const bills = await loadLotTransportBills();
-        bills.push({id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-        await saveLotTransportBills(bills);
+        await writeRootArrayOp_('lotTransportBills', {push:{id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null}}, arr=>{lotTransportBillsCache_=arr;});
       }
     }catch(stepErr){
       if(productBillsSaved){
-        try{ const pb2 = await loadLotProductBills(); await saveLotProductBills(pb2.filter(b=>b.billId!==billId)); }catch(_){}
+        try{ await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;}); }catch(_){}
       }
       if(rawLotsSaved){
-        try{ await saveRawLots(lots.filter(l=>l.billId!==billId)); }catch(_){}
+        try{ await writeRootArrayOp_('rawLots', {remove:{matchField:'billId', matchValue:billId, matchAll:true}}, arr=>{rawLotsCache_=arr;}); }catch(_){}
       }
       throw stepErr;
     }
@@ -4971,8 +4980,7 @@ async function renderLotList(preloadedLots){
     const lot = lots.find(x=>x.id===id);
     if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
     try{
-      const updated = removeFirstById(lots, id);
-      await saveRawLots(updated);
+      const updated = await writeRootArrayOp_('rawLots', {remove:{matchField:'id', matchValue:id}}, arr=>{rawLotsCache_=arr;});
       showToast('ลบล็อตแล้ว');
       renderLotList(updated);
     }catch(e){
@@ -5036,16 +5044,18 @@ async function renderLotList(preloadedLots){
         : `รอบเบิกนี้ถูกตัดต้นทุนไปแล้ว ${d.costedQty} หน่วย การแก้ "จำนวนที่ใช้" (กก.ดิบ) จะเปลี่ยนต้นทุน/หน่วยของรอบเบิกนี้ — แต่รายการต้นทุนซื้อที่ตัดไปแล้วก่อนหน้านี้จะยังใช้ต้นทุน/หน่วยแบบเดิม ไม่ถูกคำนวณย้อนหลังให้ใหม่ (มีผลกับส่วนที่ยังไม่ได้ตัดต้นทุนเท่านั้น)\n\nยืนยันจะแก้ไขต่อไหม?`;
       if(!confirm(warnMsg)) return;
     }
-    d.qtyUsed = qtyUsed; d.sellableQty = sellableQty; d.note = note;
     // ถ้ารอบเบิกนี้มี totalCost/costedQty อยู่แล้ว (เบิกผ่านระบบใหม่) ต้องคำนวณ totalCost ใหม่ตามจำนวนที่แก้
     // และกันไม่ให้ costedQty (ตัดต้นทุนไปแล้วเท่าไหร่) ค้างเกินจำนวนที่ทำได้ใหม่ (เช่น แก้ยอดทำได้ให้น้อยลงกว่าที่ตัดไปแล้ว)
-    if(d.totalCost!==undefined){ d.totalCost = Math.round(qtyUsed*lotCostPerKg(lot)*100)/100; }
-    if(d.costedQty!==undefined){ d.costedQty = Math.min(d.costedQty, sellableQty); }
+    const setFields = {qtyUsed, sellableQty, note};
+    if(d.totalCost!==undefined) setFields.totalCost = Math.round(qtyUsed*lotCostPerKg(lot)*100)/100;
+    if(d.costedQty!==undefined) setFields.costedQty = Math.min(d.costedQty, sellableQty);
     try{
-      await saveRawLots(lots);
+      // แก้เฉพาะรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set) แทนโหลด rawLots ทั้งก้อนมาแก้แล้วเขียนทับ
+      // ทั้งอาเรย์ — กันเผลอทับรอบเบิก/ล็อตอื่นที่ไม่เกี่ยวข้องเลยถ้ามีคนบันทึกคาบเกี่ยวกันพอดี
+      const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:lotId, nested:{field:'draws', matchField:'id', matchValue:drawId, set:setFields}}, arr=>{rawLotsCache_=arr;});
       lotDrawEditId = null;
       showToast('แก้ไขรอบเบิกแล้ว');
-      renderLotList(lots);
+      renderLotList(updated);
       renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
     }catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การแก้ไขยังไม่ถูกบันทึก');
@@ -5072,17 +5082,17 @@ async function renderLotList(preloadedLots){
     const drawId = uid('drw');
     const costPerKg = lotCostPerKg(lot);
     const totalCost = Math.round(qtyUsed*costPerKg*100)/100;
-    lot.draws = lot.draws || [];
     // สำคัญ: เบิกมา = ทำเป็นสต็อกไว้เฉยๆ ก่อน "ยังไม่ตัดต้นทุนซื้อทันที" (costedQty:0) เพราะของที่ทำได้วันนี้
     // อาจถูกใช้/ส่งจริงกระจายไปหลายวันข้างหน้า ถ้าตัดต้นทุนเต็มจำนวนในวันที่เบิกจะทำให้ต้นทุนซื้อวันนั้นพุ่งผิดปกติ
     // ไม่ตรงกับของที่ใช้จริงวันนั้น — ต้นทุนจะถูกตัดทีหลังผ่านการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน
-    lot.draws.push({id:drawId, date:currentDate, qtyUsed, sellableQty, note, totalCost, costedQty:0});
-    await saveRawLots(lots);
+    // เพิ่มรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested push บนอาเรย์ draws ของล็อตนี้โดยตรง) แทนโหลด rawLots
+    // ทั้งก้อนมาต่อท้ายเองแล้วเขียนทับทั้งอาเรย์
+    const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:id, nested:{field:'draws', push:{id:drawId, date:currentDate, qtyUsed, sellableQty, note, totalCost, costedQty:0}}}, arr=>{rawLotsCache_=arr;});
     await autoFillLeftoverIfNeeded(lot.productId); // ถ้าเบิกเกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     lotDrawOpenId = null;
     showToast('บันทึกการเบิกใช้แล้ว — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยัน "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน');
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
-    renderLotList(lots);
+    renderLotList(updated);
     } catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
     } finally { lotDrawConfirmInFlight = false; btn.disabled = false; }
@@ -5124,9 +5134,8 @@ async function renderLotList(preloadedLots){
         const sellableTotal = Number(document.getElementById('multiLotSellable').value||0);
         const note = document.getElementById('multiLotNote').value.trim();
         if(qtyUsedTotal<=0 || sellableTotal<=0){ showToast('กรอกจำนวนที่ใช้รวมและที่ได้รวมให้ครบ'); return; }
-        const lots2 = lots;
         // หักเบิก (ใช้ไป) แบบเต็มลอต: FIFO — ตัดล็อตที่ซื้อมาก่อนสุดให้หมดก่อน แล้วค่อยไล่ไปล็อตถัดไปจนครบยอดที่เบิก
-        const activeLots = lots2.filter(l=>l.productId===productId && lotRemaining(l)>0)
+        const activeLots = lots.filter(l=>l.productId===productId && lotRemaining(l)>0)
           .sort((a,b)=> String(a.buyDate).localeCompare(String(b.buyDate)) || String(a.id).localeCompare(String(b.id)));
         if(activeLots.length===0){ showToast('ไม่มีล็อตที่เหลืออยู่ของสินค้านี้'); return; }
         let remainingToAllocate = qtyUsedTotal;
@@ -5160,20 +5169,19 @@ async function renderLotList(preloadedLots){
           }
         });
         // เหมือนกับเบิกทีละล็อต: บันทึกเป็นสต็อกไว้ก่อน ยังไม่ตัดต้นทุนซื้อทันที — ไปตัดทีหลังผ่านการ์ด "ตัดต้นทุนสต็อกล็อตวันนี้"
-        allocations.forEach(a=>{
-          const lot = a.lot;
-          const drawId = uid('drw');
-          const costPerKg = lotCostPerKg(lot);
+        // เพิ่มรอบเบิกของแต่ละล็อตที่แบ่งไปแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested push หลายล็อตในคำขอเดียว) แทน
+        // โหลด rawLots ทั้งก้อนมาต่อท้ายเองแล้วเขียนทับทั้งอาเรย์
+        const rawLotsOps = allocations.map(a=>{
+          const costPerKg = lotCostPerKg(a.lot);
           const totalCost = Math.round(a.qty*costPerKg*100)/100;
-          lot.draws = lot.draws || [];
-          lot.draws.push({id:drawId, date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note: note ? `${note} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต` : 'แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต', totalCost, costedQty:0});
+          return {matchField:'id', matchValue:a.lot.id, nested:{field:'draws', push:{id:uid('drw'), date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note: note ? `${note} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต` : 'แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต', totalCost, costedQty:0}}};
         });
-        await saveRawLots(lots2);
+        const updated = await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
         await autoFillLeftoverIfNeeded(productId);
         multiLotDrawOpen = false;
         showToast(`บันทึกการเบิกรวมแล้ว (แบ่งให้ ${allocations.length} ล็อตอัตโนมัติ) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยันตัดต้นทุนตามที่ใช้จริงแต่ละวันแทน`);
         renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
-        renderLotList(lots2);
+        renderLotList(updated);
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
       } finally {
@@ -5272,8 +5280,7 @@ async function renderLotTransportList(){
     btn.disabled = true;
     const id = btn.getAttribute('data-lottransdel');
     try{
-      const bills2 = await loadLotTransportBills();
-      await saveLotTransportBills(removeFirstById(bills2, id));
+      await writeRootArrayOp_('lotTransportBills', {remove:{matchField:'id', matchValue:id}}, arr=>{lotTransportBillsCache_=arr;});
       showToast('ลบแล้ว');
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -5324,10 +5331,7 @@ async function renderLotTransportList(){
     lotTransActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      const bills2 = await loadLotTransportBills();
-      const b = bills2.find(x=>x.id===id);
-      if(b){ b.amount = newAmount; b.note = (noteInput && noteInput.value.trim()) || ''; }
-      await saveLotTransportBills(bills2);
+      await writeRootArrayOp_('lotTransportBills', {matchField:'id', matchValue:id, set:{amount:newAmount, note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotTransportBillsCache_=arr;});
       lotTransportFieldEditId = null;
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -5427,8 +5431,7 @@ async function renderLotProductBillList(){
     btn.disabled = true;
     const id = btn.getAttribute('data-lotproddel');
     try{
-      const bills2 = await loadLotProductBills();
-      await saveLotProductBills(removeFirstById(bills2, id));
+      await writeRootArrayOp_('lotProductBills', {remove:{matchField:'id', matchValue:id}}, arr=>{lotProductBillsCache_=arr;});
       showToast('ลบแล้ว');
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -5478,10 +5481,7 @@ async function renderLotProductBillList(){
     lotProdActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      const bills2 = await loadLotProductBills();
-      const b = bills2.find(x=>x.id===id);
-      if(b){ b.amount = newAmount; b.note = (noteInput && noteInput.value.trim()) || ''; }
-      await saveLotProductBills(bills2);
+      await writeRootArrayOp_('lotProductBills', {matchField:'id', matchValue:id, set:{amount:newAmount, note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotProductBillsCache_=arr;});
       lotProductBillFieldEditId = null;
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -5820,25 +5820,33 @@ function renderPurchaseList(){
     }
     if(entry && entry.lotSettle && Array.isArray(entry.lotSettleAllocations)){
       // รายการนี้คือ "ตัดต้นทุน" จากสต็อกล็อต (อาจครอบคลุมหลายรอบเบิก/หลายล็อต) — ลบแล้วต้องคืนสถานะ costedQty ให้แต่ละ
-      // รอบเบิกที่เกี่ยวข้อง ไม่ใช่ลบรอบเบิกทิ้ง เพราะของยังอยู่ในสต็อกเหมือนเดิม แค่ยังไม่ถูกตัดเป็นต้นทุนซื้อ
+      // รอบเบิกที่เกี่ยวข้อง ไม่ใช่ลบรอบเบิกทิ้ง เพราะของยังอยู่ในสต็อกเหมือนเดิม แค่ยังไม่ถูกตัดเป็นต้นทุนซื้อ — เขียนแบบ
+      // ล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set เฉพาะรอบเบิกที่เกี่ยวข้อง ในคำขอเดียว) แทนโหลด rawLots ทั้งก้อน
+      // มาแก้แล้วเขียนทับทั้งอาเรย์ — ถ้ามีหลาย allocation ชี้ไปรอบเบิกเดียวกัน (ไม่ควรเกิดปกติ) รวมยอดหักก่อนค่อยส่ง 1 op
       try{
         const lots2 = await loadRawLots();
+        const drawUpdates = new Map();
         entry.lotSettleAllocations.forEach(a=>{
           const lot = lots2.find(x=>x.id===a.lotId);
           const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
-          if(draw) draw.costedQty = Math.max(0, Math.round((Number(draw.costedQty||0) - Number(a.qty||0))*100)/100);
+          if(!draw) return;
+          const key = a.lotId+'|'+a.drawId;
+          const current = drawUpdates.has(key) ? drawUpdates.get(key).newCostedQty : Number(draw.costedQty||0);
+          const newCostedQty = Math.max(0, Math.round((current - Number(a.qty||0))*100)/100);
+          drawUpdates.set(key, {lotId:a.lotId, drawId:a.drawId, newCostedQty});
         });
-        await saveRawLots(lots2);
+        const ops = Array.from(drawUpdates.values()).map(u=>({matchField:'id', matchValue:u.lotId, nested:{field:'draws', matchField:'id', matchValue:u.drawId, set:{costedQty:u.newCostedQty}}}));
+        if(ops.length) await writeRootArrayOp_('rawLots', ops, arr=>{rawLotsCache_=arr;});
         await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
       }catch(e){
         showToast('ลบต้นทุนซื้อสำเร็จ แต่คืนสถานะสต็อกล็อตไม่สำเร็จ (เน็ตมีปัญหา?) — ลองรีเฟรชแล้วเช็คที่การ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
       }
     }else if(entry && entry.fromLot && typeof entry.fromLot === 'string'){
       // รูปแบบเก่า (ก่อนปรับระบบตัดต้นทุนรายวัน): 1 รายการต้นทุนซื้อ = 1 รอบเบิกเต็มจำนวน ผูกกับล็อตตรงๆ ด้วย id เดียวกับรอบเบิก
+      // ลบรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested remove) แทนโหลด rawLots ทั้งก้อนมากรองเองแล้วเขียนทับ
       try{
-        const lots2 = await loadRawLots();
-        const lot = lots2.find(x=>x.id===entry.fromLot);
-        if(lot){ lot.draws = (lot.draws||[]).filter(d=>d.id!==id); await saveRawLots(lots2); await renderLotList(); }
+        await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:entry.fromLot, nested:{field:'draws', remove:{matchField:'id', matchValue:id}}}, arr=>{rawLotsCache_=arr;});
+        await renderLotList();
       }catch(e){
         showToast('ลบต้นทุนซื้อสำเร็จ แต่ลบประวัติเบิกลอตไม่สำเร็จ (เน็ตมีปัญหา?) — ลอตนี้อาจยังโชว์ว่าเบิกไปแล้วอยู่ ลองรีเฟรชแล้วลบใหม่');
       }

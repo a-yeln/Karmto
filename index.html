@@ -1378,8 +1378,16 @@ async function saveRow(){
   const row = {};
   // ปัด 1 ตำแหน่งทศนิยม (ตรงกับ step="0.1" ของช่องกรอก) กันเศษทศนิยมแปลกๆ จากการคำนวณ float (เช่น 2.3000000000000003)
   document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
-  dayData.orders[code] = row;
-  await saveDay(currentDate, dayData);
+  const iso = currentDate;
+  // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน dayData.orders[code]=row; saveDay() ทั้งวัน — เดิมถ้าบันทึกสาขา
+  // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
+  // ทั้งก้อนที่ยิงออกไปพร้อมกันอาจถึงเซิร์ฟเวอร์สลับคิวกัน ใครมาถึงทีหลังจะเขียนทับของอีกฝั่งทั้งหมดแบบเงียบๆ (ตรงกับปัญหา
+  // จริงที่เจอ: กรอกออเดอร์ใหม่แล้วต้นทุนซื้อ/สถานะบิลของวันนั้นกลับกลายเป็นข้อมูลเก่า) patchField ล็อกฝั่งเซิร์ฟเวอร์ตรงนี้
+  const res = await window.storage.patchField('day:'+iso, ['orders', code], row);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh;
+  writeDayToLocalStorage_(iso, fresh);
+  if(iso===currentDate) dayData = fresh;
   editingCode = null;
   refreshOrderTab(); renderStats();
   // เลื่อนไปให้เห็นบรรทัดสาขาที่เพิ่งบันทึกในลิสต์ "สาขาที่บันทึกแล้ววันนี้" ทันที ให้มั่นใจว่าบันทึกจริง (ไม่ต้องคอยเชื่อ toast อย่างเดียว)
@@ -1647,28 +1655,42 @@ async function readOrderImages(fileList){
     }
   }
   // อ่านครบทุกภาพแล้ว ค่อยตัดสินใจว่าจะเขียนเข้าวันไหน — ยึดตาม targetDate ที่จับไว้ตั้งแต่ต้นเสมอ ไม่ใช่ currentDate ตอนนี้
-  // ถ้ายังเปิดดูวันเดิมอยู่ ใช้ dayData สดที่มีอยู่แล้วได้เลย (เร็วกว่า) ถ้าสลับวันไปแล้วให้โหลดของวันเป้าหมายใหม่สดๆ แยกต่างหาก
-  const stillOnTargetDate = (currentDate === targetDate);
+  // โหลดของวันเป้าหมายสดจากเซิร์ฟเวอร์เสมอตรงนี้ (ไม่ใช้ dayData ที่มีอยู่แล้วในเครื่องเฉยๆ แม้ยังเปิดดูวันเดิมอยู่) เผื่อ
+  // ระหว่างที่กำลังไล่อ่านภาพอยู่ (อาจนานหลายนาที) มีการบันทึก/ลบอย่างอื่นของวันเดียวกันเข้ามาคาบเกี่ยว เช็ค "มีออเดอร์
+  // อยู่แล้วไหม" กับของเก่าในเครื่องจะพลาดได้ ต้องเช็คกับของจริงล่าสุดเท่านั้น
   let targetDay;
   try{
-    targetDay = stillOnTargetDate ? dayData : await loadDay(targetDate);
+    targetDay = await loadDay(targetDate);
   }catch(e){
     statusEl.textContent = `อ่านภาพเสร็จแล้ว แต่โหลดข้อมูลวันที่ ${formatDDMMYYYY(targetDate)} เพื่อบันทึกไม่สำเร็จ (เน็ตมีปัญหา?) — ยังไม่ได้บันทึกอะไรลงไปเลย ลองใหม่อีกครั้ง`;
     return;
   }
   // เช็คสาขาที่มีออเดอร์อยู่แล้วตรงจุดนี้ (กับข้อมูลของวันเป้าหมายจริงๆ) ไม่ใช่เช็คระหว่างอ่านตอนต้น — กันเขียนทับ
   // ของจริงโดยไม่รู้ตัว ไม่มีขั้นตอนตรวจทานก่อนบันทึกเหมือนโหมดรูปเดียว จึงข้ามสาขาที่มีอยู่แล้วไปแทนที่จะทับอัตโนมัติ
-  const successList = []; const skippedList = [];
+  const successList = []; const skippedList = []; const ops = [];
   parsedResults.forEach(({branch, row, fileName})=>{
     if(hasNonEmptyOrder_(targetDay.orders[branch.code])){
       skippedList.push(`${fileName} (${branchDisplayName(branch)} มีออเดอร์อยู่แล้ว)`);
       return;
     }
-    targetDay.orders[branch.code] = row;
+    ops.push({path:['orders', branch.code], value: row});
     successList.push(branchDisplayName(branch));
   });
-  await saveDay(targetDate, targetDay);
-  if(stillOnTargetDate){ dayData = targetDay; refreshOrderTab(); renderStats(); }
+  // เขียนทุกสาขาที่ผ่านการเช็คแล้วในคำขอ patchOps เดียว (atomic, ล็อกฝั่งเซิร์ฟเวอร์) แทน saveDay() ทั้งวัน — เหตุผล
+  // เดียวกับ saveRow() ด้านบน: กันคำขอนี้เขียนทับข้อมูลอื่นของวันเดียวกันที่เพิ่งเปลี่ยนไปขณะกำลังอ่านภาพอยู่
+  if(ops.length>0){
+    try{
+      const res = await window.storage.patchOps('day:'+targetDate, ops, false);
+      const fresh = normalizeDay_(JSON.parse(res.value));
+      dayCache_[targetDate] = fresh;
+      writeDayToLocalStorage_(targetDate, fresh);
+      if(targetDate===currentDate){ dayData = fresh; refreshOrderTab(); renderStats(); }
+    }catch(e){
+      statusEl.textContent = `อ่านภาพเสร็จแล้ว แต่บันทึกลงวันที่ ${formatDDMMYYYY(targetDate)} ไม่สำเร็จ (เน็ตมีปัญหา?) — ยังไม่ได้บันทึกอะไรลงไปเลย ลองใหม่อีกครั้ง`;
+      return;
+    }
+  }
+  const stillOnTargetDate = (targetDate === currentDate);
   let msg = successList.length ? `บันทึกสำเร็จ ${successList.length} สาขา (เข้าวันที่ ${formatDDMMYYYY(targetDate)}): ${successList.join(', ')} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง ช่วยไล่เช็คตัวเลขแต่ละสาขาที่ "สาขาที่บันทึกแล้ว" เทียบกับภาพอีกรอบด้วย` : 'ไม่มีสาขาที่บันทึกสำเร็จเลย';
   if(skippedList.length) msg += ` — ⚠️ ข้าม ${skippedList.length} ภาพเพราะสาขานั้นมีออเดอร์บันทึกไว้แล้ว (ไม่ได้เขียนทับให้): ${skippedList.join(', ')} — ถ้าจะบันทึกทับจริงๆ กรุณาเลือกอ่านรูปนั้นทีละรูปแล้วบันทึกเองแทน (เช็คก่อนว่าเปิดวันที่ถูกต้องอยู่)`;
   if(failedList.length) msg += ` — พลาด ${failedList.length} ภาพ: ${failedList.join(', ')} (กรอกเองแทน)`;

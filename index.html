@@ -55,6 +55,20 @@
       if(!res.ok){ throw new Error('Network error: '+res.status); }
       const data = await res.json();
       return {keys: data.keys||[], prefix, shared:false};
+    },
+    // แก้ "แค่ฟิลด์เดียว" ภายในค่า JSON ของ key นั้นๆ โดยฝั่งเซิร์ฟเวอร์ล็อกกันชนกันจริงๆ (Apps Script v4 ขึ้นไป) — path
+    // เป็น array ไล่ชื่อฟิลด์ลงไป เช่น ['billingPaid','07'] ต่างจาก set() ที่เขียนทับค่าทั้งก้อนเสมอและไม่มีการล็อกใดๆ
+    // (เสี่ยงข้อมูลหายถ้าสองอุปกรณ์/สองแท็บบันทึก key เดียวกันใกล้ๆ กัน) ใช้จุดไหนที่เสี่ยงชนกันสูงแทน set()
+    async patchField(key, path, value){
+      const res = await withApiTimeout(fetch(SHEET_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'patchField', key, path, value})
+      }), 'patchField');
+      if(!res.ok){ throw new Error('Network error: '+res.status); }
+      const data = await res.json();
+      if(data.error){ throw new Error(data.message||data.error); }
+      return {key: data.key, value: data.value, shared:false};
     }
   };
 
@@ -1126,6 +1140,20 @@ async function saveDay(iso, data){
   dayCache_[iso] = data; // keep the cache in sync with what was just saved
   writeDayToLocalStorage_(iso, data);
 }
+// เขียนสถานะ "จ่ายแล้ว/รอจ่าย" ของบิลสาขา — ใช้ window.storage.patchField() ซึ่ง Apps Script backend (v4 ขึ้นไป) ล็อก
+// การอ่าน-แก้-เขียนฟิลด์นี้ไว้เป็นสเต็ปเดียวฝั่งเซิร์ฟเวอร์ (LockService) ไม่มีช่วงเวลาให้คำขออื่นแทรกเข้ามาชนกันได้เลย —
+// เดิมทุกจุดที่บันทึกสถานะจ่ายเงินใช้ saveDay() ซึ่งเขียนทับเอกสารทั้งวันเสมอ โดยอ่านข้อมูลมาตั้งแต่ตอนเปิดฟอร์ม/หน้าจอ
+// (อาจเก่ากว่าความจริงไปแล้วหลายวินาทีถึงหลายนาที ระหว่างผู้ใช้เลือกวันที่/พิมพ์ยอดโอน) ถ้าระหว่างนั้นมีการบันทึกอื่นเข้ามา
+// ที่วันเดียวกัน (เช่น อีกเครื่อง/อีกคนกดจ่ายสาขาอื่นพร้อมกัน) การเขียนทับทั้งก้อนจะทำให้การเปลี่ยนแปลงนั้นหายไปเงียบๆ
+// (สถานะจ่ายเงินเด้งกลับ/มั่วข้ามสาขา — ปัญหาที่เจอจริง) ย้ายมาใช้ patchField แก้ที่รากของปัญหาโดยตรงแทนการลดโอกาสชน
+// เฉยๆ — สำคัญ: ต้อง deploy Apps Script เวอร์ชัน v4 (มี action "patchField") ก่อน ไม่งั้นฟังก์ชันนี้จะพังทุกครั้ง
+async function writeBillingPaid_(iso, code, value){
+  const res = await window.storage.patchField('day:'+iso, ['billingPaid', code], value);
+  const fresh = normalizeDay_(JSON.parse(res.value));
+  dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์ เหมือนที่ saveDay() ทำ
+  writeDayToLocalStorage_(iso, fresh);
+  return fresh;
+}
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
@@ -2066,14 +2094,12 @@ function renderBillingList(){
       if(dayData.billingPaid[code]){
         if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
         btn.disabled = true;
-        const prev = dayData.billingPaid[code];
-        dayData.billingPaid[code] = false;
         try{
-          await saveDay(currentDate, dayData);
+          await writeBillingPaid_(currentDate, code, false);
+          dayData.billingPaid[code] = false;
           renderBillingList();
           renderStats();
         }catch(e){
-          dayData.billingPaid[code] = prev;
           showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
           btn.disabled = false;
         }
@@ -2092,16 +2118,15 @@ function renderBillingList(){
       const amtInput = document.getElementById(`payamt-${code}`);
       const billedAmt = branchBillAmount(dayData.orders[code], currentDate) + Number(dayData.billExtra[code]||0);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
-      const prev = dayData.billingPaid[code];
-      dayData.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
+      const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
       try{
-        await saveDay(currentDate, dayData);
+        await writeBillingPaid_(currentDate, code, payValue);
+        dayData.billingPaid[code] = payValue;
         payDateEditingCode = null;
         renderBillingList();
         renderStats();
       }catch(e){
-        dayData.billingPaid[code] = prev;
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
         btn.disabled = false; btn.textContent = 'ยืนยัน';
       }
@@ -3269,9 +3294,9 @@ async function renderOutstanding(){
         const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
         const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
         const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
-        d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
-        await saveDay(iso, d);
-        if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
+        const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
+        await writeBillingPaid_(iso, code, payValue);
+        if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
         showToast('บันทึกว่าโอนแล้ว');
         // บันทึกสำเร็จแล้ว แค่เอาแถวนี้ออกจากลิสต์ค้างโอนไปเลย ไม่ต้องโหลด/คำนวณทั้งลิสต์ใหม่ทั้งหมด
         const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
@@ -6087,6 +6112,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
     });
     const confirmBtn = detailEl.querySelector('#branchPayConfirmBtn');
     if(confirmBtn) confirmBtn.addEventListener('click', async ()=>{
+      if(confirmBtn.disabled) return; // กันกดซ้ำระหว่างกำลังบันทึกหลายบิลอยู่
       const isos = Array.from(branchPaySelection);
       if(isos.length===0) return;
       const paidDate = detailEl.querySelector('#branchPayDate').value || todayISO();
@@ -6096,13 +6122,31 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedSum;
       const note = detailEl.querySelector('#branchPayNote').value || '';
       const batchId = isos.length>1 ? uid('batch') : null;
+      confirmBtn.disabled = true;
+      // เดิมลูปนี้ไม่มี try/catch เลย — ถ้าบิลไหนกลางลิสต์บันทึกพัง (เน็ตสะดุด/ชนกับการบันทึกอื่น) โค้ดทั้งฟังก์ชันจะพังเงียบๆ
+      // ไปเลย ไม่มี toast ไม่มีอะไรบอกว่าบิลไหนสำเร็จ/ไม่สำเร็จ (ตรงกับปัญหาจริงที่เจอ: บางวันบางสาขาตกหล่นการโอนแบบไม่รู้ตัว)
+      // ตอนนี้ไล่ทีละบิล บันทึกอันไหนสำเร็จก็สำเร็จไปเลย อันไหนพังก็รู้ชัดๆ ว่าพังอันไหน ไม่ต้องรอทั้งชุดเสร็จหรือพังหมดทีเดียว
+      const succeeded = []; const failed = [];
       for(const iso of isos){
-        const d = await loadDay(iso);
-        d.billingPaid[code] = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};
-        await saveDay(iso, d);
-        if(iso===currentDate){ dayData.billingPaid[code] = d.billingPaid[code]; renderBillingList(); }
+        confirmBtn.textContent = `กำลังบันทึก… (${succeeded.length+failed.length+1}/${isos.length})`;
+        try{
+          const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};
+          await writeBillingPaid_(iso, code, payValue);
+          if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
+          succeeded.push(iso);
+        }catch(e){
+          failed.push({iso});
+        }
       }
-      showToast(isos.length>1 ? `บันทึกชำระรวม ${isos.length} บิลแล้ว` : 'บันทึกว่าโอนแล้ว');
+      confirmBtn.disabled = false; confirmBtn.textContent = 'ยืนยันว่าชำระแล้ว';
+      if(failed.length===0){
+        showToast(isos.length>1 ? `บันทึกชำระรวม ${isos.length} บิลแล้ว` : 'บันทึกว่าโอนแล้ว');
+      }else if(succeeded.length===0){
+        showToast(`บันทึกไม่สำเร็จเลยทั้ง ${failed.length} บิล (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง`);
+      }else{
+        const failedDates = failed.map(f=>formatDDMMYYYY(f.iso)).join(', ');
+        alert(`บันทึกสำเร็จ ${succeeded.length}/${isos.length} บิล — ที่ยังไม่สำเร็จ: ${failedDates}\n\nบิลที่ไม่สำเร็จยังอยู่ในสถานะ "รอโอน" เหมือนเดิม (ไม่ได้ถูกทำเครื่องหมายผิดๆ ว่าจ่ายแล้ว) กรุณาเลือกบิลที่เหลือแล้วกดยืนยันซ้ำอีกครั้ง`);
+      }
       renderStats();
       // รีเฟรชทุกที่ๆ อาจกำลังแสดงรายละเอียดสาขานี้อยู่ (แดชบอร์ด และ/หรือ หน้าบิลโอนเงิน)
       const dashSelectEl = document.getElementById('dashBranchSelect');
@@ -6278,25 +6322,20 @@ async function jumpToBillReceipt(iso, code){
 // สลับสถานะโอนแล้ว/รอโอน ของบิลวันไหนก็ได้ โดยไม่ต้องออกจากหน้าเช็คยอดรายสาขา
 // (ใช้วันนี้เป็นวันที่โอนโดยอัตโนมัติเวลากดยืนยันจ่าย — ถ้าอยากระบุวันที่โอนเอง ให้กดไอคอนบิล 🧾 แล้วไปทำที่หน้าบิลโอนเงินแทน)
 async function toggleBranchBillPaidQuick(iso, code, btn){
-  const d = await loadDay(iso);
-  const prev = d.billingPaid[code];
-  if(d.billingPaid[code]){
+  const wasPaid = !!(await loadDay(iso)).billingPaid[code]; // ใช้แค่ตัดสินใจว่าจะถามยืนยัน/สลับไปทางไหน ตัวเขียนจริงอ่านสดเองอีกที
+  if(wasPaid){
     if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
   }
   if(btn) btn.disabled = true;
-  if(d.billingPaid[code]){
-    d.billingPaid[code] = false;
-  }else{
-    d.billingPaid[code] = {paid:true, paidDate: todayISO()};
-  }
+  const nextValue = wasPaid ? false : {paid:true, paidDate: todayISO()};
   try{
-    await saveDay(iso, d);
-    showToast(d.billingPaid[code] ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
+    await writeBillingPaid_(iso, code, nextValue);
+    if(iso===currentDate) dayData.billingPaid[code] = nextValue;
+    showToast(nextValue ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
     const dashSelectEl = document.getElementById('dashBranchSelect');
     if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
     if(outstandingBranchFilterValue===code) await renderOutstanding();
   }catch(e){
-    d.billingPaid[code] = prev;
     showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
     if(btn) btn.disabled = false;
   }

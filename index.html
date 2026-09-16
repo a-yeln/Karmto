@@ -616,8 +616,17 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <h3>⏳ รายการที่ต้องตามโอน <span class="subhint">(ทุกวันที่ยังไม่ปิด)</span></h3>
       <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);">
+        <label class="cal-switch"><input type="checkbox" id="recheckModeToggle"><span class="track"></span><span class="knob"></span></label>
+        <span id="recheckModeLabel" style="font-size:13px;color:var(--text-dim);">🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)</span>
+      </div>
+      <div id="recheckRoundSummary" style="display:none;margin-top:8px;"></div>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
       <div id="outstandingList" class="loading">กำลังโหลด…</div>
+    </div>
+    <div class="card">
+      <h3>📋 ประวัติการรีเช็ค <span class="subhint">(สรุปแต่ละรอบที่เคลียร์ไปแล้ว)</span></h3>
+      <div id="recheckHistoryList" class="loading">กำลังโหลด…</div>
     </div>
   </div>
 
@@ -3258,6 +3267,149 @@ async function computeAllExpensePayables(){
   }
   return {total, count};
 }
+// ---- โหมดรีเช็คยอดค้างโอน ----
+// แยกชั้นข้อมูลนี้ออกจากสถานะจ่าย/รอจ่ายจริง (billingPaid) โดยตั้งใจ — ไม่ใช่ระบบสถานะใหม่ แค่ "บันทึกว่าเราเช็คซ้ำแล้ว
+// เมื่อไหร่ พบว่าอะไร" เพื่อกันเถียงกับสาขา (เอาสลิปเก่ามาอ้าง) และกันลืมว่าเคยไล่ตามถึงไหนแล้ว — key `billingRecheckCurrent`
+// เก็บ "รอบที่กำลังเช็คอยู่" (object เดียว ไม่ใช่อาเรย์ จึงไม่จำเป็นต้องรอ backend v6 ที่ยังไม่ deploy — ใช้ patchField/
+// patchOps path-based set ซึ่ง backend ที่ deploy อยู่ตอนนี้รองรับอยู่แล้ว) `billingRecheckHistory` เก็บรอบที่เคลียร์ไปแล้ว
+let billingRecheckMode = false;
+let billingRecheckCurrentCache_ = null;
+async function loadBillingRecheckCurrent(){
+  if(billingRecheckCurrentCache_) return billingRecheckCurrentCache_;
+  try{
+    const r = await window.storage.get('billingRecheckCurrent');
+    const v = JSON.parse(r.value);
+    billingRecheckCurrentCache_ = (v && typeof v==='object' && !Array.isArray(v)) ? v : {startedAt:null, marks:{}};
+  }catch(e){
+    const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
+    if(isNotFound){ billingRecheckCurrentCache_ = {startedAt:null, marks:{}}; }
+    else{ throw e; }
+  }
+  if(!billingRecheckCurrentCache_.marks) billingRecheckCurrentCache_.marks = {};
+  return billingRecheckCurrentCache_;
+}
+// บันทึกผลเช็คของบิลเดียว (key = "iso|code") แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField/patchOps ไม่เขียนทับทั้งก้อน)
+async function writeBillingRecheckMark_(key, mark){
+  const current = await loadBillingRecheckCurrent();
+  let res;
+  if(!current.startedAt){
+    // ยังไม่เคยเริ่มรอบนี้เลย (เพิ่งเปิดโหมดรีเช็คแล้วมาร์กบิลแรก) — ตั้งเวลาเริ่มรอบไว้ในคำขอเดียวกับมาร์กบิลแรกเลย
+    res = await window.storage.patchOps('billingRecheckCurrent', [
+      {path:['startedAt'], value: new Date().toISOString()},
+      {path:['marks', key], value: mark}
+    ], false);
+  }else{
+    res = await window.storage.patchField('billingRecheckCurrent', ['marks', key], mark);
+  }
+  billingRecheckCurrentCache_ = JSON.parse(res.value);
+  if(!billingRecheckCurrentCache_.marks) billingRecheckCurrentCache_.marks = {};
+  return billingRecheckCurrentCache_;
+}
+// ยกเลิกมาร์กบิลเดียว — จุดนี้ยังไม่มี "ลบ key" แบบล็อกในเซิร์ฟเวอร์ที่ deploy อยู่ตอนนี้ (ต้อง backend v6) เลยใช้
+// อ่าน-แก้-เขียนทั้งก้อนธรรมดา ความเสี่ยงชนกันต่ำมากเพราะเป็นฟีเจอร์ที่ทำคนเดียวทีละรอบอยู่แล้วไม่ใช่จุดที่มีคนกดพร้อมกันถี่ๆ
+async function unmarkBillingRecheck_(key){
+  const current = await loadBillingRecheckCurrent();
+  delete current.marks[key];
+  await window.storage.set('billingRecheckCurrent', JSON.stringify(current));
+  billingRecheckCurrentCache_ = current;
+  return current;
+}
+let billingRecheckHistoryCache_ = null;
+async function loadBillingRecheckHistory(){
+  if(billingRecheckHistoryCache_) return billingRecheckHistoryCache_;
+  try{
+    const r = await window.storage.get('billingRecheckHistory');
+    const v = JSON.parse(r.value);
+    billingRecheckHistoryCache_ = Array.isArray(v) ? v : [];
+  }catch(e){
+    const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
+    if(isNotFound){ billingRecheckHistoryCache_ = []; }
+    else{ throw e; }
+  }
+  return billingRecheckHistoryCache_;
+}
+// เคลียร์รอบปัจจุบัน — สแนปช็อตสรุปเก็บลงประวัติก่อน แล้วค่อยล้างรอบปัจจุบันทิ้ง (อ่าน-แก้-เขียนทั้งก้อนธรรมดา เหตุผลเดียว
+// กับ unmarkBillingRecheck_ ด้านบน — กดครั้งเดียวตอนจบรอบ ไม่ใช่จุดเสี่ยงชนกัน)
+async function clearBillingRecheckRound_(){
+  const current = await loadBillingRecheckCurrent();
+  const items = Object.keys(current.marks||{}).map(key=>current.marks[key]);
+  const round = {id: uid('recheck'), startedAt: current.startedAt, clearedAt: new Date().toISOString(), items};
+  const history = await loadBillingRecheckHistory();
+  history.push(round);
+  await window.storage.set('billingRecheckHistory', JSON.stringify(history));
+  billingRecheckHistoryCache_ = history;
+  await window.storage.set('billingRecheckCurrent', JSON.stringify({startedAt:null, marks:{}}));
+  billingRecheckCurrentCache_ = {startedAt:null, marks:{}};
+  return round;
+}
+function formatRecheckTimestamp_(iso){
+  try{ const d = new Date(iso); return d.toLocaleString('th-TH', {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'}); }
+  catch(e){ return iso; }
+}
+async function renderRecheckHistory_(){
+  const el = document.getElementById('recheckHistoryList');
+  if(!el) return;
+  el.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  try{
+    const history = await loadBillingRecheckHistory();
+    if(history.length===0){ el.innerHTML = '<div class="empty">ยังไม่เคยเคลียร์รอบรีเช็คเลย</div>'; return; }
+    const sorted = history.slice().sort((a,b)=>(b.clearedAt||'').localeCompare(a.clearedAt||''));
+    el.innerHTML = sorted.map(round=>{
+      const foundPaid = round.items.filter(it=>it.result==='found_paid');
+      const stillUnpaid = round.items.filter(it=>it.result==='still_unpaid');
+      const rowKey = 'rk-'+round.id;
+      return `<div class="card" style="background:var(--surface-2);padding:10px;margin-bottom:8px;">
+        <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:8px;" data-billrowtoggle="${rowKey}">
+          <div>
+            <div style="font-weight:600;">${formatRecheckTimestamp_(round.startedAt)} → ${formatRecheckTimestamp_(round.clearedAt)}</div>
+            <div class="hint" style="margin-top:2px;">เช็คไป ${round.items.length} บิล — ${stillUnpaid.length} ยังไม่โอนจริง${foundPaid.length?`, <span style="color:var(--accent);">${foundPaid.length} เจอว่าโอนแล้ว</span>`:''}</div>
+          </div>
+          <span style="color:var(--accent);flex:none;">▾</span>
+        </div>
+        <div class="billrow-body" id="billrowbody-${rowKey}" style="display:none;">
+          ${round.items.map(it=>`<div class="delayrow" style="font-size:12.5px;">
+            <div style="text-align:left;">
+              <div>${formatDDMMYYYY(it.iso)} • ${escapeHtml(branchName(it.code))} • ${money(it.amt)}</div>
+              <div class="hint" style="margin-top:2px;">${formatRecheckTimestamp_(it.checkedAt)}${it.note?` — ${escapeHtml(it.note)}`:''}</div>
+            </div>
+            <span style="flex:none;color:${it.result==='found_paid'?'var(--accent)':'var(--danger)'};font-weight:600;font-size:11.5px;">${it.result==='found_paid'?'เจอว่าโอนแล้ว':'ยังไม่โอนจริง'}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    wireBillRowToggles(el);
+  }catch(e){ el.innerHTML = '<div class="empty">โหลดประวัติไม่สำเร็จ</div>'; }
+}
+async function renderRecheckRoundSummary_(){
+  const el = document.getElementById('recheckRoundSummary');
+  if(!el) return;
+  if(!billingRecheckMode){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  try{
+    const current = await loadBillingRecheckCurrent();
+    const marks = Object.values(current.marks||{});
+    const foundPaid = marks.filter(m=>m.result==='found_paid').length;
+    el.innerHTML = `<div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span>${current.startedAt ? `รอบนี้เริ่ม ${formatRecheckTimestamp_(current.startedAt)} — เช็คแล้ว ${marks.length} บิล${foundPaid?` (เจอว่าโอนแล้ว ${foundPaid})`:''}` : 'ยังไม่เริ่มเช็คบิลไหนในรอบนี้เลย'}</span>
+      <button class="btn small secondary" id="recheckClearBtn" style="width:auto;" ${marks.length===0?'disabled':''}>🧹 เคลียร์รอบนี้</button>
+    </div>`;
+    const clearBtn = document.getElementById('recheckClearBtn');
+    if(clearBtn) clearBtn.addEventListener('click', async ()=>{
+      if(!confirm(`เคลียร์รอบรีเช็คนี้? (เช็คไปแล้ว ${marks.length} บิล — จะย้ายไปเก็บไว้ในประวัติ แล้วเริ่มรอบใหม่)`)) return;
+      clearBtn.disabled = true; clearBtn.textContent = 'กำลังเคลียร์…';
+      try{
+        await clearBillingRecheckRound_();
+        showToast('เคลียร์รอบรีเช็คแล้ว');
+        await renderRecheckRoundSummary_();
+        await renderRecheckHistory_();
+        await renderOutstanding();
+      }catch(e){
+        showToast('เคลียร์ไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        clearBtn.disabled = false; clearBtn.textContent = '🧹 เคลียร์รอบนี้';
+      }
+    });
+  }catch(e){ el.innerHTML = '<div class="empty">โหลดสรุปรอบไม่สำเร็จ</div>'; }
+}
 let outstandingBranchFilterValue = '';
 let outstandingSortDir = 'desc'; // 'desc' = ดีเลย์มาก→น้อย (ค่าเริ่มต้น), 'asc' = ดีเลย์น้อย→มาก
 // กันเรนเดอร์ซ้อนกัน (เช่น กดสลับสาขาถี่ๆ หรือกดปุ่มสถานะรัวๆ) ไม่ให้ผลลัพธ์เก่าที่เพิ่งโหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
@@ -3306,15 +3458,34 @@ async function renderOutstanding(){
     }
     rows.sort((a,b)=> outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay);
     if(rows.length===0){ container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>'; return; }
+    // โหลดสถานะรีเช็คของรอบปัจจุบันมาด้วยถ้าเปิดโหมดรีเช็คอยู่ — ใช้โชว์ว่าบิลไหนเช็คไปแล้วบ้างในรอบนี้
+    const recheckCurrent = billingRecheckMode ? await loadBillingRecheckCurrent() : null;
+    if(mySeq !== outstandingRenderSeq_) return;
     // ช่องกรอกวันที่/ยอดโอนจริง ทำเป็นซ่อนไว้ในทุกแถวตั้งแต่แรก (ไม่ใช่สร้างใหม่ตอนกด) แล้วกดโชว์/ซ่อนด้วย JS ตรงๆ
     // แทนที่จะเรนเดอร์ใหม่ทั้งลิสต์ทุกครั้งที่กด — กันจอกระตุก/เด้งไปเด้งมาเวลากดสถานะถี่ๆ
     container.innerHTML = rows.map(r=>{
       const key = `${r.iso}|${r.code}`;
+      const mark = recheckCurrent ? recheckCurrent.marks[key] : null;
+      const recheckHtml = !billingRecheckMode ? '' : mark
+        ? `<div class="lrow-hint" style="margin-top:8px;padding-left:0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="color:${mark.result==='found_paid'?'var(--accent)':'var(--success)'};">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — เจอว่าโอนแล้ว':' — ยังไม่โอนจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
+            <button class="iconbtn" data-recheckundo="${key}" aria-label="ยกเลิกการเช็ค" style="flex:none;">↺</button>
+          </div>`
+        : `<div style="margin-top:8px;">
+            <button class="btn small secondary" data-recheckstart="${key}" style="width:auto;">🔍 เช็คแล้ว</button>
+            <div style="display:none;margin-top:6px;" data-recheckform="${key}">
+              <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">ยังไม่โอนจริง</button>
+                <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">เจอว่าโอนแล้ว</button>
+              </div>
+            </div>
+          </div>`;
       return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
         <div class="toprow">
           <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;">
             <div style="display:flex;align-items:baseline;gap:6px;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span></div>
-            <div class="n" style="margin-top:2px;">${branchName(r.code)}</div>
+            <div class="n" style="margin-top:2px;">${escapeHtml(branchName(r.code))}</div>
           </div>
           <div class="acts2">
             <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:44px;">${r.delay} วัน</span>
@@ -3333,10 +3504,57 @@ async function renderOutstanding(){
             <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
           </div>
         </div>
+        ${recheckHtml}
         <div id="bdreceipt-${r.code}-${r.iso}"></div>
       </div>`;
     }).join('');
     const findEditor = (key)=> container.querySelector(`[data-outstandingeditor="${CSS.escape(key)}"]`);
+    container.querySelectorAll('[data-recheckstart]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const form = container.querySelector(`[data-recheckform="${CSS.escape(btn.getAttribute('data-recheckstart'))}"]`);
+      if(form) form.style.display = form.style.display==='none' ? '' : 'none';
+    }));
+    container.querySelectorAll('[data-recheckresult]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const key = btn.getAttribute('data-recheckkey');
+      const result = btn.getAttribute('data-recheckresult');
+      const r = rows.find(x=>`${x.iso}|${x.code}`===key);
+      if(!r) return;
+      const noteInput = container.querySelector(`[data-recheckinput="${CSS.escape(key)}"]`);
+      const note = (noteInput && noteInput.value.trim()) || '';
+      const formButtons = container.querySelectorAll(`[data-recheckkey="${CSS.escape(key)}"]`);
+      formButtons.forEach(b=>b.disabled = true);
+      const mark = {key, iso:r.iso, code:r.code, amt:r.amt, checkedAt:new Date().toISOString(), note, result};
+      try{
+        await writeBillingRecheckMark_(key, mark);
+        // ถ้าเจอว่าจริงๆ โอนแล้ว — แก้สถานะจ่ายให้ตรงในจุดเดียวกันนี้เลย ไม่ต้องสลับไปหน้าอื่นแยก (ใช้วันนี้/ยอดเต็มเป็นค่า
+        // เริ่มต้น เผื่อยอดจริงไม่ตรงเป๊ะยังกดแก้ไขจากปุ่ม "รอโอน" เดิมด้านบนได้ตามปกติทีหลัง)
+        if(result==='found_paid'){
+          const payValue = {paid:true, paidDate: todayISO(), transferAmount: r.amt, billedAmount: r.amt};
+          await writeBillingPaid_(r.iso, r.code, payValue);
+          if(r.iso===currentDate){ dayData.billingPaid[r.code] = payValue; renderBillingList(); }
+          showToast('บันทึกว่าเช็คแล้ว — และแก้สถานะเป็นโอนแล้วให้ด้วย');
+          renderStats();
+        }else{
+          showToast('บันทึกว่าเช็คแล้ว');
+        }
+        await renderRecheckRoundSummary_();
+        await renderOutstanding();
+      }catch(e){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        formButtons.forEach(b=>b.disabled = false);
+      }
+    }));
+    container.querySelectorAll('[data-recheckundo]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const key = btn.getAttribute('data-recheckundo');
+      btn.disabled = true;
+      try{
+        await unmarkBillingRecheck_(key);
+        await renderRecheckRoundSummary_();
+        await renderOutstanding();
+      }catch(e){
+        showToast('ยกเลิกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        btn.disabled = false;
+      }
+    }));
     container.querySelectorAll('[data-outstandingbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const [iso, code] = btn.getAttribute('data-outstandingbill').split('|');
       await toggleBranchDetailReceipt(iso, code); // เปิดดู/ทำรายการบิลฝังอยู่ตรงนี้เลย ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป
@@ -6533,7 +6751,7 @@ async function switchTab(name){
     if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
     if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
-    if(name==='billing'){ renderBillingList(); await renderOutstanding(); }
+    if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
     if(name==='settings'){ renderPriceProductSelect(); renderShelfLifeSettings(); renderBillInfoForm(); renderBranchSettings(); renderExpenseCategorySettings(); renderDebtOwnerSettings(); renderDebtTypeSettings(); renderPIncomeCategorySettings(); renderPExpenseCategorySettings(); renderPurchSellerSettings(); }
@@ -6852,6 +7070,15 @@ async function init(){
   document.getElementById('outstandingSortToggle').addEventListener('click', async (e)=>{
     outstandingSortDir = outstandingSortDir==='desc' ? 'asc' : 'desc';
     e.target.textContent = outstandingSortDir==='desc' ? '⇅ ดีเลย์มาก→น้อย' : '⇅ ดีเลย์น้อย→มาก';
+    await renderOutstanding();
+  });
+  document.getElementById('recheckModeToggle').addEventListener('change', async (e)=>{
+    billingRecheckMode = e.target.checked;
+    const label = document.getElementById('recheckModeLabel');
+    if(label) label.textContent = billingRecheckMode
+      ? '🔍 โหมดรีเช็ค — เปิดอยู่ กดปุ่ม "เช็คแล้ว" ทีละบิลด้านล่างได้เลย'
+      : '🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)';
+    await renderRecheckRoundSummary_();
     await renderOutstanding();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);

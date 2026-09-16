@@ -1191,7 +1191,7 @@ function renderProductInputs(){
   document.getElementById('productInputs').innerHTML = PRODUCTS.map(p=>`
     <div>
       <div class="prodlabel">${p.emoji} ${p.name} <span style="color:var(--text-faint)">(${p.unit})</span></div>
-      <input type="number" min="0" step="1" inputmode="numeric" data-pid="${p.id}" class="prodinput" value="${row[p.id]||''}" placeholder="0">
+      <input type="number" min="0" step="0.1" inputmode="decimal" data-pid="${p.id}" class="prodinput" value="${row[p.id]||''}" placeholder="0">
     </div>`).join('');
 }
 function renderOrderList(){
@@ -1231,7 +1231,8 @@ function renderOrderList(){
 async function saveRow(){
   const code = document.getElementById('branchSelect').value;
   const row = {};
-  document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Number(inp.value||0); });
+  // ปัด 1 ตำแหน่งทศนิยม (ตรงกับ step="0.1" ของช่องกรอก) กันเศษทศนิยมแปลกๆ จากการคำนวณ float (เช่น 2.3000000000000003)
+  document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
   dayData.orders[code] = row;
   await saveDay(currentDate, dayData);
   editingCode = null;

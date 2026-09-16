@@ -3816,10 +3816,13 @@ async function renderLotSettleCards_(){
     const neededToday = rawTotalsToday[pid] || 0;
     const boughtToday = purchasedTodayQty_(pid);
     const remainingNeedToday = Math.max(0, Math.round((neededToday - boughtToday)*100)/100);
-    if(remainingNeedToday<=0.001) continue; // วันนี้บันทึกต้นทุนครบตามที่ต้องการแล้ว (หรือวันนี้ไม่ได้ต้องการสินค้านี้เลย) ไม่ต้องโชว์
+    // เดิม: ถ้าวันนี้ไม่ต้องการสินค้านี้เพิ่มแล้ว (remainingNeedToday<=0) จะซ่อนแถวนี้ไปเลย — ปัญหาคือถ้าสต็อกค้างตัดต้นทุนก้อนนี้ไม่มี
+    // วันไหน "ต้องการเพิ่ม" พอดีเลย (เช่น ลบรายการตัดต้นทุนเดิมทิ้งเพื่อแก้ตัวเลข แล้ววันนั้นไม่มีออเดอร์สินค้านี้ค้างแล้ว) จะไม่มีทาง
+    // ตัดต้นทุนก้อนนี้ได้อีกเลยผ่านหน้านี้ ค้างอยู่ใน "เงินค้างสต็อก" ตลอดไป — เปลี่ยนมาโชว์แถวนี้เสมอถ้ายังมีของค้างตัด แค่ค่าแนะนำ
+    // (suggested) จะเป็น 0 ถ้าวันนี้ไม่ได้ต้องการเพิ่ม ให้ผู้ใช้กรอกจำนวนที่จะตัดเองแทน
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const suggested = Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100;
+    const suggested = remainingNeedToday>0 ? Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100 : 0;
     rows.push({pid, p, pendingQty, avgCostPerUnit, suggested});
   }
   if(rows.length===0){ wrap.innerHTML=''; return; }

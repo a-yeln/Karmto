@@ -505,7 +505,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <div><label>จำนวนที่ทำได้ (<span id="purchSellUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchSellable" placeholder="เท่ากับจำนวนซื้อ"></div>
       </div>
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="purchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
-      <button class="btn" id="addPurchaseBtn" style="margin-top:6px;">+ บันทึกต้นทุนซื้อ</button>
+      <div id="purchStagedList"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" class="btn small secondary" id="purchAddToStageBtn" style="width:auto;">➕ เพิ่มสินค้าในบิลนี้ (ถ้าบิลนี้มีหลายรายการ)</button>
+      </div>
+      <button class="btn" id="addPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
     <div id="lotSettleCards"></div>
     <div class="card" data-no-collapse="1">
@@ -1238,9 +1242,11 @@ async function writeLotBillPaid_(which, billId, fields){
 // แบบล็อกกันชนกันจริงฝั่งเซิร์ฟเวอร์ — ไม่ต้องโหลดทั้งวันมาต่อท้าย/ลบ/แก้เองแล้วเขียนทับทั้งก้อนแบบ saveDay() เหมือนเดิม
 // (เสี่ยงข้อมูลหายถ้ามีคนอื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน) op ส่งเป็น {push:item} หรือ {remove:{matchField,
 // matchValue,...}} หรือ {matchField,matchValue,set:{...}} — รูปแบบเดียวกับที่ Code.gs (patchOps_) รองรับ
+// op เป็นได้ทั้ง object เดียว หรืออาเรย์ของหลาย op (เช่น ลบรายการเก่าของบิลนี้ทั้งหมด + เพิ่มรายการใหม่ของบิลนี้ทั้งหมด
+// ในคำขอเดียว — ใช้ตอน "แก้บิลที่มีหลายรายการ" ให้ atomic จริงๆ ไม่ใช่ลบสำเร็จแต่เพิ่มใหม่พัง กลายเป็นข้อมูลหายไปเฉยๆ)
 async function writeDayArrayOp_(iso, arrayField, op){
-  const fullOp = Object.assign({arrayPath:[arrayField]}, op);
-  const res = await window.storage.patchOps('day:'+iso, [fullOp], false);
+  const ops = (Array.isArray(op) ? op : [op]).map(o=>Object.assign({arrayPath:[arrayField]}, o));
+  const res = await window.storage.patchOps('day:'+iso, ops, false);
   const fresh = normalizeDay_(JSON.parse(res.value));
   dayCache_[iso] = fresh;
   writeDayToLocalStorage_(iso, fresh);
@@ -5426,76 +5432,175 @@ async function computeNeededQtyToday(pid){
   return Math.max(todayOrder - leftoverIn, 0);
 }
 let purchEditingId = null;
-async function addPurchase(){
+// ---- บิลต้นทุนซื้อที่มีหลายรายการ ----
+// ฟอร์มเดิมกรอกได้ทีละสินค้า/บันทึกทีละแถวเสมอ — ถ้าผู้ขายคนเดียวส่งของมาหลายรายการในบิลเดียว (เช่น กุ้ง+ปลาหมึกจากเจ้า
+// เดียวกัน) เดิมต้องกดบันทึกแยกทีละแถว กลายเป็นคนละรายการที่ไม่รู้ว่าจริงๆ เป็นบิลเดียวกัน ลบ/แก้ทีหลังก็ต้องไล่ทำทีละแถว
+// แนวคิด: ใช้ฟอร์มเดิมทุกอย่าง (ไม่แตะ unit label/leftover hint/lot-lock ที่ผูกกับ id ของฟอร์มเดิมอยู่แล้ว) แต่เพิ่ม
+// "พักไว้ก่อน" (staging) — กด "เพิ่มสินค้าในบิลนี้" เพื่อพักแถวที่กรอกอยู่ไว้ในรายการ แล้วกรอกแถวถัดไปต่อได้เลย พอกด
+// "บันทึกต้นทุนซื้อ" ค่อยรวมทุกแถวที่พักไว้ (+ แถวที่กรอกอยู่ปัจจุบันถ้ากรอกไว้ด้วย) เป็นบิลเดียว ผูก billId เดียวกัน
+// ส่งเป็นคำขอ patchOps เดียว (atomic) — ถ้าไม่เคยกด "เพิ่มสินค้าในบิลนี้" เลยสักครั้ง จะไม่มี billId เหมือนพฤติกรรมเดิม
+// ทุกอย่าง (ย้อนหลังเข้ากันได้กับรายการเก่าที่ไม่มี billId) — รายการเบิกจากล็อต (fromLot) ไม่เข้าเงื่อนไขนี้เลย ยังคง
+// ใช้ช่องทางแก้ทีละแถวเดิม (purchEditingId) เท่านั้น เพราะมีลอจิกล็อกฟิลด์พิเศษของมันอยู่แล้ว
+let purchStagedRows = [];
+let purchBillEditingId = null; // billId ของบิลที่กำลังแก้ "ทั้งบิล" อยู่ (ถ้ามี) — ต่างจาก purchEditingId ที่แก้ทีละแถว
+function readPurchFormRow_(){
   const productId = document.getElementById('purchProduct').value;
-  const seller = document.getElementById('purchSeller').value;
   const qty = Number(document.getElementById('purchQty').value||0);
   const price = Number(document.getElementById('purchPrice').value||0);
-  const extra = Number(document.getElementById('purchExtra').value||0);
-  const sellableRaw = document.getElementById('purchSellable').value;
-  const note = document.getElementById('purchNote').value.trim();
-  if(!productId || qty<=0 || price<=0){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
-  // เช็คว่าจำนวนที่ซื้อสัมพันธ์กับยอดออเดอร์วันนี้ไหม เผื่อกรอกผิด — ถ้าต่างกันมากให้ยืนยันก่อนบันทึก
-  const enteredSellQty = sellableRaw!==''? Number(sellableRaw) : qty;
-  const neededQty = await computeNeededQtyToday(productId);
-  if(neededQty>0){
-    const ratio = enteredSellQty / neededQty;
-    if(ratio<0.8 || ratio>1.5){
-      const p = PRODUCTS.find(x=>x.id===productId);
-      const ok = confirm(`ยอดออเดอร์วันนี้ของ ${p.emoji}${p.name} ต้องการประมาณ ${neededQty} ${p.unit} แต่กำลังจะบันทึกซื้อ ${enteredSellQty} ${p.unit} (ต่างกันค่อนข้างมาก)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
-      if(!ok) return;
-    }
-  }
-  const wasNewEntry = !purchEditingId;
+  if(!productId || qty<=0 || price<=0) return null;
+  return {
+    productId, seller: document.getElementById('purchSeller').value,
+    qty, price, extra: Number(document.getElementById('purchExtra').value||0),
+    sellableQty: document.getElementById('purchSellable').value!=='' ? Number(document.getElementById('purchSellable').value) : null,
+    note: document.getElementById('purchNote').value.trim()
+  };
+}
+function clearPurchFormRowFields_(){
+  // ไม่แตะช่อง "สินค้า"/"ผู้ขาย" เลย — เคยมีปัญหาจริงมาแล้วตอนระบบสลับสินค้าให้เองอัตโนมัติ (ดูคอมเมนต์ใน addPurchase())
+  // เลยเหลือให้ผู้ใช้เลือกสินค้าแถวถัดไปเอง แค่ล้างตัวเลข/หมายเหตุของแถวที่เพิ่งพักไว้ให้เปล่าๆ พร้อมกรอกแถวใหม่
+  document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
+  document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
+}
+function renderPurchStagedList(){
+  const el = document.getElementById('purchStagedList');
+  if(!el) return;
+  if(purchStagedRows.length===0 && !purchBillEditingId && !purchEditingId){ el.innerHTML=''; return; }
+  const total = purchStagedRows.reduce((s,r)=>s+r.qty*r.price+Number(r.extra||0),0);
+  const headerText = purchBillEditingId
+    ? `✎ กำลังแก้บิลนี้ (${purchStagedRows.length} รายการพักไว้ รวม ${money(total)}) — แก้แถวปัจจุบันในฟอร์มด้านบนได้เลย หรือลบ/เพิ่มรายการ แล้วกด "บันทึกการแก้ไข" เพื่อบันทึกทั้งบิล`
+    : purchEditingId
+    ? `✎ กำลังแก้ไขรายการเดิมอยู่`
+    : `📋 รายการที่พักไว้ในบิลนี้ (${purchStagedRows.length} รายการ, รวม ${money(total)}) — กรอกแถวถัดไปต่อได้เลย หรือกด "บันทึกต้นทุนซื้อ" เพื่อบันทึกทั้งบิลพร้อมกัน`;
+  el.innerHTML = `<div class="hint" style="margin:8px 0 4px;">${headerText}</div>` +
+    purchStagedRows.map((r,i)=>{
+      const p = PRODUCTS.find(x=>x.id===r.productId);
+      return `<div class="orow"><div class="name">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''}</div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
+    }).join('') +
+    `<button type="button" class="btn small secondary" data-purchbillcancel="1" style="width:auto;margin-top:4px;">ยกเลิก${purchBillEditingId?'การแก้บิลนี้':(purchEditingId?'การแก้ไข':'บิลนี้')}</button>`;
+  el.querySelectorAll('[data-purchstagedel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const idx = Number(btn.getAttribute('data-purchstagedel'));
+    purchStagedRows.splice(idx,1);
+    renderPurchStagedList();
+  }));
+  const cancelBtn = el.querySelector('[data-purchbillcancel]');
+  if(cancelBtn) cancelBtn.addEventListener('click', cancelPurchBillEdit_);
+}
+function addPurchToStage(){
+  // ระหว่างกำลังแก้ทีละแถว (เช่น รายการเบิกจากล็อต) ไม่ให้พักรวมเป็นบิลใหม่ปนกัน — ต้องกดยกเลิกก่อนถึงจะเริ่มบิลใหม่ได้
+  if(purchEditingId){ showToast('กำลังแก้ไขรายการเดิมอยู่ — กด "ยกเลิก" ก่อน ถ้าจะเริ่มบันทึกบิลใหม่'); return; }
+  const row = readPurchFormRow_();
+  if(!row){ showToast('กรอกสินค้า จำนวนซื้อ และราคาของรายการนี้ให้ครบก่อนเพิ่มเข้าบิล'); return; }
+  purchStagedRows.push(row);
+  clearPurchFormRowFields_();
+  renderPurchStagedList();
+  showToast(`เพิ่มเข้าบิลแล้ว (ตอนนี้มี ${purchStagedRows.length} รายการ) — กรอกรายการถัดไปต่อได้เลย`);
+}
+// ยกเลิกการแก้/การพักบิลปัจจุบันทั้งหมด กลับสู่สภาพฟอร์มเปล่าปกติ — ใช้ตอนกด "ยกเลิก" ระหว่างแก้ทั้งบิล หรือเปลี่ยนใจไม่อยาก
+// รวมบิลแล้ว (ของที่พักไว้ในรายการยังไม่เคยถูกบันทึกลงเซิร์ฟเวอร์เลยสักตัว หายไปเฉยๆ ได้อย่างปลอดภัย)
+function cancelPurchBillEdit_(){
+  purchStagedRows = [];
+  purchBillEditingId = null;
+  purchEditingId = null;
+  clearPurchFormRowFields_();
+  document.getElementById('purchProduct').disabled = false;
+  document.getElementById('purchSellable').disabled = false;
+  document.getElementById('purchPrice').disabled = false;
+  document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
+  const lotEditHintEl = document.getElementById('purchLotEditHint');
+  if(lotEditHintEl) lotEditHintEl.textContent = '';
+  renderPurchStagedList();
+}
+async function addPurchase(){
+  const currentRow = readPurchFormRow_();
   const iso = currentDate;
-  // เพิ่ม/แก้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push/set) แทน push/Object.assign เข้า dayData แล้ว saveDay() ทั้งก้อน
-  // — เดิมถ้ามีคนอื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกรายจ่ายพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคน
-  if(purchEditingId){
+  // เพิ่ม/แก้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push/remove/set) แทน push/Object.assign เข้า dayData แล้ว saveDay()
+  // ทั้งก้อน — เดิมถ้ามีคนอื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกรายจ่ายพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคน
+  if(purchBillEditingId){
+    // แก้ไข "ทั้งบิล" ที่มีหลายรายการ — รวมแถวที่พักไว้ + แถวที่กรอกอยู่ตอนนี้ (ถ้ากรอกไว้) เป็นชุดใหม่ทั้งหมด ลบของเดิม
+    // ทั้งบิล (ทุกรายการที่มี billId นี้) ออกก่อน แล้วเพิ่มชุดใหม่เข้าไปแทน ในคำขอ patchOps เดียว (atomic — ไม่มีช่วงที่
+    // ลบไปแล้วแต่ยังไม่ทันเพิ่มใหม่ให้เห็นค้างอยู่) บิลจากฟอร์มนี้ไม่ใช่รายการเบิกจากล็อต จึงไม่ต้องกังวลเรื่องล็อกฟิลด์แบบนั้น
+    const rows = currentRow ? purchStagedRows.concat([currentRow]) : purchStagedRows.slice();
+    if(rows.length===0){ showToast('กรอกอย่างน้อย 1 รายการก่อนบันทึก'); return; }
+    const billId = purchBillEditingId;
+    const ops = [
+      {remove:{matchField:'billId', matchValue:billId, matchAll:true}},
+      ...rows.map(r=>({push:Object.assign({id:uid('pu'), billId, paid:false}, r)}))
+    ];
+    const fresh = await writeDayArrayOp_(iso, 'purchases', ops);
+    if(iso===currentDate) dayData = fresh;
+    purchBillEditingId = null;
+    purchStagedRows = [];
+    showToast(`แก้ไขบิลแล้ว (${rows.length} รายการ)`);
+    for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
+  }else if(purchEditingId){
+    if(!currentRow){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
     const existing = dayData.purchases.find(x=>x.id===purchEditingId);
     // รายการเบิกจากล็อต: ช่อง "สินค้า"/"จำนวนที่ทำได้" ถูกปิดไว้ไม่ให้แก้อยู่แล้ว (startEditPurchase) แต่กันเผื่อไว้อีกชั้น —
     // บังคับใช้ค่าเดิมเสมอ ไม่ให้หลุดไปเปลี่ยน productId/sellableQty ซึ่งผูกกับบัญชีสต็อกล็อต/costedQty ของรอบเบิกอยู่
-    const finalProductId = existing.fromLot ? existing.productId : productId;
-    const finalSellableQty = existing.fromLot ? existing.sellableQty : (sellableRaw!==''?Number(sellableRaw):null);
+    const finalProductId = existing.fromLot ? existing.productId : currentRow.productId;
+    const finalSellableQty = existing.fromLot ? existing.sellableQty : currentRow.sellableQty;
     // รายการที่มีเงินที่จ่ายจริงจากล็อตผูกอยู่ (lotSettleAllocations) — คำนวณราคา/หน่วยจากเงินจริง ÷ จำนวนซื้อที่บันทึกเสมอ
     // ไม่เชื่อค่าจากช่องราคาในฟอร์มตรงๆ (กันเผื่ออีกชั้นเหมือน productId/sellableQty ด้านบน แม้ช่องราคาจะถูกล็อกไว้แล้วก็ตาม)
     const finalPrice = purchaseHasLotCostBasis_(existing)
-      ? (qty>0 ? Math.round((purchaseLotTotalCost_(existing)/qty)*10000)/10000 : price)
-      : price;
-    const fresh = await writeDayArrayOp_(iso, 'purchases', {matchField:'id', matchValue:purchEditingId, set:{productId:finalProductId, seller, qty, price: finalPrice, extra, sellableQty: finalSellableQty, note}});
+      ? (currentRow.qty>0 ? Math.round((purchaseLotTotalCost_(existing)/currentRow.qty)*10000)/10000 : currentRow.price)
+      : currentRow.price;
+    const fresh = await writeDayArrayOp_(iso, 'purchases', {matchField:'id', matchValue:purchEditingId, set:{productId:finalProductId, seller:currentRow.seller, qty:currentRow.qty, price: finalPrice, extra:currentRow.extra, sellableQty: finalSellableQty, note:currentRow.note}});
     if(iso===currentDate) dayData = fresh;
     purchEditingId = null;
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
-  }else{
-    const fresh = await writeDayArrayOp_(iso, 'purchases', {push:{id:uid('pu'), productId, seller, qty, price, extra, sellableQty: sellableRaw!==''?Number(sellableRaw):null, note, paid:false}});
+    await autoFillLeftoverIfNeeded(finalProductId);
+  }else if(purchStagedRows.length===0){
+    // ทางเดิมทุกอย่าง ไม่มีการพักบิลเลยสักครั้ง — พฤติกรรมเหมือนก่อนมีฟีเจอร์นี้ทุกประการ รวมทั้งเช็คสัดส่วนกับยอดออเดอร์
+    if(!currentRow){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
+    const enteredSellQty = currentRow.sellableQty!=null ? currentRow.sellableQty : currentRow.qty;
+    const neededQty = await computeNeededQtyToday(currentRow.productId);
+    if(neededQty>0){
+      const ratio = enteredSellQty / neededQty;
+      if(ratio<0.8 || ratio>1.5){
+        const p = PRODUCTS.find(x=>x.id===currentRow.productId);
+        const ok = confirm(`ยอดออเดอร์วันนี้ของ ${p.emoji}${p.name} ต้องการประมาณ ${neededQty} ${p.unit} แต่กำลังจะบันทึกซื้อ ${enteredSellQty} ${p.unit} (ต่างกันค่อนข้างมาก)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
+        if(!ok) return;
+      }
+    }
+    const fresh = await writeDayArrayOp_(iso, 'purchases', {push:Object.assign({id:uid('pu'), paid:false}, currentRow)});
     if(iso===currentDate) dayData = fresh;
     showToast('บันทึกต้นทุนซื้อแล้ว');
-  }
-  await autoFillLeftoverIfNeeded(productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
-  document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
-  document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
-  // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้"/"ราคา" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกไว้)
-  document.getElementById('purchProduct').disabled = false;
-  document.getElementById('purchSellable').disabled = false;
-  document.getElementById('purchPrice').disabled = false;
-  const lotEditHintEl = document.getElementById('purchLotEditHint');
-  if(lotEditHintEl) lotEditHintEl.textContent = '';
-  renderPurchaseList();
-  renderPurchaseGroups();
-  // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข) แจ้งเตือนสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อ กันลืมกรอกตกหล่น
-  // สำคัญ: เดิมระบบจะ "สลับสินค้าในฟอร์ม + เติมราคาให้อัตโนมัติ" ทันทีแบบเงียบๆ ตรงนี้ — อันตรายมากถ้ากำลังกรอกซื้อ
-  // หลายรายการต่อเนื่องรัวๆ (มือไวกว่าตา) เพราะพิมพ์จำนวนที่ตั้งใจจะกรอกให้สินค้าเดิม ไปตกลงกับสินค้าอื่นที่ระบบสลับให้
-  // แบบไม่ทันสังเกต พ่วงราคาเก่าที่ระบบเติมมาเองแบบไม่รู้ตัว กลายเป็นรายการต้นทุนที่ไม่ตรงกับอะไรเลย (เจอเคสจริงมาแล้ว:
-  // กุ้งตัดปากโผล่ต้นทุนซื้อที่ไม่ได้ตั้งใจกรอก) เปลี่ยนเป็นแค่ "แจ้งเตือน" อย่างเดียว ต้องกดเลือกสินค้าเองที่ช่อง "สินค้า"
-  // เท่านั้นถึงจะเปลี่ยน ป้องกันไม่ให้ฟอร์มสลับสินค้า/ราคาไปเองโดยที่ผู้ใช้ไม่ได้สั่ง
-  if(wasNewEntry){
+    await autoFillLeftoverIfNeeded(currentRow.productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
+    // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข/ไม่ใช่บิลหลายรายการ) แจ้งเตือนสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อ
+    // กันลืมกรอกตกหล่น — สำคัญ: เดิมระบบจะ "สลับสินค้าในฟอร์ม + เติมราคาให้อัตโนมัติ" ทันทีแบบเงียบๆ ตรงนี้ — อันตรายมากถ้า
+    // กำลังกรอกซื้อหลายรายการต่อเนื่องรัวๆ (มือไวกว่าตา) เพราะพิมพ์จำนวนที่ตั้งใจจะกรอกให้สินค้าเดิม ไปตกลงกับสินค้าอื่นที่
+    // ระบบสลับให้แบบไม่ทันสังเกต พ่วงราคาเก่าที่ระบบเติมมาเองแบบไม่รู้ตัว กลายเป็นรายการต้นทุนที่ไม่ตรงกับอะไรเลย (เจอเคสจริง
+    // มาแล้ว: กุ้งตัดปากโผล่ต้นทุนซื้อที่ไม่ได้ตั้งใจกรอก) เปลี่ยนเป็นแค่ "แจ้งเตือน" อย่างเดียว ต้องกดเลือกสินค้าเองที่ช่อง
+    // "สินค้า" เท่านั้นถึงจะเปลี่ยน ป้องกันไม่ให้ฟอร์มสลับสินค้า/ราคาไปเองโดยที่ผู้ใช้ไม่ได้สั่ง
     const nextPid = await findNextUnrecordedPurchaseProduct();
     if(nextPid){
       const p = PRODUCTS.find(x=>x.id===nextPid);
       const stillNeeded = await computeNeededQtyToday(nextPid);
       showToast(`ยังไม่ได้กรอกต้นทุน: ${p.emoji} ${p.name} (ยังขาดอีก ${stillNeeded} ${p.unit}) — เลือกที่ช่อง "สินค้า" เพื่อกรอกต่อ`);
     }
+  }else{
+    // มีรายการพักไว้อย่างน้อย 1 รายการแล้ว (กด "เพิ่มสินค้าในบิลนี้" ไว้ก่อนหน้า) — รวมกับแถวปัจจุบัน (ถ้ากรอกไว้) เป็นบิล
+    // เดียวกัน ผูก billId ใหม่เดียวกันทุกรายการ ส่งเป็นคำขอ patchOps เดียว (atomic)
+    const rows = currentRow ? purchStagedRows.concat([currentRow]) : purchStagedRows.slice();
+    const billId = uid('bill');
+    const ops = rows.map(r=>({push:Object.assign({id:uid('pu'), billId, paid:false}, r)}));
+    const fresh = await writeDayArrayOp_(iso, 'purchases', ops);
+    if(iso===currentDate) dayData = fresh;
+    purchStagedRows = [];
+    showToast(`บันทึกบิลแล้ว (${rows.length} รายการ)`);
+    for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
   }
+  clearPurchFormRowFields_();
+  // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้"/"ราคา" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกไว้)
+  document.getElementById('purchProduct').disabled = false;
+  document.getElementById('purchSellable').disabled = false;
+  document.getElementById('purchPrice').disabled = false;
+  const lotEditHintEl = document.getElementById('purchLotEditHint');
+  if(lotEditHintEl) lotEditHintEl.textContent = '';
+  renderPurchStagedList();
+  renderPurchaseList();
+  renderPurchaseGroups();
 }
 // หาสินค้าตัวถัดไปที่มีออเดอร์วันนี้ (ต้องการมากกว่า 0) แต่ยังไม่มีรายการต้นทุนซื้อบันทึกไว้เลย — ใช้เด้งฟอร์มไปให้อัตโนมัติหลังบันทึกแต่ละรายการ
 async function findNextUnrecordedPurchaseProduct(){
@@ -5514,6 +5619,35 @@ function startEditPurchase(id){
   // ซึ่งแทบทุกวันเป็นแบบนั้นอยู่แล้ว — เดิมฟังก์ชันนี้กรอกฟอร์มแล้วเลื่อนจอขึ้นบนเฉยๆ โดยไม่ได้กางการ์ดที่พับอยู่ออกมาด้วย
   // กดแก้ไขแล้วค่าถูกกรอกจริงแต่มองไม่เห็นฟอร์มเลยเพราะซ่อนอยู่หลังหัวข้อที่พับไว้ (ดูเหมือน "กดแล้วไม่มีอะไรเกิดขึ้น")
   setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', false);
+  // รายการนี้เป็นส่วนหนึ่งของ "บิลที่มีหลายรายการ" (มาจากฟอร์ม + "เพิ่มสินค้าในบิลนี้") — เปิดโหมดแก้ทั้งบิลแทนแก้ทีละแถว:
+  // เอารายการแรกของบิลขึ้นฟอร์ม ที่เหลือพักไว้ในรายการด้านล่าง แก้/ลบ/เพิ่มได้ก่อนกด "บันทึกการแก้ไข" เพื่อบันทึกทั้งบิล
+  // (รายการเบิกจากล็อตไม่มี billId แบบนี้เลย จึงไม่มีทางเข้าเงื่อนไขนี้ ยังคงใช้ช่องทางแก้ทีละแถวเดิมด้านล่างเท่านั้น)
+  if(e.billId){
+    const siblings = dayData.purchases.filter(x=>x.billId===e.billId);
+    if(siblings.length>1){
+      purchEditingId = null;
+      purchBillEditingId = e.billId;
+      const [first, ...rest] = siblings;
+      purchStagedRows = rest.map(r=>({productId:r.productId, seller:r.seller, qty:r.qty, price:r.price, extra:r.extra||0, sellableQty:r.sellableQty!=null?r.sellableQty:null, note:r.note||''}));
+      document.getElementById('purchProduct').value = first.productId;
+      updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
+      document.getElementById('purchSeller').value = first.seller||'';
+      document.getElementById('purchQty').value = first.qty;
+      document.getElementById('purchPrice').value = first.price;
+      document.getElementById('purchExtra').value = first.extra||'';
+      document.getElementById('purchSellable').value = first.sellableQty!=null ? first.sellableQty : '';
+      document.getElementById('purchNote').value = first.note||'';
+      document.getElementById('purchProduct').disabled = false;
+      document.getElementById('purchSellable').disabled = false;
+      document.getElementById('purchPrice').disabled = false;
+      const lotEditHint = document.getElementById('purchLotEditHint');
+      if(lotEditHint) lotEditHint.textContent = `📦 บิลนี้มี ${siblings.length} รายการ — แก้แถวนี้ในฟอร์ม หรือลบ/เพิ่มรายการอื่นในรายการที่พักไว้ด้านล่าง แล้วกด "บันทึกการแก้ไข" เพื่อบันทึกทั้งบิลพร้อมกัน`;
+      document.getElementById('addPurchaseBtn').textContent = '💾 บันทึกการแก้ไข (ทั้งบิล)';
+      renderPurchStagedList();
+      window.scrollTo({top:0, behavior:'smooth'});
+      return;
+    }
+  }
   purchEditingId = id;
   document.getElementById('purchProduct').value = e.productId;
   updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
@@ -5545,6 +5679,7 @@ function startEditPurchase(id){
         : '📦 รายการนี้เบิกจากล็อตวัตถุดิบ — แก้ได้เฉพาะจำนวนซื้อ/ราคา/ค่าใช้จ่ายเพิ่ม/ผู้ขาย/หมายเหตุ (แก้ "สินค้า"/"จำนวนที่ทำได้" ไม่ได้ เพราะผูกกับสต็อกล็อตอยู่)')
     : '';
   document.getElementById('addPurchaseBtn').textContent = '💾 บันทึกการแก้ไข';
+  renderPurchStagedList();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 function renderPurchaseList(){
@@ -5552,6 +5687,9 @@ function renderPurchaseList(){
   const wrap = document.getElementById('purchaseList');
   const list = dayData.purchases || [];
   if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายการต้นทุนซื้อวันนี้</div>'; updatePurchaseFormAutoFold(); return; }
+  // นับจำนวนรายการต่อบิล (billId) ไว้ล่วงหน้า — ใช้โชว์ปุ่ม "ลบทั้งบิล" เพิ่มเฉพาะแถวที่เป็นส่วนหนึ่งของบิลที่มีมากกว่า 1 รายการ
+  const billIdCounts = {};
+  list.forEach(e=>{ if(e.billId) billIdCounts[e.billId] = (billIdCounts[e.billId]||0)+1; });
   const totalCost = list.reduce((s,e)=>s+purchaseCostTotal(e),0);
   const totalProfit = list.reduce((s,e)=>{
     const sellPrice = priceOnDate(e.productId, currentDate);
@@ -5580,7 +5718,7 @@ function renderPurchaseList(){
         <td class="num num" style="color:${profitColor};">${moneyP(e.productId, profitPerUnit)}</td>
         <td class="num num" style="color:${profitColor};font-weight:600;">${moneyP(e.productId, profitTotal)}</td>
         <td><span class="badge-delay" style="${e.fromLot?'background:var(--accent-soft);color:var(--accent);':(e.paid?'background:var(--success-soft);color:var(--success);':'')}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
-        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
+        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบรายการนี้">✕</button>${(e.billId && billIdCounts[e.billId]>1) ? `<button class="iconbtn" data-purchdelbill="${e.billId}" aria-label="ลบทั้งบิล" title="ลบทั้งบิล (${billIdCounts[e.billId]} รายการ)">🗑️</button>` : ''}</div></td>
       </tr>`;
     }).join('')}
   </table></div>
@@ -5644,9 +5782,32 @@ function renderPurchaseList(){
       document.getElementById('purchPrice').disabled = false;
       const lotEditHintEl = document.getElementById('purchLotEditHint');
       if(lotEditHintEl) lotEditHintEl.textContent = '';
+      renderPurchStagedList();
     }
     renderPurchaseList();
     showToast('ลบแล้ว');
+    renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    renderPurchaseGroups();
+  }));
+  // ลบทั้งบิล (ทุกรายการที่มี billId เดียวกัน) ในคำขอเดียว — บิลจากฟอร์มนี้ไม่ใช่รายการเบิกจากล็อต/ตัดต้นทุนล็อตเลย จึง
+  // ไม่ต้องมีลอจิกคืนสถานะสต็อกล็อตเหมือน data-purchdel ด้านบน (นั่นมีไว้สำหรับรายการ fromLot/lotSettle เท่านั้น)
+  wrap.querySelectorAll('[data-purchdelbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const billId = btn.getAttribute('data-purchdelbill');
+    const items = dayData.purchases.filter(x=>x.billId===billId);
+    if(items.length===0) return;
+    const total = items.reduce((s,e)=>s+purchaseCostTotal(e),0);
+    if(!confirm(`ลบทั้งบิลนี้เลยใช่ไหม? (${items.length} รายการ ของ ${items[0].seller||'ไม่ระบุผู้ขาย'} รวม ${money(total)})`)) return;
+    const iso = currentDate;
+    try{
+      const fresh = await writeDayArrayOp_(iso, 'purchases', {remove:{matchField:'billId', matchValue:billId, matchAll:true}});
+      if(iso===currentDate) dayData = fresh;
+    }catch(e){
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      return;
+    }
+    if(purchBillEditingId===billId || items.some(x=>x.id===purchEditingId)) cancelPurchBillEdit_();
+    renderPurchaseList();
+    showToast('ลบทั้งบิลแล้ว');
     renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     renderPurchaseGroups();
   }));
@@ -7125,6 +7286,7 @@ async function init(){
   document.getElementById('addPExpenseCategoryBtn').addEventListener('click', addPExpenseCategory);
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   guardedClick('addPurchaseBtn', addPurchase);
+  document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว
   document.getElementById('purchQty').addEventListener('input', ()=>{

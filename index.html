@@ -2160,8 +2160,11 @@ function computeReceiptData(code, iso, d){
   iso = iso || currentDate; d = d || dayData;
   const row = d.orders[code];
   const billNo = billIdFor(iso, code);
+  // ปัดยอดเงินแต่ละรายการเป็นบาทเต็มตั้งแต่ตรงนี้ (ไม่ใช่ปัดทีหลังตอนแสดงผล) แล้วค่อยรวมเป็นผลรวมย่อย — กันบิลจริง
+  // โชว์ทศนิยมสตางค์แปลกๆ (เช่น 113.333) ตอนนี้จำนวนสั่งอนุญาตทศนิยม 1 ตำแหน่งแล้ว ผลคูณ จำนวน×ราคา จึงไม่ลงตัวเป็น
+  // บาทเต็มเสมอไปอีกต่อไป — ปัดทีละรายการก่อนรวม ทำให้ยอดรวมย่อยตรงกับผลรวมของแต่ละบรรทัดที่โชว์บนบิลเป๊ะๆ เสมอ
   const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>{
-    const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso); const amount = qty*price;
+    const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso); const amount = Math.round(qty*price);
     return {p, qty, price, amount};
   });
   const subtotal = items.reduce((s,it)=>s+it.amount,0);

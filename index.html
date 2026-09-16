@@ -1761,11 +1761,14 @@ async function renderLeftover(){
     if(qty>currentLeftover) qty = currentLeftover; // ตัดทิ้งได้ไม่เกินจำนวนของเหลือที่ตกค้างจริงวันนี้
     wasteActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    const wasteId = 'waste'+Date.now()+pid;
+    let wasteRecordSaved = false;
     try{
       const estCostPerKg = priceOnDate(pid, currentDate);
       const records = await loadWasteRecords();
-      records.push({id:'waste'+Date.now()+pid, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg)});
+      records.push({id:wasteId, productId:pid, qty, date:currentDate, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg)});
       await saveWasteRecords(records);
+      wasteRecordSaved = true;
       const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
       dayData.leftoverOut[pid] = remain;
       if(remain<=0){
@@ -1786,6 +1789,12 @@ async function renderLeftover(){
       renderWasteRecordList();
       renderMessages();
     }catch(e){
+      // เดิม: ถ้า saveWasteRecords สำเร็จแล้วแต่ saveDay (บันทึกของเหลือที่ลดลง) พังทีหลัง จะโชว์ "บันทึกไม่สำเร็จ ลองใหม่"
+      // เฉยๆ ทั้งที่รายการของเสียถูกบันทึกจริงไปแล้ว — กดลองใหม่จะสร้างรายการของเสียซ้ำอีกอัน (นับความเสียหายซ้ำสอง)
+      // ตอนนี้ถ้าเกิดกรณีนี้ จะลบรายการของเสียที่เพิ่งบันทึกไปออกก่อน กันกดซ้ำแล้วได้ยอดของเสียซ้ำสอง
+      if(wasteRecordSaved){
+        try{ const records2 = await loadWasteRecords(); await saveWasteRecords(removeFirstById(records2, wasteId)); }catch(_){}
+      }
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       btn.disabled = false; btn.textContent = 'บันทึกของเสีย';
     } finally { wasteActionInFlight = false; }

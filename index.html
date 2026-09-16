@@ -5299,7 +5299,7 @@ function renderPurchaseList(){
         <td class="num num">${moneyP(e.productId, sellPrice)}</td>
         <td class="num num" style="color:${profitColor};">${moneyP(e.productId, profitPerUnit)}</td>
         <td class="num num" style="color:${profitColor};font-weight:600;">${moneyP(e.productId, profitTotal)}</td>
-        <td><span class="badge-delay" style="${e.paid?'background:var(--success-soft);color:var(--success);':''}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
+        <td><span class="badge-delay" style="${e.fromLot?'background:var(--accent-soft);color:var(--accent);':(e.paid?'background:var(--success-soft);color:var(--success);':'')}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
         <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบ">✕</button></div></td>
       </tr>`;
     }).join('')}
@@ -6573,21 +6573,28 @@ async function renderCalPopup(){
     await loadForDate(iso);
   }));
 }
+// สำคัญ: ห้ามตั้ง currentDate/ค่าในช่องวันที่เป็นวันใหม่ "ก่อน" loadDay() เสร็จ — เคยเป็นแบบนั้นมาก่อนแล้วเจอปัญหาจริง:
+// ถ้าเน็ตช้าตอนสลับวัน (ไม่ถึงกับพัง แค่ช้า) จะมีช่วงเวลาสั้นๆ ที่ currentDate ชี้ไปวันใหม่แล้ว แต่ dayData ในมือยังเป็นของ
+// วันเก่าอยู่ (ยังโหลดไม่เสร็จ) ถ้าระหว่างนั้นมีการกดบันทึกอะไรก็ตาม (เช่น กดบันทึกออเดอร์/ต้นทุนซื้อที่กรอกค้างไว้)
+// โค้ดจุดนั้นๆ จะอ่าน currentDate (วันใหม่) คู่กับ dayData (วันเก่า) แล้วเขียนทับข้อมูลของวันใหม่ด้วยข้อมูลของวันเก่าทั้งก้อน
+// แบบเงียบๆ ไม่มี error ให้เห็นเลย (ต่างจาก error ตอนเน็ตหลุดที่มี alert เตือนอยู่แล้ว) — นี่คือสาเหตุที่เคยเจอสองวันติดกัน
+// มีข้อมูลซ้ำกันเป๊ะ ทั้งที่กรอกไม่ซ้ำแน่ๆ แก้โดยรอให้โหลดข้อมูลวันใหม่เสร็จสมบูรณ์ก่อน ค่อยสลับ currentDate/ช่องวันที่
+// ไปพร้อมกันทีเดียว (atomic) ระหว่างรอโหลด currentDate ยังชี้วันเก่าอยู่ ถ้ามีคนกดบันทึกระหว่างนั้นจะยังบันทึกถูกวันเดิม
 async function loadForDate(iso){
   const previousDate = currentDate;
-  currentDate = iso;
-  document.getElementById('dateInput').value = iso;
+  let d;
   try{
-    dayData = await loadDay(iso);
+    d = await loadDay(iso);
   }catch(e){
-    currentDate = previousDate;
-    document.getElementById('dateInput').value = previousDate;
     // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
     // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
     // ออเดอร์ต่อทันทีเลยดันไปเขียนทับข้อมูลของวันที่เปิดอยู่จริง (ไม่ใช่วันที่ตั้งใจสลับไป) ต้องให้ชัวร์ว่าเห็นแน่นอน
     alert('สลับไปวันที่ '+formatDDMMYYYY(iso)+' ไม่สำเร็จ (เชื่อมต่อไม่ได้) — แอปยังอยู่ที่วันที่ '+formatDDMMYYYY(previousDate)+' เหมือนเดิม กรุณาลองสลับวันใหม่อีกครั้งก่อนอ่าน/บันทึกอะไรต่อ เพื่อกันบันทึกผิดวันโดยไม่ตั้งใจ');
     return;
   }
+  currentDate = iso;
+  dayData = d;
+  document.getElementById('dateInput').value = iso;
   editingCode = null;
   renderStats(); refreshOrderTab();
   updateTopbarCollapsedDate();

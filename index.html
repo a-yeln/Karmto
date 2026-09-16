@@ -6150,14 +6150,16 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
   Object.entries(neededByProduct).forEach(([pid, needed])=>{
     const p = PRODUCTS.find(x=>x.id===pid);
     const bought = purchasedByProduct[pid];
+    // ขึ้นจำนวนที่ "ขาด" ตรงๆ ก่อนเสมอ (เดิมบอกแค่ "ต้องการ X แต่บันทึกไว้ Y" ให้ไปลบเลขเองว่าขาดเท่าไร) กระชับกว่าเดิม
     if(bought===undefined){
-      if(lotProductIds.has(pid)){
-        missingLotParts.push(`${p.emoji}${p.name} (ต้องการ ${needed} ${p.unit})`);
-      }else{
-        missingParts.push(`${p.emoji}${p.name} (ต้องการ ${needed} ${p.unit})`);
-      }
-    }else if(bought < needed*0.8 || bought > needed*1.5){
-      mismatchParts.push(`${p.emoji}${p.name} (ต้องการ ${needed} ${p.unit} แต่บันทึกซื้อไว้ ${bought} ${p.unit})`);
+      const line = `${p.emoji}${p.name} ขาด ${needed} ${p.unit}`;
+      if(lotProductIds.has(pid)) missingLotParts.push(line); else missingParts.push(line);
+    }else if(bought < needed*0.8){
+      const gap = Math.round((needed-bought)*100)/100;
+      mismatchParts.push(`${p.emoji}${p.name} ขาดอีก ${gap} ${p.unit} (ต้องการ ${needed} มี ${bought})`);
+    }else if(bought > needed*1.5){
+      const over = Math.round((bought-needed)*100)/100;
+      mismatchParts.push(`${p.emoji}${p.name} เกิน ${over} ${p.unit} (ต้องการ ${needed} มี ${bought})`);
     }
   });
   // เช็คทางกลับกัน: มีบันทึกซื้อของสินค้านี้ แต่วันนั้นไม่มีความต้องการจากออเดอร์เลย (อาจกรอกผิดวัน/ผิดสินค้า)
@@ -6165,7 +6167,7 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
     if(bought<=0) return;
     if(!(pid in neededByProduct)){
       const p = PRODUCTS.find(x=>x.id===pid);
-      unexpectedParts.push(`${p.emoji}${p.name} (บันทึกซื้อไว้ ${bought} ${p.unit} แต่วันนี้ไม่มีออเดอร์ที่ต้องใช้เลย)`);
+      unexpectedParts.push(`${p.emoji}${p.name} ซื้อ ${bought} ${p.unit} แต่ไม่มีออเดอร์เลย`);
     }
   });
   if(missingParts.length){

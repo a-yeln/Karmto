@@ -6091,7 +6091,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
           </div>
           <div class="acts2">
             <button class="iconbtn" data-viewdetailbill="${u.iso}" aria-label="ดูบิล">🧾</button>
-            ${u.paid ? `<button class="paytoggle paid" data-quickpay="${u.iso}">โอนแล้ว</button>` : `<span class="paytoggle unpaid" style="cursor:default;" title="ติ๊กช่องด้านซ้ายแล้วกดยืนยันด้านบนเพื่อบันทึกว่าโอนแล้ว">รอโอน</span>`}
+            <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}" title="${u.paid?'':'กดเพื่อบันทึกว่าโอนแล้ว (วันนี้ ยอดเต็มบิล) — ถ้าจะระบุวันที่/ยอดโอนเอง หรือโอนรวมหลายบิล ให้ติ๊กช่องด้านซ้ายแล้วกดยืนยันด้านบนแทน'}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
           </div>
         </div>
         <div id="bdreceipt-${code}-${u.iso}"></div>
@@ -6100,7 +6100,9 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       btn.addEventListener('click', ()=>toggleBranchDetailReceipt(btn.getAttribute('data-viewdetailbill'), code));
     });
     wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
-      // ตรงนี้เฉพาะบิลที่ "โอนแล้ว" อยู่ก่อน กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — บิลที่ยังไม่จ่ายให้ติ๊กเลือกแล้วกดยืนยันในแถบด้านบนแทน
+      // กดตรงป้ายสถานะได้เลยทั้งสองทาง: บิลที่ยังไม่จ่าย กดครั้งเดียวบันทึกว่าโอนแล้ววันนี้ยอดเต็มบิลทันที (ไม่ต้องติ๊กก่อน)
+      // ส่วนบิลที่จ่ายแล้ว กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — การติ๊กเลือก+ยืนยันด้านบนยังใช้ได้เหมือนเดิม สำหรับตอนต้องการ
+      // ระบุวันที่/ยอดโอนเองไม่ตรงยอดบิล หรือโอนรวมหลายบิลพร้อมกัน
       btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code, btn));
     });
     wrap.querySelectorAll('[data-billselect]').forEach(cb=>{

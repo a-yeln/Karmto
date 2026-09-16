@@ -4159,17 +4159,36 @@ async function addLot(){
         note: `${note}${transportNote}`.trim(), draws:[], billId
       });
     });
-    await saveRawLots(lots);
-    const productBills = await loadLotProductBills();
-    productBills.push({id:'lp'+billId, billId, seller, sellerNote, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-    await saveLotProductBills(productBills);
-    if(transportTotal>0){
-      const bills = await loadLotTransportBills();
-      bills.push({id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
-      await saveLotTransportBills(bills);
+    // เดิม toast ตอน error บอกว่า "ข้อมูลที่กรอกไว้ยังอยู่ ยังไม่หาย" ทุกครั้งไม่ว่าจะพังตรงจุดไหนในลำดับบันทึก 3 ขั้นนี้
+    // (ล็อต → บิลสินค้า → บิลขนส่ง) ถ้า saveRawLots สำเร็จไปแล้วแต่ขั้นถัดไปพัง ของจริงถูกบันทึกไปแล้วบนเซิร์ฟเวอร์
+    // แต่ toast บอกให้ "กดบันทึกอีกครั้ง" — เพราะ billId สุ่มใหม่ทุกครั้ง กดซ้ำจะสร้างล็อต/สต็อกซ้ำสอง (ของจริงไม่ได้มี 2
+    // เท่า) ตอนนี้ถ้าขั้นหลังพัง จะลบส่วนที่เพิ่งบันทึกไปแล้วออกก่อน (ด้วย billId เดียวกัน) กันกดซ้ำแล้วซ้ำสอง
+    let rawLotsSaved = false, productBillsSaved = false;
+    try{
+      await saveRawLots(lots);
+      rawLotsSaved = true;
+      const productBills = await loadLotProductBills();
+      productBills.push({id:'lp'+billId, billId, seller, sellerNote, amount: productAmountTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+      await saveLotProductBills(productBills);
+      productBillsSaved = true;
+      if(transportTotal>0){
+        const bills = await loadLotTransportBills();
+        bills.push({id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null});
+        await saveLotTransportBills(bills);
+      }
+    }catch(stepErr){
+      if(productBillsSaved){
+        try{ const pb2 = await loadLotProductBills(); await saveLotProductBills(pb2.filter(b=>b.billId!==billId)); }catch(_){}
+      }
+      if(rawLotsSaved){
+        try{ await saveRawLots(lots.filter(l=>l.billId!==billId)); }catch(_){}
+      }
+      throw stepErr;
     }
+    // ล็อต/บิลที่สำคัญบันทึกสำเร็จแล้วจริงตรงนี้ — "จำผู้ขายล่าสุด" เป็นแค่ความสะดวก ถ้าพังไม่ควรทำให้ทั้งฟอร์มดูเหมือน
+    // บันทึกไม่สำเร็จ (เดี๋ยวคนกดบันทึกซ้ำ ได้ล็อต/สต็อกซ้ำสองแบบเดียวกับปัญหาข้างบน) เลยกันพังแยกไว้ต่างหาก ไม่ throw ต่อ
     settings.lastLotSeller = seller;
-    await saveSettings();
+    try{ await saveSettings(); }catch(_){}
     lotFormRows = [{rid: ++lotFormRowSeq, productId:'p4', qty:'', price:''}];
     document.getElementById('lotTransportTotal').value=''; document.getElementById('lotTransportPayee').value=''; document.getElementById('lotNote').value=''; document.getElementById('lotSellerNote').value='';
     renderLotItemRows();
@@ -4482,6 +4501,16 @@ async function renderLotList(preloadedLots){
     if(!lot) return;
     const d = (lot.draws||[]).find(x=>x.id===drawId);
     if(!d) return;
+    // ถ้ารอบเบิกนี้ถูกตัดต้นทุนไปแล้วบางส่วน (costedQty>0) รายการต้นทุนซื้อที่บันทึกไปแล้วจะยังคงค่าเดิม (ราคา/ต้นทุน
+    // ที่บันทึกตอนตัดไม่ได้ถูกคำนวณย้อนหลังให้ใหม่ตามค่าที่แก้ตรงนี้) — ถ้าลด "จำนวนที่ทำได้" ให้น้อยกว่าที่ตัดไปแล้ว
+    // เดิมจะเงียบๆ ลด costedQty ลงมาเท่ากับยอดใหม่ ทำให้ "ค้างตัดต้นทุน" ของรอบเบิกนี้กลายเป็น 0 ไปเลย ทั้งที่จริงมีรายการ
+    // ต้นทุนซื้อบันทึกไว้เกินจำนวนที่ทำได้ใหม่แล้ว (ตัวเลขไม่ตรงกันแบบไม่มีใครรู้) ต้องแจ้งเตือนให้ผู้ใช้เห็น/ยืนยันก่อนเสมอ
+    if(d.costedQty!==undefined && d.costedQty>0 && (Math.abs(qtyUsed-Number(d.qtyUsed||0))>0.001 || sellableQty < d.costedQty - 0.001)){
+      const warnMsg = sellableQty < d.costedQty - 0.001
+        ? `รอบเบิกนี้ถูกตัดต้นทุนไปแล้ว ${d.costedQty} หน่วย แต่กำลังจะแก้ "จำนวนที่ทำได้" เหลือแค่ ${sellableQty} (น้อยกว่าที่ตัดไปแล้ว)\n\nรายการต้นทุนซื้อที่บันทึกไปแล้วจะไม่ถูกแก้ย้อนหลังให้ แต่ตัวเลข "ค้างตัดต้นทุน" ของรอบเบิกนี้จะกลายเป็น 0 ทั้งที่จริงมีการบันทึกต้นทุนซื้อเกินจำนวนที่ทำได้ใหม่ไปแล้ว — แนะนำให้ตรวจสอบ/แก้รายการต้นทุนซื้อที่เกี่ยวข้องเองด้วย\n\nยืนยันจะแก้ไขต่อไหม?`
+        : `รอบเบิกนี้ถูกตัดต้นทุนไปแล้ว ${d.costedQty} หน่วย การแก้ "จำนวนที่ใช้" (กก.ดิบ) จะเปลี่ยนต้นทุน/หน่วยของรอบเบิกนี้ — แต่รายการต้นทุนซื้อที่ตัดไปแล้วก่อนหน้านี้จะยังใช้ต้นทุน/หน่วยแบบเดิม ไม่ถูกคำนวณย้อนหลังให้ใหม่ (มีผลกับส่วนที่ยังไม่ได้ตัดต้นทุนเท่านั้น)\n\nยืนยันจะแก้ไขต่อไหม?`;
+      if(!confirm(warnMsg)) return;
+    }
     d.qtyUsed = qtyUsed; d.sellableQty = sellableQty; d.note = note;
     // ถ้ารอบเบิกนี้มี totalCost/costedQty อยู่แล้ว (เบิกผ่านระบบใหม่) ต้องคำนวณ totalCost ใหม่ตามจำนวนที่แก้
     // และกันไม่ให้ costedQty (ตัดต้นทุนไปแล้วเท่าไหร่) ค้างเกินจำนวนที่ทำได้ใหม่ (เช่น แก้ยอดทำได้ให้น้อยลงกว่าที่ตัดไปแล้ว)
@@ -5497,19 +5526,36 @@ async function renderDebts(){
     const d = all.find(x=>x.id===id);
     d.payments = d.payments || [];
     d.payments.push({date: payDate, amount, interest});
-    await saveDebts(all);
-    if(d.owner==='AY' || d.owner==='WJ'){
-      const dayRec = await loadDay(payDate);
-      dayRec.personalExpense = dayRec.personalExpense || [];
-      dayRec.personalExpense.push({id:uid('pe'), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount});
-      await saveDay(payDate, dayRec);
-      if(payDate===currentDate) dayData = dayRec;
-    } else if(d.owner==='ก้ามโต' && interest>0){
-      const dayRec = await loadDay(payDate);
-      dayRec.expenses = dayRec.expenses || [];
-      dayRec.expenses.push({id:uid('e'), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true});
-      await saveDay(payDate, dayRec);
-      if(payDate===currentDate) dayData = dayRec;
+    // บันทึก 2 จุดแยกกัน (ยอดจ่ายหนี้ แล้วค่อยรายจ่ายคู่กันของวันนั้น) — เดิมถ้าจุดแรกสำเร็จแต่จุดสองพัง (เน็ตสะดุดพอดี)
+    // ยอดจ่ายหนี้ถูกบันทึกจริงไปแล้ว แต่ toast บอกว่า "การจ่ายยังไม่ถูกบันทึก" คนจะกดจ่ายซ้ำ ได้ยอดจ่ายซ้ำสอง (หนี้ดู
+    // เหมือนจ่ายไปมากกว่าที่จ่ายจริง) ตอนนี้ถ้าจุดสองพัง จะลบรายการจ่ายที่เพิ่งเพิ่มออกจากหนี้ก่อน กันกดซ้ำแล้วซ้ำสอง
+    let debtsSaved = false;
+    try{
+      await saveDebts(all);
+      debtsSaved = true;
+      if(d.owner==='AY' || d.owner==='WJ'){
+        const dayRec = await loadDay(payDate);
+        dayRec.personalExpense = dayRec.personalExpense || [];
+        dayRec.personalExpense.push({id:uid('pe'), person: d.owner, category:'ชำระหนี้', note:`ชำระหนี้: ${d.creditor}${interest>0?` (ในนี้เป็นดอกเบี้ย ${interest})`:''}`, amount});
+        await saveDay(payDate, dayRec);
+        if(payDate===currentDate) dayData = dayRec;
+      } else if(d.owner==='ก้ามโต' && interest>0){
+        const dayRec = await loadDay(payDate);
+        dayRec.expenses = dayRec.expenses || [];
+        dayRec.expenses.push({id:uid('e'), category:'ดอกเบี้ยเงินกู้', note:`ดอกเบี้ย: ${d.creditor}`, amount:interest, paid:true});
+        await saveDay(payDate, dayRec);
+        if(payDate===currentDate) dayData = dayRec;
+      }
+    }catch(dayErr){
+      if(debtsSaved){
+        try{
+          const all2 = await loadDebts();
+          const d2 = all2.find(x=>x.id===id);
+          const lastIdx = d2 && d2.payments ? d2.payments.map(p=>p.date===payDate && p.amount===amount && p.interest===interest).lastIndexOf(true) : -1;
+          if(lastIdx>=0){ d2.payments.splice(lastIdx,1); await saveDebts(all2); }
+        }catch(_){}
+      }
+      throw dayErr;
     }
     renderDebts();
     showToast(d.owner==='ก้ามโต' ? 'บันทึกการจ่ายแล้ว (ชำระหนี้องค์กร)' : `บันทึกการจ่ายแล้ว (ลงรายจ่ายส่วนตัวของ ${d.owner} ให้ด้วย)`);

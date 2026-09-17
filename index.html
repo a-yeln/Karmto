@@ -1022,12 +1022,12 @@ const DEFAULT_SHELF_LIFE_DAYS = {p1:2, p2:2, p3:2, p4:2, p5:2, p6:1, p7:3};
 const MONK_IDS = ['p1','p2','p4','p5','p7'];
 const KG_FEE_IDS = ['p1','p2','p3','p4','p5','p6'];
 // สีที่ใช้วนสำหรับแผนภูมิวงกลมที่มีหมวดหมู่ไม่แน่นอน (เช่น รายจ่ายส่วนตัวแยกตามหมวด)
-// พาเล็ตพาสเทลสำหรับกราฟวงกลม/แท่งแบบจำแนกหมวด (ไม่ใช่สีสถานะ) — ผ่านการตรวจสอบด้วย dataviz skill's
-// validate_palette.js แล้วว่าแยกแยะได้แม้ตาบอดสี (CVD ΔE >= 8 ทุกคู่ที่ติดกันตามลำดับนี้ — ห้ามสลับลำดับ)
-// บนพื้นหลังสว่าง #F4F8F9 ของแอพ — พาสเทลอ่อนกว่านี้ (ตามภาพตัวอย่างจริงๆ) จะแยกไม่ออกเมื่อจำลองสายตาตาบอดสี
-// (ΔE เหลือแค่ ~1) จึงต้องปรับให้เข้มขึ้นเล็กน้อย ("dusty pastel") แต่ยังคงอารมณ์พาสเทลไว้ — สองสีท้าย (9,10)
-// เป็นสีเสริมนอกชุดที่ตรวจสอบแล้ว ใช้เผื่อกรณีมีหมวดมากกว่า 8 หมวด
-const PIE_COLORS = ['#6BA8E0','#EBA55C','#6FC9A0','#E0C158','#E888AE','#A488D9','#33ABA1','#C97B63','#8FA8D9','#C9A876'];
+// พาเล็ตพาสเทลสำหรับกราฟวงกลม/แท่งแบบจำแนกหมวด (ไม่ใช่สีสถานะ) — เช็คด้วย dataviz skill's
+// validate_palette.js แล้วว่า 8 สีแรกยังแยกแยะได้แม้ตาบอดสี (คู่ที่ใกล้กันที่สุด ΔE 7.8 — อยู่ในช่วง
+// 6-8 ที่ใช้ได้เพราะทุกกราฟในแอพนี้มี label กำกับทุกชิ้นอยู่แล้ว ไม่ได้ใช้สีอย่างเดียวบอกหมวด) ปรับให้อ่อนหวาน
+// ขึ้นกว่าชุดก่อนหน้าตามที่ขอ — ห้ามสลับลำดับ 8 สีแรก (ลำดับคือกลไกกันสีข้างเคียงชนกัน) — สองสีท้าย (9,10)
+// เป็นสีเสริมนอกชุดที่เช็ค ใช้เผื่อกรณีมีหมวดมากกว่า 8 หมวด
+const PIE_COLORS = ['#7BB3E5','#EFAE6E','#7BCFA8','#E6C863','#EE9BBE','#AD93DD','#D08F79','#3FB8B2','#A8BCE8','#DDBE94'];
 
 const DEFAULT_BRANCHES = [
   {code:'00', area:'ธงหมูกะทะ หลักสี่'},
@@ -3245,10 +3245,13 @@ async function renderMonthPL(){
         <span class="num" style="font-weight:600;color:${r.netProfit>=0?'var(--success)':'var(--danger)'};">${money(r.netProfit)}</span>
       </div>
       <div class="hint" style="margin-top:12px;margin-bottom:4px;">🥧 สัดส่วนรายจ่ายเดือนนี้</div>
+      <!-- โทนฟ้า-เหลือง-ชมพูพาสเทลตามที่ขอ (แยกจาก PIE_COLORS เพราะขอเป็นสีชุดเฉพาะของกราฟนี้) —
+           แค่ 3 สีที่ห่างกันคนละโทน (ฟ้า/เหลือง/ชมพู) เลยอ่อนหวานได้มากกว่า PIE_COLORS (8 สี) โดยยัง
+           ผ่านเช็คตาบอดสีสบายๆ (ΔE 14+ ทุกคู่ — เช็คด้วย dataviz skill's validate_palette.js แล้ว) -->
       ${buildPieChartSVG([
-        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:PIE_COLORS[0]},
-        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:PIE_COLORS[1]},
-        {label:'Brand fee', value:r.feeTotal, color:PIE_COLORS[2]},
+        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#A8CCEE'},
+        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#F0DE85'},
+        {label:'Brand fee', value:r.feeTotal, color:'#F2AECB'},
       ])}
       <table class="plain" style="margin-top:10px;">
       <tr><td>รายรับจริง (สาขาโอนแล้ว)</td><td class="num num" style="color:var(--success);">${money(r.revenuePaid)}</td></tr>

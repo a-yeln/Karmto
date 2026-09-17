@@ -125,6 +125,7 @@
   --phat:#C58FE0; --phat-soft:rgba(197,143,224,0.15);
   --ocean:#4FA5C9; --ocean-soft:rgba(79,165,201,0.14);
   --sunset:#E3893D; --sunset-soft:rgba(227,137,61,0.14);
+  --dash-wide-shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.3);
   --radius:10px;
 }
 *{box-sizing:border-box;}
@@ -306,14 +307,18 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .dash-narrow-only{display:none;}
   #panel-dashboard{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:20px 24px 40px;box-sizing:border-box;}
   .dash-wide-shell{max-width:1280px;margin:0 auto;}
-  .dash-wide-nav{display:flex;flex-direction:column;gap:2px;flex:none;width:220px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px;}
-  .dash-wide-nav button{display:flex;align-items:center;gap:8px;background:transparent;border:none;color:var(--text-dim);text-align:left;padding:9px 10px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;}
+  .dash-wide-nav{display:flex;flex-direction:column;gap:2px;flex:none;width:220px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:10px;}
+  .dash-wide-brand{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;margin-bottom:6px;border-bottom:1px solid var(--border-soft);}
+  .dash-wide-brand .dwb-mark{font-size:24px;line-height:1;}
+  .dash-wide-brand .dwb-name{font-family:'Chonburi',cursive;font-size:16px;color:var(--sunset);letter-spacing:.4px;}
+  .dash-wide-brand .dwb-sub{font-size:10px;color:var(--text-faint);margin-top:1px;}
+  .dash-wide-nav button{display:flex;align-items:center;gap:8px;background:transparent;border:none;color:var(--text-dim);text-align:left;padding:9px 10px;border-radius:9px;font-size:14px;font-family:inherit;cursor:pointer;}
   .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
   .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
   .dash-wide-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
   .dash-wide-header h2{font-size:19px;}
   .dash-wide-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-  .dwtile{background:var(--surface-2);border-radius:var(--radius);padding:14px;}
+  .dwtile{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:14px;}
   .dwtile .dm-label{font-size:12px;color:var(--text-faint);margin-bottom:6px;}
   .dwtile .dm-value{font-size:22px;font-weight:600;}
   .dwtile.hero{grid-column:span 2;padding:18px;}
@@ -328,9 +333,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .dwtile.danger .dm-value{color:var(--danger);}
   .dwtile.success{background:var(--success-soft);}
   .dwtile.success .dm-value{color:var(--success);}
-  .dwtile.info{background:var(--mahkard-soft);}
-  .dwtile.info .dm-value{color:var(--mahkard);}
   .dwtile[data-goto],.dwtile[data-action]{cursor:pointer;}
+  .dash-cost-split{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-dim);margin-top:8px;flex-wrap:wrap;}
+  .dash-cost-bar{flex:1 1 60px;min-width:60px;height:6px;border-radius:999px;background:var(--surface-3);overflow:hidden;display:flex;}
+  .dash-cost-bar span{height:100%;}
+  .dash-wide-main .card.dash-wide-card{border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;}
 }
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
 .qr-type{flex:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;}
@@ -411,6 +418,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav">
+        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div></div>
         <button data-tab="dashboard">📊 Dashboard</button>
         <button data-tab="order">📝 ออเดอร์วันนี้</button>
         <button data-tab="purchase">🛒 ต้นทุนซื้อ</button>
@@ -427,30 +435,30 @@ table.plain td.num,table.plain th.num{text-align:right;}
         </div>
         <div class="dash-wide-bento">
           <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
-          <div class="dwtile hero ocean"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
-          <div class="dwtile info" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
+          <div class="dwtile hero success"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
+          <div class="dwtile ocean" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
           <div class="dwtile danger" data-goto="purchase"><div class="dm-label">🛒 ต้นทุนรวมวันนี้ ›</div><div class="dm-value num" id="dashCogsTodayWide">฿0</div></div>
           <div class="dwtile sunset" data-goto="fee"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFeeWide">฿0</div></div>
           <div class="dwtile success" data-goto="billing"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidTodayWide">฿0</div></div>
           <div class="dwtile danger" data-goto="billing"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableTodayWide">฿0</div></div>
           <div class="dwtile danger" data-action="jumpLongestOverdue"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaidWide">0 บิล</div></div>
         </div>
-        <div class="card">
+        <div class="card dash-wide-card">
           <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
           <div class="field"><label>เดือน</label><input type="month" id="plMonthInput"></div>
           <div id="plSummary" class="loading">กำลังโหลด…</div>
         </div>
-        <div class="card">
+        <div class="card dash-wide-card">
           <h3>📅 สรุปรวมรายปี</h3>
           <div class="field"><label>ปี</label><select id="yearSummaryInput"></select></div>
           <div id="yearSummary" class="loading">กำลังโหลด…</div>
         </div>
-        <div class="card">
+        <div class="card dash-wide-card">
           <h3>🏷️ เทรนด์ Brand fee 14 วันล่าสุด</h3>
           <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
           <div id="dashTrend" class="loading">กำลังโหลด…</div>
         </div>
-        <div class="card">
+        <div class="card dash-wide-card">
           <h3>⚠️ สาขาที่ต้องติดตามด่วน <span class="subhint">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
           <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
           <select id="dashBranchSelect" style="display:none;"></select>
@@ -7095,12 +7103,18 @@ async function renderDashboard(){
   const profitCardWide = document.getElementById('dashProfitCardWide');
   if(profitCardWide) profitCardWide.className = 'dwtile hero ' + (profitToday>=0 ? 'success' : 'danger');
   // รายละเอียดสัดส่วนต้นทุนรวม — แบ่งเป็นต้นทุนซื้อสินค้ากับรายจ่ายกิจการอื่นๆ กี่ % ของแต่ละส่วน
+  // ฝั่งจอแคบ (เดิม) โชว์แค่ข้อความ ส่วนฝั่งจอกว้าง (bento ใหม่) เพิ่มแถบสัดส่วนภาพด้วย
+  const costBreakdownEl = document.getElementById('dashCostBreakdown');
+  const costBreakdownWideEl = document.getElementById('dashCostBreakdownWide');
   if(totalCostToday>0){
     const cogsPct = Math.round(cogsToday/totalCostToday*100);
     const expensePct = 100 - cogsPct;
-    setDashDual_('dashCostBreakdown', `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`, true);
+    const breakdownText = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`;
+    if(costBreakdownEl) costBreakdownEl.innerHTML = breakdownText;
+    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = breakdownText + `<div class="dash-cost-split"><span>สินค้า ${money(cogsToday)}</span><div class="dash-cost-bar"><span style="width:${cogsPct}%;background:var(--ocean);"></span><span style="width:${expensePct}%;background:var(--danger);"></span></div><span>รายจ่าย ${money(expenseToday)}</span></div>`;
   }else{
-    setDashDual_('dashCostBreakdown', '', true);
+    if(costBreakdownEl) costBreakdownEl.innerHTML = '';
+    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = '';
   }
 
   const trendEl = document.getElementById('dashTrend');

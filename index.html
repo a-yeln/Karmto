@@ -3201,8 +3201,8 @@ function buildTrendLineSVG(dailyMap, monthVal){
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px;">
     ${gridY}${dayLabels}
-    <polyline points="${pts(expSeries)}" fill="none" stroke="#E27777" stroke-width="2"/>
-    <polyline points="${pts(revSeries)}" fill="none" stroke="#1B7E5D" stroke-width="2.5"/>
+    <polyline points="${pts(expSeries)}" fill="none" stroke="#F2ADAD" stroke-width="2"/>
+    <polyline points="${pts(revSeries)}" fill="none" stroke="#30A07A" stroke-width="2.5"/>
   </svg>`;
 }
 function prevMonthOf(monthVal){
@@ -3246,8 +3246,8 @@ async function renderMonthPL(){
         <div class="dash-metric ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ</div><div class="dm-value num">${money(r.netProfit)}${pctChangeBadge(r.netProfit, prevR.netProfit)}</div></div>
       </div>
       <div style="display:flex;gap:12px;font-size:11.5px;margin-bottom:4px;">
-        <span style="color:#1B7E5D;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1B7E5D;margin-right:4px;"></span>รายรับ</span>
-        <span style="color:#E27777;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E27777;margin-right:4px;"></span>รายจ่ายกิจการ</span>
+        <span style="color:#30A07A;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#30A07A;margin-right:4px;"></span>รายรับ</span>
+        <span style="color:#F2ADAD;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#F2ADAD;margin-right:4px;"></span>รายจ่ายกิจการ</span>
       </div>
       ${buildTrendLineSVG(r.daily, monthVal)}
       <table class="plain" style="margin-top:10px;">
@@ -3377,7 +3377,7 @@ function buildYearBarSVG(monthly){
     const x = padL + i*gap + (gap-barW)/2;
     const barH = Math.abs(m.netProfit)*scale;
     const y = m.netProfit>=0 ? zeroY-barH : zeroY;
-    const color = m.netProfit>=0 ? '#1B7E5D' : '#E27777';
+    const color = m.netProfit>=0 ? '#30A07A' : '#F2ADAD';
     return `<rect data-monthidx="${i}" style="cursor:pointer;" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1,barH).toFixed(1)}" fill="${color}" rx="2"/><text x="${(x+barW/2).toFixed(1)}" y="${H-4}" font-size="9" fill="#87A2A8" text-anchor="middle">${m.month}</text>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;">
@@ -3409,7 +3409,7 @@ async function renderYearSummary(){
         <div class="dash-metric"><div class="dm-label">📆 กำไรเฉลี่ย/เดือน</div><div class="dm-value num">${money(r.avgProfitPerMonth)}</div></div>
         <div class="dash-metric success"><div class="dm-label">✅ รับเงินจริงแล้ว</div><div class="dm-value num">${money(r.revenuePaid)}</div></div>
       </div>
-      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (<span style="color:#1B7E5D;font-weight:600;">เขียว</span>=กำไร <span style="color:#E27777;font-weight:600;">แดง</span>=ขาดทุน) — แตะแท่งไหนก็ได้เพื่อดูยอดเดือนนั้น</div>
+      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (<span style="color:#30A07A;font-weight:600;">เขียว</span>=กำไร <span style="color:#F2ADAD;font-weight:600;">แดง</span>=ขาดทุน) — แตะแท่งไหนก็ได้เพื่อดูยอดเดือนนั้น</div>
       <div id="yearSelectedValue" class="hint" style="min-height:16px;"></div>
       ${buildYearBarSVG(r.monthly)}
       <table class="plain" style="margin-top:10px;">
@@ -7334,7 +7334,7 @@ async function renderDashboard(){
     const expensePct = 100 - cogsPct;
     const breakdownText = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`;
     if(costBreakdownEl) costBreakdownEl.innerHTML = breakdownText;
-    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = breakdownText + `<div class="dash-cost-split"><span>สินค้า ${money(cogsToday)}</span><div class="dash-cost-bar"><span style="width:${cogsPct}%;background:#5C91CC;"></span><span style="width:${expensePct}%;background:#E27777;"></span></div><span>รายจ่าย ${money(expenseToday)}</span></div>`;
+    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = breakdownText + `<div class="dash-cost-split"><span>สินค้า ${money(cogsToday)}</span><div class="dash-cost-bar"><span style="width:${cogsPct}%;background:#7FAEE3;"></span><span style="width:${expensePct}%;background:#F2ADAD;"></span></div><span>รายจ่าย ${money(expenseToday)}</span></div>`;
   }else{
     if(costBreakdownEl) costBreakdownEl.innerHTML = '';
     if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = '';

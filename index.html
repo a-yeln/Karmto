@@ -300,11 +300,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-metric.info .dm-value{color:var(--mahkard);}
 .dash-metric.success{background:var(--success-soft);}
 .dash-metric.success .dm-value{color:var(--success);}
-/* Dashboard tab — full responsive redesign (desktop-first base, tablet/mobile override tiers below).
-   Scoped entirely to #panel-dashboard / body.dash-active — no shared chrome rule is edited. */
-body.dash-active .topbar{display:none;}
+/* App-wide sidebar+header shell (replaces the old .topbar/.tabs pill row as the main nav
+   for every tab) — desktop-first base, tablet/mobile override tiers below. */
+.topbar{display:none;}
 .dash-wide-shell{display:flex;gap:20px;align-items:flex-start;max-width:1280px;margin:0 auto;}
-#panel-dashboard{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:20px 24px 40px;box-sizing:border-box;}
+.dash-wide-outer{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:20px 24px 40px;box-sizing:border-box;}
 .dash-wide-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;}
 .dash-wide-nav{display:flex;flex-direction:column;gap:2px;flex:none;width:240px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:10px;transition:transform .22s ease;}
 .dash-wide-brand{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;margin-bottom:6px;border-bottom:1px solid var(--border-soft);}
@@ -364,7 +364,7 @@ body.dash-active .topbar{display:none;}
 .dwtile-mcard-top,.dwtile-mcard-amt,.dwtile-mcard-grid{display:none;}
 .dwtile-desktop-branch{display:inline;}
 @media (max-width:1023px){
-  #panel-dashboard{padding:16px 16px 32px;}
+  .dash-wide-outer{padding:16px 16px 32px;}
   .dash-wide-nav{width:64px;}
   .dash-wide-brand .dwb-name,.dash-wide-brand .dwb-sub,.dash-wide-nav .dwn-lbl{display:none;}
   .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
@@ -374,7 +374,7 @@ body.dash-active .topbar{display:none;}
   .dwtile.chart{grid-column:span 2;grid-row:span 1;}
 }
 @media (max-width:767px){
-  #panel-dashboard{width:auto;position:static;left:auto;margin-left:0;padding:0;}
+  .dash-wide-outer{width:auto;position:static;left:auto;margin-left:0;padding:0;}
   .dash-wide-shell{max-width:none;margin:0;}
   .dash-wide-nav{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:40;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.35);border-radius:0;}
   body.dash-nav-open .dash-wide-nav{transform:translateX(0);}
@@ -458,16 +458,12 @@ body.dash-active .topbar{display:none;}
     </div>
   </div>
 
-  <div class="panel active" id="panel-dashboard">
-    <div class="card" id="dataGapsCard" style="display:none;border-color:var(--danger);">
-      <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
-      <div id="dataGapsList"></div>
-    </div>
+  <div class="dash-wide-outer">
     <div class="dash-wide-scrim" id="dashNavScrim"></div>
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav" id="dashNav">
         <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div></div>
-        <button data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
+        <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
         <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">ออเดอร์วันนี้</span></button>
         <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">ต้นทุนซื้อ</span></button>
         <button data-tab="leftover"><span class="dwn-ic">📦</span><span class="dwn-lbl">เหลือ&amp;Claim</span></button>
@@ -481,8 +477,8 @@ body.dash-active .topbar{display:none;}
         <div class="dash-wide-header">
           <button class="dwh-menu-btn" id="dashMenuBtn" aria-label="เปิดเมนู">☰</button>
           <div class="dwh-titles">
-            <h2>📊 Dashboard</h2>
-            <p>ภาพรวมวันที่ <span id="dashDateLabelWide" class="num"></span></p>
+            <h2 id="dwhTitle">📊 Dashboard</h2>
+            <p>วันที่ <span id="dwhDateLabel" class="num"></span></p>
           </div>
           <div class="dwh-datenav">
             <button id="dwhPrevDay" aria-label="วันก่อนหน้า">‹</button>
@@ -492,6 +488,8 @@ body.dash-active .topbar{display:none;}
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
           <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">Karmto</span></div>
         </div>
+
+  <div class="panel active" id="panel-dashboard">
         <div class="dash-wide-bento">
           <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
           <div class="dwtile hero success"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
@@ -536,8 +534,6 @@ body.dash-active .topbar{display:none;}
           <select id="dashBranchSelect" style="display:none;"></select>
           <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
         </div>
-      </div>
-    </div>
   </div>
 
   <div class="panel" id="panel-order">
@@ -960,6 +956,9 @@ body.dash-active .topbar{display:none;}
       <div class="field" style="margin-top:10px;">
         <label>นำเข้าไฟล์สำรอง (จะรวมกับข้อมูลปัจจุบัน)</label>
         <input type="file" accept="application/json" id="importDataInput">
+      </div>
+    </div>
+  </div>
       </div>
     </div>
   </div>
@@ -7284,9 +7283,6 @@ async function renderDashboard(){
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
   const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
   const profitToday = revenue - totalCostToday - fee.total;
-  setDashDual_('dashDateLabel', formatDDMMYYYY(currentDate));
-  const dwhDateInput = document.getElementById('dwhDateInput');
-  if(dwhDateInput) dwhDateInput.value = currentDate;
   setDashDual_('dashBranches', entries.length);
   setDashDual_('dashRevenue', money(revenue));
   setDashDual_('dashFee', money(fee.total));
@@ -7373,9 +7369,16 @@ async function switchTab(name){
   // ปุ่มกรองด้านในดูเหมือนไม่มีอันไหนถูกเลือกอยู่เลย ทั้งที่ตัวกรองจริงๆ ยังทำงานถูกต้องอยู่ก็ตาม
   document.querySelectorAll('[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
-  // แท็บ Dashboard มีชุด header/sidebar ของตัวเองเต็มรูปแบบ (ทุกขนาดจอ) เลยซ่อน .topbar เดิมตอนอยู่แท็บนี้
-  // แล้วเปิดกลับตอนสลับไปแท็บอื่น — ปิด drawer เมนูมือถือของ Dashboard ไปด้วยทุกครั้งที่สลับแท็บ (เผื่อเปิดค้างไว้)
-  document.body.classList.toggle('dash-active', name==='dashboard');
+  // sidebar หลักของแอพใช้ปุ่มเดียวกับที่ผูก data-tab ไว้อยู่แล้ว (บรรทัดบน) — เอาไอคอน/ชื่อจากปุ่มที่กำลัง active
+  // มาโชว์เป็นหัวข้อในส่วน header ที่ใช้ร่วมกันทุกแท็บ กันไม่ต้องมีตารางชื่อแท็บแยกอีกชุดที่อาจหลุดไม่ตรงกัน
+  const activeNavBtn = document.querySelector('.dash-wide-nav [data-tab="'+name+'"]');
+  const dwhTitleEl = document.getElementById('dwhTitle');
+  if(activeNavBtn && dwhTitleEl){
+    const ic = activeNavBtn.querySelector('.dwn-ic')?.textContent || '';
+    const lbl = activeNavBtn.querySelector('.dwn-lbl')?.textContent || '';
+    dwhTitleEl.textContent = (ic + ' ' + lbl).trim();
+  }
+  // ปิด drawer เมนูมือถือไปด้วยทุกครั้งที่สลับแท็บ (เผื่อเปิดค้างไว้)
   document.body.classList.remove('dash-nav-open');
   // ครอบทั้งชุดด้วย try/catch — เดิมถ้ามีอะไรพังกลางทาง (เช่น เน็ตมีปัญหาตอนโหลดบางส่วน) จะทำให้ค้างครึ่งๆ กลางๆ
   // เงียบๆ โดยไม่มีอะไรแจ้งเตือนเลย (ส่วนที่ยังไม่ทันเรนเดอร์ก็ค้างว่างไป) ตอนนี้ถ้าพังจะเห็น toast แจ้งอย่างน้อย
@@ -7477,6 +7480,10 @@ async function loadForDate(iso){
   currentDate = iso;
   dayData = d;
   document.getElementById('dateInput').value = iso;
+  const dwhDateInput = document.getElementById('dwhDateInput');
+  if(dwhDateInput) dwhDateInput.value = iso;
+  const dwhDateLabel = document.getElementById('dwhDateLabel');
+  if(dwhDateLabel) dwhDateLabel.textContent = formatDDMMYYYY(iso);
   editingCode = null;
   renderStats(); refreshOrderTab();
   updateTopbarCollapsedDate();

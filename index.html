@@ -123,6 +123,8 @@
   --mahkard:#5B9BD5; --mahkard-soft:rgba(91,155,213,0.15);
   --monk:#4FBDBD; --monk-soft:rgba(79,189,189,0.15);
   --phat:#C58FE0; --phat-soft:rgba(197,143,224,0.15);
+  --ocean:#4FA5C9; --ocean-soft:rgba(79,165,201,0.14);
+  --sunset:#E3893D; --sunset-soft:rgba(227,137,61,0.14);
   --radius:10px;
 }
 *{box-sizing:border-box;}
@@ -295,6 +297,41 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-metric.info .dm-value{color:var(--mahkard);}
 .dash-metric.success{background:var(--success-soft);}
 .dash-metric.success .dm-value{color:var(--success);}
+.dash-wide-nav{display:none;}
+.dash-wide-header{display:none;}
+.dash-wide-bento{display:none;}
+.dash-wide-main{flex:1;min-width:0;}
+.dash-wide-shell{display:flex;gap:20px;align-items:flex-start;}
+@media (min-width:1000px){
+  .dash-narrow-only{display:none;}
+  #panel-dashboard{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:20px 24px 40px;box-sizing:border-box;}
+  .dash-wide-shell{max-width:1280px;margin:0 auto;}
+  .dash-wide-nav{display:flex;flex-direction:column;gap:2px;flex:none;width:220px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px;}
+  .dash-wide-nav button{display:flex;align-items:center;gap:8px;background:transparent;border:none;color:var(--text-dim);text-align:left;padding:9px 10px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;}
+  .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
+  .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
+  .dash-wide-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .dash-wide-header h2{font-size:19px;}
+  .dash-wide-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+  .dwtile{background:var(--surface-2);border-radius:var(--radius);padding:14px;}
+  .dwtile .dm-label{font-size:12px;color:var(--text-faint);margin-bottom:6px;}
+  .dwtile .dm-value{font-size:22px;font-weight:600;}
+  .dwtile.hero{grid-column:span 2;padding:18px;}
+  .dwtile.hero .dm-value{font-size:30px;}
+  .dwtile.ocean{background:var(--ocean-soft);}
+  .dwtile.ocean .dm-value{color:var(--ocean);}
+  .dwtile.sunset{background:var(--sunset-soft);}
+  .dwtile.sunset .dm-value{color:var(--sunset);}
+  .dwtile.accent{background:var(--accent-soft);}
+  .dwtile.accent .dm-value{color:var(--accent);}
+  .dwtile.danger{background:var(--danger-soft);}
+  .dwtile.danger .dm-value{color:var(--danger);}
+  .dwtile.success{background:var(--success-soft);}
+  .dwtile.success .dm-value{color:var(--success);}
+  .dwtile.info{background:var(--mahkard-soft);}
+  .dwtile.info .dm-value{color:var(--mahkard);}
+  .dwtile[data-goto],.dwtile[data-action]{cursor:pointer;}
+}
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
 .qr-type{flex:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;}
 .qr-type.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600;}
@@ -357,7 +394,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
       <div id="dataGapsList"></div>
     </div>
-    <div class="card">
+    <div class="card dash-narrow-only">
       <h3>📊 ภาพรวมวันที่ <span id="dashDateLabel" class="num" style="color:var(--accent);"></span></h3>
       <div class="dash-grid">
         <div class="dash-metric info" data-goto="billing" style="cursor:pointer;"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranches">0</div></div>
@@ -372,26 +409,54 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div id="dashCostBreakdown" class="hint" style="margin-top:8px;"></div>
       <div class="hint" style="margin-top:4px;">ต้นทุน/กำไรวันนี้ นับเฉพาะรายการที่บันทึกไว้ในแท็บต้นทุนซื้อของวันนี้ ถ้ายังกรอกไม่ครบตัวเลขจะดูดีเกินจริง — "ต้นทุนรวมวันนี้" รวมทั้งต้นทุนซื้อสินค้าและรายจ่ายกิจการอื่นๆ เข้าด้วยกัน</div>
     </div>
-    <div class="card">
-      <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
-      <div class="field"><label>เดือน</label><input type="month" id="plMonthInput"></div>
-      <div id="plSummary" class="loading">กำลังโหลด…</div>
-    </div>
-    <div class="card">
-      <h3>📅 สรุปรวมรายปี</h3>
-      <div class="field"><label>ปี</label><select id="yearSummaryInput"></select></div>
-      <div id="yearSummary" class="loading">กำลังโหลด…</div>
-    </div>
-    <div class="card">
-      <h3>🏷️ เทรนด์ Brand fee 14 วันล่าสุด</h3>
-      <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
-      <div id="dashTrend" class="loading">กำลังโหลด…</div>
-    </div>
-    <div class="card">
-      <h3>⚠️ สาขาที่ต้องติดตามด่วน <span class="subhint">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
-      <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
-      <select id="dashBranchSelect" style="display:none;"></select>
-      <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
+    <div class="dash-wide-shell">
+      <nav class="dash-wide-nav">
+        <button data-tab="dashboard">📊 Dashboard</button>
+        <button data-tab="order">📝 ออเดอร์วันนี้</button>
+        <button data-tab="purchase">🛒 ต้นทุนซื้อ</button>
+        <button data-tab="leftover">📦 เหลือ&amp;Claim</button>
+        <button data-tab="billing">🧾 บิล &amp; โอนเงิน</button>
+        <button data-tab="fee">🏷️ Brand fee</button>
+        <button data-tab="debts">💳 หนี้สิน</button>
+        <button data-tab="personal">👛 การเงินส่วนตัว</button>
+        <button data-tab="settings">⚙️ ตั้งค่า</button>
+      </nav>
+      <div class="dash-wide-main">
+        <div class="dash-wide-header">
+          <h2>📊 ภาพรวมวันที่ <span id="dashDateLabelWide" class="num" style="color:var(--accent);"></span></h2>
+        </div>
+        <div class="dash-wide-bento">
+          <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
+          <div class="dwtile hero ocean"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
+          <div class="dwtile info" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
+          <div class="dwtile danger" data-goto="purchase"><div class="dm-label">🛒 ต้นทุนรวมวันนี้ ›</div><div class="dm-value num" id="dashCogsTodayWide">฿0</div></div>
+          <div class="dwtile sunset" data-goto="fee"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFeeWide">฿0</div></div>
+          <div class="dwtile success" data-goto="billing"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidTodayWide">฿0</div></div>
+          <div class="dwtile danger" data-goto="billing"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableTodayWide">฿0</div></div>
+          <div class="dwtile danger" data-action="jumpLongestOverdue"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaidWide">0 บิล</div></div>
+        </div>
+        <div class="card">
+          <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
+          <div class="field"><label>เดือน</label><input type="month" id="plMonthInput"></div>
+          <div id="plSummary" class="loading">กำลังโหลด…</div>
+        </div>
+        <div class="card">
+          <h3>📅 สรุปรวมรายปี</h3>
+          <div class="field"><label>ปี</label><select id="yearSummaryInput"></select></div>
+          <div id="yearSummary" class="loading">กำลังโหลด…</div>
+        </div>
+        <div class="card">
+          <h3>🏷️ เทรนด์ Brand fee 14 วันล่าสุด</h3>
+          <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
+          <div id="dashTrend" class="loading">กำลังโหลด…</div>
+        </div>
+        <div class="card">
+          <h3>⚠️ สาขาที่ต้องติดตามด่วน <span class="subhint">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
+          <div id="dashTopOutstanding" class="loading">กำลังโหลด…</div>
+          <select id="dashBranchSelect" style="display:none;"></select>
+          <div id="dashBranchDetail" class="empty" style="margin-top:10px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -6999,6 +7064,15 @@ async function renderDataGaps(){
     list.innerHTML = `<div class="empty">เช็คข้อมูลที่ยังไม่ครบไม่สำเร็จ (เชื่อมต่อช้า/ไม่ได้) — ${(e&&e.message)?e.message:'ลองรีเฟรชหน้าใหม่'}</div>`;
   }
 }
+// เขียนค่าเดียวกันลงทั้งการ์ด KPI แบบเดิม (จอแคบ) และการ์ด bento แบบใหม่ (จอกว้าง ≥1000px — ดู .dash-wide-*
+// ใน CSS) พร้อมกันในจุดเดียว กันลืมอัปเดตฝั่งใดฝั่งหนึ่งเวลาแก้ไขทีหลัง — ธาตุฝั่ง "Wide" อาจไม่มีอยู่จริงก็ได้
+// (เผื่ออนาคตอยากถอดออก) เลยเช็ค null ก่อนเขียนเสมอ
+function setDashDual_(id, value, isHTML){
+  const a = document.getElementById(id);
+  if(a){ if(isHTML) a.innerHTML = value; else a.textContent = value; }
+  const b = document.getElementById(id+'Wide');
+  if(b){ if(isHTML) b.innerHTML = value; else b.textContent = value; }
+}
 async function renderDashboard(){
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
@@ -7009,22 +7083,24 @@ async function renderDashboard(){
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
   const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
   const profitToday = revenue - totalCostToday - fee.total;
-  document.getElementById('dashDateLabel').textContent = formatDDMMYYYY(currentDate);
-  document.getElementById('dashBranches').textContent = entries.length;
-  document.getElementById('dashRevenue').textContent = money(revenue);
-  document.getElementById('dashFee').textContent = money(fee.total);
-  document.getElementById('dashCogsToday').textContent = money(totalCostToday);
-  document.getElementById('dashProfitToday').textContent = money(profitToday);
+  setDashDual_('dashDateLabel', formatDDMMYYYY(currentDate));
+  setDashDual_('dashBranches', entries.length);
+  setDashDual_('dashRevenue', money(revenue));
+  setDashDual_('dashFee', money(fee.total));
+  setDashDual_('dashCogsToday', money(totalCostToday));
+  setDashDual_('dashProfitToday', money(profitToday));
+  const profitClass = 'dash-metric ' + (profitToday>=0 ? 'success' : 'danger');
   const profitCard = document.getElementById('dashProfitCard');
-  profitCard.className = 'dash-metric ' + (profitToday>=0 ? 'success' : 'danger');
+  if(profitCard) profitCard.className = profitClass;
+  const profitCardWide = document.getElementById('dashProfitCardWide');
+  if(profitCardWide) profitCardWide.className = 'dwtile hero ' + (profitToday>=0 ? 'success' : 'danger');
   // รายละเอียดสัดส่วนต้นทุนรวม — แบ่งเป็นต้นทุนซื้อสินค้ากับรายจ่ายกิจการอื่นๆ กี่ % ของแต่ละส่วน
-  const breakdownEl = document.getElementById('dashCostBreakdown');
   if(totalCostToday>0){
     const cogsPct = Math.round(cogsToday/totalCostToday*100);
     const expensePct = 100 - cogsPct;
-    breakdownEl.innerHTML = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`;
+    setDashDual_('dashCostBreakdown', `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`, true);
   }else{
-    breakdownEl.innerHTML = '';
+    setDashDual_('dashCostBreakdown', '', true);
   }
 
   const trendEl = document.getElementById('dashTrend');
@@ -7043,8 +7119,8 @@ async function renderDashboard(){
   const day14Map = await loadDaysBulk(days14);
 
   const totalUnpaidCount = Object.values(aggAll).reduce((s,a)=>s+a.unpaidCount,0);
-  document.getElementById('dashUnpaid').innerHTML = `${totalUnpaidCount} บิล <span class="subhint">(ทุกวัน)</span>`;
-  document.getElementById('dashPayableToday').textContent = money(payables.total);
+  setDashDual_('dashUnpaid', `${totalUnpaidCount} บิล <span class="subhint">(ทุกวัน)</span>`, true);
+  setDashDual_('dashPayableToday', money(payables.total));
   // เงินที่โอนเข้าจริงวันนี้ (นับทุกบิลที่โอนวันนี้ ไม่ว่าจะเป็นบิลของวันไหนก็ตาม) — คู่กับ "รอจ่ายทั้งหมด" ให้เห็นเงินเข้า-ออกคู่กัน และให้กริดลงตัวพอดี
   let paidTodayTotal = 0;
   Object.values(aggAll).forEach(a=>{
@@ -7054,7 +7130,7 @@ async function renderDashboard(){
       }
     });
   });
-  document.getElementById('dashPaidToday').textContent = money(paidTodayTotal);
+  setDashDual_('dashPaidToday', money(paidTodayTotal));
 
   const trendData = days14.map(iso=>({iso, fee: computeFee(computeFeeTotals(day14Map[iso].orders)).total}));
   const maxFee = Math.max(1, ...trendData.map(t=>t.fee));
@@ -7087,7 +7163,7 @@ async function switchTab(name){
   // ใช้คลาส "tab" ร่วมกันแค่ยืมสไตล์ แต่ไม่มี data-tab ถ้าเลือกแค่ '.tab' ทุกครั้งที่สลับแท็บใหญ่จะไปลบ
   // "active" ของปุ่มพวกนี้ทิ้งหมดโดยไม่ตั้งใจ (เทียบ data-tab ของมันซึ่งไม่มีอยู่แล้วไม่มีทางตรงชื่อแท็บ) ทำให้
   // ปุ่มกรองด้านในดูเหมือนไม่มีอันไหนถูกเลือกอยู่เลย ทั้งที่ตัวกรองจริงๆ ยังทำงานถูกต้องอยู่ก็ตาม
-  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
+  document.querySelectorAll('[data-tab]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   // ครอบทั้งชุดด้วย try/catch — เดิมถ้ามีอะไรพังกลางทาง (เช่น เน็ตมีปัญหาตอนโหลดบางส่วน) จะทำให้ค้างครึ่งๆ กลางๆ
   // เงียบๆ โดยไม่มีอะไรแจ้งเตือนเลย (ส่วนที่ยังไม่ทันเรนเดอร์ก็ค้างว่างไป) ตอนนี้ถ้าพังจะเห็น toast แจ้งอย่างน้อย
@@ -7512,7 +7588,7 @@ async function init(){
   // ก็ใช้คลาส "tab" ร่วมกัน (แค่ยืมสไตล์) แต่ไม่มี data-tab — ถ้าเลือกแค่ '.tab' ปุ่มพวกนี้จะโดนผูก
   // switchTab(null) ซ้อนเข้ามาโดยไม่ตั้งใจ พอกด switchTab(null) จะไล่ปิด class "active" ของทุกแผงเพราะ
   // ไม่มีแผงไหน id ตรงกับ "panel-null" เลย ทำให้จอว่างเปล่า/ดำทั้งหน้าโดยไม่มี error ให้เห็น (บั๊กจอดำที่เจอ)
-  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.addEventListener('click', ()=>switchTab(t.getAttribute('data-tab'))));
+  document.querySelectorAll('[data-tab]').forEach(t=>t.addEventListener('click', ()=>switchTab(t.getAttribute('data-tab'))));
   document.body.addEventListener('click', e=>{
     const el = e.target.closest('[data-goto]');
     if(el){ switchTab(el.getAttribute('data-goto')); return; }

@@ -260,7 +260,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border-radius:12px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -289,7 +289,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
-  .receipt{position:absolute;top:0;left:0;width:100%;border-radius:0;}
+  .receipt{position:absolute;top:0;left:0;width:100%;border-radius:0;border:none;box-shadow:none;}
 }.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
@@ -404,6 +404,10 @@ table.plain td.num,table.plain th.num{text-align:right;}
   table.dwtile-outtable tbody tr{border:1px solid var(--border-soft);border-radius:10px;margin-bottom:8px;padding:12px;cursor:pointer;}
   table.dwtile-outtable tbody tr td{border-top:none;padding:0;display:block;white-space:normal;}
   table.dwtile-outtable tbody tr td.dwtile-desktop-col{display:none;}
+  .dash-grid{grid-template-columns:1fr;}
+  .grid7{grid-template-columns:1fr;}
+  .dash-wide-header{padding:0 16px;}
+  .dwh-datenav{flex-basis:100%;}
 }
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
 .qr-type{flex:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;}
@@ -437,14 +441,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="tabs" id="tabs">
       <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
-      <button class="tab" data-tab="order">📝 ออเดอร์วันนี้</button>
-      <button class="tab" data-tab="purchase">🛒 ต้นทุนซื้อ</button>
-      <button class="tab" data-tab="leftover">📦 เหลือ&Claim</button>
-      <button class="tab" data-tab="billing">🧾 บิล & โอนเงิน</button>
-      <button class="tab" data-tab="fee">🏷️ Brand fee</button>
-      <button class="tab" data-tab="debts">💳 หนี้สิน</button>
-      <button class="tab" data-tab="personal">👛 การเงินส่วนตัว</button>
-      <button class="tab" data-tab="settings">⚙️ ตั้งค่า</button>
+      <button class="tab" data-tab="order">📝 Orders</button>
+      <button class="tab" data-tab="purchase">🛒 Purchases</button>
+      <button class="tab" data-tab="leftover">📦 Leftover & Claims</button>
+      <button class="tab" data-tab="billing">🧾 Billing & Transfers</button>
+      <button class="tab" data-tab="fee">🏷️ Brand Fee</button>
+      <button class="tab" data-tab="debts">💳 Debts</button>
+      <button class="tab" data-tab="personal">👛 Personal Finance</button>
+      <button class="tab" data-tab="settings">⚙️ Settings</button>
     </div>
   </div>
 
@@ -454,14 +458,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <nav class="dash-wide-nav" id="dashNav">
         <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div></div>
         <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
-        <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">ออเดอร์วันนี้</span></button>
-        <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">ต้นทุนซื้อ</span></button>
-        <button data-tab="leftover"><span class="dwn-ic">📦</span><span class="dwn-lbl">เหลือ&amp;Claim</span></button>
-        <button data-tab="billing"><span class="dwn-ic">🧾</span><span class="dwn-lbl">บิล &amp; โอนเงิน</span></button>
-        <button data-tab="fee"><span class="dwn-ic">🏷️</span><span class="dwn-lbl">Brand fee</span></button>
-        <button data-tab="debts"><span class="dwn-ic">💳</span><span class="dwn-lbl">หนี้สิน</span></button>
-        <button data-tab="personal"><span class="dwn-ic">👛</span><span class="dwn-lbl">การเงินส่วนตัว</span></button>
-        <button data-tab="settings"><span class="dwn-ic">⚙️</span><span class="dwn-lbl">ตั้งค่า</span></button>
+        <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">Orders</span></button>
+        <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">Purchases</span></button>
+        <button data-tab="leftover"><span class="dwn-ic">📦</span><span class="dwn-lbl">Leftover &amp; Claims</span></button>
+        <button data-tab="billing"><span class="dwn-ic">🧾</span><span class="dwn-lbl">Billing &amp; Transfers</span></button>
+        <button data-tab="fee"><span class="dwn-ic">🏷️</span><span class="dwn-lbl">Brand Fee</span></button>
+        <button data-tab="debts"><span class="dwn-ic">💳</span><span class="dwn-lbl">Debts</span></button>
+        <button data-tab="personal"><span class="dwn-ic">👛</span><span class="dwn-lbl">Personal Finance</span></button>
+        <button data-tab="settings"><span class="dwn-ic">⚙️</span><span class="dwn-lbl">Settings</span></button>
       </nav>
       <div class="dash-wide-main">
         <div class="dash-wide-header">
@@ -2439,10 +2443,10 @@ async function renderMonthFee(){
     const grandTotals = {}; PRODUCTS.forEach(p=>grandTotals[p.id]=0);
     rows.forEach(r=>PRODUCTS.forEach(p=>grandTotals[p.id]+=r.totals[p.id]));
     const grandTotal = ledgerRows[ledgerRows.length-1].cum;
-    sumEl.innerHTML = `<table class="plain">
+    sumEl.innerHTML = `<div class="scrollx"><table class="plain">
       <tr><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวม</th></tr>
       ${PRODUCTS.map(p=>{ const mult = p.id==='p7'?3:5; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${grandTotals[p.id].toLocaleString('th-TH')}</td><td>${p.unit} ×${mult}</td><td class="num num">${money(grandTotals[p.id]*mult)}</td></tr>`; }).join('')}
-      </table>
+      </table></div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
         <span style="color:var(--text-dim);font-size:13px;">รวม ${rows.length} วัน — โอนให้บริษัททวีโชคสิ้นเดือน</span>
         <span class="feebig" style="font-size:20px;">${money(grandTotal)}</span>
@@ -6384,10 +6388,10 @@ async function renderPurchMonthSummary(){
     const rows = PRODUCTS.filter(p=>byProduct[p.id]).map(p=>[p.id, byProduct[p.id]]);
     if(rows.length===0){ el.className='empty'; el.innerHTML = 'ยังไม่มีข้อมูลเดือนนี้'; return; }
     el.className='';
-    el.innerHTML = `<table class="plain">
+    el.innerHTML = `<div class="scrollx"><table class="plain">
       <tr><th>สินค้า</th><th class="num">ซื้อ</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th class="num">กำไรรวม</th></tr>
       ${rows.map(([pid,v])=>{ const p = PRODUCTS.find(x=>x.id===pid); const cpu = v.sellQty>0 ? v.cost/v.sellQty : 0; const profitColor = v.profit>=0 ? 'var(--success)' : 'var(--danger)'; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${v.qty.toLocaleString('th-TH')} ${purchaseBuyUnit(pid)}</td><td class="num num">${v.sellQty.toLocaleString('th-TH')} ${purchaseSellUnit(pid)}</td><td class="num num">${money(v.cost)}</td><td class="num num" style="color:var(--accent);">${money(cpu)}</td><td class="num num" style="color:${profitColor};font-weight:600;">${money(v.profit)}</td></tr>`; }).join('')}
-      </table>
+      </table></div>
       <div class="hint" style="margin-top:8px;">กำไรคิดจาก (ราคาขาย ณ วันที่ซื้อ/ทำ − ต้นทุน/หน่วยขาย) × จำนวนที่ "ทำได้" ของแต่ละรายการซื้อ ยังไม่ได้หักของเหลือค้าง/ของเสียที่ขายไม่หมด</div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
         <span style="color:var(--text-dim);font-size:13px;">ต้นทุนซื้อรวมทั้งเดือน</span>

@@ -258,39 +258,40 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow{display:flex;gap:6px;margin-top:6px;}
 .addhistrow input[type=date]{flex:1.3;}
 .addhistrow input[type=number]{flex:1;}
-/* receipt */
-.receipt{background:#FBF9F3;color:#1A1A18;border-radius:12px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
+/* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
+   อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
+.receipt{background:#FFFFFF;color:#132A2F;border-radius:12px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
 .receipt .rheadinfo .shopname{font-size:16.5px;font-weight:700;letter-spacing:.1px;}
-.receipt .rheadinfo .addr{font-size:10px;color:#777;line-height:1.55;margin-top:3px;}
+.receipt .rheadinfo .addr{font-size:10px;color:#4E6B72;line-height:1.55;margin-top:3px;}
 .receipt .rheadmeta{flex:none;text-align:right;}
-.receipt .rheadmeta .rbillno{font-size:11.5px;color:#7a4a1e;background:#F1E4CC;padding:4px 10px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
-.receipt .rheadmeta .rdate{font-size:10px;color:#999;margin-top:6px;}
-.receipt hr{border:none;border-top:1px dashed #ccc;margin:14px 0;}
+.receipt .rheadmeta .rbillno{font-size:11.5px;color:#0E7C93;background:rgba(14,124,147,0.12);padding:4px 10px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.receipt .rheadmeta .rdate{font-size:10px;color:#87A2A8;margin-top:6px;}
+.receipt hr{border:none;border-top:1px dashed #D3E4E8;margin:14px 0;}
 .receipt .idblock{display:flex;flex-direction:column;gap:8px;}
-.receipt .idrow .idlabel{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
-.receipt .idrow .idvalue{font-size:14px;color:#161613;font-weight:600;}
-.receipt .idrow .idsub{font-size:11px;color:#666;margin-top:1px;}
-.receipt .kv{font-size:11px;color:#666;margin:2px 0;}
+.receipt .idrow .idlabel{font-size:10px;color:#87A2A8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
+.receipt .idrow .idvalue{font-size:14px;color:#0F262B;font-weight:600;}
+.receipt .idrow .idsub{font-size:11px;color:#4E6B72;margin-top:1px;}
+.receipt .kv{font-size:11px;color:#4E6B72;margin:2px 0;}
 .receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px;}
-.receipt table th{text-align:left;border-bottom:1.5px solid #2A2A26;padding:6px 4px;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
+.receipt table th{text-align:left;border-bottom:1.5px solid #132A2F;padding:6px 4px;font-size:10px;color:#4E6B72;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .receipt table th.num,.receipt table td.num{text-align:right;}
-.receipt table td{padding:8px 4px;border-bottom:1px solid #E6E2D8;font-size:12.5px;}
-.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#555;margin:4px 0;}
-.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#1A1A18;color:#FBF9F3;padding:12px 14px;border-radius:8px;margin:14px 0 6px;}
-.receipt .grand span:first-child{font-size:13px;font-weight:500;color:#C9C4B4;}
-.receipt .bahttext{text-align:right;font-size:11px;color:#8a7a5c;font-style:italic;margin-bottom:16px;}
-.receipt .sign{text-align:right;font-size:12px;margin:26px 0 6px;color:#333;}
-.receipt .thanks{text-align:center;font-size:12px;color:#7a4a1e;margin-top:14px;font-weight:500;}
-.receipt .rno{text-align:center;font-size:10px;color:#aaa;margin-top:10px;letter-spacing:.2px;}
+.receipt table td{padding:8px 4px;border-bottom:1px solid #E1EEF0;font-size:12.5px;}
+.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#4E6B72;margin:4px 0;}
+.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#0E7C93;color:#FFFFFF;padding:12px 14px;border-radius:8px;margin:14px 0 6px;}
+.receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,255,255,0.75);}
+.receipt .bahttext{text-align:right;font-size:11px;color:#E2711D;font-style:italic;margin-bottom:16px;}
+.receipt .sign{text-align:right;font-size:12px;margin:26px 0 6px;color:#4E6B72;}
+.receipt .thanks{text-align:center;font-size:12px;color:#E2711D;margin-top:14px;font-weight:500;}
+.receipt .rno{text-align:center;font-size:10px;color:#87A2A8;margin-top:10px;letter-spacing:.2px;}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
   .receipt{position:absolute;top:0;left:0;width:100%;border-radius:0;}
 }.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.dash-metric{background:var(--surface-2);border-radius:var(--radius);padding:12px;}
+.dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
 .dash-metric .dm-value{font-size:21px;font-weight:600;}
 .dash-metric.accent{background:var(--accent-soft);}
@@ -301,6 +302,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-metric.info .dm-value{color:var(--mahkard);}
 .dash-metric.success{background:var(--success-soft);}
 .dash-metric.success .dm-value{color:var(--success);}
+.dash-metric.hero{grid-column:1/-1;padding:18px;}
+.dash-metric.hero .dm-value{font-size:30px;}
 /* App-wide sidebar+header shell (replaces the old .topbar/.tabs pill row as the main nav
    for every tab) — desktop-first base, tablet/mobile override tiers below. */
 .topbar{display:none;}
@@ -609,8 +612,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
   <div class="panel" id="panel-fee">
     <div class="card dash-wide-card">
       <h3>🏷️ Brand fee วันนี้</h3>
-      <div class="feebig" id="feeToday">฿0</div>
-      <div class="hint">ไม่รวมสาขาที่ตั้งเป็น "แยกส่ง" ในตั้งค่า</div>
+      <div class="dash-metric hero accent" style="margin-top:8px;">
+        <div class="dm-label">รวมวันนี้</div>
+        <div class="dm-value num feebig" id="feeToday">฿0</div>
+      </div>
+      <div class="hint" style="margin-top:8px;">ไม่รวมสาขาที่ตั้งเป็น "แยกส่ง" ในตั้งค่า</div>
       <div class="hint" id="feeExcludedToday" style="margin-top:2px;"></div>
       <table class="plain" style="margin-top:10px;">
         <tr><td>กก. รวม 6 รายการ (แช่/ดอง/ตัดปาก/ปูจืด/หมึก/เชอรี่)</td><td class="num num" id="feeKg">0 กก.</td></tr>
@@ -794,10 +800,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="card dash-wide-card">
       <h3>💳 ยอดหนี้สินรวม</h3>
       <div class="dash-grid" id="debtOwnerTotals"></div>
+      <div class="dash-metric hero" style="margin-top:12px;">
+        <div class="dm-label">เงินต้นคงเหลือปัจจุบัน</div>
+        <div class="dm-value num" id="debtPrincipalRemain">฿0</div>
+      </div>
       <table class="plain" style="margin-top:12px;">
         <tr><td>เงินต้นตั้งต้นทั้งหมด</td><td class="num num" id="debtPrincipalStart">฿0</td></tr>
         <tr><td>ตัดเงินต้นแล้ว</td><td class="num num" id="debtPrincipalPaid">฿0</td></tr>
-        <tr><td><b>เงินต้นคงเหลือปัจจุบัน</b></td><td class="num num" id="debtPrincipalRemain"><b>฿0</b></td></tr>
       </table>
     </div>
     <div class="card dash-wide-card" style="border-color:var(--accent);">
@@ -2569,7 +2578,7 @@ async function saveReceiptAsImage(code){
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   showToast('กำลังสร้างรูปภาพ…');
   try{
-    const canvas = await html2canvas(node, {backgroundColor:'#FBF9F3', scale:2});
+    const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
     canvas.toBlob(async (blob)=>{
       if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
       const fileName = `bill-${code}-${currentDate}.png`;
@@ -2626,7 +2635,7 @@ async function saveAllReceiptsAsImages(){
     try{
       wrapper = await renderOffscreenReceipt(code, receiptWidth);
       const node = wrapper.querySelector('.receipt');
-      const canvas = await html2canvas(node, {backgroundColor:'#FBF9F3', scale:2});
+      const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
       const blob = await canvasToBlobAsync(canvas);
       if(blob) files.push({code, fileName: `bill-${code}-${currentDate}.png`, blob});
     }catch(e){ /* ข้ามบิลสาขานี้ไป ทำใบที่เหลือต่อ */ }
@@ -2784,7 +2793,7 @@ async function toggleBranchDetailReceipt(iso, code){
     if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
     showToast('กำลังสร้างรูปภาพ…');
     try{
-      const canvas = await html2canvas(node, {backgroundColor:'#FBF9F3', scale:2});
+      const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
       canvas.toBlob(blob=>{
         if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
         const url = URL.createObjectURL(blob);
@@ -4641,7 +4650,7 @@ async function renderPendingStockValueCard_(){
   if(!wrap) return;
   const {totalValue, items} = await computeAllPendingStockValue_();
   if(items.length===0){ wrap.innerHTML=''; return; }
-  wrap.innerHTML = `<div class="card" style="border-color:var(--accent);">
+  wrap.innerHTML = `<div class="card dash-wide-card" style="border-color:var(--accent);">
     <div id="pendingStockValueToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;">
       <h3 style="margin:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">💰 เงินค้างสต็อก <span class="subhint">(เบิกมาทำไว้แล้ว ยังไม่ตัดต้นทุน)</span> <span class="num" style="color:var(--accent);font-size:15px;">${money(totalValue)}</span></h3>
       <span id="pendingStockValueChevron" style="font-size:14px;color:var(--accent);flex:none;">${pendingStockValueOpen?'▾':'▸'}</span>
@@ -4704,7 +4713,7 @@ async function renderLotSettleCards_(){
         <input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
         <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
       </div>`;
-  wrap.innerHTML = `<div class="card">
+  wrap.innerHTML = `<div class="card dash-wide-card">
     <h3>📦 ตัดต้นทุนสต็อกล็อต</h3>
     <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้ายังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ใช้จริงวันนี้แล้วกดตัด (FIFO จากรอบเบิกเก่าสุดก่อน) ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำ แก้ได้</div>
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
@@ -6430,7 +6439,11 @@ async function renderDebts(){
   ).join('');
   document.getElementById('debtPrincipalStart').textContent = money(totalStart);
   document.getElementById('debtPrincipalPaid').textContent = money(totalPaid);
-  document.getElementById('debtPrincipalRemain').innerHTML = `<b>${money(totalStart-totalPaid)}</b>`;
+  const remainNow = totalStart-totalPaid;
+  const remainTile = document.getElementById('debtPrincipalRemain');
+  remainTile.textContent = money(remainNow);
+  remainTile.closest('.dash-metric').classList.toggle('danger', remainNow>0);
+  remainTile.closest('.dash-metric').classList.toggle('success', remainNow<=0);
 
   const ranked = rankDebts(debts);
   const advEl = document.getElementById('debtAdvisor');

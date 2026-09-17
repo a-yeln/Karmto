@@ -142,7 +142,8 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .daterow{display:flex;align-items:center;gap:8px;margin:12px 0 0;position:relative;}
 .daterow button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer;flex:none;}
 .daterow input[type=date]{flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:14px;}
-.cal-popup{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.cal-popup{position:absolute;top:calc(100% + 6px);right:0;width:270px;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.dwh-calwrap{position:relative;}
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .cal-head .cal-monthlabel{font-size:14px;font-weight:600;color:var(--text);}
 .cal-head button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;width:28px;height:28px;font-size:14px;cursor:pointer;flex:none;}
@@ -426,22 +427,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="daterow">
       <button id="prevDay" aria-label="วันก่อนหน้า">‹</button>
       <input type="date" id="dateInput">
-      <button id="calBtn" aria-label="เปิดปฏิทิน">📅</button>
       <button id="nextDay" aria-label="วันถัดไป">›</button>
       <button id="todayBtn" class="btn small secondary" style="width:auto;">วันนี้</button>
-      <div class="cal-popup" id="calPopup" style="display:none;">
-        <div class="cal-switchrow">
-          <span>แสดงจุดสถานะข้อมูล (แดง=ซื้อ เขียว=ขาย)</span>
-          <label class="cal-switch"><input type="checkbox" id="calDotsToggle"><span class="track"></span><span class="knob"></span></label>
-        </div>
-        <div class="cal-head">
-          <button id="calPrevMonth" aria-label="เดือนก่อนหน้า">‹</button>
-          <span class="cal-monthlabel" id="calMonthLabel"></span>
-          <button id="calNextMonth" aria-label="เดือนถัดไป">›</button>
-        </div>
-        <div class="cal-weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
-        <div class="cal-grid" id="calGrid"></div>
-      </div>
     </div>
     <div class="statrow" id="statRow"></div>
     </div>
@@ -484,6 +471,22 @@ table.plain td.num,table.plain th.num{text-align:right;}
             <button id="dwhPrevDay" aria-label="วันก่อนหน้า">‹</button>
             <input type="date" id="dwhDateInput">
             <button id="dwhNextDay" aria-label="วันถัดไป">›</button>
+            <div class="dwh-calwrap">
+              <button id="calBtn" aria-label="เปิดปฏิทิน">📅</button>
+              <div class="cal-popup" id="calPopup" style="display:none;">
+                <div class="cal-switchrow">
+                  <span>แสดงจุดสถานะข้อมูล (แดง=ซื้อ เขียว=ขาย)</span>
+                  <label class="cal-switch"><input type="checkbox" id="calDotsToggle"><span class="track"></span><span class="knob"></span></label>
+                </div>
+                <div class="cal-head">
+                  <button id="calPrevMonth" aria-label="เดือนก่อนหน้า">‹</button>
+                  <span class="cal-monthlabel" id="calMonthLabel"></span>
+                  <button id="calNextMonth" aria-label="เดือนถัดไป">›</button>
+                </div>
+                <div class="cal-weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
+                <div class="cal-grid" id="calGrid"></div>
+              </div>
+            </div>
           </div>
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
           <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">Karmto</span></div>

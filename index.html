@@ -2393,12 +2393,15 @@ async function saveReceiptAsImage(code){
 function canvasToBlobAsync(canvas){
   return new Promise(resolve=>canvas.toBlob(resolve, 'image/png'));
 }
-async function renderOffscreenReceipt(code){
+// width: ความกว้าง (px) ที่จะใช้เรนเดอร์ — เดิมล็อกไว้ 420px คงที่ทุกอุปกรณ์ ทำให้ "บันทึกทุกรูป" ได้ภาพแคบ/ยาวผิดปกติ
+// เวลาเปิดจากจอกว้าง (เช่นเดสก์ท็อป) ทั้งที่ "บันทึกทีละใบ" (saveReceiptAsImage) จับภาพจากบิลที่เปิดอยู่จริงบนหน้าซึ่งกว้าง
+// ตามขนาดจอ ให้ผลลัพธ์ 2 แบบไม่ตรงกัน — ตอนนี้รับความกว้างจริงจากผู้เรียกแทน ให้ได้สัดส่วนตรงกับที่เห็นบนจอเสมอ
+async function renderOffscreenReceipt(code, width){
   const wrapper = document.createElement('div');
   wrapper.style.position = 'fixed';
   wrapper.style.left = '-9999px';
   wrapper.style.top = '0';
-  wrapper.style.width = '420px';
+  wrapper.style.width = (width || 420) + 'px';
   wrapper.innerHTML = buildReceiptCardHTML(code);
   document.body.appendChild(wrapper);
   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
@@ -2411,12 +2414,16 @@ async function saveAllReceiptsAsImages(){
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   entries.sort((a,b)=>a[0].localeCompare(b[0]));
   showToast(`กำลังสร้างรูปภาพ ${entries.length} ใบ…`);
+  // ใช้ความกว้างเดียวกับที่บิลจริงแสดงอยู่บนจอตอนนี้ (วัดจากการ์ดจริงในหน้า แล้วหักระยะขอบในของการ์ดออก) แทนความกว้าง
+  // 420px คงที่แบบเดิม — กันภาพบิลออกมาแคบ/ยาวผิดปกติตอนเปิดจากจอกว้าง (เช่น เดสก์ท็อป) ทั้งที่บันทึกทีละใบได้ภาพกว้างปกติ
+  const cardEl = document.querySelector('#panel-billing .card') || document.querySelector('.card');
+  const receiptWidth = cardEl ? Math.max(320, Math.round(cardEl.clientWidth) - 28) : 420;
   // แยกภาพทีละบิล (1 บิล = 1 ไฟล์) แทนที่จะรวมเป็นภาพยาวใบเดียวเหมือนเดิม
   const files = []; // {code, fileName, blob}
   for(const [code] of entries){
     let wrapper;
     try{
-      wrapper = await renderOffscreenReceipt(code);
+      wrapper = await renderOffscreenReceipt(code, receiptWidth);
       const node = wrapper.querySelector('.receipt');
       const canvas = await html2canvas(node, {backgroundColor:'#FBF9F3', scale:2});
       const blob = await canvasToBlobAsync(canvas);

@@ -120,8 +120,8 @@
   --border:#D3E4E8; --border-soft:#E1EEF0;
   --text:#0F262B; --text-dim:#4E6B72; --text-faint:#87A2A8;
   --accent:#0E7C93; --accent-text:#FFFFFF; --accent-soft:rgba(14,124,147,0.10);
-  --danger:#C43B3B; --danger-soft:rgba(196,59,59,0.10);
-  --success:#2E8F6F; --success-soft:rgba(46,143,111,0.10);
+  --danger:#F2ADAD; --danger-soft:rgba(242,173,173,0.10);
+  --success:#8DE2C5; --success-soft:rgba(141,226,197,0.10);
   --mahkard:#3E7CB1; --mahkard-soft:rgba(62,124,177,0.10);
   --monk:#2E9A9A; --monk-soft:rgba(46,154,154,0.10);
   --phat:#9757B8; --phat-soft:rgba(151,87,184,0.10);
@@ -7880,8 +7880,8 @@ async function init(){
 }
 function showConnectionErrorBanner(e){
   const banner = document.createElement('div');
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--danger);color:#fff;padding:14px 16px;z-index:100;font-size:13.5px;line-height:1.6;';
-  banner.innerHTML = `⚠️ <b>เชื่อมต่อฐานข้อมูลไม่ได้</b><br>ระบบเปิดหน้าจอได้ แต่โหลด/บันทึกข้อมูลไม่ได้ (แท็บต่างๆ ยังกดสลับได้ปกติ แต่จะว่างเปล่าหรือค้าง "กำลังโหลด")<br><span style="opacity:0.85;font-size:12px;">รายละเอียด: ${(e && e.message ? e.message : String(e)).replace(/</g,'&lt;')}</span><br><button style="margin-top:8px;background:#fff;color:var(--danger);border:none;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:600;" onclick="location.reload()">ลองโหลดใหม่</button>`;
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--danger);color:var(--text);padding:14px 16px;z-index:100;font-size:13.5px;line-height:1.6;';
+  banner.innerHTML = `⚠️ <b>เชื่อมต่อฐานข้อมูลไม่ได้</b><br>ระบบเปิดหน้าจอได้ แต่โหลด/บันทึกข้อมูลไม่ได้ (แท็บต่างๆ ยังกดสลับได้ปกติ แต่จะว่างเปล่าหรือค้าง "กำลังโหลด")<br><span style="opacity:0.85;font-size:12px;">รายละเอียด: ${(e && e.message ? e.message : String(e)).replace(/</g,'&lt;')}</span><br><button style="margin-top:8px;background:#fff;color:var(--text);border:none;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:600;" onclick="location.reload()">ลองโหลดใหม่</button>`;
   document.body.appendChild(banner);
 }
 if(window.storage){ init(); } else { window.addEventListener('firebaseReady', init); }

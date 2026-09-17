@@ -563,6 +563,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     </div>
     <div class="card dash-wide-card">
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
+      <div class="dash-grid" id="orderSummaryGrid" style="margin-bottom:10px;"></div>
       <div class="rowlist" id="orderList"></div>
     </div>
     <div class="card dash-wide-card" data-no-collapse="1">
@@ -1569,6 +1570,14 @@ function renderProductInputs(){
 function renderOrderList(){
   const list = document.getElementById('orderList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const summaryGrid = document.getElementById('orderSummaryGrid');
+  if(summaryGrid){
+    const totalBranches = settings.branches.length;
+    const remaining = Math.max(0, totalBranches - entries.length);
+    summaryGrid.innerHTML = `
+      <div class="dash-metric accent"><div class="dm-label">บันทึกแล้ว</div><div class="dm-value num">${entries.length} สาขา</div></div>
+      <div class="dash-metric ${remaining>0?'danger':'success'}"><div class="dm-label">ยังไม่ได้บันทึก</div><div class="dm-value num">${remaining} สาขา</div></div>`;
+  }
   if(entries.length===0){ list.innerHTML = '<div class="empty">ยังไม่มีสาขาที่บันทึกวันนี้</div>'; return; }
   entries.sort((a,b)=>a[0].localeCompare(b[0]));
   list.innerHTML = entries.map(([code,row])=>{
@@ -1979,7 +1988,7 @@ async function renderMessages(){
       </div>
       <div id="msgblockbody-${i}" style="display:${open?'':'none'};margin-top:6px;">
         <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-          <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้">✎ แก้ไข</button>
+          <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้">✎</button>
         </div>
         <pre class="msgtext" id="msgview-${i}">${escapeHtml(b.text)}</pre>
         <div id="msgeditwrap-${i}" style="display:none;margin-top:6px;">
@@ -2891,8 +2900,8 @@ function renderExpenseList(){
         </div>` : `<div>
           ${e.note? `<div class="hint" style="margin-top:6px;">หมายเหตุ: ${escapeHtml(e.note)}</div>`:''}
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎ แก้ไข</button>
-            <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕ ลบ</button>
+            <button class="iconbtn" data-expedit="${e.id}" aria-label="แก้ไข">✎</button>
+            <button class="iconbtn" data-expdel="${e.id}" aria-label="ลบ">✕</button>
           </div>
         </div>`}
         ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
@@ -5561,8 +5570,8 @@ async function renderLotTransportList(){
             <button class="btn small secondary" data-lottransfieldcancel="1" style="width:auto;">ยกเลิก</button>
           </div>
         </div>` : `<div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="iconbtn" data-lottransedit="${b.id}" aria-label="แก้ไข">✎ แก้ไข</button>
-          <button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button>
+          <button class="iconbtn" data-lottransedit="${b.id}" aria-label="แก้ไข">✎</button>
+          <button class="iconbtn" data-lottransdel="${b.id}" aria-label="ลบรายการนี้">✕</button>
         </div>`}
         ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="lottransdate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">
@@ -5712,8 +5721,8 @@ async function renderLotProductBillList(){
             <button class="btn small secondary" data-lotprodfieldcancel="1" style="width:auto;">ยกเลิก</button>
           </div>
         </div>` : `<div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="iconbtn" data-lotprodedit="${b.id}" aria-label="แก้ไข">✎ แก้ไข</button>
-          <button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕ ลบ</button>
+          <button class="iconbtn" data-lotprodedit="${b.id}" aria-label="แก้ไข">✎</button>
+          <button class="iconbtn" data-lotproddel="${b.id}" aria-label="ลบรายการนี้">✕</button>
         </div>`}
         ${showDatePicker ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="lotproddate-${b.id}" value="${lastUsedPayDate}" style="flex:1;">

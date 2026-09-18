@@ -260,7 +260,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;max-width:440px;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -289,7 +289,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
-  .receipt{position:absolute;top:0;left:0;width:100%;border-radius:0;border:none;box-shadow:none;}
+  .receipt{position:absolute;top:0;left:0;width:100%;max-width:none;margin:0;border-radius:0;border:none;box-shadow:none;}
 }.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}

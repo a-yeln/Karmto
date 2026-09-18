@@ -260,7 +260,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;max-width:393px;margin:0 auto;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:350px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -408,10 +408,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .grid7{grid-template-columns:1fr;}
   .dash-wide-header{padding:0 16px;}
   .dwh-datenav{flex-basis:100%;}
-  .receipt{padding:16px 14px;}
-  .receipt .receiptlogo{width:34px;height:34px;}
-  .receipt .rheadtop{gap:8px;}
-  .receipt .rheadinfo .addr{font-size:9px;}
 }
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
 .qr-type{flex:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;}
@@ -2732,7 +2728,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
   iso = iso || currentDate; d = d || dayData;
   const {billNo, items, subtotal, extra, total, bi, buyer, claimNotes} = computeReceiptData(code, iso, d);
   return `
-    <div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
+    <div class="scrollx"><div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
       <div class="rheadtop">
         <img src="${LOGO_DATA_URI}" alt="${escapeHtml(bi.sellerName)}" class="receiptlogo">
         <div class="rheadinfo">
@@ -2762,7 +2758,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       <div class="sign">ผู้รับเงิน .....................................</div>
       <div class="thanks">🦀${escapeHtml(bi.sellerName)} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀</div>
       <div class="rno">№ ${billNo} • ${formatDDMMYYYY(iso)}</div>
-    </div>`;
+    </div></div>`;
 }
 async function toggleReceipt(code){
   const holder = document.getElementById('receipt-'+code);

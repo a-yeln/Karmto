@@ -268,7 +268,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:18px 16px;font-family:'IBM Plex Sans Thai',sans-serif;width:460px;flex:none;margin:0 auto;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:18px 16px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -284,9 +284,10 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .receipt .idrow .idsub{font-size:11px;color:#598BAF;margin-top:1px;}
 .receipt .kv{font-size:11px;color:#598BAF;margin:2px 0;}
 .receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px;}
-.receipt table th{text-align:left;border-bottom:1.5px solid var(--text);padding:6px 4px;font-size:10px;color:#598BAF;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
+.receipt table th{text-align:left;border-bottom:1.5px solid #E2711D;padding:6px 4px;font-size:10px;color:#598BAF;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
 .receipt table th.num,.receipt table td.num{text-align:right;}
 .receipt table td{padding:7px 4px;border-bottom:1px solid rgba(149,200,216,0.4);font-size:12.5px;}
+.receipt table tr:last-child td{border-bottom:1px solid #E2711D;}
 .receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#598BAF;margin:4px 0;}
 .receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#0080FE;color:#FFFFFF;padding:12px 14px;border-radius:8px;margin:12px 0 6px;}
 .receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,255,255,0.75);}

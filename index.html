@@ -268,36 +268,41 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:18px 16px;font-family:'IBM Plex Sans Thai',sans-serif;width:350px;flex:none;margin:0 auto;}
-.receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
-.receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);border-top:5px solid #E2711D;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
+.receipt .rheadtop{display:flex;align-items:flex-start;gap:12px;}
+.receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:2px solid rgba(226,113,29,.35);background:#FFF8F1;padding:3px;box-sizing:border-box;}
 .receipt .rheadinfo{flex:1;min-width:0;}
-.receipt .rheadinfo .shopname{font-size:16.5px;font-weight:700;letter-spacing:.1px;}
-.receipt .rheadinfo .addr{font-size:10px;color:#598BAF;line-height:1.55;margin-top:3px;}
-.receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none;}
-.receipt .rheadmeta .rbillno{font-size:11.5px;color:#0080FE;background:rgba(0,128,254,0.12);padding:4px 10px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.receipt .rheadinfo .shopname{font-size:18px;font-weight:800;letter-spacing:.1px;}
+.receipt .rheadinfo .addr{font-size:10px;color:#598BAF;line-height:1.6;margin-top:4px;}
+.receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;}
+.receipt .rheadmeta .rbillno{font-size:11.5px;color:#FFFFFF;background:#E2711D;padding:4px 11px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
 .receipt .rheadmeta .rdate{font-size:10px;color:#7285A5;}
-.receipt hr{border:none;border-top:1px dashed #95C8D8;margin:11px 0;}
-.receipt .idblock{display:flex;flex-direction:column;gap:6px;}
+.receipt hr{border:none;height:3px;border-radius:999px;background:linear-gradient(90deg,#E2711D,#0080FE);margin:14px 0;}
+.receipt .idblock{display:flex;flex-direction:column;gap:6px;background:rgba(0,128,254,.05);border:1px solid rgba(0,128,254,.14);border-radius:10px;padding:10px 12px;}
 .receipt .idrow .idlabel{font-size:10px;color:#7285A5;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
 .receipt .idrow .idvalue{font-size:14px;color:var(--text);font-weight:600;}
 .receipt .idrow .idsub{font-size:11px;color:#598BAF;margin-top:1px;}
 .receipt .kv{font-size:11px;color:#598BAF;margin:2px 0;}
-.receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px;}
-.receipt table th{text-align:left;border-bottom:1.5px solid var(--text);padding:6px 4px;font-size:10px;color:#598BAF;text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
+.receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px;}
+.receipt table th{text-align:left;background:rgba(0,128,254,.08);border-bottom:2.5px solid #E2711D;padding:7px 6px;font-size:10px;color:#1134A6;text-transform:uppercase;letter-spacing:.3px;font-weight:700;}
 .receipt table th.num,.receipt table td.num{text-align:right;}
-.receipt table td{padding:7px 4px;border-bottom:1px solid rgba(149,200,216,0.4);font-size:12.5px;}
-.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#598BAF;margin:4px 0;}
-.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#0080FE;color:#FFFFFF;padding:12px 14px;border-radius:8px;margin:12px 0 6px;}
+.receipt table td{padding:7px 6px;font-size:12.5px;}
+.receipt table tr:nth-child(even){background:rgba(0,128,254,.035);}
+.receipt table tr:last-child td{border-bottom:0.75px solid #E2711D;}
+.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#598BAF;margin:4px 2px;}
+.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#0080FE;color:#FFFFFF;padding:13px 15px;border-radius:10px;margin:12px 0 6px;}
 .receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,255,255,0.75);}
 .receipt .bahttext{text-align:right;font-size:11px;color:#1134A6;font-style:italic;margin-bottom:12px;}
 .receipt .sign{text-align:right;font-size:12px;margin:18px 0 6px;color:#598BAF;}
-.receipt .thanks{text-align:center;font-size:12px;color:#1134A6;margin-top:10px;font-weight:500;}
+.receipt .thanks{text-align:center;font-size:12px;color:#E2711D;margin-top:10px;font-weight:600;}
 .receipt .rno{text-align:center;font-size:10px;color:#7285A5;margin-top:8px;letter-spacing:.2px;}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
-  .receipt{position:absolute;top:0;left:0;width:100%;max-width:none;margin:0;border-radius:0;border:none;box-shadow:none;}
+  .receipt{position:absolute;top:0;left:0;width:100%;max-width:none;margin:0;border-radius:0;border:none;border-top:none;box-shadow:none;}
+  .receipt .idblock{background:none;border-color:#ccc;}
+  .receipt table th{background:none;}
+  .receipt table tr:nth-child(even){background:none;}
 }.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
@@ -2754,6 +2759,7 @@ function computeReceiptData(code, iso, d){
 function buildReceiptCardHTML(code, iso, d, cardId){
   iso = iso || currentDate; d = d || dayData;
   const {billNo, items, subtotal, extra, total, bi, buyer, claimNotes} = computeReceiptData(code, iso, d);
+  const hasBuyerInfo = !!(buyer.name || buyer.addr || buyer.tax);
   return `
     <div class="scrollx"><div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
       <div class="rheadtop">
@@ -2768,11 +2774,11 @@ function buildReceiptCardHTML(code, iso, d, cardId){
         </div>
       </div>
       <hr>
-      <div class="idblock">
+      ${hasBuyerInfo ? `<div class="idblock">
         ${buyer.name ? `<div class="idrow"><div class="idlabel">นาม</div><div class="idvalue">${escapeHtml(buyer.name)}</div></div>` : ''}
         ${buyer.addr ? `<div class="idrow"><div class="idlabel">ที่อยู่จัดส่ง</div><div class="idvalue" style="font-size:12.5px;">${formatAddrForDisplay(buyer.addr)}</div></div>` : ''}
-      </div>
-      ${buyer.tax ? `<div class="kv" style="margin-top:8px;">เลขประจำตัวผู้เสียภาษี ${escapeHtml(buyer.tax)}</div>` : ''}
+        ${buyer.tax ? `<div class="kv" style="margin:2px 0 0;">เลขประจำตัวผู้เสียภาษี ${escapeHtml(buyer.tax)}</div>` : ''}
+      </div>` : ''}
       <table>
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
         ${items.map(it=>`<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`).join('')}

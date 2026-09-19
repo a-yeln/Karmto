@@ -162,6 +162,8 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .cal-day.cal-other{color:var(--text-faint);opacity:.4;}
 .cal-day.cal-today{border-color:var(--accent);}
 .cal-day.cal-selected{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700;}
+.cal-day.cal-range-start,.cal-day.cal-range-end{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.cal-day.cal-in-range{background:var(--accent-soft);border-color:transparent;}
 .cal-dots{position:absolute;left:3px;bottom:2px;display:flex;gap:2px;}
 .cal-dots span{width:5px;height:5px;border-radius:50%;display:block;}
 .cal-dots .dot-buy{background:var(--danger);}
@@ -169,6 +171,12 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .statrow{display:flex;gap:8px;margin:10px 0 0;overflow-x:auto;padding-bottom:2px;}
 .statchip{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text-dim);white-space:nowrap;flex:none;}
 .statchip b{color:var(--text);font-size:13px;margin-left:4px;}
+.statbar{margin-bottom:14px;}
+.statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0 0 6px;color:var(--text-dim);}
+.statbar-head-label{font-size:12px;font-weight:600;}
+.statbar-head-icon{font-size:12px;color:var(--accent);transition:transform .15s ease;}
+.statbar.collapsed .statrow{display:none;}
+.statbar.collapsed .statbar-head-icon{transform:rotate(-90deg);}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:12px 0 0;padding-bottom:10px;}
 .tab{flex:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
 .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -260,15 +268,15 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;}
+.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:350px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:10px;}
 .receipt .receiptlogo{width:42px;height:42px;object-fit:contain;flex:none;margin-top:1px;}
 .receipt .rheadinfo{flex:1;min-width:0;}
 .receipt .rheadinfo .shopname{font-size:16.5px;font-weight:700;letter-spacing:.1px;}
 .receipt .rheadinfo .addr{font-size:10px;color:#4E6B72;line-height:1.55;margin-top:3px;}
-.receipt .rheadmeta{flex:none;text-align:right;}
-.receipt .rheadmeta .rbillno{font-size:11.5px;color:#0E7C93;background:rgba(14,124,147,0.12);padding:4px 10px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
-.receipt .rheadmeta .rdate{font-size:10px;color:#87A2A8;margin-top:6px;}
+.receipt .rmeta-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+.receipt .rmeta-row .rbillno{font-size:11.5px;color:#0E7C93;background:rgba(14,124,147,0.12);padding:4px 10px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.receipt .rmeta-row .rdate{font-size:10px;color:#87A2A8;}
 .receipt hr{border:none;border-top:1px dashed #D3E4E8;margin:14px 0;}
 .receipt .idblock{display:flex;flex-direction:column;gap:8px;}
 .receipt .idrow .idlabel{font-size:10px;color:#87A2A8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
@@ -289,7 +297,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
-  .receipt{position:absolute;top:0;left:0;width:100%;border-radius:0;border:none;box-shadow:none;}
+  .receipt{position:absolute;top:0;left:0;width:100%;max-width:none;margin:0;border-radius:0;border:none;box-shadow:none;}
 }.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
@@ -408,6 +416,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .grid7{grid-template-columns:1fr;}
   .dash-wide-header{padding:0 16px;}
   .dwh-datenav{flex-basis:100%;}
+  .statbar{padding:0 16px;}
 }
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
 .qr-type{flex:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;}
@@ -437,7 +446,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button id="nextDay" aria-label="วันถัดไป">›</button>
       <button id="todayBtn" class="btn small secondary" style="width:auto;">วันนี้</button>
     </div>
-    <div class="statrow" id="statRow"></div>
     </div>
     <div class="tabs" id="tabs">
       <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
@@ -485,6 +493,10 @@ table.plain td.num,table.plain th.num{text-align:right;}
                   <span>แสดงจุดสถานะข้อมูล (แดง=ซื้อ เขียว=ขาย)</span>
                   <label class="cal-switch"><input type="checkbox" id="calDotsToggle"><span class="track"></span><span class="knob"></span></label>
                 </div>
+                <div class="cal-switchrow">
+                  <span>เลือกช่วงวันที่</span>
+                  <label class="cal-switch"><input type="checkbox" id="calRangeToggle"><span class="track"></span><span class="knob"></span></label>
+                </div>
                 <div class="cal-head">
                   <button id="calPrevMonth" aria-label="เดือนก่อนหน้า">‹</button>
                   <span class="cal-monthlabel" id="calMonthLabel"></span>
@@ -497,6 +509,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
           </div>
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
           <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">Karmto</span></div>
+        </div>
+
+        <div class="statbar" id="statBar">
+          <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="พับ/ขยายสรุปยอดสินค้า">
+            <span class="statbar-head-icon" id="statBarToggleIcon">▾</span>
+            <span class="statbar-head-label">สรุปยอดวันนี้</span>
+          </button>
+          <div class="statrow" id="statRow"></div>
         </div>
 
   <div class="panel active" id="panel-dashboard">
@@ -994,6 +1014,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <button class="btn secondary" style="flex:1;" id="dashExpenseModalCancel">ยกเลิก</button>
       <button class="btn" style="flex:1;" id="dashExpenseModalSave">+ เพิ่มรายจ่าย</button>
     </div>
+  </div>
+</div>
+<div class="modalOverlay" id="calRangeModalOverlay" style="display:none;">
+  <div class="modalBox">
+    <h3 id="calRangeModalTitle">📅 สรุปช่วงวันที่</h3>
+    <div id="calRangeModalBody" class="loading">กำลังคำนวณ…</div>
+    <button class="btn secondary" id="calRangeModalCloseBtn">ปิด</button>
   </div>
 </div>
 
@@ -2728,17 +2755,17 @@ function buildReceiptCardHTML(code, iso, d, cardId){
   iso = iso || currentDate; d = d || dayData;
   const {billNo, items, subtotal, extra, total, bi, buyer, claimNotes} = computeReceiptData(code, iso, d);
   return `
-    <div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
+    <div class="scrollx"><div class="receipt" style="margin-top:10px;" id="${cardId || ('receiptcard-'+code)}">
       <div class="rheadtop">
         <img src="${LOGO_DATA_URI}" alt="${escapeHtml(bi.sellerName)}" class="receiptlogo">
         <div class="rheadinfo">
           <div class="shopname">${escapeHtml(bi.sellerName)}</div>
           <div class="addr">${escapeHtml(bi.sellerAddr1)}<br>${escapeHtml(bi.sellerAddr2)}<br>${escapeHtml(bi.sellerContact)}</div>
         </div>
-        <div class="rheadmeta">
-          <div class="rbillno">#${billNo}</div>
-          <div class="rdate">${formatDDMMYYYY(iso)}</div>
-        </div>
+      </div>
+      <div class="rmeta-row">
+        <div class="rbillno">#${billNo}</div>
+        <div class="rdate">${formatDDMMYYYY(iso)}</div>
       </div>
       <hr>
       <div class="idblock">
@@ -2758,7 +2785,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       <div class="sign">ผู้รับเงิน .....................................</div>
       <div class="thanks">🦀${escapeHtml(bi.sellerName)} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀</div>
       <div class="rno">№ ${billNo} • ${formatDDMMYYYY(iso)}</div>
-    </div>`;
+    </div></div>`;
 }
 async function toggleReceipt(code){
   const holder = document.getElementById('receipt-'+code);
@@ -3073,6 +3100,32 @@ function openDashExpenseModal_(){
 function closeDashExpenseModal_(){
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
 }
+async function openCalRangeSummary(startIso, endIso){
+  document.getElementById('calRangeModalTitle').textContent = `📅 สรุปช่วง ${formatDDMMYYYY(startIso)} - ${formatDDMMYYYY(endIso)}`;
+  const body = document.getElementById('calRangeModalBody');
+  body.className = 'loading'; body.innerHTML = 'กำลังคำนวณ…';
+  document.getElementById('calRangeModalOverlay').style.display = 'flex';
+  try{
+    const r = await computeRangeFinancials(startIso, endIso);
+    body.className = '';
+    body.innerHTML = `
+      <div class="hint" style="margin-bottom:6px;">${r.days} วัน</div>
+      <div class="dash-grid" style="margin-bottom:12px;">
+        <div class="dash-metric info"><div class="dm-label">💰 ยอดขายรวม (บิล)</div><div class="dm-value num">${money(r.revenue)}</div></div>
+        <div class="dash-metric danger"><div class="dm-label">📦 ต้นทุนซื้อ (COGS)</div><div class="dm-value num">${money(r.cogsTotal)}</div></div>
+        <div class="dash-metric danger"><div class="dm-label">🧾 รายจ่าย + Fee</div><div class="dm-value num">${money(r.expenseTotal + r.feeTotal)}</div></div>
+        <div class="dash-metric hero ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ</div><div class="dm-value num">${money(r.netProfit)}</div></div>
+      </div>
+      <div class="statrow">
+        <div class="statchip">สาขา<b class="num">${r.branchCount}</b></div>
+        ${PRODUCTS.map(p=>`<div class="statchip">${p.emoji}<b class="num">${r.productTotals[p.id]}</b></div>`).join('')}
+        <div class="statchip">Fee<b class="num">${money(r.feeTotal)}</b></div>
+      </div>`;
+  }catch(e){ body.className = 'empty'; body.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
+}
+function closeCalRangeModal(){
+  document.getElementById('calRangeModalOverlay').style.display = 'none';
+}
 // การแก้ไขรายจ่ายที่บันทึกไว้แล้ว ใช้ฟอร์มกางในที่ (inline) ในการ์ด "สรุปบิลวันนี้" แทน (มีช่องหมวดหมู่ให้เลือกครบ) — ดูปุ่ม data-expedit/data-expfieldsave ด้านบน
 // ---- รายการที่แก้ไขเอง (หมวด/ประเภท/คู่ค้า) เลื่อนลำดับได้ด้วย ▲▼ โดย "อื่นๆ" (ถ้ามีในลิสต์) จะถูกปักท้ายสุดเสมอ ----
 // เพิ่มรายการใหม่ก่อน "อื่นๆ" เสมอ (ถ้ามี) กันไม่ให้ "อื่นๆ" หลุดจากตำแหน่งท้ายสุดทุกครั้งที่กดเพิ่มหมวดใหม่
@@ -3202,6 +3255,45 @@ function computeDebtsByOwnerForMonthFromDebts_(debts, monthVal){
 async function computeDebtPaymentsByOwnerForMonth(monthVal){
   const debts = await loadDebts();
   return computeDebtsByOwnerForMonthFromDebts_(debts, monthVal);
+}
+// เวอร์ชันช่วงวันที่กำหนดเอง (ไม่ใช่ทั้งเดือน) ของ sumWasteForMonth_/computeDebtsByOwnerForMonthFromDebts_ — ใช้กับปฏิทินเลือกช่วงวันที่
+function sumWasteForRange_(wasteRecords, startIso, endIso){
+  return wasteRecords.filter(r=>{ const d = String(r.date||''); return d>=startIso && d<=endIso; }).reduce((s,r)=>s+Number(r.estCost||0),0);
+}
+function computeDebtsByOwnerForRangeFromDebts_(debts, startIso, endIso){
+  const result = {};
+  debts.forEach(d=>{
+    (d.payments||[]).forEach(p=>{
+      if(p.date && p.date>=startIso && p.date<=endIso){
+        const interest = Number(p.interest||0);
+        const principal = Number(p.amount||0) - interest;
+        if(!result[d.owner]) result[d.owner] = {principal:0, interest:0};
+        result[d.owner].principal += principal;
+        result[d.owner].interest += interest;
+      }
+    });
+  });
+  return result;
+}
+async function computeRangeFinancials(startIso, endIso){
+  const isoList = [];
+  for(let iso=startIso; iso<=endIso; iso=addDaysISO(iso,1)) isoList.push(iso);
+  const dayMap = await loadDaysBulk(isoList);
+  const debts = await loadDebts();
+  const debtsByOwner = computeDebtsByOwnerForRangeFromDebts_(debts, startIso, endIso);
+  const wasteRecords = await loadWasteRecords();
+  const wasteTotal = sumWasteForRange_(wasteRecords, startIso, endIso);
+  const core = computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal);
+  const productTotals = {}; PRODUCTS.forEach(p=>productTotals[p.id]=0);
+  const branchSet = new Set();
+  isoList.forEach(iso=>{
+    const t = computeTotals(dayMap[iso].orders);
+    PRODUCTS.forEach(p=>productTotals[p.id]+=t[p.id]);
+    Object.entries(dayMap[iso].orders).forEach(([code,row])=>{
+      if(PRODUCTS.some(p=>Number(row[p.id]||0)>0)) branchSet.add(code);
+    });
+  });
+  return {...core, productTotals, branchCount: branchSet.size, days: isoList.length};
 }
 function buildTrendLineSVG(dailyMap, monthVal){
   const [y,m] = monthVal.split('-').map(Number);
@@ -7461,12 +7553,15 @@ async function switchTab(name){
 // มีสวิตซ์เปิด/ปิดจุดสถานะ เผื่อช่วงกรอกข้อมูลย้อนหลังจำนวนมากแล้วอยากให้ปฏิทินโหลดไว ไม่ต้องรอเช็คทุกวัน
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 let calViewYear = null, calViewMonth = null; // เดือนเป็น 0-11 แบบ JS Date
+let calRangeMode = false, calRangeStart = null, calRangeEnd = null; // โหมดเลือกช่วงวันที่ (แตะ 2 ครั้ง = วันเริ่ม/วันจบ)
+const CAL_RANGE_MAX_DAYS = 62; // กันเลือกช่วงยาวเกินไปโดยไม่ตั้งใจ (โหลดข้อมูลทีเดียวหลายเดือน/ปีจะช้า)
 function calPad(n){ return String(n).padStart(2,'0'); }
 async function openCalPopup(){
   const popup = document.getElementById('calPopup');
   const [y,m] = currentDate.split('-').map(Number);
   calViewYear = y; calViewMonth = m-1;
   document.getElementById('calDotsToggle').checked = !!settings.calendarDotsEnabled;
+  document.getElementById('calRangeToggle').checked = calRangeMode;
   popup.style.display = '';
   await renderCalPopup();
   setTimeout(()=>document.addEventListener('click', calOutsideClickHandler), 0);
@@ -7506,15 +7601,40 @@ async function renderCalPopup(){
   grid.innerHTML = cells.map(c=>{
     if(c.other) return `<div class="cal-day cal-other">${c.day}</div>`;
     const iso = `${calViewYear}-${calPad(calViewMonth+1)}-${calPad(c.day)}`;
-    const isToday = iso===today, isSelected = iso===currentDate;
+    const isToday = iso===today, isSelected = !calRangeMode && iso===currentDate;
+    const isRangeStart = calRangeMode && iso===calRangeStart;
+    const isRangeEnd = calRangeMode && iso===calRangeEnd;
+    const isInRange = calRangeMode && calRangeStart && calRangeEnd && iso>calRangeStart && iso<calRangeEnd;
     const dots = dotMap[iso];
     const dotsHtml = dots ? `<div class="cal-dots">${dots.hasBuy?'<span class="dot-buy"></span>':''}${dots.hasSell?'<span class="dot-sell"></span>':''}</div>` : '';
-    return `<div class="cal-day ${isToday?'cal-today':''} ${isSelected?'cal-selected':''}" data-caliso="${iso}">${c.day}${dotsHtml}</div>`;
+    const cls = [isToday&&'cal-today', isSelected&&'cal-selected', isRangeStart&&'cal-range-start', isRangeEnd&&'cal-range-end', isInRange&&'cal-in-range'].filter(Boolean).join(' ');
+    return `<div class="cal-day ${cls}" data-caliso="${iso}">${c.day}${dotsHtml}</div>`;
   }).join('');
-  grid.querySelectorAll('[data-caliso]').forEach(el=>el.addEventListener('click', async ()=>{
+  grid.querySelectorAll('[data-caliso]').forEach(el=>el.addEventListener('click', async (e)=>{
+    e.stopPropagation(); // กันไม่ให้ event ไปเข้า calOutsideClickHandler ที่ document — ตอนโหมดช่วงวันที่ re-render กริดใหม่ทันที เซลล์เดิมที่คลิกจะหลุดจาก DOM ก่อน event bubble ไปถึง document ทำให้ contains() เช็คพลาดและ popup ปิดเอง
     const iso = el.getAttribute('data-caliso');
+    if(!calRangeMode){
+      closeCalPopup();
+      await loadForDate(iso);
+      return;
+    }
+    if(!calRangeStart || calRangeEnd){
+      calRangeStart = iso; calRangeEnd = null;
+      await renderCalPopup();
+      return;
+    }
+    let start = calRangeStart, end = iso;
+    if(end < start){ [start, end] = [end, start]; }
+    const dayCount = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+    if(dayCount > CAL_RANGE_MAX_DAYS){
+      showToast(`ช่วงเวลานานเกินไป (สูงสุด ${CAL_RANGE_MAX_DAYS} วัน)`);
+      calRangeEnd = null;
+      await renderCalPopup();
+      return;
+    }
+    calRangeStart = start; calRangeEnd = end;
     closeCalPopup();
-    await loadForDate(iso);
+    await openCalRangeSummary(start, end);
   }));
 }
 // สำคัญ: ห้ามตั้ง currentDate/ค่าในช่องวันที่เป็นวันใหม่ "ก่อน" loadDay() เสร็จ — เคยเป็นแบบนั้นมาก่อนแล้วเจอปัญหาจริง:
@@ -7563,6 +7683,13 @@ function toggleTopbarCollapse(){
   label.textContent = topbarCollapsed ? '▸' : '▾';
   dateLabel.style.display = topbarCollapsed ? '' : 'none';
   updateTopbarCollapsedDate();
+}
+
+function toggleStatBar(){
+  const bar = document.getElementById('statBar');
+  const collapsed = bar.classList.toggle('collapsed');
+  document.getElementById('statBarToggle').setAttribute('aria-expanded', String(!collapsed));
+  try{ localStorage.setItem('karmto.statBarCollapsed', collapsed?'1':'0'); }catch(e){}
 }
 
 // ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
@@ -7717,6 +7844,13 @@ async function init(){
   document.getElementById('nextDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,1)));
   document.getElementById('todayBtn').addEventListener('click', ()=>loadForDate(todayISO()));
   document.getElementById('topbarHeadRow').addEventListener('click', toggleTopbarCollapse);
+  document.getElementById('statBarToggle').addEventListener('click', toggleStatBar);
+  try{
+    if(localStorage.getItem('karmto.statBarCollapsed')==='1'){
+      document.getElementById('statBar').classList.add('collapsed');
+      document.getElementById('statBarToggle').setAttribute('aria-expanded', 'false');
+    }
+  }catch(e){}
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');
@@ -7733,6 +7867,11 @@ async function init(){
   document.getElementById('calDotsToggle').addEventListener('change', async (e)=>{
     settings.calendarDotsEnabled = e.target.checked;
     await saveSettings();
+    await renderCalPopup();
+  });
+  document.getElementById('calRangeToggle').addEventListener('change', async (e)=>{
+    calRangeMode = e.target.checked;
+    calRangeStart = null; calRangeEnd = null;
     await renderCalPopup();
   });
   document.getElementById('branchSelect').addEventListener('change', renderProductInputs);
@@ -7893,6 +8032,10 @@ async function init(){
   const dashExpenseOverlayEl = document.getElementById('dashExpenseModalOverlay');
   dashExpenseOverlayEl.addEventListener('click', e=>{ if(e.target===dashExpenseOverlayEl) closeDashExpenseModal_(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && dashExpenseOverlayEl.style.display!=='none') closeDashExpenseModal_(); });
+  document.getElementById('calRangeModalCloseBtn').addEventListener('click', closeCalRangeModal);
+  const calRangeOverlayEl = document.getElementById('calRangeModalOverlay');
+  calRangeOverlayEl.addEventListener('click', e=>{ if(e.target===calRangeOverlayEl) closeCalRangeModal(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && calRangeOverlayEl.style.display!=='none') closeCalRangeModal(); });
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{

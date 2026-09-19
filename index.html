@@ -172,11 +172,15 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .statchip{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text-dim);white-space:nowrap;flex:none;}
 .statchip b{color:var(--text);font-size:13px;margin-left:4px;}
 .statbar{margin-bottom:14px;}
-.statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0 0 6px;color:var(--text-dim);}
+.statbar-headrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 6px;}
+.statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0;color:var(--text-dim);}
 .statbar-head-label{font-size:12px;font-weight:600;}
 .statbar-head-icon{font-size:12px;color:var(--accent);transition:transform .15s ease;}
 .statbar.collapsed .statrow{display:none;}
 .statbar.collapsed .statbar-head-icon{transform:rotate(-90deg);}
+.statbar-pin-btn{background:none;border:1px solid var(--border-soft);border-radius:7px;width:26px;height:26px;font-size:13px;cursor:pointer;flex:none;color:var(--text-dim);font-family:inherit;}
+.statbar-pin-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.statbar.pinned{position:sticky;top:0;z-index:10;background:var(--bg);padding-top:8px;padding-bottom:6px;margin-bottom:14px;border-bottom:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:12px 0 0;padding-bottom:10px;}
 .tab{flex:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
 .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -424,7 +428,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   table.dwtile-outtable tbody tr{border:1px solid var(--border-soft);border-radius:10px;margin-bottom:8px;padding:12px;cursor:pointer;}
   table.dwtile-outtable tbody tr td{border-top:none;padding:0;display:block;white-space:normal;}
   table.dwtile-outtable tbody tr td.dwtile-desktop-col{display:none;}
-  .dash-grid{grid-template-columns:1fr;}
+  .dash-grid{grid-template-columns:repeat(2,1fr);}
   .grid7{grid-template-columns:1fr;}
   .dash-wide-header{padding:0 16px;}
   .dwh-datenav{flex-basis:100%;}
@@ -524,10 +528,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
         </div>
 
         <div class="statbar" id="statBar">
-          <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="พับ/ขยายสรุปยอดสินค้า">
-            <span class="statbar-head-icon" id="statBarToggleIcon">▾</span>
-            <span class="statbar-head-label">สรุปยอดวันนี้</span>
-          </button>
+          <div class="statbar-headrow">
+            <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="พับ/ขยายสรุปยอดสินค้า">
+              <span class="statbar-head-icon" id="statBarToggleIcon">▾</span>
+              <span class="statbar-head-label">สรุปยอดวันนี้</span>
+            </button>
+            <button class="statbar-pin-btn" id="statBarPinBtn" aria-label="ตรึงแถบสรุปยอดไว้บนสุด" aria-pressed="false">📌</button>
+          </div>
           <div class="statrow" id="statRow"></div>
         </div>
 
@@ -4814,6 +4821,7 @@ async function renderPendingStockValueCard_(){
 // การ์ดนี้เดิมโชว์ทุกวันที่มีสต็อกค้างตัดต้นทุนอยู่ ไม่ว่าจะเปิดดูวันไหน (แม้วันที่บันทึกต้นทุนครบแล้ว หรือวันก่อนจะมีล็อตด้วยซ้ำ)
 // ทำให้งงว่าทำไมต้องตัดอีก — ตอนนี้เช็คให้ตรงกับ "ความต้องการจริงของวันที่กำลังดูอยู่" เท่านั้น (เหมือนตรรกะเดียวกับ
 // "ยังไม่ได้บันทึกต้นทุนซื้อ" ที่การ์ดแจ้งเตือนใช้) โชว์เฉพาะสินค้าที่วันนี้ยังต้องการเพิ่ม และมีสต็อกให้ตัดได้จริงเท่านั้น
+let lotSettleCardOpen = true; // พับทั้งการ์ดได้ (แยกจาก lotSettleFoldOpen ที่พับแค่กลุ่ม "ถึง order วันนี้แล้ว" ข้างใน) — คงค่าไว้ข้ามการ re-render
 async function renderLotSettleCards_(){
   const wrap = document.getElementById('lotSettleCards');
   if(!wrap) return;
@@ -4856,7 +4864,11 @@ async function renderLotSettleCards_(){
         <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
       </div>`;
   wrap.innerHTML = `<div class="card dash-wide-card">
-    <h3>📦 ตัดต้นทุนสต็อกล็อต</h3>
+    <div id="lotSettleToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+      <h3 style="margin:0;">📦 ตัดต้นทุนสต็อกล็อต</h3>
+      <span id="lotSettleChevron" style="font-size:14px;color:var(--accent);flex:none;">${lotSettleCardOpen?'▾':'▸'}</span>
+    </div>
+    <div id="lotSettleBody" style="display:${lotSettleCardOpen?'':'none'};">
     <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้ายังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ใช้จริงวันนี้แล้วกดตัด (FIFO จากรอบเบิกเก่าสุดก่อน) ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำ แก้ได้</div>
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
     ${matchedRows.length ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
@@ -4866,8 +4878,17 @@ async function renderLotSettleCards_(){
       </div>
       <div id="lotSettleFoldBody" style="display:none;">${matchedRows.map(rowHtml).join('')}</div>
     </div>` : ''}
+    </div>
   </div>`;
   wrap.querySelectorAll('[data-lotsettleconfirm]').forEach(btn=>btn.addEventListener('click', ()=>confirmLotSettle_(btn.getAttribute('data-lotsettleconfirm'))));
+  const cardToggle = document.getElementById('lotSettleToggle');
+  if(cardToggle){
+    cardToggle.addEventListener('click', ()=>{
+      lotSettleCardOpen = !lotSettleCardOpen;
+      document.getElementById('lotSettleBody').style.display = lotSettleCardOpen ? '' : 'none';
+      document.getElementById('lotSettleChevron').textContent = lotSettleCardOpen ? '▾' : '▸';
+    });
+  }
   const foldToggle = document.getElementById('lotSettleFoldToggle');
   if(foldToggle){
     foldToggle.addEventListener('click', ()=>{
@@ -7708,6 +7729,12 @@ function toggleStatBar(){
   document.getElementById('statBarToggle').setAttribute('aria-expanded', String(!collapsed));
   try{ localStorage.setItem('karmto.statBarCollapsed', collapsed?'1':'0'); }catch(e){}
 }
+function toggleStatBarPin(){
+  const bar = document.getElementById('statBar');
+  const pinned = bar.classList.toggle('pinned');
+  document.getElementById('statBarPinBtn').setAttribute('aria-pressed', String(pinned));
+  try{ localStorage.setItem('karmto.statBarPinned', pinned?'1':'0'); }catch(e){}
+}
 
 // ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
 function isListEmpty(elId){
@@ -7866,6 +7893,13 @@ async function init(){
     if(localStorage.getItem('karmto.statBarCollapsed')==='1'){
       document.getElementById('statBar').classList.add('collapsed');
       document.getElementById('statBarToggle').setAttribute('aria-expanded', 'false');
+    }
+  }catch(e){}
+  document.getElementById('statBarPinBtn').addEventListener('click', toggleStatBarPin);
+  try{
+    if(localStorage.getItem('karmto.statBarPinned')==='1'){
+      document.getElementById('statBar').classList.add('pinned');
+      document.getElementById('statBarPinBtn').setAttribute('aria-pressed', 'true');
     }
   }catch(e){}
   document.getElementById('calBtn').addEventListener('click', (e)=>{

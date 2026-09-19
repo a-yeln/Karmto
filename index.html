@@ -2644,7 +2644,7 @@ async function saveReceiptAsImage(code){
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   showToast('กำลังสร้างรูปภาพ…');
   try{
-    const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
+    const canvas = await html2canvas(node, {backgroundColor:null, scale:2});
     canvas.toBlob(async (blob)=>{
       if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
       const fileName = `bill-${code}-${currentDate}.png`;
@@ -2701,7 +2701,7 @@ async function saveAllReceiptsAsImages(){
     try{
       wrapper = await renderOffscreenReceipt(code, receiptWidth);
       const node = wrapper.querySelector('.receipt');
-      const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
+      const canvas = await html2canvas(node, {backgroundColor:null, scale:2});
       const blob = await canvasToBlobAsync(canvas);
       if(blob) files.push({code, fileName: `bill-${code}-${currentDate}.png`, blob});
     }catch(e){ /* ข้ามบิลสาขานี้ไป ทำใบที่เหลือต่อ */ }
@@ -2860,7 +2860,7 @@ async function toggleBranchDetailReceipt(iso, code){
     if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
     showToast('กำลังสร้างรูปภาพ…');
     try{
-      const canvas = await html2canvas(node, {backgroundColor:'#FFFFFF', scale:2});
+      const canvas = await html2canvas(node, {backgroundColor:null, scale:2});
       canvas.toBlob(blob=>{
         if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
         const url = URL.createObjectURL(blob);

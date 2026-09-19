@@ -122,9 +122,9 @@
   --accent:#0E7C93; --accent-text:#FFFFFF; --accent-soft:rgba(14,124,147,0.10);
   --danger:#F2ADAD; --danger-soft:rgba(242,173,173,0.10);
   --success:#8DE2C5; --success-soft:rgba(141,226,197,0.10);
-  --mahkard:#3E7CB1; --mahkard-soft:rgba(62,124,177,0.10);
-  --monk:#2E9A9A; --monk-soft:rgba(46,154,154,0.10);
-  --phat:#9757B8; --phat-soft:rgba(151,87,184,0.10);
+  --mahkard:#3E7CB1; --mahkard-soft:#C0E4F6;
+  --monk:#2E9A9A; --monk-soft:#D0F4DE;
+  --phat:#9757B8; --phat-soft:#E8CFF8;
   --ocean:#0E7C93; --ocean-soft:rgba(14,124,147,0.10);
   --sunset:#E2711D; --sunset-soft:rgba(226,113,29,0.12);
   --dash-wide-shadow:0 1px 2px rgba(15,38,43,0.04), 0 8px 24px rgba(15,38,43,0.07);
@@ -296,6 +296,12 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .receipt .sign{text-align:right;font-size:12px;margin:18px 0 6px;color:#598BAF;}
 .receipt .thanks{text-align:center;font-size:12px;color:#E2711D;margin-top:10px;font-weight:600;}
 .receipt .rno{text-align:center;font-size:10px;color:#7285A5;margin-top:8px;letter-spacing:.2px;}
+@media (orientation:landscape) and (max-width:1023px){
+  .receipt{width:500px;}
+}
+@media (min-width:1024px){
+  .receipt{width:520px;}
+}
 @media print{
   body *{visibility:hidden;}
   .receipt,.receipt *{visibility:visible;}
@@ -303,7 +309,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .receipt .idblock{background:none;border-color:#ccc;}
   .receipt table th{background:none;}
   .receipt table tr:nth-child(even){background:none;}
-}.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+}.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
 .dash-metric .dm-value{font-size:21px;font-weight:600;}
@@ -324,8 +330,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-outer{width:100vw;position:relative;left:50%;margin-left:-50vw;padding:20px 24px 40px;box-sizing:border-box;}
 .dash-wide-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;}
 .dash-wide-nav{display:flex;flex-direction:column;gap:2px;flex:none;width:240px;position:sticky;top:14px;background:var(--surface);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:10px;transition:transform .22s ease;}
-.dash-wide-brand{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;margin-bottom:6px;border-bottom:1px solid var(--border-soft);}
-.dash-wide-brand .dwb-mark{font-size:24px;line-height:1;}
+.dash-wide-brand{display:flex;align-items:center;gap:10px;padding:8px 8px 14px 10px;margin-bottom:6px;border-bottom:1px solid var(--border-soft);}
+.dash-wide-brand .dwb-mark{font-size:24px;line-height:1;width:20px;text-align:center;flex:none;}
 .dash-wide-brand .dwb-name{font-family:'Chonburi',cursive;font-size:16px;color:var(--sunset);letter-spacing:.4px;}
 .dash-wide-brand .dwb-sub{font-size:10px;color:var(--text-faint);margin-top:1px;}
 .dash-wide-nav button{display:flex;align-items:center;gap:10px;background:transparent;border:none;color:var(--text-dim);text-align:left;padding:9px 10px;border-radius:9px;font-size:14px;font-family:inherit;cursor:pointer;width:100%;}
@@ -389,6 +395,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .dash-wide-bento{grid-template-columns:repeat(2,1fr);}
   .dwtile.hero,.dwtile.feed{grid-column:span 2;}
   .dwtile.chart{grid-column:span 2;grid-row:span 1;}
+  .dash-grid{grid-template-columns:repeat(2,1fr);}
 }
 @media (max-width:767px){
   .dash-wide-outer{width:auto;position:static;left:auto;margin-left:0;padding:0;}
@@ -513,7 +520,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
             </div>
           </div>
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
-          <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">Karmto</span></div>
+          <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">KARMTO</span></div>
         </div>
 
         <div class="statbar" id="statBar">
@@ -1984,7 +1991,7 @@ let msgCardOpen = false; // การ์ด "ข้อความส่ง" ใ
 let msgBlockOpen = {all:false, mahkard:false, monk:false, phat:false, debt:false}; // แต่ละ 5 ส่วนย่อยพับไว้เป็นค่าเริ่มต้นเหมือนกัน กดดูทีละส่วนที่ต้องการ
 async function renderMessages(){
   const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
-  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]}`)];
+  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const leftIn = prevDay.leftoverOut || {};
   // กุ้งตัดปากตอนนี้อยู่ในระบบ "ของเหลือ" แล้วด้วย (เดิมไม่ได้หัก) — หักของเหลือจากเมื่อวานออกจากยอดที่ต้องสั่งม๊ะก๊าดจริงเหมือนที่ทำกับมนต์
@@ -1993,7 +2000,7 @@ async function renderMessages(){
   const mahkardLines = [`🚩ออเดอร์ม๊ะก๊าด ${dateStr}`, '', ...mahkardRows, '', `รวมทั้งหมด ${mahkardNet} กก.${Number(leftIn.p3||0)>0?` (สั่ง ${totals.p3} − เหลือจากเมื่อวาน ${leftIn.p3})`:''}`];
   const MONK_EMOJI_OVERRIDE = {p1:'✅', p2:'❎'};
   // สินค้าที่ไม่มีออเดอร์ของมนต์เลยวันนี้ (totals[id]===0) ไม่ต้องขึ้นบรรทัด "0 กิโลกรัม" ให้เลย — ตัดบรรทัดนั้นทิ้งไปเลย ไม่ใช่แค่โชว์ 0
-  const monkLines = [`🚩ออเดอร์มนต์ ${dateStr}`, '', ...MONK_IDS.filter(id=>Number(totals[id]||0)>0).map(id=>{ const p = PRODUCTS.find(x=>x.id===id); const net = Math.max(totals[id]-Number(leftIn[id]||0),0); const emoji = MONK_EMOJI_OVERRIDE[id] || p.emoji; return `${emoji}${p.name} ${net} ${p.unitLong}`; })];
+  const monkLines = [`🚩ออเดอร์มนต์ ${dateStr}`, '', ...MONK_IDS.filter(id=>Number(totals[id]||0)>0).map(id=>{ const p = PRODUCTS.find(x=>x.id===id); const net = Math.max(totals[id]-Number(leftIn[id]||0),0); const emoji = MONK_EMOJI_OVERRIDE[id] || p.emoji; return `${emoji}${p.name} ${net} ${p.unit}`; })];
   // ของเหลือที่จะ "ออก" ให้พี่พัฒน์รู้ ควรมีความหมายเฉพาะสินค้าที่มีออเดอร์วันนี้จริงๆ — สินค้าที่ไม่มีออเดอร์เลยไม่ต้องบอกว่ามีของเหลือเก็บไว้ (ไม่มีอะไรจะ "ออก")
   const leftoverOutList = LEFTOVER_IDS.filter(id=>Number(leftIn[id]||0)>0 && Number(totals[id]||0)>0).map(id=>`${LEFTOVER_SHORT[id]}${leftIn[id]}`).join(' ');
   // เชอรี่ก็อยู่ในระบบ "ของเหลือ" แล้วเหมือนกัน — หักของเหลือจากเมื่อวานออกจากยอดที่แจ้งพี่พัฒน์เหมือนกับมนต์/ม๊ะก๊าด
@@ -2789,7 +2796,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       <div class="bahttext" id="bahttext-${code}">(${bahtText(total)})</div>
       ${claimNotes.length ? `<div class="kv" style="margin-top:6px;font-size:12px;color:var(--text-dim);">${claimNotes.map(n=>`📌 ${escapeHtml(n)}`).join('<br>')}</div>` : ''}
       <div class="sign">ผู้รับเงิน .....................................</div>
-      <div class="thanks">🦀${escapeHtml(bi.sellerName)} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀</div>
+      <div class="thanks">🦀 ${escapeHtml(bi.sellerName)} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ 🦀</div>
       <div class="rno">№ ${billNo} • ${formatDDMMYYYY(iso)}</div>
     </div></div>`;
 }
@@ -3388,13 +3395,13 @@ async function renderMonthPL(){
         <span class="num" style="font-weight:600;color:${r.netProfit>=0?'var(--success)':'var(--danger)'};">${money(r.netProfit)}</span>
       </div>
       <div class="hint" style="margin-top:12px;margin-bottom:4px;">🥧 สัดส่วนรายจ่ายเดือนนี้</div>
-      <!-- โทนฟ้า-เหลือง-ชมพูพาสเทลตามที่ขอ (แยกจาก PIE_COLORS เพราะขอเป็นสีชุดเฉพาะของกราฟนี้) —
-           แค่ 3 สีที่ห่างกันคนละโทน (ฟ้า/เหลือง/ชมพู) เลยอ่อนหวานได้มากกว่า PIE_COLORS (8 สี) โดยยัง
-           ผ่านเช็คตาบอดสีสบายๆ (ΔE 14+ ทุกคู่ — เช็คด้วย dataviz skill's validate_palette.js แล้ว) -->
+      <!-- โทนฟ้า-เหลือง-ชมพูพาสเทลตามที่ขอ (แยกจาก PIE_COLORS เพราะขอเป็นสีชุดเฉพาะของกราฟนี้) — อัปเดตตามพาเลตต์อ้างอิงที่ส่งมา
+           (Sky/Mastard/Cotton Candy) แค่ 3 สีที่ห่างกันคนละโทน (ฟ้า/เหลือง/ชมพู) เลยอ่อนหวานได้มากกว่า PIE_COLORS (8 สี) โดยยัง
+           ผ่านเช็คตาบอดสีสบายๆ (ΔE 13.5+ ทุกคู่ — เช็คด้วย dataviz skill's validate_palette.js แล้ว เท่าเดิมกับชุดสีก่อนหน้า) -->
       ${buildPieChartSVG([
-        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#A8CCEE'},
-        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#F0DE85'},
-        {label:'Brand fee', value:r.feeTotal, color:'#F2AECB'},
+        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#8BD2EC'},
+        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#FCEE9E'},
+        {label:'Brand fee', value:r.feeTotal, color:'#FFBBDA'},
       ])}
       <table class="plain" style="margin-top:10px;">
       <tr><td>รายรับจริง (สาขาโอนแล้ว)</td><td class="num num" style="color:var(--success);">${money(r.revenuePaid)}</td></tr>
@@ -4291,9 +4298,13 @@ async function saveBranches(){
     billTax: billTaxes[i].value.trim(),
   }));
   settings.branches = newBranches.filter(b=>b.code);
-  await saveSettings();
-  refreshOrderTab();
-  showToast('บันทึกรายชื่อสาขาแล้ว');
+  try{
+    await saveSettings();
+    refreshOrderTab();
+    showToast('บันทึกรายชื่อสาขาแล้ว');
+  }catch(e){
+    showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+  }
 }
 function addBranch(){
   const codeEl = document.getElementById('newBranchCode'); const areaEl = document.getElementById('newBranchArea');

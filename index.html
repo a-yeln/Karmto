@@ -5929,6 +5929,11 @@ async function renderLotTransportList(){
         ${fieldEditOpen ? `<div style="margin-top:8px;">
           <label>ยอดบิล</label>
           <input type="number" step="1" id="lottransamt-${b.id}" value="${b.amount}">
+          <label style="margin-top:6px;">ผู้รับ (ถ้ามี)</label>
+          <select id="lottranspayee-${b.id}">
+            <option value="">— ไม่ระบุ —</option>
+            ${settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}" ${s===b.payee?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+          </select>
           <label style="margin-top:6px;">ความคิดเห็น/หมายเหตุ (ถ้ามี)</label>
           <input type="text" id="lottransnote-${b.id}" value="${escapeHtml(b.note)}" placeholder="เช่น ค่าขนส่งเที่ยวพิเศษ">
           <div style="display:flex;gap:6px;margin-top:6px;">
@@ -6030,12 +6035,13 @@ async function renderLotTransportList(){
     const id = btn.getAttribute('data-lottransfieldsave');
     const amtInput = document.getElementById(`lottransamt-${id}`);
     const noteInput = document.getElementById(`lottransnote-${id}`);
+    const payeeInput = document.getElementById(`lottranspayee-${id}`);
     const newAmount = Number((amtInput && amtInput.value) || 0);
     if(newAmount<=0){ showToast('กรอกยอดบิลให้ถูกต้องก่อน'); return; }
     lotTransActionInFlight = true;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
-      await writeRootArrayOp_('lotTransportBills', {matchField:'id', matchValue:id, set:{amount:newAmount, note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotTransportBillsCache_=arr;});
+      await writeRootArrayOp_('lotTransportBills', {matchField:'id', matchValue:id, set:{amount:newAmount, payee:(payeeInput && payeeInput.value) || '', note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotTransportBillsCache_=arr;});
       lotTransportFieldEditId = null;
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว

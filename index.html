@@ -5004,7 +5004,31 @@ async function confirmLotSettle_(productId){
       if(iso===currentDate) dayData = fresh;
     }catch(e){
       if(rawLotsSaved){
-        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันบันทึกไม่สำเร็จ — คืนสต็อกล็อตกลับสภาพเดิม
+        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่ฝั่ง client เห็น error ตอนบันทึกรายการต้นทุนซื้อคู่กัน — ก่อนจะ
+        // เข้าใจว่า "พังจริง" แล้วคืนสถานะสต็อกล็อตกลับ ต้องเช็คก่อนว่า newEntries ที่เพิ่งพยายามบันทึกไปจริงๆ ไปถึงเซิร์ฟเวอร์
+        // หรือเปล่า (withApiTimeout ไม่ได้ยกเลิก request จริง ถ้า Apps Script แค่ตอบช้า คำขอนี้อาจสำเร็จบนเซิร์ฟเวอร์จริงๆ ก็ได้
+        // ทั้งที่ client เห็นเป็น error) — ถ้า revert ไปทั้งที่จริงบันทึกสำเร็จแล้ว จะกลายเป็นข้อมูลเสียหายจริง (มีรายการต้นทุน
+        // ซื้อบันทึกไว้แล้ว แต่ costedQty ของรอบเบิกถูกดึงกลับไปเป็นค่าเดิม ไม่ตรงกันแบบไม่มีใครรู้) — เช็คด้วย id ที่สร้างฝั่ง
+        // client ไว้ล่วงหน้าแล้ว (uid('pu')) เทียบกับของจริงบนเซิร์ฟเวอร์ตรงๆ ผ่าน window.storage.get (ไม่ผ่าน loadDay()
+        // เพราะ loadDay() คืนแคชเก่าในเครื่องเฉยๆ สำหรับวันที่เก่ากว่า 3 วัน ซึ่งเป็นวันที่ตรงเช็คไม่ได้เลยว่าของจริงบนเซิร์ฟเวอร์เป็นยังไง)
+        let alreadySaved = false, freshDay = null;
+        try{
+          const r = await window.storage.get('day:'+iso);
+          freshDay = JSON.parse(r.value);
+          const freshIds = new Set((freshDay.purchases||[]).map(p=>p.id));
+          alreadySaved = newEntries.every(ne=>freshIds.has(ne.id));
+        }catch(checkErr){ /* เช็คไม่ได้ก็ถือว่ายังไม่ยืนยัน ทำ revert ตามเดิมต่อไปดีกว่าปล่อยค้างแบบไม่รู้สถานะ */ }
+        if(alreadySaved){
+          const normalized = normalizeDay_(freshDay);
+          dayCache_[iso] = normalized;
+          writeDayToLocalStorage_(iso, normalized);
+          if(iso===currentDate) dayData = normalized;
+          showToast('ตัดต้นทุนวันนี้แล้ว (บันทึกสำเร็จจริง แค่ตอบกลับช้า — ไม่ได้คืนสถานะสต็อกล็อตกลับ)');
+          if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
+          await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
+          return;
+        }
+        // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันยืนยันแล้วว่าไม่ได้บันทึกจริง — คืนสต็อกล็อตกลับสภาพเดิม
         // (เจาะจงแค่รอบเบิกที่แตะไปเท่านั้น ไม่ใช่เขียนทับทั้งอาเรย์แบบเดิม)
         try{
           const revertOps = touchedDraws.map(t=>({matchField:'id', matchValue:t.lotId, nested:{field:'draws', matchField:'id', matchValue:t.drawId, set:{costedQty:t.prevCostedQty}}}));
@@ -5201,11 +5225,23 @@ async function addLot(){
         await writeRootArrayOp_('lotTransportBills', {push:{id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null}}, arr=>{lotTransportBillsCache_=arr;});
       }
     }catch(stepErr){
+      // ก่อนจะ "ลบทำความสะอาด" ส่วนที่คิดว่าไม่สำเร็จ ต้องเช็คก่อนว่าจริงๆ แล้วมันไปถึงเซิร์ฟเวอร์หรือเปล่า (เหตุผลเดียวกับ
+      // confirmLotSettle_ — withApiTimeout ไม่ได้ยกเลิก request จริง คำขอที่ client เห็นเป็น error อาจสำเร็จบนเซิร์ฟเวอร์จริงๆ
+      // ก็ได้ ถ้าลบทั้งที่จริงบันทึกสำเร็จแล้ว จะเป็นการทำลายล็อต/บิลที่เพิ่งสร้างสำเร็จไปเองแบบเงียบๆ ทั้งที่ของจริงมีอยู่)
+      let freshProductBills = null, freshRawLots = null;
+      try{ const r = await window.storage.get('lotProductBills'); freshProductBills = JSON.parse(r.value); }catch(_){}
+      try{ const r = await window.storage.get('rawLots'); freshRawLots = JSON.parse(r.value); }catch(_){}
       if(productBillsSaved){
-        try{ await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;}); }catch(_){}
+        const stillThere = Array.isArray(freshProductBills) && freshProductBills.some(b=>b.id==='lp'+billId);
+        if(!stillThere){
+          try{ await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;}); }catch(_){}
+        }else{ lotProductBillsCache_ = freshProductBills; }
       }
       if(rawLotsSaved){
-        try{ await writeRootArrayOp_('rawLots', {remove:{matchField:'billId', matchValue:billId, matchAll:true}}, arr=>{rawLotsCache_=arr;}); }catch(_){}
+        const stillThere = Array.isArray(freshRawLots) && freshRawLots.some(l=>l.billId===billId);
+        if(!stillThere){
+          try{ await writeRootArrayOp_('rawLots', {remove:{matchField:'billId', matchValue:billId, matchAll:true}}, arr=>{rawLotsCache_=arr;}); }catch(_){}
+        }else{ rawLotsCache_ = freshRawLots; }
       }
       throw stepErr;
     }

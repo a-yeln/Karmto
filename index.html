@@ -5131,10 +5131,25 @@ async function deleteWholeBill(billId){
 let lotFormRows = [{rid:1, productId:'p4', qty:'', price:''}];
 let lotFormRowSeq = 1;
 function renderLotForm(){
-  document.getElementById('lotSeller').innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  document.getElementById('lotTransportPayee').innerHTML = `<option value="">— ไม่ระบุ —</option>` + settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  if(settings.lastLotSeller && settings.purchaseSellers.includes(settings.lastLotSeller)){
-    document.getElementById('lotSeller').value = settings.lastLotSeller;
+  // renderLotForm() ไม่ได้ถูกเรียกแค่ตอนเปิดแท็บ Purchase ครั้งแรกเท่านั้น — loadForDate() (ตอนเปลี่ยนวันที่ ไม่ว่าจะ
+  // กดวันก่อนหน้า/ถัดไป/เลือกจากปฏิทิน) เรียก switchTab() ของแท็บที่เปิดอยู่ซ้ำเสมอ แม้เปิดแท็บนี้อยู่แล้วก็ตาม — ถ้ากรอกฟอร์ม
+  // ซื้อล็อตค้างอยู่ (เลือกคู่ค้า/ผู้รับค่าขนส่งไว้แล้ว) แล้วบังเอิญเปลี่ยนวันที่ก่อนกดบันทึก (เช่น แวะดูวันอื่นแล้วย้อนกลับมา)
+  // <select> ทั้งสองตัวจะถูกสร้าง option ใหม่ทับของเดิม ซึ่งรีเซ็ตค่าที่เลือกไว้กลับไปเป็นตัวแรกสุด/ว่างเปล่าแบบเงียบๆ โดยไม่มี
+  // ใครสังเกตเห็น พอกดบันทึกจริง ค่าที่เลือกไว้เลยหายไปเฉยๆ (เจอจริง: เลือกผู้รับค่าขนส่งไว้แล้ว แต่บิลที่บันทึกไม่มีชื่อเลย)
+  // แก้โดยจำค่าที่เลือกไว้ก่อนสร้าง option ใหม่ แล้วค่อยตั้งกลับให้เหมือนเดิมถ้ายังเป็นตัวเลือกที่ใช้ได้อยู่
+  const sellerEl = document.getElementById('lotSeller');
+  const payeeEl = document.getElementById('lotTransportPayee');
+  const prevSeller = sellerEl.value;
+  const prevPayee = payeeEl.value;
+  sellerEl.innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  payeeEl.innerHTML = `<option value="">— ไม่ระบุ —</option>` + settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if(prevSeller && settings.purchaseSellers.includes(prevSeller)){
+    sellerEl.value = prevSeller;
+  }else if(settings.lastLotSeller && settings.purchaseSellers.includes(settings.lastLotSeller)){
+    sellerEl.value = settings.lastLotSeller;
+  }
+  if(prevPayee && settings.purchaseSellers.includes(prevPayee)){
+    payeeEl.value = prevPayee;
   }
   const dateEl = document.getElementById('lotBuyDate');
   dateEl.value = currentDate;

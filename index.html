@@ -5070,9 +5070,16 @@ async function deleteWholeBill(billId){
   catch(e){ showToast('โหลดข้อมูลไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ยังไม่ได้ลบอะไร'); return; }
   const rows = lots.filter(l=>(l.billId||l.id)===billId);
   const hasDraws = rows.some(l=>(l.draws||[]).length);
-  const msg = hasDraws
-    ? 'บิลนี้มีล็อตที่เบิกใช้ไปแล้ว การลบบิลจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบทั้งบิลนี้ไหม?'
-    : 'ต้องการลบทั้งบิลนี้ไหม? (ล็อตสินค้าทุกรายการ + บิลต้นทุนสินค้า + ค่าขนส่งของบิลนี้)';
+  let msg;
+  if(hasDraws){
+    // เหตุผลเดียวกับการลบล็อตเดี่ยว (data-lotdel) — เตือนมูลค่าที่เบิกมาแล้วแต่ยังไม่ตัดต้นทุนด้วย ไม่ใช่แค่ที่ตัดไปแล้ว
+    let pendingVal = 0, pendingQty = 0;
+    rows.forEach(lot=>(lot.draws||[]).forEach(d=>{ pendingQty += drawPendingQty_(d); pendingVal += drawPendingQty_(d)*drawCostPerUnit_(d, lot); }));
+    const pendingMsg = pendingQty>0.001 ? `\n\n⚠️ บิลนี้มีของที่เบิกมาแล้วแต่ยังไม่ตัดต้นทุนอยู่ ${Math.round(pendingQty*100)/100} หน่วย (มูลค่า ~${money(pendingVal)}) — ถ้าลบบิลนี้ มูลค่าก้อนนี้จะหายไปเลย ไม่มีทางตัดเป็นต้นทุนซื้อได้อีก` : '';
+    msg = `บิลนี้มีล็อตที่เบิกใช้ไปแล้ว การลบบิลจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง)${pendingMsg}\n\nต้องการลบทั้งบิลนี้ไหม?`;
+  } else {
+    msg = 'ต้องการลบทั้งบิลนี้ไหม? (ล็อตสินค้าทุกรายการ + บิลต้นทุนสินค้า + ค่าขนส่งของบิลนี้)';
+  }
   if(!confirm(msg)) return;
   try{
     // ลบทุกล็อตของบิลนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps remove 2 เงื่อนไขในคำขอเดียว — ล็อตใหม่มี billId ตรงๆ,
@@ -5416,6 +5423,9 @@ async function renderLotList(preloadedLots){
                     <div><label>ใช้ไปกี่กก. (เบิก)</label><input type="number" step="0.01" id="lotDrawEditQty-${d.id}" value="${d.qtyUsed}"></div>
                     <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
                   </div>
+                  <div class="grid7" style="margin-top:6px;">
+                    <div><label>วันที่เบิก</label><input type="date" id="lotDrawEditDate-${d.id}" value="${d.date}" min="${lot.buyDate}"></div>
+                  </div>
                   <input type="text" id="lotDrawEditNote-${d.id}" value="${escapeHtml(d.note)}" placeholder="หมายเหตุ" style="margin-top:6px;font-size:12px;">
                   <div style="display:flex;gap:6px;margin-top:6px;">
                     <button class="btn small" data-lotdraweditsave="${d.id}" data-lotid="${lot.id}" style="width:auto;">บันทึก</button>
@@ -5491,7 +5501,15 @@ async function renderLotList(preloadedLots){
   wrap.querySelectorAll('[data-lotdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-lotdel');
     const lot = lots.find(x=>x.id===id);
-    if(lot && (lot.draws||[]).length){ if(!confirm('ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง) ต้องการลบล็อตนี้ไหม?')) return; }
+    if(lot && (lot.draws||[]).length){
+      // เดิมเตือนแค่กรณี "ต้นทุนที่บันทึกไปแล้ว" (ตัดต้นทุนแล้ว) จะไม่ถูกลบตาม — แต่ไม่เคยเตือนกรณีของที่เบิกมาแล้วแต่
+      // ยังไม่ตัดต้นทุนเลย (pending) ซึ่งถ้าลบล็อตทิ้งตอนนี้ มูลค่าก้อนนี้จะหายไปเงียบๆ ไม่มีทางตัดเป็นต้นทุนซื้อได้อีก
+      // (ของถูกใช้ไปจริงแล้ว แต่ต้นทุนไม่เคยถูกบันทึกที่ไหนเลย) ทำให้กำไร/ขาดทุนที่คำนวณสูงเกินจริงอย่างเงียบๆ
+      const pendingVal = (lot.draws||[]).reduce((s,d)=> s + drawPendingQty_(d)*drawCostPerUnit_(d, lot), 0);
+      const pendingQty = (lot.draws||[]).reduce((s,d)=> s + drawPendingQty_(d), 0);
+      const pendingMsg = pendingQty>0.001 ? `\n\n⚠️ ล็อตนี้มีของที่เบิกมาแล้วแต่ยังไม่ตัดต้นทุนอยู่ ${Math.round(pendingQty*100)/100} หน่วย (มูลค่า ~${money(pendingVal)}) — ถ้าลบล็อตนี้ มูลค่าก้อนนี้จะหายไปเลย ไม่มีทางตัดเป็นต้นทุนซื้อได้อีก` : '';
+      if(!confirm(`ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง)${pendingMsg}\n\nต้องการลบล็อตนี้ไหม?`)) return;
+    }
     try{
       const updated = await writeRootArrayOp_('rawLots', {remove:{matchField:'id', matchValue:id}}, arr=>{rawLotsCache_=arr;});
       showToast('ลบล็อตแล้ว');
@@ -5521,6 +5539,17 @@ async function renderLotList(preloadedLots){
     if(newQtyTotal < drawnQty - 0.001){
       const ok = confirm(`ล็อตนี้ถูกเบิกไปแล้ว ${drawnQty} กก. แต่กำลังจะตั้งจำนวนซื้อใหม่เป็น ${newQtyTotal} กก. (น้อยกว่าที่เบิกไปแล้ว)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
       if(!ok) return;
+    }
+    // ห้ามตั้งวันที่ซื้อใหม่ให้ "หลัง" วันที่ของรอบเบิกที่เก่าที่สุดของล็อตนี้ — ไม่งั้นข้อมูลจะย้อนแย้งกันเอง (ล็อตนี้ถูก
+    // เบิกใช้ไปแล้วตั้งแต่ก่อนที่ระบบจะบอกว่า "เพิ่งซื้อมา") กระทบทุกจุดที่คำนวณ "คงเหลือ ณ วันที่" ย้อนหลัง (เช่นการ์ด
+    // "วัตถุดิบล็อตคงเหลือ" ในแท็บของเหลือค้าง) ให้โชว์ผิดเป็น 0 ทั้งที่จริงมีของอยู่แล้วตั้งแต่วันเบิกนั้น
+    const draws = lot.draws||[];
+    if(draws.length){
+      const earliestDrawDate = draws.reduce((min,d)=> String(d.date)<String(min) ? d.date : min, draws[0].date);
+      if(String(newBuyDate) > String(earliestDrawDate)){
+        showToast(`ตั้งวันที่ซื้อเป็น ${formatDDMMYYYY(newBuyDate)} ไม่ได้ — ล็อตนี้มีรอบเบิกตั้งแต่วันที่ ${formatDDMMYYYY(earliestDrawDate)} แล้ว (ก่อนวันที่ซื้อใหม่) วันที่ซื้อต้องไม่หลังวันเบิกแรกสุด`);
+        return;
+      }
     }
     try{
       const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:id, set:{qtyTotal:newQtyTotal, pricePerKg:newPrice, buyDate:newBuyDate, note:newNote}}, arr=>{rawLotsCache_=arr;});
@@ -5586,12 +5615,18 @@ async function renderLotList(preloadedLots){
     const lotId = btn.getAttribute('data-lotid');
     const qtyUsed = Number(document.getElementById(`lotDrawEditQty-${drawId}`).value||0);
     const sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
+    const newDate = document.getElementById(`lotDrawEditDate-${drawId}`).value;
     const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
-    if(qtyUsed<=0 || sellableQty<=0){ showToast('กรอกจำนวนที่ใช้และจำนวนที่ได้ให้ครบ'); return; }
+    if(qtyUsed<=0 || sellableQty<=0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
     const lot = lots.find(x=>x.id===lotId);
     if(!lot) return;
     const d = (lot.draws||[]).find(x=>x.id===drawId);
     if(!d) return;
+    // วันที่เบิกต้องไม่ก่อนวันที่ซื้อล็อตนี้เสมอ (เหมือนตอนเบิกครั้งแรก) กันย้อนแย้งกันเอง (เบิกของก่อนจะซื้อมา)
+    if(String(newDate) < String(lot.buyDate)){
+      showToast(`ตั้งวันที่เบิกเป็น ${formatDDMMYYYY(newDate)} ไม่ได้ — ล็อตนี้ซื้อวันที่ ${formatDDMMYYYY(lot.buyDate)} วันที่เบิกต้องไม่ก่อนวันซื้อ`);
+      return;
+    }
     // ถ้ารอบเบิกนี้ถูกตัดต้นทุนไปแล้วบางส่วน (costedQty>0) รายการต้นทุนซื้อที่บันทึกไปแล้วจะยังคงค่าเดิม (ราคา/ต้นทุน
     // ที่บันทึกตอนตัดไม่ได้ถูกคำนวณย้อนหลังให้ใหม่ตามค่าที่แก้ตรงนี้) — ถ้าลด "จำนวนที่ทำได้" ให้น้อยกว่าที่ตัดไปแล้ว
     // เดิมจะเงียบๆ ลด costedQty ลงมาเท่ากับยอดใหม่ ทำให้ "ค้างตัดต้นทุน" ของรอบเบิกนี้กลายเป็น 0 ไปเลย ทั้งที่จริงมีรายการ
@@ -5604,7 +5639,7 @@ async function renderLotList(preloadedLots){
     }
     // ถ้ารอบเบิกนี้มี totalCost/costedQty อยู่แล้ว (เบิกผ่านระบบใหม่) ต้องคำนวณ totalCost ใหม่ตามจำนวนที่แก้
     // และกันไม่ให้ costedQty (ตัดต้นทุนไปแล้วเท่าไหร่) ค้างเกินจำนวนที่ทำได้ใหม่ (เช่น แก้ยอดทำได้ให้น้อยลงกว่าที่ตัดไปแล้ว)
-    const setFields = {qtyUsed, sellableQty, note};
+    const setFields = {qtyUsed, sellableQty, note, date:newDate};
     if(d.totalCost!==undefined) setFields.totalCost = Math.round(qtyUsed*lotCostPerKg(lot)*100)/100;
     if(d.costedQty!==undefined) setFields.costedQty = Math.min(d.costedQty, sellableQty);
     try{
@@ -5702,9 +5737,12 @@ async function renderLotList(preloadedLots){
         const note = document.getElementById('multiLotNote').value.trim();
         if(qtyUsedTotal<=0 || sellableTotal<=0){ showToast('กรอกจำนวนที่ใช้รวมและที่ได้รวมให้ครบ'); return; }
         // หักเบิก (ใช้ไป) แบบเต็มลอต: FIFO — ตัดล็อตที่ซื้อมาก่อนสุดให้หมดก่อน แล้วค่อยไล่ไปล็อตถัดไปจนครบยอดที่เบิก
-        const activeLots = lots.filter(l=>l.productId===productId && lotRemaining(l)>0)
+        // ตัดล็อตที่ "ยังไม่ถึงวันที่ซื้อ" (buyDate หลังวันที่กำลังเบิก) ออกจากการจัดสรรเสมอ — เหมือนกับเบิกทีละล็อต
+        // (data-lotdrawconfirm) ที่เช็คเงื่อนไขนี้อยู่แล้ว แต่เบิกรวมหลายล็อตเดิมไม่เช็ค ทำให้เผลอสร้างรอบเบิกย้อนหลัง
+        // ผูกกับล็อตที่ "ซื้อทีหลัง" วันที่กำลังเบิกได้ (ของยังไม่มีอยู่จริง ณ วันนั้น) ข้อมูลไม่ตรงกับความเป็นจริง
+        const activeLots = lots.filter(l=>l.productId===productId && lotRemaining(l)>0 && String(l.buyDate)<=String(currentDate))
           .sort((a,b)=> String(a.buyDate).localeCompare(String(b.buyDate)) || String(a.id).localeCompare(String(b.id)));
-        if(activeLots.length===0){ showToast('ไม่มีล็อตที่เหลืออยู่ของสินค้านี้'); return; }
+        if(activeLots.length===0){ showToast('ไม่มีล็อตที่เหลืออยู่ของสินค้านี้ (ที่ถึงวันซื้อแล้ว)'); return; }
         let remainingToAllocate = qtyUsedTotal;
         const allocations = [];
         for(const lot of activeLots){

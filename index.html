@@ -4553,6 +4553,9 @@ function addPExpenseCategory(){
 // ---- Purchase cost tab ----
 function purchaseBuyUnit(pid){ return pid==='p7' ? 'กก.' : PRODUCTS.find(p=>p.id===pid).unit; }
 function purchaseSellUnit(pid){ const p = PRODUCTS.find(p=>p.id===pid); return pid==='p7' ? 'กระปุก' : p.unit; }
+// สินค้าที่ "จำนวนที่ทำได้" นับเป็นหน่วยนับ (เช่น กระปุก) ไม่ใช่น้ำหนัก — ห้ามมีเศษ (ครึ่งกระปุกไม่มีจริง) ต่างจากหน่วยกก.
+// ที่เป็นเศษได้ปกติ — เช็คจากชื่อหน่วยแทนเช็ค pid ตรงๆ เผื่อมีสินค้าแบบนับหน่วยเพิ่มในอนาคต
+function sellableUnitIsWhole_(pid){ return purchaseSellUnit(pid)==='กระปุก'; }
 function renderPurchaseForm(){
   const prodSel = document.getElementById('purchProduct');
   prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
@@ -4632,6 +4635,7 @@ function updatePurchaseUnitLabels(){
   const pid = document.getElementById('purchProduct').value;
   document.getElementById('purchBuyUnitLabel').textContent = purchaseBuyUnit(pid);
   document.getElementById('purchSellUnitLabel').textContent = purchaseSellUnit(pid);
+  document.getElementById('purchSellable').step = sellableUnitIsWhole_(pid) ? '1' : '0.01';
   const autoSeller = purchaseAutoSeller(pid);
   const sellerSel = document.getElementById('purchSeller');
   if(autoSeller && Array.from(sellerSel.options).some(o=>o.value===autoSeller)){
@@ -5467,7 +5471,7 @@ async function renderLotList(preloadedLots){
                 <button type="button" class="iconbtn" data-lotdrawallbtn="${lot.id}" aria-label="เบิกทั้งล็อต" title="เบิกทั้งล็อต (เหลือ ${remain} กก.)" style="flex:none;">📥</button>
               </div>
             </div>
-            <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
+            <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="${sellableUnitIsWhole_(lot.productId)?'1':'0.01'}" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
           </div>
           <div id="lotDrawOverdrawWarn-${lot.id}" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--danger-soft);border:1px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;"></div>
           <div class="hint" style="margin-top:4px;">ช่อง "ทำได้ทั้งหมด" คือจำนวนที่แปรรูปได้จากของที่เบิกมา ไม่ใช่จำนวนที่ขายได้จริงวันนี้${LEFTOVER_IDS.includes(lot.productId)?' — ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก (เช่น เบิก 15 ทำได้ 14.5 ขายจริง 14 เหลือ 0.5 → กรอกเหลือ 0.5 ที่นั่น)':''}</div>
@@ -5488,7 +5492,7 @@ async function renderLotList(preloadedLots){
                 return `<div style="margin:6px 0;padding:8px;border-radius:8px;background:var(--surface-3);">
                   <div class="grid7">
                     <div><label>ใช้ไปกี่กก. (เบิก)</label><input type="number" step="0.01" id="lotDrawEditQty-${d.id}" value="${d.qtyUsed}"></div>
-                    <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
+                    <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="${sellableUnitIsWhole_(lot.productId)?'1':'0.01'}" id="lotDrawEditSellable-${d.id}" value="${d.sellableQty}"></div>
                   </div>
                   <div class="grid7" style="margin-top:6px;">
                     <div><label>วันที่เบิก</label><input type="date" id="lotDrawEditDate-${d.id}" value="${d.date}" min="${lot.buyDate}"></div>
@@ -5710,12 +5714,13 @@ async function renderLotList(preloadedLots){
     const drawId = btn.getAttribute('data-lotdraweditsave');
     const lotId = btn.getAttribute('data-lotid');
     const qtyUsed = Number(document.getElementById(`lotDrawEditQty-${drawId}`).value||0);
-    const sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
+    let sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
     const newDate = document.getElementById(`lotDrawEditDate-${drawId}`).value;
     const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
     if(qtyUsed<=0 || sellableQty<=0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
     const lot = lots.find(x=>x.id===lotId);
     if(!lot) return;
+    if(sellableUnitIsWhole_(lot.productId)) sellableQty = Math.round(sellableQty);
     const d = (lot.draws||[]).find(x=>x.id===drawId);
     if(!d) return;
     // วันที่เบิกต้องไม่ก่อนวันที่ซื้อล็อตนี้เสมอ (เหมือนตอนเบิกครั้งแรก) กันย้อนแย้งกันเอง (เบิกของก่อนจะซื้อมา)
@@ -5758,11 +5763,12 @@ async function renderLotList(preloadedLots){
     try{
     const id = btn.getAttribute('data-lotdrawconfirm');
     const qtyUsed = Number(document.getElementById(`lotDrawQty-${id}`).value||0);
-    const sellableQty = Number(document.getElementById(`lotDrawSellable-${id}`).value||0);
+    let sellableQty = Number(document.getElementById(`lotDrawSellable-${id}`).value||0);
     const note = document.getElementById(`lotDrawNote-${id}`).value.trim();
     if(qtyUsed<=0 || sellableQty<=0){ showToast('กรอกจำนวนที่ใช้และจำนวนที่ได้ให้ครบ'); return; }
     const lot = lots.find(x=>x.id===id);
     if(!lot) return;
+    if(sellableUnitIsWhole_(lot.productId)) sellableQty = Math.round(sellableQty);
     if(String(currentDate) < String(lot.buyDate)){ showToast('ล็อตนี้ยังไม่ถึงวันที่ซื้อ เบิกไม่ได้'); return; }
     const remain = lotRemaining(lot);
     const warnEl = document.getElementById(`lotDrawOverdrawWarn-${id}`);
@@ -5820,6 +5826,11 @@ async function renderLotList(preloadedLots){
     multiLotProductSel.addEventListener('change', ()=>{
       const qtyEl = document.getElementById('multiLotQty');
       if(qtyEl) qtyEl.value = '';
+      const sellableEl = document.getElementById('multiLotSellable');
+      if(sellableEl){
+        sellableEl.value = '';
+        sellableEl.step = sellableUnitIsWhole_(multiLotProductSel.value) ? '1' : '0.01';
+      }
     });
   }
   const multiLotConfirmBtn = document.getElementById('multiLotConfirmBtn');
@@ -5831,7 +5842,8 @@ async function renderLotList(preloadedLots){
       try{
         const productId = document.getElementById('multiLotProduct').value;
         const qtyUsedTotal = Number(document.getElementById('multiLotQty').value||0);
-        const sellableTotal = Number(document.getElementById('multiLotSellable').value||0);
+        let sellableTotal = Number(document.getElementById('multiLotSellable').value||0);
+        if(sellableUnitIsWhole_(productId)) sellableTotal = Math.round(sellableTotal);
         const note = document.getElementById('multiLotNote').value.trim();
         if(qtyUsedTotal<=0 || sellableTotal<=0){ showToast('กรอกจำนวนที่ใช้รวมและที่ได้รวมให้ครบ'); return; }
         // หักเบิก (ใช้ไป) แบบเต็มลอต: FIFO — ตัดล็อตที่ซื้อมาก่อนสุดให้หมดก่อน แล้วค่อยไล่ไปล็อตถัดไปจนครบยอดที่เบิก
@@ -5862,12 +5874,13 @@ async function renderLotList(preloadedLots){
         }
         // แบ่งยอด "ทำได้" ตามสัดส่วนที่เบิกจากแต่ละล็อต (เฉลี่ยตามสัดส่วนที่หักไปจริง) — ล็อตสุดท้ายเอาส่วนที่เหลือทั้งหมดไปกันยอดรวมเพี้ยนจากการปัดเศษ
         const qtySum = allocations.reduce((s,a)=>s+a.qty,0);
+        const sellableWhole = sellableUnitIsWhole_(productId);
         let sellableAssigned = 0;
         allocations.forEach((a,i)=>{
           if(i === allocations.length-1){
-            a.sellable = Math.round((sellableTotal - sellableAssigned)*100)/100;
+            a.sellable = sellableWhole ? Math.round(sellableTotal - sellableAssigned) : Math.round((sellableTotal - sellableAssigned)*100)/100;
           }else{
-            a.sellable = Math.round((sellableTotal * (a.qty/qtySum))*100)/100;
+            a.sellable = sellableWhole ? Math.round(sellableTotal * (a.qty/qtySum)) : Math.round((sellableTotal * (a.qty/qtySum))*100)/100;
             sellableAssigned += a.sellable;
           }
         });
@@ -6229,10 +6242,12 @@ function readPurchFormRow_(){
   const qty = Number(document.getElementById('purchQty').value||0);
   const price = Number(document.getElementById('purchPrice').value||0);
   if(!productId || qty<=0 || price<=0) return null;
+  let sellableQty = document.getElementById('purchSellable').value!=='' ? Number(document.getElementById('purchSellable').value) : null;
+  if(sellableQty!=null && sellableUnitIsWhole_(productId)) sellableQty = Math.round(sellableQty);
   return {
     productId, seller: document.getElementById('purchSeller').value,
     qty, price, extra: Number(document.getElementById('purchExtra').value||0),
-    sellableQty: document.getElementById('purchSellable').value!=='' ? Number(document.getElementById('purchSellable').value) : null,
+    sellableQty,
     note: document.getElementById('purchNote').value.trim()
   };
 }

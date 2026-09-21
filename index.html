@@ -5016,6 +5016,9 @@ async function confirmLotSettle_(productId){
       }else{
         showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       }
+      // โหลดล็อตสดจากเซิร์ฟเวอร์แล้วเรนเดอร์ใหม่เสมอตอนพัง — ถ้าขั้น rawLots จริงๆ สำเร็จไปแล้ว (แค่ขั้นถัดไปพัง แล้ว revert
+      // ก็พังตามอีกที) คนจะเห็นสถานะจริงแทนที่จะกดยืนยันตัดซ้ำแบบเดา
+      await refreshLotListAfterWriteFailure_();
       return;
     }
     showToast('ตัดต้นทุนวันนี้แล้ว');
@@ -5023,6 +5026,7 @@ async function confirmLotSettle_(productId){
     await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
   }catch(e){
     showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    await refreshLotListAfterWriteFailure_();
   } finally { lotSettleInFlight_ = false; }
 }
 // เติมข้อมูลบิลสินค้าย้อนหลังให้ล็อตที่สร้างไว้ก่อนมีระบบนี้ (billId ที่ยังไม่มี lotProductBills คู่กัน)
@@ -5267,6 +5271,18 @@ let lotHistoryOpenIds = new Set(); // พับ "ประวัติการ�
 let lotDepletedBillOpenIds = new Set(); // แต่ละบิลในกลุ่ม "ล็อตที่ใช้หมดแล้ว" พับรายละเอียดไว้เป็นค่าเริ่มต้น เห็นแค่วันที่+คู่ค้าเรียงกัน กดทีละบิลเพื่อดูรายละเอียดเอง
 let lotDrawEditId = null; // id ของ "รอบเบิก" (draw) ที่กำลังแก้ไขตัวเลขอยู่ (เผื่อนับผิด/พิมพ์ผิดตอนเบิก) — null = ไม่ได้แก้อะไรอยู่
 let lotItemFoldOpenIds = new Set(); // พับรายละเอียดของแต่ละล็อต (แถบความคืบหน้า/ต้นทุน/ปุ่มเบิก/ประวัติ) ไว้เป็นค่าเริ่มต้น เห็นแค่หัวแถวสั้นๆ กันจอรกเวลามีล็อตเยอะๆ กดกางดูทีละล็อตเอง
+// withApiTimeout() (ด้านบนสุดของไฟล์) แข่งกับ fetch จริงแต่ไม่ได้ยกเลิก request จริงเลย — ถ้า Apps Script แค่ตอบช้า
+// (พังบ่อยเพราะเน็ตร้าน/เซิร์ฟเวอร์ฟรีของ Google) โค้ดฝั่งนี้จะเห็นเป็น "หมดเวลา/บันทึกไม่สำเร็จ" ทั้งที่จริงบันทึกสำเร็จไปแล้ว
+// บนเซิร์ฟเวอร์ — ถ้าปล่อยให้ฟอร์มค้างอยู่แบบเดิมเหมือนไม่มีอะไรเกิดขึ้น คนก็กดบันทึกซ้ำ กลายเป็นรอบเบิก/ล็อตซ้ำสอง (ปัญหาจริง
+// ที่เจอมา) — เรียกฟังก์ชันนี้ในทุก catch ของการเขียนล็อต เพื่อโหลดสดจากเซิร์ฟเวอร์แล้วเรนเดอร์ใหม่ทันที ถ้าจริงๆ บันทึก
+// สำเร็จไปแล้ว คนจะเห็นผลลัพธ์จริงเลย (ฟอร์มปิด/รอบเบิกโผล่ในประวัติ) ไม่ต้องเดาว่าจะกดซ้ำดีไหม
+async function refreshLotListAfterWriteFailure_(){
+  try{
+    rawLotsCache_ = null;
+    const freshLots = await loadRawLots();
+    await renderLotList(freshLots);
+  }catch(e){ /* โหลดสดไม่สำเร็จก็แค่ปล่อยจอเดิมไว้ ไม่ต้องทำอะไรเพิ่ม ผู้ใช้กดลองใหม่/รีเฟรชเองได้ */ }
+}
 async function renderLotList(preloadedLots){
   const wrap = document.getElementById('lotList');
   if(!wrap) return;
@@ -5436,6 +5452,7 @@ async function renderLotList(preloadedLots){
               return `<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;display:flex;align-items:center;gap:6px;">
                 <span style="flex:1;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.note?` — ${escapeHtml(d.note)}`:''}</span>
                 <button class="iconbtn" data-lotdrawedit="${d.id}" aria-label="แก้ไขรอบเบิกนี้" style="width:22px;height:22px;font-size:11px;flex:none;">✏️</button>
+                <button class="iconbtn" data-lotdrawdel="${d.id}" data-lotid="${lot.id}" aria-label="ลบรอบเบิกนี้" style="width:22px;height:22px;font-size:11px;flex:none;">✕</button>
               </div>`;
             }).join('')}
           </div>
@@ -5560,6 +5577,7 @@ async function renderLotList(preloadedLots){
       await renderPendingStockValueCard_();
     }catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การแก้ไขยังไม่ถูกบันทึก');
+      await refreshLotListAfterWriteFailure_();
     }
   }));
   wrap.querySelectorAll('[data-lotitemtoggle]').forEach(el=>el.addEventListener('click', ()=>{
@@ -5610,6 +5628,33 @@ async function renderLotList(preloadedLots){
     lotDrawEditId = null;
     renderLotList(lots);
   }));
+  wrap.querySelectorAll('[data-lotdrawdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const drawId = btn.getAttribute('data-lotdrawdel');
+    const lotId = btn.getAttribute('data-lotid');
+    const lot = lots.find(x=>x.id===lotId);
+    if(!lot) return;
+    const d = (lot.draws||[]).find(x=>x.id===drawId);
+    if(!d) return;
+    // เดิมไม่มีทางลบ "รอบเบิก" เดี่ยวๆ เลย มีแค่แก้ตัวเลข หรือลบทั้งล็อต/ทั้งบิล — ถ้าเบิกซ้ำ/เบิกผิดแค่รอบเดียว (เช่น
+    // กดบันทึกซ้ำตอนเน็ตช้าแล้วดันสำเร็จทั้งคู่) ต้องลบทั้งล็อตทิ้งแล้วเบิกใหม่หมด เสียรอบเบิกอื่นที่ถูกต้องไปด้วย —
+    // เพิ่มปุ่มลบเฉพาะรอบเบิกนี้ตรงๆ แทน
+    const costedQty = Number(d.costedQty||0);
+    if(costedQty>0.001){
+      const ok = confirm(`รอบเบิกนี้ถูกตัดต้นทุนไปแล้วบางส่วน/ทั้งหมด (${costedQty} หน่วย) การลบรอบเบิกนี้จะไม่ลบรายการต้นทุนซื้อที่บันทึกไปแล้ว — รายการนั้นจะกลายเป็นอ้างอิงถึงรอบเบิกที่ไม่มีอยู่แล้ว (ถ้าอยากลบให้ครบ แนะนำไปลบที่รายการต้นทุนซื้อของวันนั้นในการ์ด "รายการต้นทุนซื้อวันนี้" แทน — กดลบตรงนั้นจะคืนสถานะสต็อกล็อตให้อัตโนมัติ)\n\nยืนยันจะลบรอบเบิกนี้ต่อไหม?`);
+      if(!ok) return;
+    } else {
+      if(!confirm('ลบรอบเบิกนี้ทิ้งใช่ไหม?')) return;
+    }
+    try{
+      const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:lotId, nested:{field:'draws', remove:{matchField:'id', matchValue:drawId}}}, arr=>{rawLotsCache_=arr;});
+      showToast('ลบรอบเบิกแล้ว');
+      renderLotList(updated);
+      renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
+    }catch(e){
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      await refreshLotListAfterWriteFailure_();
+    }
+  }));
   wrap.querySelectorAll('[data-lotdraweditsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const drawId = btn.getAttribute('data-lotdraweditsave');
     const lotId = btn.getAttribute('data-lotid');
@@ -5652,6 +5697,7 @@ async function renderLotList(preloadedLots){
       renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
     }catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การแก้ไขยังไม่ถูกบันทึก');
+      await refreshLotListAfterWriteFailure_();
     }
   }));
   wrap.querySelectorAll('[data-lotdrawconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -5697,6 +5743,7 @@ async function renderLotList(preloadedLots){
     renderLotList(updated);
     } catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
+      await refreshLotListAfterWriteFailure_();
     } finally { lotDrawConfirmInFlight = false; btn.disabled = false; }
   }));
   const multiLotToggleEl = document.getElementById('multiLotDrawToggle');
@@ -5789,6 +5836,7 @@ async function renderLotList(preloadedLots){
         renderLotList(updated);
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
+        await refreshLotListAfterWriteFailure_();
       } finally {
         multiLotDrawInFlight = false;
         if(multiLotConfirmBtn) multiLotConfirmBtn.disabled = false;

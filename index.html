@@ -168,19 +168,20 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .cal-dots span{width:5px;height:5px;border-radius:50%;display:block;}
 .cal-dots .dot-buy{background:var(--danger);}
 .cal-dots .dot-sell{background:var(--success);}
-.statrow{display:flex;gap:8px;margin:10px 0 0;overflow-x:auto;padding-bottom:2px;}
+.statrow{display:flex;gap:8px;margin:0;overflow-x:auto;padding-bottom:2px;flex:1 1 auto;min-width:0;}
 .statchip{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text-dim);white-space:nowrap;flex:none;}
 .statchip b{color:var(--text);font-size:13px;margin-left:4px;}
 .statbar{margin-bottom:14px;}
-.statbar-headrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 6px;}
-.statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0;color:var(--text-dim);}
-.statbar-head-label{font-size:12px;font-weight:600;}
+.statbar-headrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;}
+.statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0;color:var(--text-dim);flex:none;}
+.statbar-date{font-size:12.5px;font-weight:700;color:var(--text);flex:none;white-space:nowrap;}
 .statbar-head-icon{font-size:12px;color:var(--accent);transition:transform .15s ease;}
 .statbar.collapsed .statrow{display:none;}
 .statbar.collapsed .statbar-head-icon{transform:rotate(-90deg);}
 .statbar-pin-btn{background:none;border:1px solid var(--border-soft);border-radius:7px;width:26px;height:26px;font-size:13px;cursor:pointer;flex:none;color:var(--text-dim);font-family:inherit;}
 .statbar-pin-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-.statbar.pinned{position:sticky;top:0;z-index:10;background:var(--bg);padding-top:8px;padding-bottom:6px;margin-bottom:14px;border-bottom:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);}
+.statbar.collapsed,
+.statbar.pinned{position:sticky;top:0;z-index:10;background:var(--bg);box-shadow:var(--dash-wide-shadow);border-bottom:1px solid var(--border-soft);}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:12px 0 0;padding-bottom:10px;}
 .tab{flex:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
 .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -429,6 +430,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   table.dwtile-outtable tbody tr td{border-top:none;padding:0;display:block;white-space:normal;}
   table.dwtile-outtable tbody tr td.dwtile-desktop-col{display:none;}
   .dash-grid{grid-template-columns:repeat(2,1fr);}
+  .dash-grid > *:last-child:nth-child(odd){grid-column:1/-1;}
   .grid7{grid-template-columns:1fr;}
   .dash-wide-header{padding:0 16px;}
   .dwh-datenav{flex-basis:100%;}
@@ -528,14 +530,14 @@ table.plain td.num,table.plain th.num{text-align:right;}
         </div>
 
         <div class="statbar" id="statBar">
-          <div class="statbar-headrow">
+          <div class="statbar-headrow" id="statBarHeadrow">
             <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="พับ/ขยายสรุปยอดสินค้า">
               <span class="statbar-head-icon" id="statBarToggleIcon">▾</span>
-              <span class="statbar-head-label">สรุปยอดวันนี้</span>
             </button>
+            <span class="statbar-date" id="statBarDate"></span>
+            <div class="statrow" id="statRow"></div>
             <button class="statbar-pin-btn" id="statBarPinBtn" aria-label="ตรึงแถบสรุปยอดไว้บนสุด" aria-pressed="false">📌</button>
           </div>
-          <div class="statrow" id="statRow"></div>
         </div>
 
   <div class="panel active" id="panel-dashboard">
@@ -544,7 +546,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
           <div class="dwtile hero success"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
           <div class="dwtile chart">
             <div class="dm-label" style="margin-bottom:4px;">🏷️ เทรนด์ Brand fee 14 วันล่าสุด</div>
-            <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;">แตะแท่งไหนก็ได้เพื่อดูยอดวันนั้น</div>
+            <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;"></div>
             <div id="dashTrend" class="loading">กำลังโหลด…</div>
           </div>
           <div class="dwtile ocean" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
@@ -1579,6 +1581,7 @@ async function renderStats(){
   let payableToday = expensePayable + sellerPayable;
 
   const renderChips = ()=>{
+    document.getElementById('statBarDate').textContent = formatDDMMYYYY(currentDate);
     document.getElementById('statRow').innerHTML = `<div class="statchip">สาขา<b class="num">${n}</b></div>` +
       PRODUCTS.map(p=>`<div class="statchip">${p.emoji}<b class="num">${totals[p.id]}</b></div>`).join('') +
       `<div class="statchip">Fee<b class="num">${money(fee.total)}</b></div>` +
@@ -2231,7 +2234,7 @@ async function renderLeftover(){
     return `<div>
       <div class="lrow">
         <div class="lname">${p.emoji} ${p.name}</div>
-        <input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0">
+        <input type="number" min="0" step="0.1" inputmode="decimal" data-lpid="${id}" value="${val||val===0?val:''}" placeholder="0" onfocus="this.select()">
         <span style="color:var(--text-dim);font-size:12px;flex:none;">${p.unit}</span>
         ${claimBtnHtml}
       </div>
@@ -3546,7 +3549,7 @@ async function renderYearSummary(){
         <div class="dash-metric"><div class="dm-label">📆 กำไรเฉลี่ย/เดือน</div><div class="dm-value num">${money(r.avgProfitPerMonth)}</div></div>
         <div class="dash-metric success"><div class="dm-label">✅ รับเงินจริงแล้ว</div><div class="dm-value num">${money(r.revenuePaid)}</div></div>
       </div>
-      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (<span style="color:#8DE2C5;font-weight:600;">เขียว</span>=กำไร <span style="color:#F2ADAD;font-weight:600;">แดง</span>=ขาดทุน) — แตะแท่งไหนก็ได้เพื่อดูยอดเดือนนั้น</div>
+      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (<span style="color:#8DE2C5;font-weight:600;">เขียว</span>=กำไร <span style="color:#F2ADAD;font-weight:600;">แดง</span>=ขาดทุน)</div>
       <div id="yearSelectedValue" class="hint" style="min-height:16px;"></div>
       ${buildYearBarSVG(r.monthly)}
       <table class="plain" style="margin-top:10px;">
@@ -5099,7 +5102,7 @@ function renderLotForm(){
     document.getElementById('lotSeller').value = settings.lastLotSeller;
   }
   const dateEl = document.getElementById('lotBuyDate');
-  if(!dateEl.value) dateEl.value = currentDate;
+  dateEl.value = currentDate;
   renderLotItemRows();
 }
 function renderLotItemRows(){
@@ -5249,6 +5252,7 @@ async function renderLotStockSummary(){
 }
 let lotDrawOpenId = null;
 let lotDrawConfirmInFlight = false;
+let lotEditId = null; // id ของล็อตที่กำลังแก้ไขข้อมูลทั้งล็อตอยู่ (จำนวนซื้อ/ราคา/วันที่/หมายเหตุ) — null = ไม่ได้แก้อะไรอยู่
 let lotDepletedSectionOpen = false; // พับ "บิลที่ใช้หมดแล้ว" ไว้เป็นค่าเริ่มต้น กันรายการเก่าที่เบิกหมดแล้วมาบังบิลที่ยังมีของเหลืออยู่
 let multiLotDrawOpen = false; // เบิกรวมหลายล็อตในทีเดียว (เผื่อลืมแยกนับว่าใช้จากล็อตไหนเท่าไหร่) — ระบบหักลบให้อัตโนมัติแบบ FIFO (ล็อตเก่าสุดก่อน)
 let multiLotDrawInFlight = false;
@@ -5336,7 +5340,8 @@ async function renderLotList(preloadedLots){
       // ปุ่มพับ/กางรายละเอียดของแต่ละล็อต (แถบความคืบหน้า/ต้นทุน/ปุ่มเบิก/ประวัติ) กันจอรกเวลามีล็อตเยอะๆ — แต่ถ้ากำลัง
       // เปิดฟอร์มเบิก/แก้ไขรอบเบิก/ดูประวัติของล็อตนี้ค้างอยู่ ต้องกางให้เห็นเสมอไม่ว่าจะเคยกดพับไว้หรือไม่ (กันบั๊กแบบ
       // เดียวกับฟอร์มแก้ไขต้นทุนซื้อที่เจอมาก่อนหน้านี้ — ห้ามให้ฟอร์มที่กำลังใช้งานอยู่ถูกซ่อนไปโดยไม่ตั้งใจ)
-      const hasActiveSubState = drawOpen || historyOpen || draws.some(d=>d.id===lotDrawEditId);
+      const editOpen = lotEditId===lot.id;
+      const hasActiveSubState = drawOpen || historyOpen || editOpen || draws.some(d=>d.id===lotDrawEditId);
       const itemOpen = lotItemFoldOpenIds.has(lot.id) || hasActiveSubState;
       return `<div style="padding:12px 0;border-top:1px solid var(--border-soft);${closed?'opacity:0.55;':''}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -5346,6 +5351,7 @@ async function renderLotList(preloadedLots){
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex:none;">
             <span style="font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;background:${closed?'var(--surface-3)':'var(--accent-soft)'};color:${closed?'var(--text-faint)':'var(--accent)'};">${closed?'ใช้หมดแล้ว':`เหลือ ${remain} กก.`}</span>
+            <button class="iconbtn" data-lotedit="${lot.id}" aria-label="แก้ไขล็อตนี้" style="width:26px;height:26px;font-size:12px;">✏️</button>
             <button class="iconbtn" data-lotdel="${lot.id}" aria-label="ลบสินค้านี้ในบิล" style="width:26px;height:26px;font-size:12px;">✕</button>
           </div>
         </div>
@@ -5365,6 +5371,20 @@ async function renderLotList(preloadedLots){
           })()}
         </div>
         ${lot.note?`<div style="font-size:11.5px;color:var(--text-faint);margin-top:3px;">📝 ${escapeHtml(lot.note)}</div>`:''}
+        ${editOpen? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-3);">
+          <div class="grid7">
+            <div><label>จำนวนซื้อทั้งหมด (กก.)</label><input type="number" step="0.01" id="lotEditQty-${lot.id}" value="${lot.qtyTotal}"></div>
+            <div><label>ราคาต่อกก.</label><input type="number" step="0.01" id="lotEditPrice-${lot.id}" value="${lot.pricePerKg}"></div>
+          </div>
+          <div class="grid7" style="margin-top:8px;">
+            <div><label>วันที่ซื้อ</label><input type="date" id="lotEditDate-${lot.id}" value="${lot.buyDate}"></div>
+            <div><label>หมายเหตุ</label><input type="text" id="lotEditNote-${lot.id}" value="${escapeHtml(lot.note||'')}"></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button class="btn small" data-loteditsave="${lot.id}" style="width:auto;">บันทึกการแก้ไข</button>
+            <button class="btn small secondary" data-loteditcancel="${lot.id}" style="width:auto;">ยกเลิก</button>
+          </div>
+        </div>` : ''}
         ${drawOpen? `<div style="margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-3);">
           <div class="grid7">
             <div><label>ใช้ไปกี่กก.วันนี้ (เบิก)</label>
@@ -5375,6 +5395,7 @@ async function renderLotList(preloadedLots){
             </div>
             <div><label>ทำได้ทั้งหมด (${purchaseSellUnit(lot.productId)})</label><input type="number" step="0.01" id="lotDrawSellable-${lot.id}" placeholder="0"></div>
           </div>
+          <div id="lotDrawOverdrawWarn-${lot.id}" style="display:none;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--danger-soft);border:1px solid var(--danger);color:var(--danger);font-size:12px;font-weight:600;"></div>
           <div class="hint" style="margin-top:4px;">ช่อง "ทำได้ทั้งหมด" คือจำนวนที่แปรรูปได้จากของที่เบิกมา ไม่ใช่จำนวนที่ขายได้จริงวันนี้${LEFTOVER_IDS.includes(lot.productId)?' — ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก (เช่น เบิก 15 ทำได้ 14.5 ขายจริง 14 เหลือ 0.5 → กรอกเหลือ 0.5 ที่นั่น)':''}</div>
           <input type="text" id="lotDrawNote-${lot.id}" placeholder="หมายเหตุ (ถ้ามี)" style="margin-top:6px;font-size:12.5px;">
           <div style="display:flex;gap:6px;margin-top:8px;">
@@ -5479,6 +5500,39 @@ async function renderLotList(preloadedLots){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
   }));
+  wrap.querySelectorAll('[data-lotedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotEditId = btn.getAttribute('data-lotedit');
+    renderLotList(lots); // แค่เปิดฟอร์มแก้ไข ไม่มีอะไรเปลี่ยนในข้อมูล ไม่ต้องยิงโหลดซ้ำ
+  }));
+  wrap.querySelectorAll('[data-loteditcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    lotEditId = null;
+    renderLotList(lots);
+  }));
+  wrap.querySelectorAll('[data-loteditsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.getAttribute('data-loteditsave');
+    const lot = lots.find(x=>x.id===id);
+    if(!lot) return;
+    const newQtyTotal = Number(document.getElementById(`lotEditQty-${id}`).value||0);
+    const newPrice = Number(document.getElementById(`lotEditPrice-${id}`).value||0);
+    const newBuyDate = document.getElementById(`lotEditDate-${id}`).value;
+    const newNote = document.getElementById(`lotEditNote-${id}`).value.trim();
+    if(newQtyTotal<=0 || newPrice<0 || !newBuyDate){ showToast('กรอกจำนวนซื้อ ราคา และวันที่ให้ครบ'); return; }
+    const drawnQty = lotDrawnQty(lot);
+    if(newQtyTotal < drawnQty - 0.001){
+      const ok = confirm(`ล็อตนี้ถูกเบิกไปแล้ว ${drawnQty} กก. แต่กำลังจะตั้งจำนวนซื้อใหม่เป็น ${newQtyTotal} กก. (น้อยกว่าที่เบิกไปแล้ว)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
+      if(!ok) return;
+    }
+    try{
+      const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:id, set:{qtyTotal:newQtyTotal, pricePerKg:newPrice, buyDate:newBuyDate, note:newNote}}, arr=>{rawLotsCache_=arr;});
+      lotEditId = null;
+      showToast('บันทึกการแก้ไขล็อตแล้ว');
+      renderLotList(updated);
+      await renderLotSettleCards_();
+      await renderPendingStockValueCard_();
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การแก้ไขยังไม่ถูกบันทึก');
+    }
+  }));
   wrap.querySelectorAll('[data-lotitemtoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lotitemtoggle');
     if(lotItemFoldOpenIds.has(id)) lotItemFoldOpenIds.delete(id); else lotItemFoldOpenIds.add(id);
@@ -5497,6 +5551,18 @@ async function renderLotList(preloadedLots){
     const lot = lots.find(l=>l.id===id);
     const qtyEl = document.getElementById(`lotDrawQty-${id}`);
     if(lot && qtyEl) qtyEl.value = lotRemaining(lot);
+  }));
+  wrap.querySelectorAll('input[id^="lotDrawQty-"]').forEach(inp=>inp.addEventListener('input', ()=>{
+    // เปลี่ยนจำนวนหลังจาก "ติดอาวุธ" เตือนเกินสต็อกไปแล้ว ต้องถอนอาวุธอัตโนมัติ กันเผลอกดยืนยันซ้ำด้วยตัวเลขที่แก้ไปแล้ว
+    const lotId = inp.id.slice('lotDrawQty-'.length);
+    const confirmBtn = wrap.querySelector(`[data-lotdrawconfirm="${lotId}"]`);
+    if(confirmBtn && confirmBtn.dataset.armed==='1'){
+      confirmBtn.dataset.armed = '0';
+      confirmBtn.textContent = 'บันทึกการเบิก';
+      confirmBtn.classList.remove('danger');
+      const warnEl = document.getElementById(`lotDrawOverdrawWarn-${lotId}`);
+      if(warnEl) warnEl.style.display = 'none';
+    }
   }));
   wrap.querySelectorAll('[data-lothistorytoggle]').forEach(el=>el.addEventListener('click', ()=>{
     const id = el.getAttribute('data-lothistorytoggle');
@@ -5567,10 +5633,19 @@ async function renderLotList(preloadedLots){
     if(!lot) return;
     if(String(currentDate) < String(lot.buyDate)){ showToast('ล็อตนี้ยังไม่ถึงวันที่ซื้อ เบิกไม่ได้'); return; }
     const remain = lotRemaining(lot);
+    const warnEl = document.getElementById(`lotDrawOverdrawWarn-${id}`);
     if(qtyUsed > remain + 0.001){
-      const ok = confirm(`ล็อตนี้เหลืออยู่ ${remain} กก. แต่กำลังจะเบิก ${qtyUsed} กก. (มากกว่าที่เหลือ)\n\nกด OK เพื่อบันทึกต่อไป หรือ ยกเลิก เพื่อกลับไปแก้ตัวเลข`);
-      if(!ok) return;
+      // native confirm() เดิมกดผ่านง่ายเกินไปบนมือถือ (แตะเผลอ/รีบๆ ก็หลุด OK ไปได้) เปลี่ยนเป็นปุ่มเดิม 2 จังหวะแทน:
+      // กดรอบแรกแค่ "ติดอาวุธ" เตือน ยังไม่บันทึก ต้องกดปุ่มเดิมซ้ำอีกครั้งถึงจะบันทึกจริง — เปลี่ยนตัวเลขเมื่อไหร่อาวุธถอนอัตโนมัติ
+      if(btn.dataset.armed !== '1'){
+        btn.dataset.armed = '1';
+        btn.textContent = `⚠️ เกิน ${remain} กก. — กดอีกครั้งเพื่อยืนยัน`;
+        btn.classList.add('danger');
+        if(warnEl){ warnEl.style.display=''; warnEl.textContent = `ล็อตนี้เหลืออยู่ ${remain} กก. แต่กำลังจะเบิก ${qtyUsed} กก. (มากกว่าที่เหลือ ${Math.round((qtyUsed-remain)*100)/100} กก.) — กดปุ่ม "บันทึกการเบิก" อีกครั้งเพื่อยืนยันว่าตั้งใจเบิกเกิน`; }
+        return;
+      }
     }
+    if(warnEl){ warnEl.style.display='none'; }
     const drawId = uid('drw');
     const costPerKg = lotCostPerKg(lot);
     const totalCost = Math.round(qtyUsed*costPerKg*100)/100;
@@ -7483,12 +7558,14 @@ async function renderDashboard(){
   // ฝั่งจอแคบ (เดิม) โชว์แค่ข้อความ ส่วนฝั่งจอกว้าง (bento ใหม่) เพิ่มแถบสัดส่วนภาพด้วย
   const costBreakdownEl = document.getElementById('dashCostBreakdown');
   const costBreakdownWideEl = document.getElementById('dashCostBreakdownWide');
-  if(totalCostToday>0){
-    const cogsPct = Math.round(cogsToday/totalCostToday*100);
-    const expensePct = 100 - cogsPct;
-    const breakdownText = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%)`;
+  const costAndFeeToday = cogsToday + expenseToday + fee.total; // รวม Brand fee เข้ามาด้วย ให้สัดส่วนภาพตรงกับกำไรที่หักจริง
+  if(costAndFeeToday>0){
+    const cogsPct = Math.round(cogsToday/costAndFeeToday*100);
+    const expensePct = Math.round(expenseToday/costAndFeeToday*100);
+    const feePct = 100 - cogsPct - expensePct; // เศษปัดเข้า Brand fee กันรวมกันไม่ครบ100
+    const breakdownText = `แบ่งเป็น 🛒 ต้นทุนสินค้า <b style="color:var(--text);">${money(cogsToday)}</b> (${cogsPct}%) • 💸 รายจ่ายกิจการ <b style="color:var(--text);">${money(expenseToday)}</b> (${expensePct}%) • 🏷️ Brand fee <b style="color:var(--text);">${money(fee.total)}</b> (${feePct}%)`;
     if(costBreakdownEl) costBreakdownEl.innerHTML = breakdownText;
-    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = breakdownText + `<div class="dash-cost-split"><span>สินค้า ${money(cogsToday)}</span><div class="dash-cost-bar"><span style="width:${cogsPct}%;background:#7FAEE3;"></span><span style="width:${expensePct}%;background:#F2ADAD;"></span></div><span>รายจ่าย ${money(expenseToday)}</span></div>`;
+    if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = breakdownText + `<div class="dash-cost-split"><span>สินค้า ${money(cogsToday)}</span><div class="dash-cost-bar"><span style="width:${cogsPct}%;background:#8BD2EC;"></span><span style="width:${expensePct}%;background:#FCEE9E;"></span><span style="width:${feePct}%;background:#FFBBDA;"></span></div><span>Fee ${money(fee.total)}</span></div>`;
   }else{
     if(costBreakdownEl) costBreakdownEl.innerHTML = '';
     if(costBreakdownWideEl) costBreakdownWideEl.innerHTML = '';

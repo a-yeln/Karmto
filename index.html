@@ -356,7 +356,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dwh-datenav input[type=date]{border:none;background:none;color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;width:128px;padding:0 2px;}
 .dwh-addexp-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;background:var(--sunset);color:var(--text);white-space:nowrap;font-family:inherit;}
 .dwh-addexp-btn:hover{filter:brightness(1.05);}
-.dwh-idchip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border-soft);font-size:12.5px;font-weight:600;}
+.dwh-idchip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border-soft);font-size:12.5px;font-weight:600;font-family:inherit;color:inherit;cursor:pointer;}
+.dwh-idchip:hover{filter:brightness(0.97);}
 .dwh-idchip .dot{width:24px;height:24px;border-radius:50%;background:var(--ocean-soft);color:var(--ocean);display:flex;align-items:center;justify-content:center;font-size:13px;}
 .dash-wide-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 .dwtile{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:14px;min-width:0;}
@@ -526,7 +527,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
             </div>
           </div>
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
-          <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">KARMTO</span></div>
+          <button type="button" class="dwh-idchip" id="dwhTodayBtn" aria-label="ไปวันนี้" title="ไปวันนี้"><span class="dot">🦐</span><span class="dwh-idchip-txt">KARMTO</span></button>
         </div>
 
         <div class="statbar" id="statBar">
@@ -8307,6 +8308,7 @@ async function init(){
   document.getElementById('dwhPrevDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,-1)));
   document.getElementById('dwhNextDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,1)));
   document.getElementById('dwhDateInput').addEventListener('change', e=>{ if(e.target.value) loadForDate(e.target.value); });
+  document.getElementById('dwhTodayBtn').addEventListener('click', ()=>{ const iso = todayISO(); if(iso!==currentDate) loadForDate(iso); });
   document.getElementById('dashOutstandingFilter').addEventListener('click', e=>{
     const btn = e.target.closest('[data-outfilter]'); if(!btn) return;
     topOutstandingFilterMode = btn.getAttribute('data-outfilter');

@@ -3653,6 +3653,9 @@ async function buildAllExpenseRows_(){
 async function renderAllExpenseList(skipReload){
   const mySeq = ++allExpenseRenderSeq_;
   const container = document.getElementById('allExpenseList');
+  // container เริ่มต้นด้วย class="loading" (มีสไตล์ text-align:center ติดมาด้วย) — ต้องลบทิ้งหลังโหลดเสร็จ ไม่งั้น
+  // ข้อความ/แถวจริงที่เติมเข้าไปทีหลังจะสืบทอด text-align:center มาด้วยเงียบๆ ทั้งที่ไม่ได้ตั้งใจให้กึ่งกลาง
+  container.classList.remove('loading');
   const sellerSel = document.getElementById('expSellerFilter');
   if(sellerSel && sellerSel.options.length<=1){
     sellerSel.innerHTML = `<option value="">— ทุกคู่ค้า —</option>` + settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');

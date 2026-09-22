@@ -254,6 +254,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .paytoggle.unpaid{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
 .delayrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--border-soft);font-size:13px;}
 .delayrow .d{color:var(--text-dim);font-size:12px;}
+.allexp-fields{display:grid;grid-template-columns:minmax(80px,1.3fr) 84px 104px 96px;align-items:center;gap:8px;width:100%;min-width:0;}
+.allexp-fields .allexp-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.allexp-fields .allexp-amount{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+.allexp-fields .allexp-date{color:var(--text-dim);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.allexp-fields .allexp-date.paid{color:var(--success);font-weight:600;}
+.allexp-fields .paytoggle{width:100%;}
+@media (max-width:520px){
+  .allexp-fields{grid-template-columns:1fr auto;grid-template-areas:"name status" "amount status" "date status";gap:2px 8px;}
+  .allexp-fields .allexp-name{grid-area:name;}
+  .allexp-fields .allexp-amount{grid-area:amount;text-align:left;}
+  .allexp-fields .allexp-date{grid-area:date;text-align:left;}
+  .allexp-fields .paytoggle{grid-area:status;align-self:center;}
+}
 .badge-delay{background:var(--danger-soft);color:var(--danger);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;}
 .settings-branch{display:flex;gap:6px;align-items:center;margin-bottom:7px;}
 .settings-branch input:first-child{width:52px;flex:none;text-align:center;}
@@ -356,7 +369,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dwh-datenav input[type=date]{border:none;background:none;color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;width:128px;padding:0 2px;}
 .dwh-addexp-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;background:var(--sunset);color:var(--text);white-space:nowrap;font-family:inherit;}
 .dwh-addexp-btn:hover{filter:brightness(1.05);}
-.dwh-idchip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border-soft);font-size:12.5px;font-weight:600;}
+.dwh-idchip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border-soft);font-size:12.5px;font-weight:600;font-family:inherit;color:inherit;cursor:pointer;}
+.dwh-idchip:hover{filter:brightness(0.97);}
 .dwh-idchip .dot{width:24px;height:24px;border-radius:50%;background:var(--ocean-soft);color:var(--ocean);display:flex;align-items:center;justify-content:center;font-size:13px;}
 .dash-wide-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 .dwtile{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:14px;min-width:0;}
@@ -526,7 +540,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
             </div>
           </div>
           <button class="dwh-addexp-btn" id="dwhAddExpenseBtn">➕ เพิ่มรายจ่าย</button>
-          <div class="dwh-idchip"><span class="dot">🦐</span><span class="dwh-idchip-txt">KARMTO</span></div>
+          <button type="button" class="dwh-idchip" id="dwhTodayBtn" aria-label="ไปวันนี้" title="ไปวันนี้"><span class="dot">🦐</span><span class="dwh-idchip-txt">KARMTO</span></button>
         </div>
 
         <div class="statbar" id="statBar">
@@ -2145,7 +2159,12 @@ async function computeSuggestedLeftover(pid, iso, data){
     }
   }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
   const orderedQty = computeTotals(data.orders)[pid]||0;
-  const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
+  // ของที่เคลม/ตัดเป็นของเสียไปแล้ววันนี้ ต้องหักออกจากค่าแนะนำด้วย ไม่งั้นกด "ล้างข้อมูล คำนวณแนะนำใหม่" (clearLeftoverToday())
+  // จะกลับไปคำนวณสูตรเดิมแบบไม่รู้ว่าเคลมไปแล้วเท่าไหร่ ได้ตัวเลขเหมือนไม่เคยเคลมมาก่อนเลย (บันทึกเคลมไว้ใน wasteRecords แล้ว
+  // แต่ leftoverOut ถูกลบทิ้งไปพร้อมกัน เลยดึงกลับมาไม่ได้ถ้าไม่หักในสูตรนี้ตรงๆ)
+  const wasteRecords = await loadWasteRecords();
+  const claimedToday = wasteRecords.filter(r=>r.productId===pid && r.date===iso).reduce((s,r)=>s+Number(r.qty||0),0);
+  const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty - claimedToday)*10)/10;
   return {suggested, carriedIn, yieldQty, orderedQty};
 }
 // เติม "ของเหลือ" ให้อัตโนมัติทันทีหลังบันทึกต้นทุนซื้อ/เบิกล็อต ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ — จะได้ไม่ต้องมาเข้าหน้าของเหลือเพื่อกดบันทึกซ้ำเอง
@@ -3681,13 +3700,13 @@ async function renderAllExpenseList(skipReload){
     container.innerHTML = visibleRows.map(r=>{
       const editing = allExpEditingKey===r.key;
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div style="text-align:left;">
-            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span style="font-weight:600;">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span><span class="num" style="font-weight:600;">${money(r.amount)}</span>${paidTagHtml(r.paid, r.paidDate)}</div>
-            <div class="d">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
-          </div>
-          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
+        <div class="allexp-fields">
+          <span class="allexp-name">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span>
+          <span class="allexp-amount">${money(r.amount)}</span>
+          <span class="allexp-date${r.paid?' paid':''}">${r.paid ? `✅ ${r.paidDate?formatDDMMYYYY(r.paidDate):'-'}` : '—'}</span>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
+        <div class="d" style="margin-top:2px;">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="allexpdate-${encodeURIComponent(r.key)}" value="${lastUsedPayDate}" style="flex:1;">
           <button class="btn small" data-allexpconfirm="${r.key}" style="width:auto;">ยืนยัน</button>
@@ -4853,7 +4872,7 @@ async function renderLotSettleCards_(){
     // (suggested) จะเป็น 0 ถ้าวันนี้ไม่ได้ต้องการเพิ่ม ให้ผู้ใช้กรอกจำนวนที่จะตัดเองแทน
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const suggested = remainingNeedToday>0 ? Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100 : 0;
+    const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
     // matched=true คือ "ถึง order วันนี้แล้ว" ไม่ว่าจะเพราะตัดต้นทุนไปแล้วครบ/เกินตามที่ต้องการ หรือเพราะวันนี้ไม่มีออเดอร์
     // สินค้านี้เลยตั้งแต่แรก (ต้องการ=0 ถือว่า "ถึง" แล้วเหมือนกัน) — ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้
     // สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
@@ -4867,7 +4886,7 @@ async function renderLotSettleCards_(){
   const rowHtml = (r)=>`
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);">
         <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.pendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div></div>
-        <input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
+        <input type="number" min="0" step="${sellableUnitIsWhole_(r.pid)?'1':'0.1'}" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
         <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
       </div>`;
   wrap.innerHTML = `<div class="card dash-wide-card">
@@ -4911,7 +4930,8 @@ let lotSettleInFlight_ = false;
 async function confirmLotSettle_(productId){
   if(lotSettleInFlight_) return;
   const input = document.querySelector(`[data-lotsettleqty="${productId}"]`);
-  const useQty = Number((input && input.value) || 0);
+  let useQty = Number((input && input.value) || 0);
+  if(sellableUnitIsWhole_(productId)) useQty = Math.round(useQty);
   if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
   lotSettleInFlight_ = true;
   // จับวันที่ไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/บันทึกสต็อก) เพราะ
@@ -5039,7 +5059,10 @@ async function confirmLotSettle_(productId){
           await writeRootArrayOp_('rawLots', revertOps, arr=>{rawLotsCache_=arr;});
           showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
         }catch(revertErr){
-          showToast('ตัดต้นทุนไม่สำเร็จ และคืนสถานะสต็อกล็อตไม่สำเร็จด้วย (เน็ตมีปัญหา?) — สต็อกกับรายการต้นทุนซื้ออาจไม่ตรงกัน ลองรีเฟรชแล้วเช็คที่การ์ด "ล็อตที่มีอยู่" กับ "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
+          // เคสนี้ต้นทุนสต็อกล็อตถูกตัดไปแล้วจริง (costedQty เพิ่มแล้ว) แต่ไม่มีรายการต้นทุนซื้อคู่กันบันทึกไว้เลย — ข้อมูลไม่ตรงกัน
+          // จริง ไม่ใช่แค่ UI ยังไม่รีเฟรช ใช้ alert() แบบต้องกดรับทราบแทน toast ที่หายไปเองใน 1.6 วินาที (เหมือน loadForDate ด้านบน)
+          // เพราะถ้าพลาด toast ไปจะเข้าใจผิดว่าตัดสำเร็จปกติ ทั้งที่จริงมีเงิน/ต้นทุนก้อนนี้หายไปจากรายการต้นทุนซื้อเงียบๆ
+          alert('⚠️ ตัดต้นทุนไม่สำเร็จ และคืนสถานะสต็อกล็อตไม่สำเร็จด้วย (เน็ตมีปัญหา?)\n\nตอนนี้สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้ว แต่ "รายการต้นทุนซื้อ" ของยอดนี้ไม่ได้ถูกบันทึกจริง — ตัวเลขไม่ตรงกัน\n\nอย่าเพิ่งกดตัดต้นทุนซ้ำ เพราะจะกลายเป็นตัดซ้ำสองรอบ — ให้ลองรีเฟรชหน้านี้ แล้วเช็คที่การ์ด "ล็อตที่มีอยู่" กับ "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้งก่อน ถ้ายังไม่ตรงให้แก้ "จำนวนที่ทำได้" ของรอบเบิกนั้นลงชั่วคราวแล้วปรับกลับขึ้น (จะรีเซ็ตค้างตัดต้นทุนให้) แล้วค่อยตัดใหม่ทีเดียว');
         }
       }else{
         showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
@@ -5717,7 +5740,7 @@ async function renderLotList(preloadedLots){
     let sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
     const newDate = document.getElementById(`lotDrawEditDate-${drawId}`).value;
     const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
-    if(qtyUsed<=0 || sellableQty<=0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
+    if(qtyUsed<=0 || sellableQty<0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
     const lot = lots.find(x=>x.id===lotId);
     if(!lot) return;
     if(sellableUnitIsWhole_(lot.productId)) sellableQty = Math.round(sellableQty);
@@ -5930,7 +5953,7 @@ async function renderLotTransportList(){
     const rowKey = 'lottrans-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}${b.note?` (${escapeHtml(b.note)})`:''}</div>
           <div class="amt num">${money(b.amount)}</div>${paidTagHtml(b.paid, b.paidDate)}
           ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
         </div>
@@ -5938,7 +5961,6 @@ async function renderLotTransportList(){
       </div>
       <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${(showDatePicker||fieldEditOpen)?'':'none'};">
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
-        ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${escapeHtml(b.note)}</div>`:''}
         ${fieldEditOpen ? `<div style="margin-top:8px;">
           <label>ยอดบิล</label>
           <input type="number" step="1" id="lottransamt-${b.id}" value="${b.amount}">
@@ -8307,6 +8329,7 @@ async function init(){
   document.getElementById('dwhPrevDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,-1)));
   document.getElementById('dwhNextDay').addEventListener('click', ()=>loadForDate(addDaysISO(currentDate,1)));
   document.getElementById('dwhDateInput').addEventListener('change', e=>{ if(e.target.value) loadForDate(e.target.value); });
+  document.getElementById('dwhTodayBtn').addEventListener('click', ()=>{ const iso = todayISO(); if(iso!==currentDate) loadForDate(iso); });
   document.getElementById('dashOutstandingFilter').addEventListener('click', e=>{
     const btn = e.target.closest('[data-outfilter]'); if(!btn) return;
     topOutstandingFilterMode = btn.getAttribute('data-outfilter');

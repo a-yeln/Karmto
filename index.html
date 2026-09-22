@@ -5931,7 +5931,7 @@ async function renderLotTransportList(){
     const rowKey = 'lottrans-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}${b.note?` (${escapeHtml(b.note)})`:''}</div>
           <div class="amt num">${money(b.amount)}</div>${paidTagHtml(b.paid, b.paidDate)}
           ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
         </div>
@@ -5939,7 +5939,6 @@ async function renderLotTransportList(){
       </div>
       <div class="billrow-body" id="billrowbody-${rowKey}" style="display:${(showDatePicker||fieldEditOpen)?'':'none'};">
         <div class="hint" style="margin-top:6px;">${formatDDMMYYYY(b.buyDate)} • ${b.productLabel||''}</div>
-        ${b.note? `<div class="hint" style="margin-top:4px;">💬 ${escapeHtml(b.note)}</div>`:''}
         ${fieldEditOpen ? `<div style="margin-top:8px;">
           <label>ยอดบิล</label>
           <input type="number" step="1" id="lottransamt-${b.id}" value="${b.amount}">

@@ -254,6 +254,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .paytoggle.unpaid{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
 .delayrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--border-soft);font-size:13px;}
 .delayrow .d{color:var(--text-dim);font-size:12px;}
+.allexp-fields{display:grid;grid-template-columns:minmax(80px,1.3fr) 84px 104px 96px;align-items:center;gap:8px;width:100%;min-width:0;}
+.allexp-fields .allexp-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.allexp-fields .allexp-amount{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+.allexp-fields .allexp-date{color:var(--text-dim);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.allexp-fields .allexp-date.paid{color:var(--success);font-weight:600;}
+.allexp-fields .paytoggle{width:100%;}
+@media (max-width:520px){
+  .allexp-fields{grid-template-columns:1fr auto;grid-template-areas:"name status" "amount status" "date status";gap:2px 8px;}
+  .allexp-fields .allexp-name{grid-area:name;}
+  .allexp-fields .allexp-amount{grid-area:amount;text-align:left;}
+  .allexp-fields .allexp-date{grid-area:date;text-align:left;}
+  .allexp-fields .paytoggle{grid-area:status;align-self:center;}
+}
 .badge-delay{background:var(--danger-soft);color:var(--danger);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;}
 .settings-branch{display:flex;gap:6px;align-items:center;margin-bottom:7px;}
 .settings-branch input:first-child{width:52px;flex:none;text-align:center;}
@@ -3682,13 +3695,13 @@ async function renderAllExpenseList(skipReload){
     container.innerHTML = visibleRows.map(r=>{
       const editing = allExpEditingKey===r.key;
       return `<div class="delayrow" style="flex-direction:column;align-items:stretch;gap:0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div style="text-align:left;">
-            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span style="font-weight:600;">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span><span class="num" style="font-weight:600;">${money(r.amount)}</span>${paidTagHtml(r.paid, r.paidDate)}</div>
-            <div class="d">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
-          </div>
-          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}" style="flex:none;">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
+        <div class="allexp-fields">
+          <span class="allexp-name">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span>
+          <span class="allexp-amount">${money(r.amount)}</span>
+          <span class="allexp-date${r.paid?' paid':''}">${r.paid ? `✅ ${r.paidDate?formatDDMMYYYY(r.paidDate):'-'}` : '—'}</span>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
+        <div class="d" style="margin-top:2px;">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="allexpdate-${encodeURIComponent(r.key)}" value="${lastUsedPayDate}" style="flex:1;">
           <button class="btn small" data-allexpconfirm="${r.key}" style="width:auto;">ยืนยัน</button>

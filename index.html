@@ -5735,7 +5735,7 @@ async function renderLotList(preloadedLots){
     let sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
     const newDate = document.getElementById(`lotDrawEditDate-${drawId}`).value;
     const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
-    if(qtyUsed<=0 || sellableQty<=0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
+    if(qtyUsed<=0 || sellableQty<0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
     const lot = lots.find(x=>x.id===lotId);
     if(!lot) return;
     if(sellableUnitIsWhole_(lot.productId)) sellableQty = Math.round(sellableQty);

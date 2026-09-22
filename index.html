@@ -2159,7 +2159,12 @@ async function computeSuggestedLeftover(pid, iso, data){
     }
   }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
   const orderedQty = computeTotals(data.orders)[pid]||0;
-  const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty)*10)/10;
+  // ของที่เคลม/ตัดเป็นของเสียไปแล้ววันนี้ ต้องหักออกจากค่าแนะนำด้วย ไม่งั้นกด "ล้างข้อมูล คำนวณแนะนำใหม่" (clearLeftoverToday())
+  // จะกลับไปคำนวณสูตรเดิมแบบไม่รู้ว่าเคลมไปแล้วเท่าไหร่ ได้ตัวเลขเหมือนไม่เคยเคลมมาก่อนเลย (บันทึกเคลมไว้ใน wasteRecords แล้ว
+  // แต่ leftoverOut ถูกลบทิ้งไปพร้อมกัน เลยดึงกลับมาไม่ได้ถ้าไม่หักในสูตรนี้ตรงๆ)
+  const wasteRecords = await loadWasteRecords();
+  const claimedToday = wasteRecords.filter(r=>r.productId===pid && r.date===iso).reduce((s,r)=>s+Number(r.qty||0),0);
+  const suggested = Math.round(Math.max(0, carriedIn + yieldQty - orderedQty - claimedToday)*10)/10;
   return {suggested, carriedIn, yieldQty, orderedQty};
 }
 // เติม "ของเหลือ" ให้อัตโนมัติทันทีหลังบันทึกต้นทุนซื้อ/เบิกล็อต ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ — จะได้ไม่ต้องมาเข้าหน้าของเหลือเพื่อกดบันทึกซ้ำเอง

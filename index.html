@@ -4853,7 +4853,7 @@ async function renderLotSettleCards_(){
     // (suggested) จะเป็น 0 ถ้าวันนี้ไม่ได้ต้องการเพิ่ม ให้ผู้ใช้กรอกจำนวนที่จะตัดเองแทน
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const suggested = remainingNeedToday>0 ? Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100 : 0;
+    const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
     // matched=true คือ "ถึง order วันนี้แล้ว" ไม่ว่าจะเพราะตัดต้นทุนไปแล้วครบ/เกินตามที่ต้องการ หรือเพราะวันนี้ไม่มีออเดอร์
     // สินค้านี้เลยตั้งแต่แรก (ต้องการ=0 ถือว่า "ถึง" แล้วเหมือนกัน) — ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้
     // สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
@@ -4867,7 +4867,7 @@ async function renderLotSettleCards_(){
   const rowHtml = (r)=>`
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);">
         <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.pendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div></div>
-        <input type="number" min="0" step="0.1" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
+        <input type="number" min="0" step="${sellableUnitIsWhole_(r.pid)?'1':'0.1'}" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
         <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
       </div>`;
   wrap.innerHTML = `<div class="card dash-wide-card">
@@ -4911,7 +4911,8 @@ let lotSettleInFlight_ = false;
 async function confirmLotSettle_(productId){
   if(lotSettleInFlight_) return;
   const input = document.querySelector(`[data-lotsettleqty="${productId}"]`);
-  const useQty = Number((input && input.value) || 0);
+  let useQty = Number((input && input.value) || 0);
+  if(sellableUnitIsWhole_(productId)) useQty = Math.round(useQty);
   if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
   lotSettleInFlight_ = true;
   // จับวันที่ไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/บันทึกสต็อก) เพราะ

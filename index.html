@@ -5022,29 +5022,12 @@ async function renderLotSettleCards_(){
   const mySeq = ++lotSettleCardsSeq_;
   let lots = await loadRawLots();
   if(mySeq !== lotSettleCardsSeq_) return; // มีการเรียกซ้อนทับมาใหม่กว่าระหว่างรอโหลด ทิ้งรอบเก่าไป กันตัดต้นทุนอัตโนมัติซ้ำซ้อน
-  let rows = await computeLotSettleRows_(lots);
+  const rows = await computeLotSettleRows_(lots);
   if(mySeq !== lotSettleCardsSeq_) return;
-  // ตัดต้นทุนอัตโนมัติทันทีเท่าที่ใช้จริงวันนี้ (suggested) โดยไม่ต้องรอกดปุ่มเอง — ตรงตามที่ต้องการ: เบิกมาใช้จริงวันไหน
-  // ให้เป็นต้นทุนของวันนั้นทันที ส่วนที่เบิกเกินไว้ยังไม่ถึงคิวใช้ (matched=false แต่ suggested=0 หรือ matched=true/backlog)
-  // ยังคงต้องกดตัดเองเหมือนเดิม ไม่แตะ — ใช้ for แบบ await ทีละตัว (ไม่ใช่ Promise.all) เพราะ lotSettleInFlight_ เป็น flag
-  // กลางตัวเดียว ถ้ายิงพร้อมกันหลายสินค้า ตัวที่ 2 เป็นต้นไปจะโดน flag บล็อกจนตัดไม่ได้สักตัว ต้องรอให้ตัวก่อนหน้าเขียนเสร็จก่อน
-  const autoCandidates = rows.filter(r=>!r.matched && r.suggested>0.001);
-  if(autoCandidates.length && !lotSettleInFlight_){
-    const autoResults = [];
-    for(const r of autoCandidates){
-      if(lotSettleInFlight_) break; // มีคนอื่น (กดปุ่มเองพอดี หรือรอบเรนเดอร์อื่น) คว้า flag ไปก่อนแล้ว — รอบเรนเดอร์ถัดไปจะลองใหม่เอง
-      const result = await confirmLotSettle_(r.pid, {qty:r.suggested, auto:true, skipRerender:true, suppressSuccessToast:true});
-      if(mySeq !== lotSettleCardsSeq_) return; // เปลี่ยนวันที่/แท็บไปแล้วระหว่างตัด — มีรอบเรนเดอร์ใหม่คิวไว้ให้แล้ว เลิกทำรอบนี้ต่อ
-      if(result && result.ok) autoResults.push(result);
-    }
-    if(autoResults.length){
-      showToast(`✅ ตัดต้นทุนอัตโนมัติแล้ว: ${autoResults.map(r=>`${r.p.emoji}${r.p.name} ${r.targetQty}${r.p.unit}`).join(', ')}`);
-      lots = await loadRawLots();
-      if(mySeq !== lotSettleCardsSeq_) return;
-      rows = await computeLotSettleRows_(lots);
-      if(mySeq !== lotSettleCardsSeq_) return;
-    }
-  }
+  // ห้ามตัดต้นทุนเอง/สร้างรายการต้นทุนซื้อเองโดยเด็ดขาดถ้าผู้ใช้ไม่ได้กดยืนยันเอง (คำสั่งตรงจากผู้ใช้ หลังเจอปัญหาจริงจากฟีเจอร์
+  // ตัดต้นทุนอัตโนมัติที่เคยมี — เคยตัดเกินยอดออเดอร์จริงไปโดยไม่มีใครรู้ตัว และมีเคสรายการที่ลบไปแล้วดูเหมือนโผล่กลับมาเอง) —
+  // การ์ดนี้ทำหน้าที่แค่ "แสดง" ค้างตัดต้นทุน + ค่าแนะนำในช่องกรอก (r.suggested) ให้ผู้ใช้ดูก่อนตัดสินใจเองเท่านั้น ไม่มีการ
+  // เขียนข้อมูลใดๆ จากฟังก์ชันนี้เลย ต้องกดปุ่ม "✅ ตัด" เองทุกครั้งไม่มีข้อยกเว้น
   if(rows.length===0){ wrap.innerHTML=''; return; }
   const activeRows = rows.filter(r=>!r.matched);
   const matchedRows = rows.filter(r=>r.matched);
@@ -5060,7 +5043,7 @@ async function renderLotSettleCards_(){
       <span id="lotSettleChevron" style="font-size:14px;color:var(--accent);flex:none;">${lotSettleCardOpen?'▾':'▸'}</span>
     </div>
     <div id="lotSettleBody" style="display:${lotSettleCardOpen?'':'none'};">
-    <div class="hint">ของที่เบิกจากล็อตมาแล้วใช้จริงวันนี้พอดี ระบบตัดต้นทุนให้อัตโนมัติทันที (FIFO จากรอบเบิกเก่าสุดก่อน) — ส่วนที่เบิกเกินไว้ยังไม่ถึงคิวใช้จะค้างรอจนถึงวันที่ใช้จริงค่อยตัดให้เอง ถ้าอยากตัดเพิ่ม/แก้จำนวนเองก็กรอกแล้วกดตัดด้านล่างได้เสมอ</div>
+    <div class="hint">ตัวเลขในช่องกรอกเป็นแค่ค่าแนะนำ (เท่าที่ใช้จริงวันนี้ตามออเดอร์) — ระบบไม่ตัดต้นทุนให้เองเด็ดขาด ต้องตรวจสอบจำนวนแล้วกด "✅ ตัด" เองทุกครั้ง</div>
     ${currentDate!==todayISO() ? `<div class="hint" style="color:var(--danger);margin-top:4px;">📅 กำลังดูวันที่ ${formatDDMMYYYY(currentDate)} — ตัวเลข "ค้าง" ด้านล่างนับเฉพาะของที่เบิกมาถึงวันนี้เท่านั้น ไม่รวมรอบเบิกของวันหลังจากนี้ที่ยังไม่ตัดต้นทุน (ดูยอดค้างตัดต้นทุนรวมทั้งหมดปัจจุบันได้ที่การ์ด "เงินค้างสต็อก" ด้านบนแทน หรือสลับไปวันปัจจุบันเพื่อตัดต้นทุนรอบเบิกใหม่กว่านี้)</div>` : ''}
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
     ${matchedRows.length ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">

@@ -6913,6 +6913,9 @@ function renderPurchaseList(){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       return;
     }
+    // ถ้าขั้นตอนคืนสถานะสต็อกล็อตด้านล่างพังจริงๆ (แม้ลองซ้ำแล้ว) ต้องไม่ให้ toast "ลบแล้ว" ท้ายฟังก์ชัน (6976 เดิม) ทับ
+    // ข้อความเตือนไปเงียบๆ — ผู้ใช้ต้องเห็นว่ามีปัญหาจริง ไม่ใช่เห็นแค่ "ลบแล้ว" เหมือนทุกอย่างปกติดี ทั้งที่ยังค้างอยู่
+    let reversalWarned = false;
     if(entry && entry.lotSettle && Array.isArray(entry.lotSettleAllocations)){
       // รายการนี้คือ "ตัดต้นทุน" จากสต็อกล็อต (อาจครอบคลุมหลายรอบเบิก/หลายล็อต) — ลบแล้วต้องคืนสถานะ costedQty ให้แต่ละ
       // รอบเบิกที่เกี่ยวข้อง ไม่ใช่ลบรอบเบิกทิ้ง เพราะของยังอยู่ในสต็อกเหมือนเดิม แค่ยังไม่ถูกตัดเป็นต้นทุนซื้อ — เขียนแบบ
@@ -6931,10 +6934,25 @@ function renderPurchaseList(){
           drawUpdates.set(key, {lotId:a.lotId, drawId:a.drawId, newCostedQty});
         });
         const ops = Array.from(drawUpdates.values()).map(u=>({matchField:'id', matchValue:u.lotId, nested:{field:'draws', matchField:'id', matchValue:u.drawId, set:{costedQty:u.newCostedQty}}}));
-        if(ops.length) await writeRootArrayOp_('rawLots', ops, arr=>{rawLotsCache_=arr;});
+        if(ops.length){
+          // เน็ตช้า/หลุดกลางคันได้ง่าย (ผู้ใช้เจอปัญหานี้จริง) — ถ้าปล่อยให้ลองครั้งเดียวแล้วพัง จะเหลือ costedQty ค้างไม่ได้
+          // คืนสภาพ (รายการต้นทุนซื้อถูกลบไปแล้วที่ข้างบน แต่ costedQty ของรอบเบิกยังพองอยู่) กลายเป็นช่องว่างที่ระบบตรวจสอบ
+          // (computeLotCostedQtyAudit_) จะไปเจอทีหลังว่า "ขาด" แล้วเสนอปุ่มเติมต้นทุนให้กดใหม่ — จากมุมผู้ใช้เหมือนเพิ่งลบไป
+          // แล้วโผล่กลับมาเองงงๆ ลองซ้ำก่อนหลายครั้งกันเน็ตสะดุดแป๊บเดียวจากทำให้เกิดสภาพนี้ทั้งที่จริงๆ ลองอีกทีก็น่าจะผ่าน
+          let lastErr = null;
+          for(let attempt=0; attempt<3; attempt++){
+            try{
+              await writeRootArrayOp_('rawLots', ops, arr=>{rawLotsCache_=arr;});
+              lastErr = null;
+              break;
+            }catch(e){ lastErr = e; if(attempt<2) await new Promise(r=>setTimeout(r, 1000*(attempt+1))); }
+          }
+          if(lastErr) throw lastErr;
+        }
         await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
       }catch(e){
-        showToast('ลบต้นทุนซื้อสำเร็จ แต่คืนสถานะสต็อกล็อตไม่สำเร็จ (เน็ตมีปัญหา?) — ลองรีเฟรชแล้วเช็คที่การ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
+        reversalWarned = true;
+        showToast('ลบต้นทุนซื้อสำเร็จ แต่คืนสถานะสต็อกล็อตไม่สำเร็จแม้ลองซ้ำแล้ว (เน็ตมีปัญหา?) — ล็อตนี้อาจขึ้นแจ้งเตือน "ขาดต้นทุน" ให้กดเติมใหม่ทีหลัง ไม่ใช่บั๊กซ้ำ แค่กำลังคืนสภาพให้ครบ ลองรีเฟรชแล้วเช็คที่การ์ด "ตัดต้นทุนสต็อกล็อตวันนี้" อีกครั้ง');
       }
     }else if(entry && entry.fromLot && typeof entry.fromLot === 'string'){
       // รูปแบบเก่า (ก่อนปรับระบบตัดต้นทุนรายวัน): 1 รายการต้นทุนซื้อ = 1 รอบเบิกเต็มจำนวน ผูกกับล็อตตรงๆ ด้วย id เดียวกับรอบเบิก
@@ -6943,6 +6961,7 @@ function renderPurchaseList(){
         await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:entry.fromLot, nested:{field:'draws', remove:{matchField:'id', matchValue:id}}}, arr=>{rawLotsCache_=arr;});
         await renderLotList();
       }catch(e){
+        reversalWarned = true;
         showToast('ลบต้นทุนซื้อสำเร็จ แต่ลบประวัติเบิกลอตไม่สำเร็จ (เน็ตมีปัญหา?) — ลอตนี้อาจยังโชว์ว่าเบิกไปแล้วอยู่ ลองรีเฟรชแล้วลบใหม่');
       }
     }
@@ -6959,7 +6978,7 @@ function renderPurchaseList(){
       renderPurchStagedList();
     }
     renderPurchaseList();
-    showToast('ลบแล้ว');
+    if(!reversalWarned) showToast('ลบแล้ว'); // ถ้าเตือนปัญหาคืนสถานะสต็อกล็อตไปแล้วด้านบน อย่าทับด้วย toast "ลบแล้ว" เฉยๆ ให้ดูเหมือนไม่มีอะไรผิดปกติ
     renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     renderPurchaseGroups();
   }));

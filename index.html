@@ -2219,6 +2219,7 @@ async function autoFillLeftoverIfNeeded(pid){
 }
 let wasteEditPid = null; // pid ของสินค้าที่กำลังกรอกฟอร์ม "บันทึกของเสีย/ตัดทิ้ง" อยู่ (ในแท็บของเหลือค้าง)
 let wasteActionInFlight = false;
+let leftoverFormRenderedForDate_ = null; // วันที่ที่ช่องกรอก "เหลือจากวันที่..." กำลังแสดงผลอยู่จริงตอนนี้ (ดูคอมเมนต์ด้านล่าง)
 async function renderLeftover(){
   const prevIso = addDaysISO(currentDate,-1);
   const nextIso = addDaysISO(currentDate,1);
@@ -2234,8 +2235,15 @@ async function renderLeftover(){
   // ทำให้ตัวเลขที่เพิ่งพิมพ์แต่ยังไม่ทันกด "บันทึกของเหลือ" หายไปเงียบๆ (ผู้ใช้กดบันทึกแล้วเข้าใจว่าค่าไม่ติด ทั้งที่จริงๆ ค่าที่พิมพ์ไว้ถูกฟอร์ม
   // ที่ re-render ทับไปก่อนหน้านั้นแล้ว) ตอนนี้จำค่าที่มีอยู่ในช่องไว้ก่อน แล้วใช้แทนค่าที่คำนวณสดจาก dayData ถ้ามีอยู่ — ผู้ใช้เห็นอะไรอยู่ในช่อง
   // ก็ควรยังเห็นแบบนั้นต่อไป จนกว่าจะกด "บันทึกของเหลือ" เองเท่านั้น
+  // สำคัญ: ใช้ snapshot นี้ได้เฉพาะตอนเรียกซ้ำ "วันเดิม" เท่านั้น (เช่น เปิด/ปิดฟอร์มของเสีย) — ถ้าสลับมาจากวันอื่น (loadForDate เปลี่ยน
+  // currentDate) DOM ยังเป็นของวันเก่าค้างอยู่ตอนอ่าน snapshot นี้พอดี ถ้าเผลอเอามาใช้กับวันใหม่จะกลายเป็นโชว์ตัวเลขวันเก่าซ้ำๆ ทุกวัน
+  // ที่สลับไป (บั๊กจริงที่เจอ: "เหลือ" ขึ้นเลขเดิมทุกวันเป๊ะๆ เพราะ DOM ของวันก่อนหน้ายังไม่ทันถูกเขียนทับตอนอ่าน snapshot)
+  const isSameDayRerender = leftoverFormRenderedForDate_ === currentDate;
   const unsavedLeftoverInputs_ = {};
-  document.querySelectorAll('#leftoverOutForm [data-lpid]').forEach(inp=>{ unsavedLeftoverInputs_[inp.getAttribute('data-lpid')] = inp.value; });
+  if(isSameDayRerender){
+    document.querySelectorAll('#leftoverOutForm [data-lpid]').forEach(inp=>{ unsavedLeftoverInputs_[inp.getAttribute('data-lpid')] = inp.value; });
+  }
+  leftoverFormRenderedForDate_ = currentDate;
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
   // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
   document.getElementById('leftoverOutForm').innerHTML = '<div class="loading">กำลังโหลด…</div>';

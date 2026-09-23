@@ -5707,6 +5707,16 @@ async function renderLotList(preloadedLots){
     }
     try{
       const updated = await writeRootArrayOp_('rawLots', {remove:{matchField:'id', matchValue:id}}, arr=>{rawLotsCache_=arr;});
+      // ถ้าลบล็อตนี้แล้วไม่เหลือ rawLots ของบิลเดียวกันอีกเลย (ลบทีละรายการจนหมดบิล ไม่ใช่กด "ลบทั้งบิล") ต้องเก็บกวาด
+      // lotProductBills/lotTransportBills ของบิลนี้ตามไปด้วย ไม่งั้นจะเหลือ "บิลลอย" ค้างอยู่ในสรุปบิลวันนี้ทั้งที่ไม่มีล็อต
+      // จริงให้ดูรายละเอียดอีกต่อไป (เหมือนพฤติกรรมที่ deleteWholeBill() ทำอยู่แล้วตอนลบทั้งบิลทีเดียว)
+      const billId = lot ? (lot.billId||lot.id) : null;
+      if(billId && !updated.some(l=>(l.billId||l.id)===billId)){
+        try{
+          await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;});
+          await writeRootArrayOp_('lotTransportBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotTransportBillsCache_=arr;});
+        }catch(e){ /* เงียบไว้ — ล็อตหลักลบสำเร็จแล้ว บิลลอยที่อาจเหลือแก้ได้เองทีหลังจากปุ่มลบในการ์ดบิลสินค้าล็อต */ }
+      }
       showToast('ลบล็อตแล้ว');
       renderLotList(updated);
     }catch(e){

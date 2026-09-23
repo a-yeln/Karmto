@@ -5500,6 +5500,8 @@ async function refreshLotListAfterWriteFailure_(){
     rawLotsCache_ = null;
     const freshLots = await loadRawLots();
     await renderLotList(freshLots);
+    await renderLotSettleCards_();
+    await renderPendingStockValueCard_();
   }catch(e){ /* โหลดสดไม่สำเร็จก็แค่ปล่อยจอเดิมไว้ ไม่ต้องทำอะไรเพิ่ม ผู้ใช้กดลองใหม่/รีเฟรชเองได้ */ }
 }
 async function renderLotList(preloadedLots){

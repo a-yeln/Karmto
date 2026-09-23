@@ -5070,7 +5070,10 @@ let lotSettleInFlight_ = false;
 // หรือเรียกจากลูปตัดต้นทุนอัตโนมัติใน renderLotSettleCards_ (auto:true) — ส่งค่ากลับ {ok, ...} ให้ผู้เรียกเช็คได้ว่าสำเร็จไหม
 // โดยไม่ต้องพึ่ง DOM/toast เป็นสัญญาณ (auto ไม่มีปุ่มให้ผูก event, และ toast อาจถูกเรียกซ้อนกันหลายครั้งในลูปเดียว)
 async function confirmLotSettle_(productId, opts = {}){
-  if(lotSettleInFlight_) return {ok:false};
+  // opts.auto เงียบไว้ตอนโดนบล็อก (รอบเรนเดอร์ถัดไปจะลองใหม่เองอยู่แล้ว ไม่ต้องรบกวน) แต่กดเองต้องมี feedback เสมอ — เดิม
+  // return เงียบๆ ตรงนี้ ตอนนี้ตัดต้นทุนอัตโนมัติทำงานถี่ขึ้นมาก (ทุกครั้งที่การ์ดเรนเดอร์) กดปุ่มเองพอดีตอน flag ติดอยู่
+  // บ่อยกว่าเดิมมาก ถ้าไม่มี toast จะดูเหมือนกดแล้วไม่มีอะไรเกิดขึ้นเลย ทั้งที่จริงๆ แค่ต้องรอให้รอบก่อนหน้าเขียนเสร็จก่อน
+  if(lotSettleInFlight_){ if(!opts.auto) showToast('กำลังตัดต้นทุนอยู่ รอสักครู่แล้วลองใหม่'); return {ok:false}; }
   const input = document.querySelector(`[data-lotsettleqty="${productId}"]`);
   let useQty = opts.qty != null ? Number(opts.qty) : Number((input && input.value) || 0);
   if(sellableUnitIsWhole_(productId)) useQty = Math.round(useQty);
@@ -5239,7 +5242,10 @@ async function confirmLotSettle_(productId, opts = {}){
 // ไม่เดา/กะประมาณตัวเลขเอง — ไม่มีขั้น rawLots ให้ต้อง rollback เหมือน confirmLotSettle_ เพราะ costedQty ไม่ได้ถูกแตะเลย
 let lotBackfillInFlight_ = false;
 async function backfillLotCostGap_(lotId, drawId){
-  if(lotSettleInFlight_ || lotBackfillInFlight_) return;
+  // ต้องมี feedback เสมอตอนโดนบล็อก (ปุ่มนี้กดเองล้วนๆ ไม่มีโหมด auto ให้เงียบได้แบบ confirmLotSettle_) — เดิม return
+  // เงียบๆ ตรงนี้ ทำให้ตอนตัดต้นทุนอัตโนมัติกำลังทำงานอยู่พอดี (ซึ่งตอนนี้ทำงานถี่ขึ้นมากหลังเพิ่มระบบตัดอัตโนมัติ) กดปุ่ม
+  // เติมต้นทุนแล้วดูเหมือนไม่มีอะไรเกิดขึ้นเลย ทั้งที่จริงๆ แค่ต้องรอให้รอบตัดต้นทุน/เติมต้นทุนอื่นที่กำลังทำอยู่เสร็จก่อน
+  if(lotSettleInFlight_ || lotBackfillInFlight_){ showToast('กำลังบันทึกรายการอื่นอยู่ รอสักครู่แล้วลองใหม่'); return; }
   lotBackfillInFlight_ = true;
   try{
     const lots = await loadRawLots();

@@ -7954,6 +7954,11 @@ async function computeDataGaps(){
   // "เติมต้นทุนที่ขาด" ซ้ำ เงินซื้อวัตถุดิบเลยพองเกินความจริงโดยไม่มีใครรู้)
   const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots, dayMap);
   gaps.push(...costedAuditProblems.map(pr=>({iso: today, type: pr.type==='duplicate' ? 'lot-costed-duplicate' : 'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
+  // ของที่ขายออกไปแล้วจริงแต่ยังไม่ถูกตัดต้นทุนให้ (ดูคอมเมนต์ที่ computeLotOverdueSoldGaps_) — ผูกกับ "วันนี้จริงๆ" เสมอ
+  // เหมือน staleGaps ด้านบน ไม่ใช่วันใดวันหนึ่งในประวัติ
+  const todayDayData = dayMap[today] || await loadDay(today);
+  const overdueSoldGaps = await computeLotOverdueSoldGaps_(rawLots, today, todayDayData);
+  gaps.push(...overdueSoldGaps);
   return gaps;
 }
 // ตรวจสอบว่ารอบเบิกที่ตัดต้นทุนไปแล้ว (costedQty>0) มีรายการต้นทุนซื้อจริงบันทึกไว้รองรับครบไหม — เคยเจอเคสจริงที่การเขียน
@@ -8036,6 +8041,30 @@ function computeLotStaleGaps_(rawLots, today){
   });
   return gaps;
 }
+// เช็ค "ของที่เบิกจากล็อตมาแล้ว ขายออกไปจริงแล้ว (เหลือในมือน้อยกว่าที่ค้างตัดต้นทุนอยู่) แต่ยังไม่ถูกตัดต้นทุนให้" — ปกติ
+// ส่วนนี้ถูกตัดต้นทุนอัตโนมัติทันทีตอนเปิดการ์ด "ตัดต้นทุนสต็อกล็อต" (renderLotSettleCards_) แต่ถ้าไม่มีใครเปิดหน้านั้นเลย
+// (เช่น เช็คแต่แดชบอร์ด ไม่เคยเข้าแท็บต้นทุนซื้อ) ก้อนนี้จะค้างเงียบๆ ไม่มีใครเห็นเลย — แจ้งเตือนแยกไว้ตรงนี้ ครอบคลุมทั้ง
+// แดชบอร์ดและแบนเนอร์หน้าต้นทุนซื้อ เหมือน check ขาด/เกินอื่นๆ ที่มีอยู่แล้ว (computeLotCostedQtyAudit_) — เชื่อเฉพาะตอน
+// "เหลือ" ของวันนี้ถูกบันทึกไว้จริง (ไม่ใช่ fallback ไปเอาของเมื่อวาน/0) กันพองเท็จแบบเดียวกับตอนตัดต้นทุนอัตโนมัติ (ดูคอมเมนต์
+// ที่ leftoverRecordedToday ใน computeLotSettleRows_) — ผูกกับ "วันนี้จริงๆ" เสมอ ไม่ใช่วันที่กำลังดูย้อนหลังอยู่
+async function computeLotOverdueSoldGaps_(rawLots, today, todayDayData){
+  const productIdsWithLots = Array.from(new Set(rawLots.map(l=>l.productId)));
+  const gaps = [];
+  for(const pid of productIdsWithLots){
+    const leftoverRecordedToday = Object.prototype.hasOwnProperty.call(todayDayData.leftoverOut||{}, pid);
+    if(!leftoverRecordedToday) continue;
+    const {qty:pendingQty} = await lotPendingStock_(pid, rawLots, today);
+    if(pendingQty<=0.001) continue;
+    const onHand = await currentLeftoverOnHand_(pid, today, todayDayData);
+    if(onHand==null) continue;
+    const overdueSoldQty = Math.round(Math.max(0, pendingQty-Math.max(0,onHand))*100)/100;
+    if(overdueSoldQty<=0.001) continue;
+    const p = PRODUCTS.find(x=>x.id===pid);
+    if(!p) continue;
+    gaps.push({iso: today, type:'lot-overdue-sold', productId:pid, text:`${p.emoji}${p.name}: ขายออกไปแล้ว ${overdueSoldQty} ${p.unit} (เหลือจริง ${Math.max(0,onHand)} ${p.unit} น้อยกว่าที่ค้างตัดต้นทุนอยู่ ${pendingQty} ${p.unit}) แต่ยังไม่ถูกตัดต้นทุนให้ — เปิดแท็บ "ต้นทุนซื้อ" ให้ระบบตัดต้นทุนอัตโนมัติให้`, tab:'purchase'});
+  }
+  return gaps;
+}
 // เช็คเฉพาะ "วันที่กำลังดูอยู่" วันเดียว (เร็วกว่า computeDataGaps() ที่สแกนทุกวันในระบบมาก) ใช้แสดงในการ์ด "รายการต้นทุนซื้อวันนี้"
 // โดยเฉพาะ ให้เห็นแจ้งเตือนของวันนั้นๆ ทันทีโดยไม่ต้องไปเปิดแดชบอร์ดแยกต่างหาก
 let purchaseGapsSeq_ = 0;
@@ -8060,6 +8089,8 @@ async function renderPurchaseGapsToday_(){
     // เท่านั้น กันสับสน (ต่างจาก costedQty audit ด้านบนตรงที่อันนี้ความหมายผูกกับ "วันนี้" จริงๆ)
     if(iso===todayISO()){
       gaps = gaps.concat(computeLotStaleGaps_(rawLots, iso));
+      gaps = gaps.concat(await computeLotOverdueSoldGaps_(rawLots, iso, dayData));
+      if(mySeq !== purchaseGapsSeq_) return;
     }
     if(gaps.length===0 && lotBackfillDoneLog_.length===0){ el.innerHTML=''; return; }
     // กล่องสีเขียว: log รายการที่เติมต้นทุนสำเร็จไปแล้วในหน้านี้ (ดูคอมเมนต์ที่ lotBackfillDoneLog_) — ค้างให้เห็นตลอด

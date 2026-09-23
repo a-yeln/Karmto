@@ -5005,23 +5005,13 @@ async function computeLotSettleRows_(lots){
     const onHand = await currentLeftoverOnHand_(pid, currentDate, dayData);
     const normalPendingQty = onHand!=null ? Math.min(pendingQty, Math.max(0, onHand)) : pendingQty;
     const overdueSoldQty = onHand!=null ? Math.round(Math.max(0, pendingQty - Math.max(0, onHand))*100)/100 : 0;
-    // ค่าแนะนำ/ตัดอัตโนมัติควรครอบคลุม "ของที่ขายไปแล้วแต่ยังไม่ตัดต้นทุน" (overdueSoldQty) ด้วย ไม่ใช่แค่ยอดต้องการวันนี้
-    // (remainingNeedToday) เฉยๆ — แต่ต้องเชื่อได้จริงๆ ก่อน: currentLeftoverOnHand_() เวลาไม่มีใครบันทึก "เหลือ" ของวันนี้ไว้เลย
-    // จะ fallback ไปใช้ของเมื่อวาน หรือ 0 ไปเรื่อยๆ (ไม่มีทางคืน null ให้สินค้าที่อยู่ใน LEFTOVER_IDS) — ถ้าเผื่อเป็น 0 เฉยๆ
-    // เพราะยังไม่มีใครกรอกเลย (ไม่ใช่ยืนยันแล้วว่าเหลือ 0 จริง) จะทำให้ overdueSoldQty พองเท่ากับ pendingQty ทั้งก้อนแบบผิดๆ
-    // แล้วไปตัดต้นทุนอัตโนมัติเกินจริง (เคยเจอตอนทดสอบ: สินค้าที่ไม่เคยบันทึกของเหลือเลยโดนตัดต้นทุนทั้งก้อนทันที) — ต้อง
-    // เช็คว่า "เหลือ" ของวันนี้ถูกบันทึกไว้จริงๆ (ไม่ใช่ fallback) ก่อนถึงจะเอา overdueSoldQty มารวมกับยอดตัดอัตโนมัติได้
-    const leftoverRecordedToday = Object.prototype.hasOwnProperty.call(dayData.leftoverOut||{}, pid);
-    const trustedOverdueSoldQty = leftoverRecordedToday ? overdueSoldQty : 0;
-    const neededPlusOverdue = Math.round((remainingNeedToday + trustedOverdueSoldQty)*100)/100;
-    const suggested = neededPlusOverdue>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, neededPlusOverdue)) : Math.round(Math.min(pendingQty, neededPlusOverdue)*100)/100) : 0;
-    // matched=true คือ "ไม่มีอะไรด่วนต้องตัดแล้ว" ทั้งยอดที่ต้องการวันนี้ (remainingNeedToday) และของที่ขายไปแล้วแต่ยังไม่ตัด
-    // (trustedOverdueSoldQty) ต้องเป็น 0 ทั้งคู่ถึงจะถือว่า "ถึง" แล้ว — เดิมเช็คแค่ remainingNeedToday เลยมีเคสที่ overdueSoldQty
-    // ยังค้างอยู่จริง (เงินที่จ่ายไปแล้วยังไม่บันทึกเป็นต้นทุน) แต่ถูกพับซ่อนไว้ในโซน "ไม่ด่วน" ทั้งที่จริงๆ ด่วนกว่าของค้างธรรมดา
-    // ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้ ไม่ตัดต้นทุนอัตโนมัติให้ (นี่คือของค้างเก่า/backlog ไม่ใช่ของที่ใช้จริง
-    // วันนี้) สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
-    // (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
-    const matched = remainingNeedToday<=0 && trustedOverdueSoldQty<=0.001;
+    // เดิมเคยเอา overdueSoldQty (ของที่ขายไปแล้วแต่ยังไม่ตัดต้นทุน) มารวมเข้ากับยอดตัดต้นทุนอัตโนมัติของวันนี้ด้วย — ยกเลิกแล้ว
+    // เพราะทำให้ยอดต้นทุนที่ตัดอัตโนมัติ "วันนี้" พองเกินยอดออเดอร์จริงของวันนั้นแบบไม่มีใครรู้ตัวล่วงหน้า (ดึงของค้างเก่าจาก
+    // วันอื่นมาปนกับของวันนี้เงียบๆ) ผู้ใช้เจอปัญหาจริงว่าออเดอร์วันนั้นมีแค่ 1 แต่ระบบไปตัดต้นทุนรวม 3 — ตอนนี้ระบบตัดต้นทุน
+    // อัตโนมัติเฉพาะยอดที่ต้องใช้จริงวันนี้ (remainingNeedToday) เท่านั้น ส่วน overdueSoldQty ยังคงคำนวณ/โชว์เตือนไว้เหมือนเดิม
+    // (แถวนี้เอง + การ์ดแดชบอร์ด/แบนเนอร์หน้าต้นทุนซื้อ) แต่ต้องกดตัดเองเสมอ ผู้ใช้จะได้รู้ตัวชัดเจนว่ากำลังตัดของเก่าอยู่
+    const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
+    const matched = remainingNeedToday<=0;
     rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched});
   }
   return rows;
@@ -8041,12 +8031,12 @@ function computeLotStaleGaps_(rawLots, today){
   });
   return gaps;
 }
-// เช็ค "ของที่เบิกจากล็อตมาแล้ว ขายออกไปจริงแล้ว (เหลือในมือน้อยกว่าที่ค้างตัดต้นทุนอยู่) แต่ยังไม่ถูกตัดต้นทุนให้" — ปกติ
-// ส่วนนี้ถูกตัดต้นทุนอัตโนมัติทันทีตอนเปิดการ์ด "ตัดต้นทุนสต็อกล็อต" (renderLotSettleCards_) แต่ถ้าไม่มีใครเปิดหน้านั้นเลย
-// (เช่น เช็คแต่แดชบอร์ด ไม่เคยเข้าแท็บต้นทุนซื้อ) ก้อนนี้จะค้างเงียบๆ ไม่มีใครเห็นเลย — แจ้งเตือนแยกไว้ตรงนี้ ครอบคลุมทั้ง
-// แดชบอร์ดและแบนเนอร์หน้าต้นทุนซื้อ เหมือน check ขาด/เกินอื่นๆ ที่มีอยู่แล้ว (computeLotCostedQtyAudit_) — เชื่อเฉพาะตอน
-// "เหลือ" ของวันนี้ถูกบันทึกไว้จริง (ไม่ใช่ fallback ไปเอาของเมื่อวาน/0) กันพองเท็จแบบเดียวกับตอนตัดต้นทุนอัตโนมัติ (ดูคอมเมนต์
-// ที่ leftoverRecordedToday ใน computeLotSettleRows_) — ผูกกับ "วันนี้จริงๆ" เสมอ ไม่ใช่วันที่กำลังดูย้อนหลังอยู่
+// เช็ค "ของที่เบิกจากล็อตมาแล้ว ขายออกไปจริงแล้ว (เหลือในมือน้อยกว่าที่ค้างตัดต้นทุนอยู่) แต่ยังไม่ถูกตัดต้นทุนให้" — ก้อนนี้
+// "ไม่" ตัดต้นทุนอัตโนมัติให้ (เคยลองทำอัตโนมัติแล้วยกเลิกไป — ดูคอมเมนต์ที่ suggested/matched ใน computeLotSettleRows_ —
+// เพราะทำให้ยอดตัดต้นทุน "วันนี้" พองเกินยอดออเดอร์จริงแบบไม่รู้ตัว ต้องให้ผู้ใช้กดยืนยันเองเสมอ) ถ้าไม่มีใครเปิดแท็บต้นทุนซื้อ
+// เลยก็จะไม่มีใครเห็นก้อนนี้เลย — แจ้งเตือนแยกไว้ตรงนี้ ครอบคลุมทั้งแดชบอร์ดและแบนเนอร์หน้าต้นทุนซื้อ เหมือน check ขาด/เกิน
+// อื่นๆ ที่มีอยู่แล้ว (computeLotCostedQtyAudit_) — เชื่อเฉพาะตอน "เหลือ" ของวันนี้ถูกบันทึกไว้จริง (ไม่ใช่ fallback ไปเอาของ
+// เมื่อวาน/0) กันพองเท็จ — ผูกกับ "วันนี้จริงๆ" เสมอ ไม่ใช่วันที่กำลังดูย้อนหลังอยู่
 async function computeLotOverdueSoldGaps_(rawLots, today, todayDayData){
   const productIdsWithLots = Array.from(new Set(rawLots.map(l=>l.productId)));
   const gaps = [];
@@ -8061,7 +8051,7 @@ async function computeLotOverdueSoldGaps_(rawLots, today, todayDayData){
     if(overdueSoldQty<=0.001) continue;
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    gaps.push({iso: today, type:'lot-overdue-sold', productId:pid, text:`${p.emoji}${p.name}: ขายออกไปแล้ว ${overdueSoldQty} ${p.unit} (เหลือจริง ${Math.max(0,onHand)} ${p.unit} น้อยกว่าที่ค้างตัดต้นทุนอยู่ ${pendingQty} ${p.unit}) แต่ยังไม่ถูกตัดต้นทุนให้ — เปิดแท็บ "ต้นทุนซื้อ" ให้ระบบตัดต้นทุนอัตโนมัติให้`, tab:'purchase'});
+    gaps.push({iso: today, type:'lot-overdue-sold', productId:pid, text:`${p.emoji}${p.name}: ขายออกไปแล้ว ${overdueSoldQty} ${p.unit} (เหลือจริง ${Math.max(0,onHand)} ${p.unit} น้อยกว่าที่ค้างตัดต้นทุนอยู่ ${pendingQty} ${p.unit}) แต่ยังไม่ถูกตัดต้นทุนให้ — ไปที่แท็บ "ต้นทุนซื้อ" การ์ด "ตัดต้นทุนสต็อกล็อต" กดขยาย "ไม่ด่วน" แล้วกด ✅ ตัด เองได้เลย (ไม่ตัดอัตโนมัติให้ ต้องยืนยันเองเสมอ กันตัดต้นทุนของเก่าปนกับยอดวันนี้โดยไม่รู้ตัว)`, tab:'purchase'});
   }
   return gaps;
 }

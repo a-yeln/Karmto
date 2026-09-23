@@ -5241,6 +5241,11 @@ async function confirmLotSettle_(productId, opts = {}){
 // เลย (มันถูกอยู่แล้ว นั่นคือต้นเหตุของปัญหา) แค่สร้างรายการต้นทุนซื้อย้อนหลังให้ตรงกับยอดที่ขาด โดยใช้ผู้ขาย/ราคาจากล็อตจริง
 // ไม่เดา/กะประมาณตัวเลขเอง — ไม่มีขั้น rawLots ให้ต้อง rollback เหมือน confirmLotSettle_ เพราะ costedQty ไม่ได้ถูกแตะเลย
 let lotBackfillInFlight_ = false;
+// เก็บ log รายการที่เติมต้นทุนสำเร็จไว้ในหน่วยความจำ (หายเมื่อรีเฟรชหน้า) — เพราะรายการที่เติมมักถูกบันทึกลง "วันที่เบิกจริง"
+// ซึ่งเป็นคนละวันกับวันที่กำลังดูอยู่ตอนกดปุ่ม (เจตนา ให้ตรงกับวันที่ต้นทุนเกิดขึ้นจริง) ถ้าพึ่ง toast อย่างเดียว (หายเองใน
+// 1.6 วิ) คนกดเติมหลายรายการติดกันจะจำไม่ได้ว่าเพิ่งเติมอะไรไปวันไหนบ้าง เปิดไปดูวันที่ตัวเองอยู่ก็ไม่เจอเพราะมันบันทึกไปวันอื่น
+// เข้าใจผิดว่าไม่สำเร็จ — โชว์เป็นกล่องสรุปสีเขียวค้างไว้ในการ์ดแจ้งเตือนแทน ให้เห็นชัดว่าเติมอะไรไปวันไหนบ้างจริงๆ
+let lotBackfillDoneLog_ = [];
 async function backfillLotCostGap_(lotId, drawId){
   // ต้องมี feedback เสมอตอนโดนบล็อก (ปุ่มนี้กดเองล้วนๆ ไม่มีโหมด auto ให้เงียบได้แบบ confirmLotSettle_) — เดิม return
   // เงียบๆ ตรงนี้ ทำให้ตอนตัดต้นทุนอัตโนมัติกำลังทำงานอยู่พอดี (ซึ่งตอนนี้ทำงานถี่ขึ้นมากหลังเพิ่มระบบตัดอัตโนมัติ) กดปุ่ม
@@ -5276,11 +5281,12 @@ async function backfillLotCostGap_(lotId, drawId){
       const fresh2 = await writeDayArrayOp_(iso, 'purchases', {push:entry});
       if(iso===currentDate) dayData = fresh2;
       showToast(`เติมต้นทุนย้อนหลังแล้ว: ${p?p.name:''} ${missing}${p?p.unit:''} ลงวันที่ ${formatDDMMYYYY(iso)}`);
+      lotBackfillDoneLog_.push({text:`${p?p.emoji:''}${p?p.name:''} ${missing}${p?p.unit:''} ลงวันที่ ${formatDDMMYYYY(iso)}`});
     }catch(e){
       // withApiTimeout ไม่ได้ยกเลิก request จริง — เช็คกับเซิร์ฟเวอร์ตรงๆ ก่อนบอกว่าพัง เผื่อจริงๆ บันทึกสำเร็จแล้วแค่ตอบกลับช้า
       let allSaved = false;
       try{ const r = await window.storage.get('day:'+iso); const fd = JSON.parse(r.value); allSaved = (fd.purchases||[]).some(x=>x.id===entry.id); }catch(checkErr){ /* เช็คไม่ได้ก็ถือว่ายังไม่ยืนยัน */ }
-      if(allSaved){ showToast('เติมต้นทุนย้อนหลังสำเร็จจริง (แค่ตอบกลับช้า)'); }
+      if(allSaved){ showToast('เติมต้นทุนย้อนหลังสำเร็จจริง (แค่ตอบกลับช้า)'); lotBackfillDoneLog_.push({text:`${p?p.emoji:''}${p?p.name:''} ${missing}${p?p.unit:''} ลงวันที่ ${formatDDMMYYYY(iso)}`}); }
       else { showToast('เติมต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); return; }
     }
     if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
@@ -7994,13 +8000,20 @@ async function renderPurchaseGapsToday_(){
     if(iso===todayISO()){
       gaps = gaps.concat(computeLotStaleGaps_(rawLots, iso));
     }
-    if(gaps.length===0){ el.innerHTML=''; return; }
-    el.innerHTML = `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
+    if(gaps.length===0 && lotBackfillDoneLog_.length===0){ el.innerHTML=''; return; }
+    // กล่องสีเขียว: log รายการที่เติมต้นทุนสำเร็จไปแล้วในหน้านี้ (ดูคอมเมนต์ที่ lotBackfillDoneLog_) — ค้างให้เห็นตลอด
+    // (ไม่ใช่แค่ toast แว้บเดียว) เพราะรายการมักถูกบันทึกไปคนละวันกับที่กำลังดูอยู่ตอนกด ถ้าไม่มีอะไรค้างให้เห็นเลยจะดู
+    // เหมือนกดแล้วไม่มีอะไรเกิดขึ้น ทั้งที่จริงๆ สำเร็จแล้วแค่ไปโผล่ในรายการต้นทุนซื้อของอีกวันหนึ่ง
+    const doneHtml = lotBackfillDoneLog_.length ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">
+      ${lotBackfillDoneLog_.map(d=>`<div style="margin-bottom:2px;">✅ เติมต้นทุนแล้ว: ${d.text} (เช็คได้ที่รายการต้นทุนซื้อของวันนั้น)</div>`).join('')}
+    </div>` : '';
+    const gapsHtml = gaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
       ${gaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="flex:1 1 auto;">🔔 ${g.text}</span>
         ${g.type==='lot-costed-orphan' ? `<button class="btn small" data-backfilllotcost="${g.lotId}|${g.drawId}" style="width:auto;flex:none;">🔧 เติมต้นทุนที่ขาด</button>` : ''}
       </div>`).join('')}
-    </div>`;
+    </div>` : '';
+    el.innerHTML = doneHtml + gapsHtml;
     el.querySelectorAll('[data-backfilllotcost]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const [lotId, drawId] = btn.getAttribute('data-backfilllotcost').split('|');
       btn.disabled = true;

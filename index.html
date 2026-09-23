@@ -5004,6 +5004,7 @@ async function renderLotSettleCards_(){
     </div>
     <div id="lotSettleBody" style="display:${lotSettleCardOpen?'':'none'};">
     <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้ายังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ใช้จริงวันนี้แล้วกดตัด (FIFO จากรอบเบิกเก่าสุดก่อน) ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำ แก้ได้</div>
+    ${currentDate!==todayISO() ? `<div class="hint" style="color:var(--danger);margin-top:4px;">📅 กำลังดูวันที่ ${formatDDMMYYYY(currentDate)} — ตัวเลข "ค้าง" ด้านล่างนับเฉพาะของที่เบิกมาถึงวันนี้เท่านั้น ไม่รวมรอบเบิกของวันหลังจากนี้ที่ยังไม่ตัดต้นทุน (ดูยอดค้างตัดต้นทุนรวมทั้งหมดปัจจุบันได้ที่การ์ด "เงินค้างสต็อก" ด้านบนแทน หรือสลับไปวันปัจจุบันเพื่อตัดต้นทุนรอบเบิกใหม่กว่านี้)</div>` : ''}
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
     ${matchedRows.length ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
       <div id="lotSettleFoldToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">

@@ -2159,6 +2159,15 @@ async function renderMessages(){
 // iso/data เป็น parameter ไม่บังคับ (ไม่ใส่ = ใช้ currentDate/dayData สดปัจจุบัน เหมือนเดิม สำหรับตอนเรียกจากการเรนเดอร์หน้า
 // ของเหลือค้างตรงๆ) — แต่ autoFillLeftoverIfNeeded() ด้านล่างจะส่งค่าที่จับไว้ตั้งแต่ต้นมาให้เสมอ กันปัญหา currentDate
 // เปลี่ยนไปแล้วระหว่างที่ฟังก์ชันนี้ยัง await โหลดของหลายจุดอยู่ (เคยเป็นสาเหตุของบั๊กข้อมูลข้ามวันเพี้ยนมาแล้ว)
+// เช็คว่ามี "ของใหม่" เข้ามาของสินค้านี้ในวันนี้ไหม (เบิกจากล็อต หรือบันทึกต้นทุนซื้อโดยตรง) — ถ้ามี แปลว่าของเหลือที่เห็นวันนี้
+// ปนของใหม่เข้ามาด้วยแน่ๆ ไม่ใช่ก้อนเดิมที่ค้างมาจากวันก่อนล้วนๆ อีกต่อไป ต้องเริ่มนับอายุ "เสี่ยงเสีย" ใหม่ — เดิมนับอายุต่อเนื่อง
+// ข้ามวันไปเรื่อยๆ แค่เช็คว่า "เหลือ" ไม่เป็น 0 (ไม่สนว่าเป็นของก้อนเดิมจริงไหม) ทำให้ธุรกิจที่ขายของหมดเกือบทุกวันแล้วมีของใหม่
+// เข้ามาเรื่อยๆ เห็นอายุพองขึ้นเป็น 3-6 วันทั้งที่ของจริงหมุนใหม่ทุกวัน ไม่มีของเก่าค้างแช่จริงขนาดนั้น
+async function hadNewStockToday_(pid, iso, data, rawLots){
+  if((data.purchases||[]).some(e=>e.productId===pid)) return true;
+  if(rawLots && rawLots.some(l=>l.productId===pid && (l.draws||[]).some(d=>d.date===iso))) return true;
+  return false;
+}
 // จำนวน "เหลือ" ที่มีอยู่จริงตอนนี้สำหรับสินค้านี้ ณ วันที่กำหนด — ถ้าวันนั้นเคยบันทึกของเหลือไว้แล้วใช้ค่าที่บันทึกไว้ตรงๆ
 // ถ้ายังไม่เคยบันทึกใช้ของที่ยกมาจากเมื่อวาน (carriedIn) แทน (ยังไม่ได้ปรับอะไรของวันนี้เลย) — ใช้เทียบกับค้างตัดต้นทุน เพื่อแยก
 // "ของที่ยังอยู่ในมือ รอตัดต้นทุนตามปกติ" ออกจาก "ของที่ขายออกไปแล้วแต่ยังไม่เคยตัดต้นทุนเลย" (ตัดต้นทุนตกหล่นไปจากที่ควรทำ)
@@ -2247,6 +2256,7 @@ async function renderLeftover(){
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
   // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
   document.getElementById('leftoverOutForm').innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  const rawLotsForLeftover = await loadRawLots();
   const rowsHtml = await Promise.all(LEFTOVER_IDS.map(async id=>{
     const p=PRODUCTS.find(x=>x.id===id);
     const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, id);
@@ -2260,7 +2270,10 @@ async function renderLeftover(){
     // ของสดที่เบิก/ทำเผื่อไว้แล้วเหลือค้างข้ามวัน มีความเสี่ยงเสื่อมสภาพ — ใช้ "ของที่ยังตกค้างอยู่จริงตอนนี้" เป็นตัวตั้ง ไม่ใช่แค่ carriedIn (ตัวเลขคงที่จากเมื่อวาน)
     // เพราะถ้าวันนี้เคยบันทึกของเหลือ/ตัดของเสียไปแล้ว ตัวเลขที่ตกค้างจริงจะเปลี่ยนไปจาก carriedIn — ต้องอิง dayData.leftoverOut ที่บันทึกล่าสุดแทน
     const currentOnHand = alreadyRecorded ? Number(dayData.leftoverOut[id]||0) : Number(carriedIn||0);
-    const sinceForRow = dayData.leftoverSince[id] || (Number(carriedIn||0)>0 ? (prevSince[id] || prevIso) : null);
+    // สืบอายุต่อจากเมื่อวานได้ก็ต่อเมื่อไม่มีของใหม่เข้ามาผสมวันนี้เลย (ดูคอมเมนต์ hadNewStockToday_) ไม่งั้นจะนับอายุพองขึ้นเรื่อยๆ
+    // ทั้งที่ธุรกิจขายของหมดเกือบทุกวันแล้วมีของใหม่มาแทนที่ ไม่ใช่ของเก่าก้อนเดิมที่แช่ค้างไว้จริงนานขนาดนั้น
+    const gotNewStockRow = await hadNewStockToday_(id, currentDate, dayData, rawLotsForLeftover);
+    const sinceForRow = dayData.leftoverSince[id] || ((Number(carriedIn||0)>0 && !gotNewStockRow) ? (prevSince[id] || prevIso) : null);
     const ageDays = (currentOnHand>0 && sinceForRow) ? daysBetweenISO(sinceForRow, currentDate) : 0;
     const shelfLimit = settings.shelfLifeDays[id] || DEFAULT_SHELF_LIFE_DAYS[id] || 2;
     const atRisk = currentOnHand>0 && ageDays>=shelfLimit;
@@ -2381,11 +2394,13 @@ async function renderLeftover(){
         leftoverOps.push({path:['leftoverSince', pid], deleteKey:true});
       } else if(!data.leftoverSince[pid]){
         // ยังไม่เคยมีวันที่เริ่มค้างของวันนี้ (บันทึกของเสีย/เคลมเป็นการกรอกของเหลือครั้งแรกของวันนี้) — สืบอายุต่อจากเมื่อวานเหมือน saveLeftover()
+        // เฉพาะตอนไม่มีของใหม่เข้ามาผสมด้วยวันนี้เท่านั้น (ดูคอมเมนต์ hadNewStockToday_)
         const prevIso = addDaysISO(iso,-1);
         const prevDayX = await loadDay(prevIso);
         const prevSinceX = prevDayX.leftoverSince || {};
         const leftInX = prevDayX.leftoverOut || {};
-        leftoverOps.push({path:['leftoverSince', pid], value: (Number(leftInX[pid]||0)>0) ? (prevSinceX[pid] || prevIso) : iso});
+        const gotNewStockX = await hadNewStockToday_(pid, iso, data, await loadRawLots());
+        leftoverOps.push({path:['leftoverSince', pid], value: (Number(leftInX[pid]||0)>0 && !gotNewStockX) ? (prevSinceX[pid] || prevIso) : iso});
       }
       if(lpidInput) lpidInput.value = remain||remain===0?remain:'';
       // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps) แทนแก้ data.leftoverOut/leftoverSince เองแล้ว saveDay() ทั้งก้อน
@@ -2489,18 +2504,22 @@ async function saveLeftover(){
   const prevDay = await loadDay(prevIso);
   const leftIn = prevDay.leftoverOut || {};
   const prevSince = prevDay.leftoverSince || {};
+  const rawLotsForSince = await loadRawLots();
   const ops = [];
-  document.querySelectorAll('[data-lpid]').forEach(inp=>{
+  const inputs = Array.from(document.querySelectorAll('[data-lpid]'));
+  for(const inp of inputs){
     const pid = inp.getAttribute('data-lpid');
     const newVal = Number(inp.value||0);
     ops.push({path:['leftoverOut', pid], value:newVal});
     if(newVal<=0){
       ops.push({path:['leftoverSince', pid], deleteKey:true});
     } else if(!data.leftoverSince[pid]){
-      // ยังไม่เคยบันทึกวันที่เริ่มค้างของวันนี้ไว้ — ถ้ามีของยกมาจากเมื่อวานอยู่แล้วให้สืบอายุต่อจากเดิม ไม่ใช่นับ 1 ใหม่
-      ops.push({path:['leftoverSince', pid], value: (Number(leftIn[pid]||0)>0) ? (prevSince[pid] || prevIso) : iso});
+      // ยังไม่เคยบันทึกวันที่เริ่มค้างของวันนี้ไว้ — สืบอายุต่อจากเดิมได้ก็ต่อเมื่อมีของยกมาจากเมื่อวานจริง "และ" วันนี้ไม่มีของใหม่
+      // เข้ามาเพิ่มเลย (เบิกล็อต/ซื้อใหม่) ถ้ามีของใหม่เข้ามาผสมด้วย ถือว่าของเหลือวันนี้ไม่ใช่ก้อนเดิมล้วนๆ แล้ว เริ่มนับอายุใหม่
+      const gotNewStock = await hadNewStockToday_(pid, iso, data, rawLotsForSince);
+      ops.push({path:['leftoverSince', pid], value: (Number(leftIn[pid]||0)>0 && !gotNewStock) ? (prevSince[pid] || prevIso) : iso});
     }
-  });
+  }
   if(ops.length===0) return;
   const res = await window.storage.patchOps('day:'+iso, ops, false);
   const fresh = normalizeDay_(JSON.parse(res.value));
@@ -4978,13 +4997,6 @@ async function computeLotSettleRows_(lots){
     // (suggested) จะเป็น 0 ถ้าวันนี้ไม่ได้ต้องการเพิ่ม ให้ผู้ใช้กรอกจำนวนที่จะตัดเองแทน
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
-    // matched=true คือ "ถึง order วันนี้แล้ว" ไม่ว่าจะเพราะตัดต้นทุนไปแล้วครบ/เกินตามที่ต้องการ หรือเพราะวันนี้ไม่มีออเดอร์
-    // สินค้านี้เลยตั้งแต่แรก (ต้องการ=0 ถือว่า "ถึง" แล้วเหมือนกัน) — ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้ ไม่ตัดต้นทุน
-    // อัตโนมัติให้ (นี่คือของค้างเก่า/backlog ไม่ใช่ของที่ใช้จริงวันนี้) สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้
-    // เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้
-    // เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
-    const matched = remainingNeedToday<=0;
     // ค้างตัดต้นทุนจริง (pendingQty) รวมทั้งของที่ยังอยู่ในมือ (รอตัดตามรอบปกติ) และของที่ขายออกไปแล้วแต่ยังไม่เคยถูกตัด
     // ต้นทุนเลย (ตกหล่นจากที่ควรทำตอนขาย) ปนกันอยู่ — แยกสองก้อนนี้ออกจากกัน โดยเทียบกับ "เหลือ" ที่มีอยู่จริงตอนนี้ ไม่งั้นตัวเลข
     // "ค้าง" ที่โชว์เป็นหลักจะดูพองเกินของที่เหลืออยู่จริง ทำให้เข้าใจผิดว่าของหายไปไหน ทั้งที่จริงๆ ขายออกไปแล้วปกติ แค่ยังไม่ตัด
@@ -4993,6 +5005,23 @@ async function computeLotSettleRows_(lots){
     const onHand = await currentLeftoverOnHand_(pid, currentDate, dayData);
     const normalPendingQty = onHand!=null ? Math.min(pendingQty, Math.max(0, onHand)) : pendingQty;
     const overdueSoldQty = onHand!=null ? Math.round(Math.max(0, pendingQty - Math.max(0, onHand))*100)/100 : 0;
+    // ค่าแนะนำ/ตัดอัตโนมัติควรครอบคลุม "ของที่ขายไปแล้วแต่ยังไม่ตัดต้นทุน" (overdueSoldQty) ด้วย ไม่ใช่แค่ยอดต้องการวันนี้
+    // (remainingNeedToday) เฉยๆ — แต่ต้องเชื่อได้จริงๆ ก่อน: currentLeftoverOnHand_() เวลาไม่มีใครบันทึก "เหลือ" ของวันนี้ไว้เลย
+    // จะ fallback ไปใช้ของเมื่อวาน หรือ 0 ไปเรื่อยๆ (ไม่มีทางคืน null ให้สินค้าที่อยู่ใน LEFTOVER_IDS) — ถ้าเผื่อเป็น 0 เฉยๆ
+    // เพราะยังไม่มีใครกรอกเลย (ไม่ใช่ยืนยันแล้วว่าเหลือ 0 จริง) จะทำให้ overdueSoldQty พองเท่ากับ pendingQty ทั้งก้อนแบบผิดๆ
+    // แล้วไปตัดต้นทุนอัตโนมัติเกินจริง (เคยเจอตอนทดสอบ: สินค้าที่ไม่เคยบันทึกของเหลือเลยโดนตัดต้นทุนทั้งก้อนทันที) — ต้อง
+    // เช็คว่า "เหลือ" ของวันนี้ถูกบันทึกไว้จริงๆ (ไม่ใช่ fallback) ก่อนถึงจะเอา overdueSoldQty มารวมกับยอดตัดอัตโนมัติได้
+    const leftoverRecordedToday = Object.prototype.hasOwnProperty.call(dayData.leftoverOut||{}, pid);
+    const trustedOverdueSoldQty = leftoverRecordedToday ? overdueSoldQty : 0;
+    const neededPlusOverdue = Math.round((remainingNeedToday + trustedOverdueSoldQty)*100)/100;
+    const suggested = neededPlusOverdue>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, neededPlusOverdue)) : Math.round(Math.min(pendingQty, neededPlusOverdue)*100)/100) : 0;
+    // matched=true คือ "ไม่มีอะไรด่วนต้องตัดแล้ว" ทั้งยอดที่ต้องการวันนี้ (remainingNeedToday) และของที่ขายไปแล้วแต่ยังไม่ตัด
+    // (trustedOverdueSoldQty) ต้องเป็น 0 ทั้งคู่ถึงจะถือว่า "ถึง" แล้ว — เดิมเช็คแค่ remainingNeedToday เลยมีเคสที่ overdueSoldQty
+    // ยังค้างอยู่จริง (เงินที่จ่ายไปแล้วยังไม่บันทึกเป็นต้นทุน) แต่ถูกพับซ่อนไว้ในโซน "ไม่ด่วน" ทั้งที่จริงๆ ด่วนกว่าของค้างธรรมดา
+    // ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้ ไม่ตัดต้นทุนอัตโนมัติให้ (นี่คือของค้างเก่า/backlog ไม่ใช่ของที่ใช้จริง
+    // วันนี้) สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
+    // (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
+    const matched = remainingNeedToday<=0 && trustedOverdueSoldQty<=0.001;
     rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched});
   }
   return rows;

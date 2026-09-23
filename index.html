@@ -1325,7 +1325,23 @@ async function loadSettings(){
     }
   }
 }
+// saveSettings() เขียนทับ "settings" ทั้งก้อนเสมอ — settings เป็น key เดียวที่ใช้ร่วมกันของฟีเจอร์ที่ไม่เกี่ยวข้องกันเลย
+// เกือบสิบอย่าง (รายชื่อสาขา, ผู้ขายวัตถุดิบ, เจ้าหนี้/ประเภทหนี้, ประวัติราคา, ข้อมูลบิล, อายุเก็บของ, หมวดรายจ่าย ฯลฯ)
+// ถ้าแก้คนละฟีเจอร์กันใกล้ๆ กัน (สองแท็บ/สองเครื่อง หรือแค่ settings ในหน่วยความจำเครื่องนี้เก่ากว่าที่คิดตอนนั้น) ฝั่งที่
+// saveSettings() ทีหลังจะเขียนทับทั้งก้อนด้วยสำเนาที่ตัวเองมีอยู่ ทำให้การแก้ไขของอีกฝั่งหายไปเงียบๆ แบบไม่เกี่ยวข้องกันเลย
+// (เช่น เพิ่มสาขาใหม่ไป แต่ดันหายเพราะมีคนแก้ประเภทหนี้เกือบพร้อมกัน) — ใช้ writeSettingsFieldPath_() ด้านล่างแทนสำหรับ
+// การแก้ "ฟิลด์เดียว" ของ settings เสมอ (เหมือน writeDayFieldPath_ ที่ใช้กับเอกสารวัน) ยกเว้นตอนนำเข้าไฟล์สำรองทั้งก้อน
+// จริงๆ (importAllData) ที่ตั้งใจเขียนทับทั้งก้อนอยู่แล้ว จุดนั้นยังคงใช้ saveSettings() ตามเดิม
 async function saveSettings(){ await window.storage.set('settings', JSON.stringify(settings)); }
+// เขียนค่า 1 ฟิลด์ของ settings แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน saveSettings() ทั้งก้อน — path เป็นอาเรย์ของ
+// ชื่อฟิลด์ที่ไล่ตามลงไป เช่น ['branches'] หรือ ['priceHistory', pid] อัปเดตตัวแปร settings ในหน่วยความจำจากผลลัพธ์ที่
+// เซิร์ฟเวอร์ merge มาให้จริงเสมอ (ไม่ใช่แค่ค่าที่เราคิดว่าส่งไป) กันกรณี settings ในเครื่องนี้เก่ากว่าที่คิดจากการแก้ไขอื่น
+// ที่เพิ่งเกิดขึ้นที่เราไม่รู้ตัว
+async function writeSettingsFieldPath_(path, value){
+  const res = await window.storage.patchField('settings', path, value);
+  settings = JSON.parse(res.value);
+  return settings;
+}
 function priceOnDate(pid, iso){
   const hist = (settings.priceHistory[pid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
   const applicable = hist.filter(h=>h.date<=iso);
@@ -2203,6 +2219,13 @@ async function renderLeftover(){
   document.getElementById('leftoverInHeader').innerHTML = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(จากวันที่ ${formatDDMMYYYY(prevIso)})</span>`;
   document.getElementById('leftoverOutHeader').innerHTML = `👉🏻 เหลือจากวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(หักออกวันที่ ${formatDDMMYYYY(nextIso)})</span>`;
   document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
+  // เก็บค่าที่พิมพ์ค้างอยู่ในช่องกรอก "เหลือจากวันที่..." ไว้ก่อนเขียนทับ innerHTML ทั้งก้อนด้านล่าง — ฟังก์ชันนี้ถูกเรียกซ้ำจากปุ่มข้างเคียงที่ไม่
+  // เกี่ยวกับช่องกรอกพวกนี้เลย (เปิด/ปิดฟอร์มบันทึกของเสีย 🗑️, บันทึกของเสีย/เคลมสำเร็จ) แต่เดิม build ใหม่ทั้งก้อนจาก dayData ทุกครั้งที่เรียก
+  // ทำให้ตัวเลขที่เพิ่งพิมพ์แต่ยังไม่ทันกด "บันทึกของเหลือ" หายไปเงียบๆ (ผู้ใช้กดบันทึกแล้วเข้าใจว่าค่าไม่ติด ทั้งที่จริงๆ ค่าที่พิมพ์ไว้ถูกฟอร์ม
+  // ที่ re-render ทับไปก่อนหน้านั้นแล้ว) ตอนนี้จำค่าที่มีอยู่ในช่องไว้ก่อน แล้วใช้แทนค่าที่คำนวณสดจาก dayData ถ้ามีอยู่ — ผู้ใช้เห็นอะไรอยู่ในช่อง
+  // ก็ควรยังเห็นแบบนั้นต่อไป จนกว่าจะกด "บันทึกของเหลือ" เองเท่านั้น
+  const unsavedLeftoverInputs_ = {};
+  document.querySelectorAll('#leftoverOutForm [data-lpid]').forEach(inp=>{ unsavedLeftoverInputs_[inp.getAttribute('data-lpid')] = inp.value; });
   // คำนวณ "ของเหลือค้าง" แนะนำให้อัตโนมัติ = ทำได้ทั้งหมดวันนี้ (จากต้นทุนซื้อ/เบิกล็อต) ลบด้วยยอดออเดอร์รวมวันนี้ (ถือว่าคือยอดขายจริง)
   // โชว์เป็นค่าเริ่มต้นในช่องกรอกเฉพาะตอนที่ยังไม่เคยบันทึกของเหลือของวันนี้ไว้ (ถ้าบันทึกแล้วให้โชว์ค่าที่บันทึกไว้ตามเดิม ไม่ทับด้วยค่าคำนวณ) — เข้ามาหน้านี้แล้วมักจะเห็นค่าถูกเติมไว้ให้แล้วจากฟอร์มซื้อ/เบิกล็อต (autoFillLeftoverIfNeeded)
   document.getElementById('leftoverOutForm').innerHTML = '<div class="loading">กำลังโหลด…</div>';
@@ -2211,7 +2234,8 @@ async function renderLeftover(){
     const alreadyRecorded = Object.prototype.hasOwnProperty.call(dayData.leftoverOut, id);
     const {suggested, carriedIn, yieldQty, orderedQty} = await computeSuggestedLeftover(id);
     const showSuggestHint = !alreadyRecorded && (yieldQty>0 || carriedIn>0);
-    const val = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
+    const computedVal = alreadyRecorded ? dayData.leftoverOut[id] : (showSuggestHint ? suggested : '');
+    const val = Object.prototype.hasOwnProperty.call(unsavedLeftoverInputs_, id) ? unsavedLeftoverInputs_[id] : computedVal;
     // เดิมเคยเอาคำอธิบายไปซ่อนใน title (tooltip โผล่ตอน hover) เพื่อกันไม่ให้ขึ้นบรรทัดใหม่ — แต่มือถือกดค้างก็ไม่ขึ้น (tooltip ใช้ไม่ได้บนทัช)
     // เลยเอากลับมาเป็นข้อความเล็กๆ ที่เห็นได้เลยเหมือนเดิม แต่จัดให้ชิดแนวเดียวกับช่องกรอก (ไม่ใช่ทั้งแถว) ให้ดูเรียบร้อยไม่ล้นจอ
     const hintLine = showSuggestHint ? `<div class="lrow-hint">💡 ยกมา ${carriedIn} + ทำได้ ${yieldQty} − ออเดอร์ ${orderedQty} = แนะนำ ${suggested} ${p.unit}</div>` : '';
@@ -3262,7 +3286,7 @@ function renderExpenseCategorySettings(){
 async function saveExpenseCategories(){
   const inputs = document.querySelectorAll('[data-expcat]');
   settings.expenseCategories = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await saveSettings();
+  await writeSettingsFieldPath_(['expenseCategories'], settings.expenseCategories);
   showToast('บันทึกหมวดรายจ่ายแล้ว');
 }
 function addExpenseCategory(){
@@ -4263,7 +4287,7 @@ function renderPriceHistory(){
       if(!confirm('ลบประวัติราคานี้?')) return;
       const [ppid, pdate] = btn.getAttribute('data-delprice').split('|');
       settings.priceHistory[ppid] = settings.priceHistory[ppid].filter(h=>h.date!==pdate);
-      await saveSettings();
+      await writeSettingsFieldPath_(['priceHistory', ppid], settings.priceHistory[ppid]);
       renderPriceHistory();
       showToast('ลบประวัติราคาแล้ว');
     });
@@ -4278,7 +4302,7 @@ async function addPriceHistory(){
   if(!settings.priceHistory[pid]) settings.priceHistory[pid] = [];
   settings.priceHistory[pid] = settings.priceHistory[pid].filter(h=>h.date!==date);
   settings.priceHistory[pid].push({date, price});
-  await saveSettings();
+  await writeSettingsFieldPath_(['priceHistory', pid], settings.priceHistory[pid]);
   dateEl.value=''; priceEl.value='';
   renderPriceHistory();
   showToast('เพิ่มราคาแล้ว');
@@ -4297,7 +4321,7 @@ async function saveShelfLifeSettings(){
     const v = Math.max(1, Math.round(Number(inp.value||0)) || (DEFAULT_SHELF_LIFE_DAYS[pid]||2));
     settings.shelfLifeDays[pid] = v;
   });
-  await saveSettings();
+  await writeSettingsFieldPath_(['shelfLifeDays'], settings.shelfLifeDays);
   renderShelfLifeSettings();
   showToast('บันทึกอายุเก็บแล้ว');
 }
@@ -4316,7 +4340,7 @@ async function saveBillInfo(){
     sellerAddr2: document.getElementById('biSellerAddr2').value,
     sellerContact: document.getElementById('biSellerContact').value,
   };
-  await saveSettings();
+  await writeSettingsFieldPath_(['billInfo'], settings.billInfo);
   showToast('บันทึกข้อมูลบิลแล้ว');
 }
 function renderBranchSettings(){
@@ -4371,7 +4395,7 @@ async function saveBranches(){
   }));
   settings.branches = newBranches.filter(b=>b.code);
   try{
-    await saveSettings();
+    await writeSettingsFieldPath_(['branches'], settings.branches);
     refreshOrderTab();
     showToast('บันทึกรายชื่อสาขาแล้ว');
   }catch(e){
@@ -4598,7 +4622,8 @@ function renderPExpenseCategorySettings(){
 async function savePersonalCategories(){
   settings.personalIncomeCategories = Array.from(document.querySelectorAll('[data-pinccat]')).map(i=>i.value.trim()).filter(Boolean);
   settings.personalExpenseCategories = Array.from(document.querySelectorAll('[data-pexpcat]')).map(i=>i.value.trim()).filter(Boolean);
-  await saveSettings();
+  await writeSettingsFieldPath_(['personalIncomeCategories'], settings.personalIncomeCategories);
+  await writeSettingsFieldPath_(['personalExpenseCategories'], settings.personalExpenseCategories);
   showToast('บันทึกหมวดส่วนตัวแล้ว');
 }
 function addPIncomeCategory(){
@@ -5388,7 +5413,7 @@ async function addLot(){
     // ล็อต/บิลที่สำคัญบันทึกสำเร็จแล้วจริงตรงนี้ — "จำผู้ขายล่าสุด" เป็นแค่ความสะดวก ถ้าพังไม่ควรทำให้ทั้งฟอร์มดูเหมือน
     // บันทึกไม่สำเร็จ (เดี๋ยวคนกดบันทึกซ้ำ ได้ล็อต/สต็อกซ้ำสองแบบเดียวกับปัญหาข้างบน) เลยกันพังแยกไว้ต่างหาก ไม่ throw ต่อ
     settings.lastLotSeller = seller;
-    try{ await saveSettings(); }catch(_){}
+    try{ await writeSettingsFieldPath_(['lastLotSeller'], seller); }catch(_){}
     lotFormRows = [{rid: ++lotFormRowSeq, productId:'p4', qty:'', price:''}];
     document.getElementById('lotTransportTotal').value=''; document.getElementById('lotTransportPayee').value=''; document.getElementById('lotNote').value=''; document.getElementById('lotSellerNote').value='';
     renderLotItemRows();
@@ -6369,6 +6394,36 @@ let purchEditingId = null;
 // ใช้ช่องทางแก้ทีละแถวเดิม (purchEditingId) เท่านั้น เพราะมีลอจิกล็อกฟิลด์พิเศษของมันอยู่แล้ว
 let purchStagedRows = [];
 let purchBillEditingId = null; // billId ของบิลที่กำลังแก้ "ทั้งบิล" อยู่ (ถ้ามี) — ต่างจาก purchEditingId ที่แก้ทีละแถว
+// สำเนาของบิลนี้ ณ ตอนเปิดมาแก้ (จาก serializeBillRows_) — ใช้เทียบกับของจริงบนเซิร์ฟเวอร์ตอนกดบันทึก กันกรณีเปิดแก้บิล
+// เดียวกันพร้อมกันจากสองแท็บ/สองเครื่อง แล้วฝั่งที่กดบันทึกทีหลังใช้สำเนาเก่า "ลบทั้งบิล + ใส่ชุดใหม่" ทับของที่อีกฝั่งเพิ่ง
+// บันทึกไปแบบเงียบๆ (ดูฟังก์ชัน addPurchase() bill-edit branch ด้านล่าง)
+let purchBillEditingSnapshot_ = null;
+function serializeBillRows_(rows){
+  return JSON.stringify(rows.map(r=>({id:r.id, productId:r.productId, seller:r.seller||'', qty:r.qty, price:r.price, extra:r.extra||0, sellableQty:r.sellableQty!=null?r.sellableQty:null, note:r.note||''})).sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+}
+// เติมฟิลด์ในฟอร์มบันทึกต้นทุนซื้อจากแถวที่กำหนด (ใช้ตอนเปิดมาแก้บิลหลายรายการ และตอนสลับแถวที่พักไว้เข้าฟอร์ม) — ไม่รวม
+// ลอจิกล็อกฟิลด์พิเศษของรายการเบิกจากล็อต (purchEditingId เดี่ยวๆ) ซึ่งมีเงื่อนไขเฉพาะของตัวเองแยกต่างหาก
+function fillPurchFormFields_(row){
+  document.getElementById('purchProduct').value = row.productId;
+  updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
+  document.getElementById('purchSeller').value = row.seller||'';
+  document.getElementById('purchQty').value = row.qty;
+  document.getElementById('purchPrice').value = row.price;
+  document.getElementById('purchExtra').value = row.extra||'';
+  document.getElementById('purchSellable').value = row.sellableQty!=null ? row.sellableQty : '';
+  document.getElementById('purchNote').value = row.note||'';
+}
+// สลับแถวที่พักไว้ (ในรายการด้านล่าง) ขึ้นมาแก้ในฟอร์มด้านบนแทน — เอาแถวที่กำลังกรอกอยู่ในฟอร์ม (ถ้ามี) พักกลับเข้าคิวก่อน
+// เสมอ ไม่งั้นแถวนั้นจะหายไปเฉยๆ ตอนสลับไปแก้แถวอื่นแทน
+function swapPurchStagedRowIntoForm_(idx){
+  const row = purchStagedRows[idx];
+  if(!row) return;
+  const currentRow = readPurchFormRow_();
+  purchStagedRows.splice(idx, 1);
+  if(currentRow) purchStagedRows.push(currentRow);
+  fillPurchFormFields_(row);
+  renderPurchStagedList();
+}
 function readPurchFormRow_(){
   const productId = document.getElementById('purchProduct').value;
   const qty = Number(document.getElementById('purchQty').value||0);
@@ -6399,12 +6454,15 @@ function renderPurchStagedList(){
     : purchEditingId
     ? `✎ กำลังแก้ไขรายการเดิมอยู่`
     : `📋 รายการที่พักไว้ในบิลนี้ (${purchStagedRows.length} รายการ, รวม ${money(total)}) — กรอกแถวถัดไปต่อได้เลย หรือกด "บันทึกต้นทุนซื้อ" เพื่อบันทึกทั้งบิลพร้อมกัน`;
-  el.innerHTML = `<div class="hint" style="margin:8px 0 4px;">${headerText}</div>` +
+  el.innerHTML = `<div class="hint" style="margin:8px 0 4px;">${headerText}${purchStagedRows.length?' — แตะชื่อสินค้าด้านล่างเพื่อสลับมาแก้ในฟอร์ม':''}</div>` +
     purchStagedRows.map((r,i)=>{
       const p = PRODUCTS.find(x=>x.id===r.productId);
-      return `<div class="orow"><div class="name">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''}</div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
+      return `<div class="orow"><div class="name" data-purchstagedit="${i}" style="cursor:pointer;">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''}</div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
     }).join('') +
     `<button type="button" class="btn small secondary" data-purchbillcancel="1" style="width:auto;margin-top:4px;">ยกเลิก${purchBillEditingId?'การแก้บิลนี้':(purchEditingId?'การแก้ไข':'บิลนี้')}</button>`;
+  el.querySelectorAll('[data-purchstagedit]').forEach(nameEl=>nameEl.addEventListener('click', ()=>{
+    swapPurchStagedRowIntoForm_(Number(nameEl.getAttribute('data-purchstagedit')));
+  }));
   el.querySelectorAll('[data-purchstagedel]').forEach(btn=>btn.addEventListener('click', ()=>{
     const idx = Number(btn.getAttribute('data-purchstagedel'));
     purchStagedRows.splice(idx,1);
@@ -6428,6 +6486,7 @@ function addPurchToStage(){
 function cancelPurchBillEdit_(){
   purchStagedRows = [];
   purchBillEditingId = null;
+  purchBillEditingSnapshot_ = null;
   purchEditingId = null;
   clearPurchFormRowFields_();
   document.getElementById('purchProduct').disabled = false;
@@ -6450,6 +6509,23 @@ async function addPurchase(){
     const rows = currentRow ? purchStagedRows.concat([currentRow]) : purchStagedRows.slice();
     if(rows.length===0){ showToast('กรอกอย่างน้อย 1 รายการก่อนบันทึก'); return; }
     const billId = purchBillEditingId;
+    // เช็คก่อนบันทึกว่าบิลนี้ยังเหมือนตอนเปิดมาแก้อยู่ไหม อ่านสดตรงจากเซิร์ฟเวอร์ (ไม่ใช้ dayData ในเครื่องที่อาจเก่ากว่า
+    // ที่คิด) กันกรณีเปิดแก้บิลเดียวกันพร้อมกันจากสองแท็บ/สองเครื่อง — เดิมฝั่งที่กดบันทึกทีหลังจะ "ลบทั้งบิล + ใส่ชุดใหม่
+    // จากสำเนาเก่าที่ค้างอยู่ในฟอร์ม" ทับของที่อีกฝั่งเพิ่งบันทึกไปแบบเงียบๆ โดยไม่มีทางรู้เลย (ข้อมูลหายจริง ไม่ใช่แค่ UI งง)
+    let serverFresh;
+    try{
+      const res = await window.storage.get('day:'+iso);
+      serverFresh = normalizeDay_(JSON.parse(res.value));
+    }catch(e){
+      showToast('เช็คข้อมูลล่าสุดของบิลนี้ไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ยังไม่ได้บันทึก');
+      return;
+    }
+    const serverRowsNow = (serverFresh.purchases||[]).filter(x=>x.billId===billId);
+    if(purchBillEditingSnapshot_!==null && serializeBillRows_(serverRowsNow)!==purchBillEditingSnapshot_){
+      showToast('บิลนี้ถูกแก้ไขที่อื่นไปแล้วระหว่างที่เปิดค้างไว้ — ยังไม่บันทึกทับ กรุณาปิดแล้วเปิดแก้ไขบิลนี้ใหม่เพื่อดูข้อมูลล่าสุดก่อน');
+      return;
+    }
+    if(iso===currentDate) dayData = serverFresh;
     const ops = [
       {remove:{matchField:'billId', matchValue:billId, matchAll:true}},
       ...rows.map(r=>({push:Object.assign({id:uid('pu'), billId, paid:false}, r)}))
@@ -6457,6 +6533,7 @@ async function addPurchase(){
     const fresh = await writeDayArrayOp_(iso, 'purchases', ops);
     if(iso===currentDate) dayData = fresh;
     purchBillEditingId = null;
+    purchBillEditingSnapshot_ = null;
     purchStagedRows = [];
     showToast(`แก้ไขบิลแล้ว (${rows.length} รายการ)`);
     for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
@@ -6555,16 +6632,13 @@ function startEditPurchase(id){
     if(siblings.length>1){
       purchEditingId = null;
       purchBillEditingId = e.billId;
-      const [first, ...rest] = siblings;
+      purchBillEditingSnapshot_ = serializeBillRows_(siblings);
+      // เอา "รายการที่กดปุ่มแก้ไขจริง" ขึ้นฟอร์มเสมอ (เดิม hardcode เอาแค่รายการแรกของบิลขึ้นฟอร์มทุกครั้ง ไม่สนว่ากด
+      // ปุ่มแก้ไขจากแถวไหน ทำให้กดแก้ "กุ้งดอง" แต่ฟอร์มดันโชว์ "กุ้งแช่" แทน ต้องลบกุ้งดองทิ้งแล้วเพิ่มใหม่เอาเอง)
+      const first = e;
+      const rest = siblings.filter(x=>x.id!==e.id);
       purchStagedRows = rest.map(r=>({productId:r.productId, seller:r.seller, qty:r.qty, price:r.price, extra:r.extra||0, sellableQty:r.sellableQty!=null?r.sellableQty:null, note:r.note||''}));
-      document.getElementById('purchProduct').value = first.productId;
-      updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
-      document.getElementById('purchSeller').value = first.seller||'';
-      document.getElementById('purchQty').value = first.qty;
-      document.getElementById('purchPrice').value = first.price;
-      document.getElementById('purchExtra').value = first.extra||'';
-      document.getElementById('purchSellable').value = first.sellableQty!=null ? first.sellableQty : '';
-      document.getElementById('purchNote').value = first.note||'';
+      fillPurchFormFields_(first);
       document.getElementById('purchProduct').disabled = false;
       document.getElementById('purchSellable').disabled = false;
       document.getElementById('purchPrice').disabled = false;
@@ -6905,7 +6979,7 @@ function renderPurchSellerSettings(){
 }
 async function savePurchSellers(){
   settings.purchaseSellers = Array.from(document.querySelectorAll('[data-purchseller]')).map(i=>i.value.trim()).filter(Boolean);
-  await saveSettings();
+  await writeSettingsFieldPath_(['purchaseSellers'], settings.purchaseSellers);
   showToast('บันทึกรายชื่อผู้ขายแล้ว');
 }
 function addPurchSeller(){
@@ -7143,7 +7217,7 @@ function renderDebtOwnerSettings(){
 async function saveDebtOwners(){
   const inputs = document.querySelectorAll('[data-debtowner]');
   settings.debtOwners = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await saveSettings();
+  await writeSettingsFieldPath_(['debtOwners'], settings.debtOwners);
   showToast('บันทึกรายชื่อเจ้าของหนี้แล้ว');
 }
 function addDebtOwner(){
@@ -7162,7 +7236,7 @@ function renderDebtTypeSettings(){
 async function saveDebtTypes(){
   const inputs = document.querySelectorAll('[data-debttype]');
   settings.debtTypes = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await saveSettings();
+  await writeSettingsFieldPath_(['debtTypes'], settings.debtTypes);
   showToast('บันทึกรายชื่อประเภทหนี้แล้ว');
 }
 function addDebtType(){
@@ -8305,7 +8379,7 @@ async function init(){
   });
   document.getElementById('calDotsToggle').addEventListener('change', async (e)=>{
     settings.calendarDotsEnabled = e.target.checked;
-    await saveSettings();
+    await writeSettingsFieldPath_(['calendarDotsEnabled'], settings.calendarDotsEnabled);
     await renderCalPopup();
   });
   document.getElementById('calRangeToggle').addEventListener('change', async (e)=>{

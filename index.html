@@ -8085,21 +8085,10 @@ async function renderCalPopup(){
   for(let d=1; d<=daysInMonth; d++){ cells.push({day:d, other:false}); }
   while(cells.length % 7 !== 0){ cells.push({day: cells.length - (startWeekday+daysInMonth) + 1, other:true}); }
   const today = todayISO();
-  let dotMap = {};
-  if(settings.calendarDotsEnabled){
-    const isoList = [];
-    for(let d=1; d<=daysInMonth; d++){ isoList.push(`${calViewYear}-${calPad(calViewMonth+1)}-${calPad(d)}`); }
-    const dayMap = await loadDaysBulk(isoList);
-    isoList.forEach(iso=>{
-      const d = dayMap[iso];
-      const hasBuy = (d.purchases||[]).length>0;
-      const hasSell = Object.values(d.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
-      if(hasBuy || hasSell) dotMap[iso] = {hasBuy, hasSell};
-    });
-  }
-  grid.innerHTML = cells.map(c=>{
+  const renderYear = calViewYear, renderMonth = calViewMonth; // เก็บไว้เช็คตอนจุดซื้อ-ขายโหลดเสร็จช้า เผื่อผู้ใช้กดเปลี่ยนเดือนไปแล้วระหว่างรอ
+  const buildGridHtml = (dotMap) => cells.map(c=>{
     if(c.other) return `<div class="cal-day cal-other">${c.day}</div>`;
-    const iso = `${calViewYear}-${calPad(calViewMonth+1)}-${calPad(c.day)}`;
+    const iso = `${renderYear}-${calPad(renderMonth+1)}-${calPad(c.day)}`;
     const isToday = iso===today, isSelected = !calRangeMode && iso===currentDate;
     const isRangeStart = calRangeMode && iso===calRangeStart;
     const isRangeEnd = calRangeMode && iso===calRangeEnd;
@@ -8109,7 +8098,7 @@ async function renderCalPopup(){
     const cls = [isToday&&'cal-today', isSelected&&'cal-selected', isRangeStart&&'cal-range-start', isRangeEnd&&'cal-range-end', isInRange&&'cal-in-range'].filter(Boolean).join(' ');
     return `<div class="cal-day ${cls}" data-caliso="${iso}">${c.day}${dotsHtml}</div>`;
   }).join('');
-  grid.querySelectorAll('[data-caliso]').forEach(el=>el.addEventListener('click', async (e)=>{
+  const bindCellClicks = () => { grid.querySelectorAll('[data-caliso]').forEach(el=>el.addEventListener('click', async (e)=>{
     e.stopPropagation(); // กันไม่ให้ event ไปเข้า calOutsideClickHandler ที่ document — ตอนโหมดช่วงวันที่ re-render กริดใหม่ทันที เซลล์เดิมที่คลิกจะหลุดจาก DOM ก่อน event bubble ไปถึง document ทำให้ contains() เช็คพลาดและ popup ปิดเอง
     const iso = el.getAttribute('data-caliso');
     if(!calRangeMode){
@@ -8134,7 +8123,31 @@ async function renderCalPopup(){
     calRangeStart = start; calRangeEnd = end;
     closeCalPopup();
     await openCalRangeSummary(start, end);
-  }));
+  })); };
+
+  // เรนเดอร์กริดวันที่ให้ขึ้นทันที ไม่ต้องรอโหลดจุดซื้อ-ขายก่อน — เดิมรอ loadDaysBulk (เรียกเซิร์ฟเวอร์ Apps Script) เสร็จ
+  // ก่อนค่อยเซ็ต innerHTML ทีเดียว ถ้าเซิร์ฟเวอร์ช้า (ที่เจอบ่อย) ปฏิทินทั้งอันจะค้างว่างเปล่าหลายวินาที ดูเหมือนกดปฏิทิน
+  // ไม่ติด/โหลดช้ามาก ทั้งที่จริงๆ แค่รอจุดซื้อ-ขายอยู่เบื้องหลัง — ตอนนี้กริดขึ้นทันที ส่วนจุดค่อยแทรกเข้ามาทีหลังเมื่อโหลดเสร็จ
+  grid.innerHTML = buildGridHtml({});
+  bindCellClicks();
+
+  if(settings.calendarDotsEnabled){
+    const isoList = [];
+    for(let d=1; d<=daysInMonth; d++){ isoList.push(`${renderYear}-${calPad(renderMonth+1)}-${calPad(d)}`); }
+    try{
+      const dayMap = await loadDaysBulk(isoList);
+      if(renderYear!==calViewYear || renderMonth!==calViewMonth) return; // ผู้ใช้เปลี่ยนเดือน/ปิดแล้วเปิดใหม่ระหว่างรอโหลด ไม่ต้องเขียนทับกริดเดือนอื่น
+      const dotMap = {};
+      isoList.forEach(iso=>{
+        const d = dayMap[iso];
+        const hasBuy = (d.purchases||[]).length>0;
+        const hasSell = Object.values(d.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+        if(hasBuy || hasSell) dotMap[iso] = {hasBuy, hasSell};
+      });
+      grid.innerHTML = buildGridHtml(dotMap);
+      bindCellClicks();
+    }catch(e){ /* จุดซื้อ-ขายโหลดไม่สำเร็จก็แค่ไม่โชว์จุด ปฏิทินหลัก (เลือกวันได้ปกติ) ไม่ได้รับผลกระทบ */ }
+  }
 }
 // สำคัญ: ห้ามตั้ง currentDate/ค่าในช่องวันที่เป็นวันใหม่ "ก่อน" loadDay() เสร็จ — เคยเป็นแบบนั้นมาก่อนแล้วเจอปัญหาจริง:
 // ถ้าเน็ตช้าตอนสลับวัน (ไม่ถึงกับพัง แค่ช้า) จะมีช่วงเวลาสั้นๆ ที่ currentDate ชี้ไปวันใหม่แล้ว แต่ dayData ในมือยังเป็นของ

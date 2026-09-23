@@ -7796,7 +7796,55 @@ async function computeDataGaps(){
   // ของจะค้างเงียบๆ ไม่มีใครรู้ ไม่เหมือนเมื่อก่อนที่ตัดต้นทุนให้อัตโนมัติทันทีตอนเบิก) แจ้งเตือนถ้าค้างเกิน 5 วัน
   const staleGaps = computeLotStaleGaps_(rawLots, today);
   gaps.push(...staleGaps);
+  // เช็ค costedQty ที่ไม่มีรายการต้นทุนซื้อจริงรองรับ (dayMap โหลดไว้แล้วด้านบน ไม่ต้องโหลดซ้ำ) — เคสจริงที่เจอมาคือ
+  // การเขียนค่าตัดต้นทุนสำเร็จแต่บันทึกรายการต้นทุนซื้อคู่กันล้มเหลว ทำให้เงินที่จ่ายซื้อวัตถุดิบไปจริงหายจากระบบเงียบๆ
+  const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots, dayMap);
+  gaps.push(...costedAuditProblems.map(pr=>({iso: today, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
   return gaps;
+}
+// ตรวจสอบว่ารอบเบิกที่ตัดต้นทุนไปแล้ว (costedQty>0) มีรายการต้นทุนซื้อจริงบันทึกไว้รองรับครบไหม — เคยเจอเคสจริงที่การเขียน
+// costedQty (ขั้นแรกของการตัดต้นทุน) สำเร็จ แต่การบันทึกรายการต้นทุนซื้อคู่กัน (ขั้นถัดไปในคำขอเดียวกัน) ล้มเหลว ทำให้
+// costedQty พองเกินของจริงที่มีรายการต้นทุนซื้อรองรับ — หน้าจอจะดูเหมือนตัดต้นทุนครบแล้ว ทั้งที่ต้นทุนส่วนนั้นไม่เคยถูก
+// บันทึกเป็นรายจ่ายจริงเลย (เงินหายไปจากระบบเงียบๆ) ฟังก์ชันนี้สแกนรายการต้นทุนซื้อทุกวันเทียบยอดจริงกับ costedQty ของ
+// แต่ละรอบเบิกโดยตรง แทนที่จะเดา/อธิบายเฉยๆ — dayMap ถ้ามีให้ส่งมาเลย (เช่นจาก computeDataGaps ที่โหลดไว้แล้ว) ไม่ต้องโหลดซ้ำ
+async function computeLotCostedQtyAudit_(rawLots, dayMap){
+  const drawsWithCost = [];
+  rawLots.forEach(lot=>{ (lot.draws||[]).forEach(d=>{ if(Number(d.costedQty||0)>0.001) drawsWithCost.push({lot, draw:d}); }); });
+  if(drawsWithCost.length===0) return [];
+  if(!dayMap){
+    const listRes = await window.storage.list('day:');
+    const keys = (listRes && listRes.keys) ? listRes.keys : [];
+    dayMap = await loadDaysBulk(keys.map(k=>k.slice(4)));
+  }
+  const recordedByDraw = new Map();
+  Object.values(dayMap).forEach(d=>{
+    (d.purchases||[]).forEach(e=>{
+      if(e.lotSettle && Array.isArray(e.lotSettleAllocations)){
+        e.lotSettleAllocations.forEach(a=>{
+          const key = a.lotId+'|'+a.drawId;
+          recordedByDraw.set(key, (recordedByDraw.get(key)||0) + Number(a.qty||0));
+        });
+      }else if(e.fromLot && typeof e.fromLot==='string'){
+        // รูปแบบเก่าก่อนปรับระบบตัดต้นทุนรายวัน: 1 รายการต้นทุนซื้อ = 1 รอบเบิกเต็มจำนวน ผูกกับ id เดียวกับรอบเบิกตรงๆ
+        const key = e.fromLot+'|'+e.id;
+        recordedByDraw.set(key, (recordedByDraw.get(key)||0) + Number(e.sellableQty||0));
+      }
+    });
+  });
+  const problems = [];
+  drawsWithCost.forEach(({lot, draw})=>{
+    const key = lot.id+'|'+draw.id;
+    const recorded = Math.round((recordedByDraw.get(key)||0)*100)/100;
+    const costed = Number(draw.costedQty||0);
+    if(recorded < costed - 0.05){
+      const p = PRODUCTS.find(x=>x.id===lot.productId);
+      if(!p) return;
+      const missing = Math.round((costed-recorded)*100)/100;
+      problems.push({lotId:lot.id, drawId:draw.id, productId:lot.productId, drawDate:draw.date, costed, recorded, missing,
+        text:`${p.emoji}${p.name}: รอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} ขึ้นว่าตัดต้นทุนไปแล้ว ${costed} ${p.unit} แต่หารายการต้นทุนซื้อที่บันทึกจริงรองรับได้แค่ ${recorded} ${p.unit} (ขาดไป ${missing} ${p.unit}) — อาจเกิดจากบันทึกไม่สำเร็จระหว่างตัดต้นทุน ต้นทุนส่วนนี้อาจยังไม่ถูกบันทึกเป็นรายจ่ายจริง ควรตรวจสอบและบันทึกต้นทุนซื้อเพิ่มเอง`});
+    }
+  });
+  return problems;
 }
 // แยกเช็ค "สต็อกล็อตค้างตัดต้นทุนนานผิดปกติ" ออกมาเช่นกัน (ไม่ผูกกับวันใดวันหนึ่งในประวัติ แต่เป็นสถานะ ณ ตอนนี้เทียบกับวันนี้จริงๆ เสมอ)
 function computeLotStaleGaps_(rawLots, today){
@@ -7835,8 +7883,15 @@ async function renderPurchaseGapsToday_(){
     if(mySeq !== purchaseGapsSeq_) return; // มีการเปลี่ยนวันที่/แท็บระหว่างรอโหลด ทิ้งผลลัพธ์รอบเก่าไป กันขึ้นแจ้งเตือนผิดวัน
     const lotProductIds = new Set(rawLots.map(l=>l.productId));
     let gaps = computeDayGaps_(iso, dayData, prevDay, lotProductIds).filter(g=>g.tab==='purchase');
-    // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของวันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ เท่านั้น กันสับสน
-    if(iso===todayISO()) gaps = gaps.concat(computeLotStaleGaps_(rawLots, iso));
+    // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" + "costedQty ไม่มีรายการต้นทุนซื้อจริงรองรับ" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของ
+    // วันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ เท่านั้น กันสับสน (การตรวจสอบชุดนี้สแกนทุกวันในระบบ ค่อนข้างหนัก
+    // เลยไม่ทำซ้ำทุกครั้งที่เปลี่ยนวันดู)
+    if(iso===todayISO()){
+      gaps = gaps.concat(computeLotStaleGaps_(rawLots, iso));
+      const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots);
+      if(mySeq !== purchaseGapsSeq_) return;
+      gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
+    }
     if(gaps.length===0){ el.innerHTML=''; return; }
     el.innerHTML = `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
       ${gaps.map(g=>`<div style="margin-bottom:4px;">🔔 ${g.text}</div>`).join('')}

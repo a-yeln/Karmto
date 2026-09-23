@@ -7725,14 +7725,19 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
   // รวมจำนวนซื้อจริงที่บันทึกไว้ (ขายได้) แยกตามสินค้า เพื่อเทียบกับยอดที่ควรต้องใช้
   const purchasedByProduct = {};
   (d.purchases||[]).forEach(e=>{ purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
-  const missingParts = []; const missingLotParts = []; const mismatchParts = []; const unexpectedParts = [];
+  const missingParts = []; const mismatchParts = []; const unexpectedParts = [];
   Object.entries(neededByProduct).forEach(([pid, needed])=>{
+    // สินค้าที่มีล็อตวัตถุดิบ: ตั้งใจให้ตัดต้นทุนเหลื่อมวันได้ (ระบบ "ค้างตัดต้นทุน") — รายการต้นทุนซื้อจากการตัดสต็อกล็อต
+    // จะถูกบันทึกลงวันที่กดยืนยันจริง ไม่ใช่วันที่เบิก/วันที่มีออเดอร์ เทียบ "ต้องการวันนี้" กับ "บันทึกวันนี้" ตรงๆ แบบนี้
+    // จึงใช้ไม่ได้กับกลุ่มนี้เลย (จะขึ้นเตือน "ขาด" ทุกวันที่มีออเดอร์สินค้ากลุ่มนี้ ทั้งที่ตัดต้นทุนตามทันจริงอยู่แล้ว แค่
+    // คนละวันกับวันที่มีออเดอร์ และแก้ให้หายด้วยการตัดต้นทุนย้อนหลังให้ตรงวันเดิมก็ไม่ได้อยู่แล้ว) ความค้างจริงของกลุ่มนี้
+    // เช็คที่ computeLotStaleGaps_ แทน (นับอายุของสต็อกที่ค้างตัดจริง ไม่ผูกกับวันใดวันหนึ่ง)
+    if(lotProductIds.has(pid)) return;
     const p = PRODUCTS.find(x=>x.id===pid);
     const bought = purchasedByProduct[pid];
     // ขึ้นจำนวนที่ "ขาด" ตรงๆ ก่อนเสมอ (เดิมบอกแค่ "ต้องการ X แต่บันทึกไว้ Y" ให้ไปลบเลขเองว่าขาดเท่าไร) กระชับกว่าเดิม
     if(bought===undefined){
-      const line = `${p.emoji}${p.name} ขาด ${needed} ${p.unit}`;
-      if(lotProductIds.has(pid)) missingLotParts.push(line); else missingParts.push(line);
+      missingParts.push(`${p.emoji}${p.name} ขาด ${needed} ${p.unit}`);
     }else if(bought < needed*0.8){
       const gap = Math.round((needed-bought)*100)/100;
       mismatchParts.push(`${p.emoji}${p.name} ขาดอีก ${gap} ${p.unit} (ต้องการ ${needed} มี ${bought})`);
@@ -7741,9 +7746,11 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
       mismatchParts.push(`${p.emoji}${p.name} เกิน ${over} ${p.unit} (ต้องการ ${needed} มี ${bought})`);
     }
   });
-  // เช็คทางกลับกัน: มีบันทึกซื้อของสินค้านี้ แต่วันนั้นไม่มีความต้องการจากออเดอร์เลย (อาจกรอกผิดวัน/ผิดสินค้า)
+  // เช็คทางกลับกัน: มีบันทึกซื้อของสินค้านี้ แต่วันนั้นไม่มีความต้องการจากออเดอร์เลย (อาจกรอกผิดวัน/ผิดสินค้า) — ข้ามสินค้า
+  // กลุ่มมีล็อตด้วยเหตุผลเดียวกับด้านบน (ตัดต้นทุนค้างเก่าในวันที่ไม่มีออเดอร์สินค้านั้นเลยก็ทำได้ปกติ ไม่ใช่กรอกผิดวัน)
   Object.entries(purchasedByProduct).forEach(([pid, bought])=>{
     if(bought<=0) return;
+    if(lotProductIds.has(pid)) return;
     if(!(pid in neededByProduct)){
       const p = PRODUCTS.find(x=>x.id===pid);
       unexpectedParts.push(`${p.emoji}${p.name} ซื้อ ${bought} ${p.unit} แต่ไม่มีออเดอร์เลย`);
@@ -7751,9 +7758,6 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
   });
   if(missingParts.length){
     gaps.push({iso, type:'purchase', text:`ยังไม่ได้บันทึกต้นทุนซื้อ: ${missingParts.join(', ')}`, tab:'purchase'});
-  }
-  if(missingLotParts.length){
-    gaps.push({iso, type:'purchase-lot', text:`มีล็อตวัตถุดิบเหลืออยู่ แต่ยังไม่ได้ "เบิกใช้วันนี้": ${missingLotParts.join(', ')}`, tab:'purchase'});
   }
   if(mismatchParts.length){
     gaps.push({iso, type:'purchase-mismatch', text:`จำนวนซื้อกับยอดออเดอร์ต่างกันมาก เช็คว่ากรอกผิดหรือเปล่า: ${mismatchParts.join(', ')}`, tab:'purchase'});

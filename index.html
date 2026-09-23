@@ -7883,14 +7883,16 @@ async function renderPurchaseGapsToday_(){
     if(mySeq !== purchaseGapsSeq_) return; // มีการเปลี่ยนวันที่/แท็บระหว่างรอโหลด ทิ้งผลลัพธ์รอบเก่าไป กันขึ้นแจ้งเตือนผิดวัน
     const lotProductIds = new Set(rawLots.map(l=>l.productId));
     let gaps = computeDayGaps_(iso, dayData, prevDay, lotProductIds).filter(g=>g.tab==='purchase');
-    // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" + "costedQty ไม่มีรายการต้นทุนซื้อจริงรองรับ" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของ
-    // วันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ เท่านั้น กันสับสน (การตรวจสอบชุดนี้สแกนทุกวันในระบบ ค่อนข้างหนัก
-    // เลยไม่ทำซ้ำทุกครั้งที่เปลี่ยนวันดู)
+    // costedQty ไม่มีรายการต้นทุนซื้อจริงรองรับ: เป็นการตรวจสอบข้อมูลจริงที่ไม่ขึ้นกับวันที่กำลังดูอยู่เลย (สแกนทุกวันเหมือนกัน
+    // ไม่ว่าจะเปิดดูวันไหน) จึงต้องรันทุกครั้งไม่ว่าจะดูวันนี้หรือวันย้อนหลัง — ถ้าไปกันไว้เฉพาะตอนดูวันนี้เหมือน staleness
+    // check ด้านล่าง จะกลายเป็นจุดบอด: ตรวจสอบวันย้อนหลังที่มีปัญหาจริงไม่เจอเลย เพราะเช็คไม่เคยรันให้
+    const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots);
+    if(mySeq !== purchaseGapsSeq_) return;
+    gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
+    // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของวันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ
+    // เท่านั้น กันสับสน (ต่างจาก costedQty audit ด้านบนตรงที่อันนี้ความหมายผูกกับ "วันนี้" จริงๆ)
     if(iso===todayISO()){
       gaps = gaps.concat(computeLotStaleGaps_(rawLots, iso));
-      const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots);
-      if(mySeq !== purchaseGapsSeq_) return;
-      gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
     }
     if(gaps.length===0){ el.innerHTML=''; return; }
     el.innerHTML = `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">

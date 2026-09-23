@@ -2159,6 +2159,16 @@ async function renderMessages(){
 // iso/data เป็น parameter ไม่บังคับ (ไม่ใส่ = ใช้ currentDate/dayData สดปัจจุบัน เหมือนเดิม สำหรับตอนเรียกจากการเรนเดอร์หน้า
 // ของเหลือค้างตรงๆ) — แต่ autoFillLeftoverIfNeeded() ด้านล่างจะส่งค่าที่จับไว้ตั้งแต่ต้นมาให้เสมอ กันปัญหา currentDate
 // เปลี่ยนไปแล้วระหว่างที่ฟังก์ชันนี้ยัง await โหลดของหลายจุดอยู่ (เคยเป็นสาเหตุของบั๊กข้อมูลข้ามวันเพี้ยนมาแล้ว)
+// จำนวน "เหลือ" ที่มีอยู่จริงตอนนี้สำหรับสินค้านี้ ณ วันที่กำหนด — ถ้าวันนั้นเคยบันทึกของเหลือไว้แล้วใช้ค่าที่บันทึกไว้ตรงๆ
+// ถ้ายังไม่เคยบันทึกใช้ของที่ยกมาจากเมื่อวาน (carriedIn) แทน (ยังไม่ได้ปรับอะไรของวันนี้เลย) — ใช้เทียบกับค้างตัดต้นทุน เพื่อแยก
+// "ของที่ยังอยู่ในมือ รอตัดต้นทุนตามปกติ" ออกจาก "ของที่ขายออกไปแล้วแต่ยังไม่เคยตัดต้นทุนเลย" (ตัดต้นทุนตกหล่นไปจากที่ควรทำ)
+async function currentLeftoverOnHand_(pid, iso, data){
+  iso = iso || currentDate; data = data || dayData;
+  if(!LEFTOVER_IDS.includes(pid)) return null;
+  if(Object.prototype.hasOwnProperty.call(data.leftoverOut||{}, pid)) return Number(data.leftoverOut[pid]||0);
+  const prevDay = await loadDay(addDaysISO(iso,-1));
+  return Number((prevDay.leftoverOut||{})[pid]||0);
+}
 async function computeSuggestedLeftover(pid, iso, data){
   iso = iso || currentDate; data = data || dayData;
   if(!LEFTOVER_IDS.includes(pid)) return {suggested:0, carriedIn:0, yieldQty:0, orderedQty:0};
@@ -4968,14 +4978,22 @@ async function renderLotSettleCards_(){
     // สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
     // (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
     const matched = remainingNeedToday<=0;
-    rows.push({pid, p, pendingQty, avgCostPerUnit, suggested, matched});
+    // ค้างตัดต้นทุนจริง (pendingQty) รวมทั้งของที่ยังอยู่ในมือ (รอตัดตามรอบปกติ) และของที่ขายออกไปแล้วแต่ยังไม่เคยถูกตัด
+    // ต้นทุนเลย (ตกหล่นจากที่ควรทำตอนขาย) ปนกันอยู่ — แยกสองก้อนนี้ออกจากกัน โดยเทียบกับ "เหลือ" ที่มีอยู่จริงตอนนี้ ไม่งั้นตัวเลข
+    // "ค้าง" ที่โชว์เป็นหลักจะดูพองเกินของที่เหลืออยู่จริง ทำให้เข้าใจผิดว่าของหายไปไหน ทั้งที่จริงๆ ขายออกไปแล้วปกติ แค่ยังไม่ตัด
+    // ต้นทุนตามให้ทัน — โชว์ส่วนที่ขายไปแล้วเป็นคำเตือนแยกต่างหาก ไม่รวมเข้ากับยอด "ค้าง" หลัก (การตัดต้นทุนจริงยังตัดได้เต็มจำนวน
+    // pendingQty เดิมเหมือนเดิม ไม่ตัดสิทธิ์อะไร แค่แยกแสดงผลให้ตรงกับของจริงที่ยังอยู่ในมือ)
+    const onHand = await currentLeftoverOnHand_(pid, currentDate, dayData);
+    const normalPendingQty = onHand!=null ? Math.min(pendingQty, Math.max(0, onHand)) : pendingQty;
+    const overdueSoldQty = onHand!=null ? Math.round(Math.max(0, pendingQty - Math.max(0, onHand))*100)/100 : 0;
+    rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched});
   }
   if(rows.length===0){ wrap.innerHTML=''; return; }
   const activeRows = rows.filter(r=>!r.matched);
   const matchedRows = rows.filter(r=>r.matched);
   const rowHtml = (r)=>`
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);">
-        <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.pendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div></div>
+        <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.normalPendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div>${r.overdueSoldQty>0.001?`<div style="color:var(--danger);font-size:11px;">⚠️ ขายออกไปแล้วแต่ยังไม่ตัดต้นทุนอีก ${r.overdueSoldQty} ${r.p.unit}</div>`:''}</div>
         <input type="number" min="0" step="${sellableUnitIsWhole_(r.pid)?'1':'0.1'}" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
         <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
       </div>`;

@@ -2304,10 +2304,33 @@ async function renderLeftover(){
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     const wasteId = 'waste'+Date.now()+pid;
     let wasteRecordSaved = false;
+    let claimLotsRevertOps = null;
     try{
       const estCostPerKg = priceOnDate(pid, iso);
+      // สินค้าที่มีล็อตวัตถุดิบ (rawLots) ต้องหักจำนวนที่เคลม/ของเสียออกจาก "ค้างตัดต้นทุน" ด้วย (FIFO เก่าสุดก่อน เหมือน
+      // ตอนตัดต้นทุนปกติ) ไม่งั้นของที่เคลม/ทิ้งไปแล้วจะยังค้างรอตัดต้นทุนอยู่ ทั้งที่ไม่มีวันขายได้อีกแล้ว — เขียนจุดนี้
+      // ก่อนบันทึกรายการของเสีย (ยังไม่มีอะไรถูกบันทึกเลยถ้าพัง ไม่ต้อง rollback) แล้วเก็บ ops ย้อนกลับไว้เผื่อขั้นถัดไปพัง
+      let lotClaimAllocations = [];
+      const lotsForClaim = await loadRawLots();
+      if(lotsForClaim.some(l=>l.productId===pid)){
+        const {allocations} = await allocateClaimToDrawsFIFO_(pid, qty, iso, lotsForClaim);
+        if(allocations.length){
+          const setOps = [], revertOps = [];
+          for(const a of allocations){
+            const lot = lotsForClaim.find(l=>l.id===a.lotId);
+            const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
+            const prevClaimedQty = Number((draw&&draw.claimedQty)||0);
+            const newClaimedQty = Math.round((prevClaimedQty+a.qty)*100)/100;
+            setOps.push({matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:newClaimedQty}}});
+            revertOps.push({matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:prevClaimedQty}}});
+          }
+          await writeRootArrayOp_('rawLots', setOps, arr=>{rawLotsCache_=arr;});
+          claimLotsRevertOps = revertOps;
+          lotClaimAllocations = allocations;
+        }
+      }
       const records = await loadWasteRecords();
-      records.push({id:wasteId, productId:pid, qty, date:iso, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason});
+      records.push({id:wasteId, productId:pid, qty, date:iso, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason, ...(lotClaimAllocations.length?{lotClaimAllocations}:{})});
       await saveWasteRecords(records);
       wasteRecordSaved = true;
       const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
@@ -2366,6 +2389,9 @@ async function renderLeftover(){
       if(wasteRecordSaved){
         try{ const records2 = await loadWasteRecords(); await saveWasteRecords(removeFirstById(records2, wasteId)); }catch(_){}
       }
+      if(claimLotsRevertOps){
+        try{ await writeRootArrayOp_('rawLots', claimLotsRevertOps, arr=>{rawLotsCache_=arr;}); }catch(_){}
+      }
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       btn.disabled = false; btn.textContent = 'บันทึกของเสีย';
     } finally { wasteActionInFlight = false; }
@@ -2392,6 +2418,20 @@ async function renderWasteRecordList(){
     if(!confirm('ลบรายการของเสียนี้?')) return;
     const id = btn.getAttribute('data-wastedel');
     const records2 = await loadWasteRecords();
+    const target = records2.find(r=>r.id===id);
+    // ถ้ารายการนี้เคยหักออกจาก "ค้างตัดต้นทุน" ของล็อตไว้ (lotClaimAllocations) ตอนลบต้องคืนกลับด้วย ไม่งั้นของที่เคลม
+    // ไปแล้วถูกลบทิ้ง แต่ค้างตัดต้นทุนจะไม่ขยับกลับมาให้ตัดต้นทุนได้ตามเดิม
+    if(target && target.lotClaimAllocations && target.lotClaimAllocations.length){
+      const lots3 = await loadRawLots();
+      const revertOps = target.lotClaimAllocations.map(a=>{
+        const lot = lots3.find(l=>l.id===a.lotId);
+        const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
+        const prevClaimedQty = Math.max(0, Math.round((Number((draw&&draw.claimedQty)||0) - a.qty)*100)/100);
+        return {matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:prevClaimedQty}}};
+      });
+      try{ await writeRootArrayOp_('rawLots', revertOps, arr=>{rawLotsCache_=arr;}); }
+      catch(e){ showToast('คืนค่าค้างตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่'); return; }
+    }
     await saveWasteRecords(removeFirstById(records2, id));
     showToast('ลบแล้ว');
     renderWasteRecordList();
@@ -4765,13 +4805,19 @@ function drawCostPerUnit_(draw, lot){
   const sq = Number(draw.sellableQty||0);
   if(sq<=0) return 0;
   const totalCost = draw.totalCost!=null ? Number(draw.totalCost) : Number(draw.qtyUsed||0)*(lot?lotCostPerKg(lot):0);
-  return totalCost/sq;
+  // ของที่เคลม/ตัดทิ้งไปแล้ว (claimedQty) ไม่มีวันถูกตัดต้นทุนเป็นของตัวเองอีกต่อไป แต่เงินที่จ่ายซื้อวัตถุดิบส่วนนั้นจ่ายไปแล้วจริง
+  // เลยต้องกระจายต้นทุนก้อนเดิม (totalCost) ไปลงที่ของเหลือขายได้จริงเท่านั้น (sellableQty - claimedQty) แทน ทำให้ต้นทุนเฉลี่ย
+  // ต่อหน่วยของที่เหลือขายสูงขึ้นเมื่อมีของเสีย/เคลม แทนที่ต้นทุนก้อนนั้นจะหายไปเฉยๆ
+  const sellableAfterClaim = Math.max(sq - Number(draw.claimedQty||0), 0.0001);
+  return totalCost/sellableAfterClaim;
 }
 function drawPendingQty_(draw){
   // รอบเบิกเก่าก่อนมีระบบตัดต้นทุนสต็อกล็อต (ไม่มีฟิลด์ costedQty เลย) ถือว่าตัดต้นทุนเต็มจำนวนไปแล้วตั้งแต่ตอนเบิก
   // (ตามพฤติกรรมเดิมของระบบตอนนั้น) — ไม่งั้นจะโผล่มาเป็น "ค้างตัดต้นทุน" ย้อนหลังหลายเดือนทั้งที่จ่ายจบไปแล้วจริง
   if(draw.costedQty===undefined) return 0;
-  return Math.max(0, Math.round((Number(draw.sellableQty||0) - Number(draw.costedQty||0))*100)/100);
+  // ของที่เคลม/ตัดทิ้งไปแล้ว (claimedQty) ไม่ต้องรอตัดต้นทุนอีก (ตัดไปแล้วผ่านการเคลม ด้วยต้นทุนเฉลี่ยใหม่ข้างบน) เลยต้องหักออก
+  // จาก "ค้าง" ด้วย ไม่งั้นค้างตัดต้นทุนจะไม่ตรงกับจำนวนที่เหลือขายได้จริง
+  return Math.max(0, Math.round((Number(draw.sellableQty||0) - Number(draw.costedQty||0) - Number(draw.claimedQty||0))*100)/100);
 }
 // รวมสต็อกที่เบิกจากล็อตมาแล้ว (ทุกล็อต/ทุกรอบเบิก) ของสินค้านี้ ที่ยังไม่เคยถูกตัดเป็นต้นทุนซื้อของวันไหนเลย — เป็นก้อนกลาง
 // ไม่ผูกกับวันใดวันหนึ่ง (ของมันอยู่ตรงนั้นจริงๆ ไม่ว่าจะเปิดแอปดูวันไหนอยู่)
@@ -4796,6 +4842,22 @@ async function lotPendingStock_(productId, preloadedLots, asOfDate){
   }
   items.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.drawId).localeCompare(String(b.drawId)));
   return {qty: Math.round(qty*100)/100, avgCostPerUnit: qty>0 ? costSum/qty : 0, items};
+}
+// เวลาเคลม/ตัดของเสียของสินค้าที่มีล็อตวัตถุดิบ (rawLots) ต้องหักจำนวนที่เคลมออกจาก "ค้างตัดต้นทุน" ด้วย ไม่งั้นค้างตัดต้นทุน
+// จะไม่ตรงกับของที่เหลือขายได้จริง — ใช้ FIFO ตัดจากรอบเบิกเก่าสุดก่อน เหมือนกับตอนตัดต้นทุนปกติ (lotPendingStock_ เรียงมาให้
+// เก่าสุดก่อนอยู่แล้ว) ฟังก์ชันนี้แค่คำนวณว่าควรหักรอบเบิกไหนเท่าไหร่ ไม่เขียนอะไรลงข้อมูลเอง (ให้ผู้เรียกจัดการเขียนเอง)
+async function allocateClaimToDrawsFIFO_(productId, qty, asOfDate, preloadedLots){
+  const {items} = await lotPendingStock_(productId, preloadedLots, asOfDate);
+  let remaining = Math.round(Number(qty||0)*100)/100;
+  const allocations = [];
+  for(const it of items){
+    if(remaining<=0.001) break;
+    const take = Math.round(Math.min(it.pend, remaining)*100)/100;
+    if(take<=0) continue;
+    allocations.push({lotId:it.lotId, drawId:it.drawId, qty:take});
+    remaining = Math.round((remaining-take)*100)/100;
+  }
+  return {allocations, allocatedQty: Math.round((Number(qty||0)-Math.max(0,remaining))*100)/100};
 }
 // จำนวนที่บันทึก "ต้นทุนซื้อ" ของสินค้านี้ไว้แล้วในวันที่กำลังดูอยู่ (นับทุกแหล่ง: กรอกมือเอง หรือตัดจากสต็อกล็อตไปแล้วก่อนหน้า)
 // ใช้เทียบกับยอดที่ต้องใช้จริงของวันนี้ กันแนะนำตัดซ้ำ/แนะนำทั้งที่วันนี้บันทึกครบแล้ว
@@ -5121,6 +5183,39 @@ async function ensureLotBillRecords(lots){
   if(productOps.length) await writeRootArrayOp_('lotProductBills', productOps, arr=>{lotProductBillsCache_=arr;});
   if(transportOps.length) await writeRootArrayOp_('lotTransportBills', transportOps, arr=>{lotTransportBillsCache_=arr;});
 }
+// เติมข้อมูลย้อนหลังให้รายการเคลม/ของเสีย (wasteRecords) ที่บันทึกไว้ก่อนมีระบบหักค้างตัดต้นทุนอัตโนมัติ (ยังไม่มี
+// lotClaimAllocations) — ถ้าสินค้านั้นมีล็อตวัตถุดิบอยู่จริง หักจำนวนที่เคลมออกจากค้างตัดต้นทุนแบบเดียวกับเคลมใหม่
+// (FIFO ตามวันที่ของแต่ละรายการเคลม ไล่เก่าสุดก่อน) เรียกครั้งเดียวตอนโหลดล็อต (เหมือน ensureLotBillRecords ด้านบน)
+// เช็ค lotClaimAllocations ก่อนเสมอกันเชื่อม/หักซ้ำสอง จึงเรียกซ้ำได้ทุกครั้งที่โหลดหน้าอย่างปลอดภัย
+async function ensureClaimsLinkedToLots_(lots){
+  const lotProductIds = new Set(lots.map(l=>l.productId));
+  if(lotProductIds.size===0) return;
+  const records = await loadWasteRecords();
+  const unlinked = records.filter(r=>lotProductIds.has(r.productId) && !(r.lotClaimAllocations && r.lotClaimAllocations.length));
+  if(unlinked.length===0) return;
+  unlinked.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+  let changed = false;
+  const rawLotsOps = [];
+  for(const r of unlinked){
+    const {allocations} = await allocateClaimToDrawsFIFO_(r.productId, r.qty, r.date, lots);
+    if(!allocations.length) continue;
+    r.lotClaimAllocations = allocations;
+    changed = true;
+    for(const a of allocations){
+      const lot = lots.find(l=>l.id===a.lotId);
+      const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
+      if(!draw) continue;
+      const newClaimedQty = Math.round((Number(draw.claimedQty||0)+a.qty)*100)/100;
+      // อัปเดตในหน่วยความจำด้วย ไม่ใช่แค่เก็บ op ไว้เฉยๆ — กันรายการเคลมถัดไปในลูปเดียวกัน (สินค้าเดียวกัน) คำนวณ
+      // ค้างตัดต้นทุนจากค่าเก่าที่ยังไม่ถูกหัก แล้วหักซ้ำทับช่วงเดียวกันของรอบเบิกเดิม
+      draw.claimedQty = newClaimedQty;
+      rawLotsOps.push({matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:newClaimedQty}}});
+    }
+  }
+  if(!changed) return;
+  await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
+  await saveWasteRecords(records);
+}
 // ลบทั้งบิล = ลบทุกล็อตในบิลนี้ + บิลต้นทุนสินค้า + บิลค่าขนส่งที่ผูกกับบิลนี้
 async function deleteWholeBill(billId){
   let lots;
@@ -5373,12 +5468,14 @@ async function renderLotList(preloadedLots){
     // กันจอกระพริบเป็น "กำลังโหลด…" ทั้งการ์ด + กันเน็ตช้าแล้วเหมือนค้าง/รีโหลดทั้งหน้าทุกครั้งที่กดปุ่มอะไรในนี้
     lots = preloadedLots;
     try{ await ensureLotBillRecords(lots); }catch(e){ /* เงียบไว้ ไม่กระทบการแสดงผล ถ้าเน็ตมีปัญหาแค่จุดนี้ */ }
+    try{ await ensureClaimsLinkedToLots_(lots); }catch(e){ /* เงียบไว้ ไม่กระทบการแสดงผล ถ้าเน็ตมีปัญหาแค่จุดนี้ */ }
   } else {
     wrap.innerHTML = '<div class="loading">กำลังโหลด…</div>';
     try{
       lots = await loadRawLots();
       if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
       await ensureLotBillRecords(lots);
+      await ensureClaimsLinkedToLots_(lots);
     }catch(e){
       wrap.innerHTML = '<div class="empty">โหลดข้อมูลลอตไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหน้าใหม่ — ข้อมูลไม่ได้หาย แค่โหลดไม่ขึ้น</div>';
       return;
@@ -5531,7 +5628,7 @@ async function renderLotList(preloadedLots){
                 </div>`;
               }
               return `<div style="font-size:12px;color:var(--text-dim);margin-bottom:3px;display:flex;align-items:center;gap:6px;">
-                <span style="flex:1;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.costedQty!==undefined?` • ตัดต้นทุนแล้ว ${d.costedQty}/${d.sellableQty}`:' • (รอบเบิกเก่า ไม่มีฟิลด์ตัดต้นทุน)'}${d.note?` — ${escapeHtml(d.note)}`:''}</span>
+                <span style="flex:1;">${formatDDMMYYYY(d.date)} • ใช้ ${d.qtyUsed} กก. → ได้ ${d.sellableQty} ${purchaseSellUnit(lot.productId)} (${money(d.qtyUsed*costPerKg)})${d.costedQty!==undefined?` • ตัดต้นทุนแล้ว ${d.costedQty}/${d.sellableQty}`:' • (รอบเบิกเก่า ไม่มีฟิลด์ตัดต้นทุน)'}${Number(d.claimedQty||0)>0?` • เคลมไปแล้ว ${d.claimedQty}`:''}${d.note?` — ${escapeHtml(d.note)}`:''}</span>
                 <button class="iconbtn" data-lotdrawedit="${d.id}" aria-label="แก้ไขรอบเบิกนี้" style="width:22px;height:22px;font-size:11px;flex:none;">✏️</button>
                 <button class="iconbtn" data-lotdrawdel="${d.id}" data-lotid="${lot.id}" aria-label="ลบรอบเบิกนี้" style="width:22px;height:22px;font-size:11px;flex:none;">✕</button>
               </div>`;

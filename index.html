@@ -4948,10 +4948,8 @@ async function renderPendingStockValueCard_(){
 // ทำให้งงว่าทำไมต้องตัดอีก — ตอนนี้เช็คให้ตรงกับ "ความต้องการจริงของวันที่กำลังดูอยู่" เท่านั้น (เหมือนตรรกะเดียวกับ
 // "ยังไม่ได้บันทึกต้นทุนซื้อ" ที่การ์ดแจ้งเตือนใช้) โชว์เฉพาะสินค้าที่วันนี้ยังต้องการเพิ่ม และมีสต็อกให้ตัดได้จริงเท่านั้น
 let lotSettleCardOpen = true; // พับทั้งการ์ดได้ (แยกจาก lotSettleFoldOpen ที่พับแค่กลุ่ม "ถึง order วันนี้แล้ว" ข้างใน) — คงค่าไว้ข้ามการ re-render
-async function renderLotSettleCards_(){
-  const wrap = document.getElementById('lotSettleCards');
-  if(!wrap) return;
-  const lots = await loadRawLots();
+let lotSettleCardsSeq_ = 0;
+async function computeLotSettleRows_(lots){
   const productIdsWithLots = Array.from(new Set(lots.map(l=>l.productId)));
   // ใช้ "ยอดออเดอร์ดิบของวันนี้" ตรงๆ ไม่ใช่ computeNeededQtyToday() (ที่หักลบของเหลือยกมาออกไปด้วย) — เพราะของเหลือที่ถูกหักไปนั้น
   // คือก้อนสต็อกเดียวกับที่ค้างตัดต้นทุนอยู่ตรงนี้เป๊ะๆ (ของที่เบิกมาทำไว้เกินออเดอร์วันนั้น = ของเหลือของวันถัดไป) ถ้าไปหักซ้ำอีกที
@@ -4974,9 +4972,10 @@ async function renderLotSettleCards_(){
     if(!p) continue;
     const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
     // matched=true คือ "ถึง order วันนี้แล้ว" ไม่ว่าจะเพราะตัดต้นทุนไปแล้วครบ/เกินตามที่ต้องการ หรือเพราะวันนี้ไม่มีออเดอร์
-    // สินค้านี้เลยตั้งแต่แรก (ต้องการ=0 ถือว่า "ถึง" แล้วเหมือนกัน) — ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้
-    // สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย
-    // (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
+    // สินค้านี้เลยตั้งแต่แรก (ต้องการ=0 ถือว่า "ถึง" แล้วเหมือนกัน) — ไม่ใช่เรื่องด่วนของวันนี้ พับเก็บไว้ในส่วนที่กดขยายดูได้ ไม่ตัดต้นทุน
+    // อัตโนมัติให้ (นี่คือของค้างเก่า/backlog ไม่ใช่ของที่ใช้จริงวันนี้) สำคัญ: "พับ" ไม่ใช่ "ซ่อนทิ้งแบบเข้าไม่ถึง" — แถวยังอยู่ในหน้านี้
+    // เสมอ แค่กดขยายดูอีกทีถึงจะเห็น ถ้าเผลอไปซ่อนแบบเข้าไม่ถึงเลย (ไม่มี fold ให้กดขยาย) จะกลับไปเจอบั๊กเดิม (ลบรายการเก่าทิ้งเพื่อแก้
+    // เลข แล้วหาทางตัดใหม่ไม่เจอเพราะการ์ดไม่โชว์ให้เลย)
     const matched = remainingNeedToday<=0;
     // ค้างตัดต้นทุนจริง (pendingQty) รวมทั้งของที่ยังอยู่ในมือ (รอตัดตามรอบปกติ) และของที่ขายออกไปแล้วแต่ยังไม่เคยถูกตัด
     // ต้นทุนเลย (ตกหล่นจากที่ควรทำตอนขาย) ปนกันอยู่ — แยกสองก้อนนี้ออกจากกัน โดยเทียบกับ "เหลือ" ที่มีอยู่จริงตอนนี้ ไม่งั้นตัวเลข
@@ -4987,6 +4986,37 @@ async function renderLotSettleCards_(){
     const normalPendingQty = onHand!=null ? Math.min(pendingQty, Math.max(0, onHand)) : pendingQty;
     const overdueSoldQty = onHand!=null ? Math.round(Math.max(0, pendingQty - Math.max(0, onHand))*100)/100 : 0;
     rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched});
+  }
+  return rows;
+}
+async function renderLotSettleCards_(){
+  const wrap = document.getElementById('lotSettleCards');
+  if(!wrap) return;
+  const mySeq = ++lotSettleCardsSeq_;
+  let lots = await loadRawLots();
+  if(mySeq !== lotSettleCardsSeq_) return; // มีการเรียกซ้อนทับมาใหม่กว่าระหว่างรอโหลด ทิ้งรอบเก่าไป กันตัดต้นทุนอัตโนมัติซ้ำซ้อน
+  let rows = await computeLotSettleRows_(lots);
+  if(mySeq !== lotSettleCardsSeq_) return;
+  // ตัดต้นทุนอัตโนมัติทันทีเท่าที่ใช้จริงวันนี้ (suggested) โดยไม่ต้องรอกดปุ่มเอง — ตรงตามที่ต้องการ: เบิกมาใช้จริงวันไหน
+  // ให้เป็นต้นทุนของวันนั้นทันที ส่วนที่เบิกเกินไว้ยังไม่ถึงคิวใช้ (matched=false แต่ suggested=0 หรือ matched=true/backlog)
+  // ยังคงต้องกดตัดเองเหมือนเดิม ไม่แตะ — ใช้ for แบบ await ทีละตัว (ไม่ใช่ Promise.all) เพราะ lotSettleInFlight_ เป็น flag
+  // กลางตัวเดียว ถ้ายิงพร้อมกันหลายสินค้า ตัวที่ 2 เป็นต้นไปจะโดน flag บล็อกจนตัดไม่ได้สักตัว ต้องรอให้ตัวก่อนหน้าเขียนเสร็จก่อน
+  const autoCandidates = rows.filter(r=>!r.matched && r.suggested>0.001);
+  if(autoCandidates.length && !lotSettleInFlight_){
+    const autoResults = [];
+    for(const r of autoCandidates){
+      if(lotSettleInFlight_) break; // มีคนอื่น (กดปุ่มเองพอดี หรือรอบเรนเดอร์อื่น) คว้า flag ไปก่อนแล้ว — รอบเรนเดอร์ถัดไปจะลองใหม่เอง
+      const result = await confirmLotSettle_(r.pid, {qty:r.suggested, auto:true, skipRerender:true, suppressSuccessToast:true});
+      if(mySeq !== lotSettleCardsSeq_) return; // เปลี่ยนวันที่/แท็บไปแล้วระหว่างตัด — มีรอบเรนเดอร์ใหม่คิวไว้ให้แล้ว เลิกทำรอบนี้ต่อ
+      if(result && result.ok) autoResults.push(result);
+    }
+    if(autoResults.length){
+      showToast(`✅ ตัดต้นทุนอัตโนมัติแล้ว: ${autoResults.map(r=>`${r.p.emoji}${r.p.name} ${r.targetQty}${r.p.unit}`).join(', ')}`);
+      lots = await loadRawLots();
+      if(mySeq !== lotSettleCardsSeq_) return;
+      rows = await computeLotSettleRows_(lots);
+      if(mySeq !== lotSettleCardsSeq_) return;
+    }
   }
   if(rows.length===0){ wrap.innerHTML=''; return; }
   const activeRows = rows.filter(r=>!r.matched);
@@ -5003,7 +5033,7 @@ async function renderLotSettleCards_(){
       <span id="lotSettleChevron" style="font-size:14px;color:var(--accent);flex:none;">${lotSettleCardOpen?'▾':'▸'}</span>
     </div>
     <div id="lotSettleBody" style="display:${lotSettleCardOpen?'':'none'};">
-    <div class="hint">ของที่เบิกจากล็อตมาทำไว้ล่วงหน้ายังไม่ตัดต้นทุนทันที — กรอกจำนวนที่ใช้จริงวันนี้แล้วกดตัด (FIFO จากรอบเบิกเก่าสุดก่อน) ตัวเลขที่กรอกไว้ให้เป็นแค่คำแนะนำ แก้ได้</div>
+    <div class="hint">ของที่เบิกจากล็อตมาแล้วใช้จริงวันนี้พอดี ระบบตัดต้นทุนให้อัตโนมัติทันที (FIFO จากรอบเบิกเก่าสุดก่อน) — ส่วนที่เบิกเกินไว้ยังไม่ถึงคิวใช้จะค้างรอจนถึงวันที่ใช้จริงค่อยตัดให้เอง ถ้าอยากตัดเพิ่ม/แก้จำนวนเองก็กรอกแล้วกดตัดด้านล่างได้เสมอ</div>
     ${currentDate!==todayISO() ? `<div class="hint" style="color:var(--danger);margin-top:4px;">📅 กำลังดูวันที่ ${formatDDMMYYYY(currentDate)} — ตัวเลข "ค้าง" ด้านล่างนับเฉพาะของที่เบิกมาถึงวันนี้เท่านั้น ไม่รวมรอบเบิกของวันหลังจากนี้ที่ยังไม่ตัดต้นทุน (ดูยอดค้างตัดต้นทุนรวมทั้งหมดปัจจุบันได้ที่การ์ด "เงินค้างสต็อก" ด้านบนแทน หรือสลับไปวันปัจจุบันเพื่อตัดต้นทุนรอบเบิกใหม่กว่านี้)</div>` : ''}
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
     ${matchedRows.length ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
@@ -5036,12 +5066,15 @@ async function renderLotSettleCards_(){
   }
 }
 let lotSettleInFlight_ = false;
-async function confirmLotSettle_(productId){
-  if(lotSettleInFlight_) return;
+// opts: {qty, auto, skipRerender, suppressSuccessToast} — เรียกจากปุ่ม "✅ ตัด" (manual, ไม่ส่ง opts) เหมือนเดิมทุกจุด
+// หรือเรียกจากลูปตัดต้นทุนอัตโนมัติใน renderLotSettleCards_ (auto:true) — ส่งค่ากลับ {ok, ...} ให้ผู้เรียกเช็คได้ว่าสำเร็จไหม
+// โดยไม่ต้องพึ่ง DOM/toast เป็นสัญญาณ (auto ไม่มีปุ่มให้ผูก event, และ toast อาจถูกเรียกซ้อนกันหลายครั้งในลูปเดียว)
+async function confirmLotSettle_(productId, opts = {}){
+  if(lotSettleInFlight_) return {ok:false};
   const input = document.querySelector(`[data-lotsettleqty="${productId}"]`);
-  let useQty = Number((input && input.value) || 0);
+  let useQty = opts.qty != null ? Number(opts.qty) : Number((input && input.value) || 0);
   if(sellableUnitIsWhole_(productId)) useQty = Math.round(useQty);
-  if(useQty<=0){ showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return; }
+  if(useQty<=0){ if(!opts.auto) showToast('กรอกจำนวนที่ใช้วันนี้ก่อน'); return {ok:false}; }
   lotSettleInFlight_ = true;
   // จับวันที่ไว้ก่อน await ตัวแรกเลย ไม่อ่าน currentDate สดๆ อีกทีหลัง await (โหลดล็อต/confirm()/บันทึกสต็อก) เพราะ
   // ฟังก์ชันนี้กินเวลา (รอเน็ตหลายจุด) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะเอารายการต้นทุนซื้อ
@@ -5053,10 +5086,16 @@ async function confirmLotSettle_(productId){
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
     let targetQty = useQty;
     if(totalPending < useQty - 0.001){
-      const p = PRODUCTS.find(x=>x.id===productId);
-      const ok = confirm(`สต็อกล็อตที่เบิกมาแล้วของ ${p?p.name:productId} เหลือรอตัดต้นทุนแค่ ${Math.round(totalPending*100)/100} ${p?p.unit:''} แต่กำลังจะตัดต้นทุน ${useQty}\n\nกด OK เพื่อตัดเท่าที่มี (${Math.round(totalPending*100)/100}) หรือ ยกเลิกเพื่อกลับไปแก้ตัวเลข`);
-      if(!ok) return;
-      targetQty = totalPending;
+      // opts.auto: ห้ามใช้ confirm() แบบบล็อกกับการทำงานอัตโนมัติที่ไม่มีคนกดยืนยันเอง — ตัดเท่าที่มีให้เงียบๆ แทน
+      // (สถานการณ์นี้ปกติแค่มีอะไรอื่นไปหักสต็อกค้างตัดไปก่อนแล้วระหว่างที่คำนวณค่าแนะนำกับตอนเขียนจริง ไม่ใช่ความผิดพลาดร้ายแรง)
+      if(opts.auto){
+        targetQty = totalPending;
+      }else{
+        const p = PRODUCTS.find(x=>x.id===productId);
+        const ok = confirm(`สต็อกล็อตที่เบิกมาแล้วของ ${p?p.name:productId} เหลือรอตัดต้นทุนแค่ ${Math.round(totalPending*100)/100} ${p?p.unit:''} แต่กำลังจะตัดต้นทุน ${useQty}\n\nกด OK เพื่อตัดเท่าที่มี (${Math.round(totalPending*100)/100}) หรือ ยกเลิกเพื่อกลับไปแก้ตัวเลข`);
+        if(!ok) return {ok:false};
+        targetQty = totalPending;
+      }
     }
     let remaining = targetQty;
     // เดิม: รวมทุกรอบเบิก/ทุกล็อตเข้าเป็นรายการต้นทุนซื้อ "แถวเดียว" (เก็บรายละเอียดแต่ละรอบไว้แค่ใน lotSettleAllocations
@@ -5124,7 +5163,7 @@ async function confirmLotSettle_(productId){
       }
       remaining -= take;
     }
-    if(newEntries.length===0){ showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return; }
+    if(newEntries.length===0){ if(!opts.auto) showToast('ไม่มีสต็อกล็อตให้ตัดต้นทุน'); return {ok:false}; }
     // ตัดสต็อกล็อต (costedQty ของแต่ละรอบเบิกที่เกี่ยวข้อง) แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set เฉพาะรอบ
     // เบิกที่แตะไปจริง ในคำขอเดียว) แทนโหลด rawLots ทั้งก้อนมาแก้แล้วเขียนทับทั้งอาเรย์ — กันเผลอทับการเปลี่ยนแปลงของ
     // รอบเบิก/ล็อตอื่นที่ไม่เกี่ยวข้องเลย ถ้ามีคนบันทึกอย่างอื่นของล็อตคาบเกี่ยวกันพอดี
@@ -5156,10 +5195,12 @@ async function confirmLotSettle_(productId){
           dayCache_[iso] = normalized;
           writeDayToLocalStorage_(iso, normalized);
           if(iso===currentDate) dayData = normalized;
-          showToast('ตัดต้นทุนวันนี้แล้ว (บันทึกสำเร็จจริง แค่ตอบกลับช้า — ไม่ได้คืนสถานะสต็อกล็อตกลับ)');
+          if(!opts.suppressSuccessToast) showToast('ตัดต้นทุนวันนี้แล้ว (บันทึกสำเร็จจริง แค่ตอบกลับช้า — ไม่ได้คืนสถานะสต็อกล็อตกลับ)');
           if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
-          await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
-          return;
+          await renderAllExpenseList();
+          if(!opts.skipRerender) await renderLotSettleCards_();
+          await renderPendingStockValueCard_(); await renderLotList();
+          return {ok:true, productId, p: PRODUCTS.find(x=>x.id===productId), targetQty};
         }
         // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันยืนยันแล้วว่าไม่ได้บันทึกจริง — คืนสต็อกล็อตกลับสภาพเดิม
         // (เจาะจงแค่รอบเบิกที่แตะไปเท่านั้น ไม่ใช่เขียนทับทั้งอาเรย์แบบเดิม)
@@ -5179,15 +5220,68 @@ async function confirmLotSettle_(productId){
       // โหลดล็อตสดจากเซิร์ฟเวอร์แล้วเรนเดอร์ใหม่เสมอตอนพัง — ถ้าขั้น rawLots จริงๆ สำเร็จไปแล้ว (แค่ขั้นถัดไปพัง แล้ว revert
       // ก็พังตามอีกที) คนจะเห็นสถานะจริงแทนที่จะกดยืนยันตัดซ้ำแบบเดา
       await refreshLotListAfterWriteFailure_();
-      return;
+      return {ok:false};
     }
-    showToast('ตัดต้นทุนวันนี้แล้ว');
+    if(!opts.suppressSuccessToast) showToast('ตัดต้นทุนวันนี้แล้ว');
     if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
-    await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotList();
+    await renderAllExpenseList();
+    if(!opts.skipRerender) await renderLotSettleCards_();
+    await renderPendingStockValueCard_(); await renderLotList();
+    return {ok:true, productId, p: PRODUCTS.find(x=>x.id===productId), targetQty};
   }catch(e){
     showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     await refreshLotListAfterWriteFailure_();
+    return {ok:false};
   } finally { lotSettleInFlight_ = false; }
+}
+// เติมต้นทุนที่ตกหล่นให้รอบเบิกที่ computeLotCostedQtyAudit_() เจอว่า costedQty ไม่มีรายการต้นทุนซื้อรองรับครบ — ไม่แก้ costedQty
+// เลย (มันถูกอยู่แล้ว นั่นคือต้นเหตุของปัญหา) แค่สร้างรายการต้นทุนซื้อย้อนหลังให้ตรงกับยอดที่ขาด โดยใช้ผู้ขาย/ราคาจากล็อตจริง
+// ไม่เดา/กะประมาณตัวเลขเอง — ไม่มีขั้น rawLots ให้ต้อง rollback เหมือน confirmLotSettle_ เพราะ costedQty ไม่ได้ถูกแตะเลย
+let lotBackfillInFlight_ = false;
+async function backfillLotCostGap_(lotId, drawId){
+  if(lotSettleInFlight_ || lotBackfillInFlight_) return;
+  lotBackfillInFlight_ = true;
+  try{
+    const lots = await loadRawLots();
+    const lot = lots.find(l=>l.id===lotId);
+    const draw = lot && (lot.draws||[]).find(d=>d.id===drawId);
+    if(!lot || !draw){ showToast('ไม่พบรอบเบิกนี้แล้ว (อาจถูกลบ/แก้ไขไปแล้ว)'); return; }
+    // เช็คซ้ำสดๆ ตอนกด ไม่เชื่อตัวเลขที่ค้างอยู่บนจอตอนแบนเนอร์เรนเดอร์ครั้งก่อน (เผื่อมีคนแก้จากที่อื่นไปแล้ว)
+    const problems = await computeLotCostedQtyAudit_(lots);
+    const fresh = problems.find(x=>x.lotId===lotId && x.drawId===drawId);
+    if(!fresh){ showToast('ช่องว่างนี้ถูกแก้ไขไปแล้ว'); await renderPurchaseGapsToday_(); return; }
+    const missing = fresh.missing;
+    const p = PRODUCTS.find(x=>x.id===lot.productId);
+    const iso = draw.date; // บันทึกลงวันที่เบิก/ใช้จริง ไม่ใช่วันนี้ (วันที่มาเจอปัญหา)
+    const ok = confirm(`เติมต้นทุนที่ขาดของ ${p?p.name:lot.productId}\n\nรอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} จากล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}\nจำนวนที่ขาด: ${missing} ${p?p.unit:''}\n\nจะสร้างรายการต้นทุนซื้อย้อนหลังลงวันที่ ${formatDDMMYYYY(iso)} โดยใช้ผู้ขาย/ราคาจากล็อตนี้จริง (ไม่ได้กะประมาณ) — ยืนยันบันทึก?`);
+    if(!ok) return;
+    const cpu = drawCostPerUnit_(draw, lot);
+    const cost = Math.round(missing*cpu*100)/100;
+    const drawSellable = Number(draw.sellableQty||0), drawRawUsed = Number(draw.qtyUsed||0);
+    const rawQty = Math.max(1, Math.round(drawSellable>0 ? (missing/drawSellable)*drawRawUsed : missing));
+    const entry = {
+      id: uid('pu'), productId: lot.productId, seller: lot.seller||'',
+      qty: rawQty, price: Math.round((cost/rawQty)*10000)/10000, extra:0,
+      sellableQty: missing,
+      note: `เติมต้นทุนที่ตกหล่น (ตรวจพบจากระบบตรวจสอบ) — รอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} ล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}`,
+      paid:true, fromLot:true, lotSettle:true, lotSettleAllocations:[{lotId, drawId, qty:missing, cost}]
+    };
+    try{
+      const fresh2 = await writeDayArrayOp_(iso, 'purchases', {push:entry});
+      if(iso===currentDate) dayData = fresh2;
+      showToast(`เติมต้นทุนย้อนหลังแล้ว: ${p?p.name:''} ${missing}${p?p.unit:''} ลงวันที่ ${formatDDMMYYYY(iso)}`);
+    }catch(e){
+      // withApiTimeout ไม่ได้ยกเลิก request จริง — เช็คกับเซิร์ฟเวอร์ตรงๆ ก่อนบอกว่าพัง เผื่อจริงๆ บันทึกสำเร็จแล้วแค่ตอบกลับช้า
+      let allSaved = false;
+      try{ const r = await window.storage.get('day:'+iso); const fd = JSON.parse(r.value); allSaved = (fd.purchases||[]).some(x=>x.id===entry.id); }catch(checkErr){ /* เช็คไม่ได้ก็ถือว่ายังไม่ยืนยัน */ }
+      if(allSaved){ showToast('เติมต้นทุนย้อนหลังสำเร็จจริง (แค่ตอบกลับช้า)'); }
+      else { showToast('เติมต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); return; }
+    }
+    if(iso===currentDate){ renderPurchaseList(); renderPurchaseGroups(); }
+    await renderAllExpenseList(); await renderPurchaseGapsToday_();
+  }catch(e){
+    showToast('เติมต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+  } finally { lotBackfillInFlight_ = false; }
 }
 // เติมข้อมูลบิลสินค้าย้อนหลังให้ล็อตที่สร้างไว้ก่อนมีระบบนี้ (billId ที่ยังไม่มี lotProductBills คู่กัน)
 // เรียกครั้งเดียวตอนโหลดล็อตครั้งแรกของหน้า เพื่อให้บิลเก่าโผล่ในตัวกรองคู่ค้าได้เหมือนกัน
@@ -7799,7 +7893,7 @@ async function computeDataGaps(){
   // เช็ค costedQty ที่ไม่มีรายการต้นทุนซื้อจริงรองรับ (dayMap โหลดไว้แล้วด้านบน ไม่ต้องโหลดซ้ำ) — เคสจริงที่เจอมาคือ
   // การเขียนค่าตัดต้นทุนสำเร็จแต่บันทึกรายการต้นทุนซื้อคู่กันล้มเหลว ทำให้เงินที่จ่ายซื้อวัตถุดิบไปจริงหายจากระบบเงียบๆ
   const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots, dayMap);
-  gaps.push(...costedAuditProblems.map(pr=>({iso: today, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
+  gaps.push(...costedAuditProblems.map(pr=>({iso: today, type:'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
   return gaps;
 }
 // ตรวจสอบว่ารอบเบิกที่ตัดต้นทุนไปแล้ว (costedQty>0) มีรายการต้นทุนซื้อจริงบันทึกไว้รองรับครบไหม — เคยเจอเคสจริงที่การเขียน
@@ -7888,7 +7982,7 @@ async function renderPurchaseGapsToday_(){
     // check ด้านล่าง จะกลายเป็นจุดบอด: ตรวจสอบวันย้อนหลังที่มีปัญหาจริงไม่เจอเลย เพราะเช็คไม่เคยรันให้
     const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots);
     if(mySeq !== purchaseGapsSeq_) return;
-    gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase'})));
+    gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
     // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของวันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ
     // เท่านั้น กันสับสน (ต่างจาก costedQty audit ด้านบนตรงที่อันนี้ความหมายผูกกับ "วันนี้" จริงๆ)
     if(iso===todayISO()){
@@ -7896,8 +7990,16 @@ async function renderPurchaseGapsToday_(){
     }
     if(gaps.length===0){ el.innerHTML=''; return; }
     el.innerHTML = `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
-      ${gaps.map(g=>`<div style="margin-bottom:4px;">🔔 ${g.text}</div>`).join('')}
+      ${gaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="flex:1 1 auto;">🔔 ${g.text}</span>
+        ${g.type==='lot-costed-orphan' ? `<button class="btn small" data-backfilllotcost="${g.lotId}|${g.drawId}" style="width:auto;flex:none;">🔧 เติมต้นทุนที่ขาด</button>` : ''}
+      </div>`).join('')}
     </div>`;
+    el.querySelectorAll('[data-backfilllotcost]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const [lotId, drawId] = btn.getAttribute('data-backfilllotcost').split('|');
+      btn.disabled = true;
+      try{ await backfillLotCostGap_(lotId, drawId); } finally { btn.disabled = false; }
+    }));
   }catch(e){
     if(mySeq !== purchaseGapsSeq_) return;
     console.error('renderPurchaseGapsToday_ failed', e);

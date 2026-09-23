@@ -5303,6 +5303,16 @@ async function backfillLotCostGap_(lotId, drawId){
     const iso = draw.date; // บันทึกลงวันที่เบิก/ใช้จริง ไม่ใช่วันนี้ (วันที่มาเจอปัญหา)
     const ok = confirm(`เติมต้นทุนที่ขาดของ ${p?p.name:lot.productId}\n\nรอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} จากล็อต ${formatDDMMYYYY(lot.buyDate)}${lot.seller?' '+lot.seller:''}\nจำนวนที่ขาด: ${missing} ${p?p.unit:''}\n\nจะสร้างรายการต้นทุนซื้อย้อนหลังลงวันที่ ${formatDDMMYYYY(iso)} โดยใช้ผู้ขาย/ราคาจากล็อตนี้จริง (ไม่ได้กะประมาณ) — ยืนยันบันทึก?`);
     if(!ok) return;
+    // เช็คซ้ำอีกรอบตรงๆ กับเซิร์ฟเวอร์ (ไม่ผ่านแคชเลย) เจาะจงแค่วันที่จะเขียนนี้วันเดียว ก่อนเขียนจริง — confirm() ด้านบนเป็น
+    // native dialog ที่บล็อกทั้งหน้าไว้จริง แต่ถ้าผู้ใช้กดปุ่มนี้ซ้ำจากคนละรอบเรนเดอร์ (เช่น แบนเนอร์ยังไม่ทันอัปเดตหลังบันทึก
+    // ครั้งก่อนสำเร็จ) เช็คแบบกว้าง (computeLotCostedQtyAudit_) ด้านบนอาจยังไม่เห็นรายการที่เพิ่งบันทึกไปหมาดๆ ถ้าดันอ่านจาก
+    // แคชของวันอื่นที่ยังไม่รีเฟรช — เช็คตรงๆ กับวันเป้าหมายวันเดียวแบบสดเสมอ ปิดโอกาสเติมซ้ำสองรอบให้ได้จริงๆ ไม่พึ่ง timing
+    try{
+      const freshDayCheck = await window.storage.get('day:'+iso);
+      const freshDayParsed = JSON.parse(freshDayCheck.value);
+      const alreadyCovered = (freshDayParsed.purchases||[]).some(e=>e.lotSettle && Array.isArray(e.lotSettleAllocations) && e.lotSettleAllocations.some(a=>a.lotId===lotId && a.drawId===drawId));
+      if(alreadyCovered){ showToast('ช่องว่างนี้ถูกแก้ไขไปแล้ว (มีรายการต้นทุนซื้อของรอบเบิกนี้อยู่แล้ว)'); await renderPurchaseGapsToday_(); return; }
+    }catch(checkErr){ /* วันนั้นอาจยังไม่เคยมีข้อมูลเลย (Key not found) ถือว่ายังไม่มีอะไรบันทึกไว้ ดำเนินการต่อได้ปกติ */ }
     const cpu = drawCostPerUnit_(draw, lot);
     const cost = Math.round(missing*cpu*100)/100;
     const drawSellable = Number(draw.sellableQty||0), drawRawUsed = Number(draw.qtyUsed||0);
@@ -7939,10 +7949,11 @@ async function computeDataGaps(){
   // ของจะค้างเงียบๆ ไม่มีใครรู้ ไม่เหมือนเมื่อก่อนที่ตัดต้นทุนให้อัตโนมัติทันทีตอนเบิก) แจ้งเตือนถ้าค้างเกิน 5 วัน
   const staleGaps = computeLotStaleGaps_(rawLots, today);
   gaps.push(...staleGaps);
-  // เช็ค costedQty ที่ไม่มีรายการต้นทุนซื้อจริงรองรับ (dayMap โหลดไว้แล้วด้านบน ไม่ต้องโหลดซ้ำ) — เคสจริงที่เจอมาคือ
-  // การเขียนค่าตัดต้นทุนสำเร็จแต่บันทึกรายการต้นทุนซื้อคู่กันล้มเหลว ทำให้เงินที่จ่ายซื้อวัตถุดิบไปจริงหายจากระบบเงียบๆ
+  // เช็ค costedQty เทียบกับรายการต้นทุนซื้อจริง (dayMap โหลดไว้แล้วด้านบน ไม่ต้องโหลดซ้ำ) — เช็คสองทิศทาง: ขาด (เขียนค่าตัด
+  // ต้นทุนสำเร็จแต่บันทึกรายการต้นทุนซื้อคู่กันล้มเหลว เงินหายจากระบบเงียบๆ) และเกิน (รายการต้นทุนซื้อถูกสร้างซ้ำ เช่น กดปุ่ม
+  // "เติมต้นทุนที่ขาด" ซ้ำ เงินซื้อวัตถุดิบเลยพองเกินความจริงโดยไม่มีใครรู้)
   const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots, dayMap);
-  gaps.push(...costedAuditProblems.map(pr=>({iso: today, type:'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
+  gaps.push(...costedAuditProblems.map(pr=>({iso: today, type: pr.type==='duplicate' ? 'lot-costed-duplicate' : 'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
   return gaps;
 }
 // ตรวจสอบว่ารอบเบิกที่ตัดต้นทุนไปแล้ว (costedQty>0) มีรายการต้นทุนซื้อจริงบันทึกไว้รองรับครบไหม — เคยเจอเคสจริงที่การเขียน
@@ -7960,17 +7971,22 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
     dayMap = await loadDaysBulk(keys.map(k=>k.slice(4)));
   }
   const recordedByDraw = new Map();
-  Object.values(dayMap).forEach(d=>{
+  const entriesByDraw = new Map(); // key -> [{iso, entryId, qty}] — เก็บไว้เผื่อ over-recorded ต้องชี้ตัวรายการที่ซ้ำให้ดูตรงๆ
+  Object.entries(dayMap).forEach(([iso, d])=>{
     (d.purchases||[]).forEach(e=>{
       if(e.lotSettle && Array.isArray(e.lotSettleAllocations)){
         e.lotSettleAllocations.forEach(a=>{
           const key = a.lotId+'|'+a.drawId;
           recordedByDraw.set(key, (recordedByDraw.get(key)||0) + Number(a.qty||0));
+          if(!entriesByDraw.has(key)) entriesByDraw.set(key, []);
+          entriesByDraw.get(key).push({iso, entryId:e.id, qty:Number(a.qty||0)});
         });
       }else if(e.fromLot && typeof e.fromLot==='string'){
         // รูปแบบเก่าก่อนปรับระบบตัดต้นทุนรายวัน: 1 รายการต้นทุนซื้อ = 1 รอบเบิกเต็มจำนวน ผูกกับ id เดียวกับรอบเบิกตรงๆ
         const key = e.fromLot+'|'+e.id;
         recordedByDraw.set(key, (recordedByDraw.get(key)||0) + Number(e.sellableQty||0));
+        if(!entriesByDraw.has(key)) entriesByDraw.set(key, []);
+        entriesByDraw.get(key).push({iso, entryId:e.id, qty:Number(e.sellableQty||0)});
       }
     });
   });
@@ -7979,12 +7995,20 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
     const key = lot.id+'|'+draw.id;
     const recorded = Math.round((recordedByDraw.get(key)||0)*100)/100;
     const costed = Number(draw.costedQty||0);
+    const p = PRODUCTS.find(x=>x.id===lot.productId);
+    if(!p) return;
     if(recorded < costed - 0.05){
-      const p = PRODUCTS.find(x=>x.id===lot.productId);
-      if(!p) return;
       const missing = Math.round((costed-recorded)*100)/100;
-      problems.push({lotId:lot.id, drawId:draw.id, productId:lot.productId, drawDate:draw.date, costed, recorded, missing,
+      problems.push({type:'missing', lotId:lot.id, drawId:draw.id, productId:lot.productId, drawDate:draw.date, costed, recorded, missing,
         text:`${p.emoji}${p.name}: รอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} ขึ้นว่าตัดต้นทุนไปแล้ว ${costed} ${p.unit} แต่หารายการต้นทุนซื้อที่บันทึกจริงรองรับได้แค่ ${recorded} ${p.unit} (ขาดไป ${missing} ${p.unit}) — อาจเกิดจากบันทึกไม่สำเร็จระหว่างตัดต้นทุน ต้นทุนส่วนนี้อาจยังไม่ถูกบันทึกเป็นรายจ่ายจริง ควรตรวจสอบและบันทึกต้นทุนซื้อเพิ่มเอง`});
+    }else if(recorded > costed + 0.05){
+      // บันทึกต้นทุนซื้อไว้เกินกว่าที่ตัดต้นทุนจริง — เกิดจากรายการต้นทุนซื้อของรอบเบิกเดียวกันถูกสร้างซ้ำ (เช่น กดปุ่ม
+      // "เติมต้นทุนที่ขาด" ซ้ำสองครั้งพอดีจังหวะที่แบนเนอร์ยังไม่ทันรีเฟรช) เดิมไม่เคยตรวจสอบทิศทางนี้เลย เงินซื้อวัตถุดิบ
+      // เลยดูพองเกินยอดออเดอร์จริงไปโดยไม่มีใครรู้ — ชี้รายการที่เกี่ยวข้องทั้งหมดให้ตรวจสอบ/ลบรายการซ้ำเองตรงๆ
+      const excess = Math.round((recorded-costed)*100)/100;
+      const entries = (entriesByDraw.get(key)||[]).map(en=>`${formatDDMMYYYY(en.iso)} (${en.qty} ${p.unit})`).join(', ');
+      problems.push({type:'duplicate', lotId:lot.id, drawId:draw.id, productId:lot.productId, drawDate:draw.date, costed, recorded, excess,
+        text:`${p.emoji}${p.name}: รอบเบิกวันที่ ${formatDDMMYYYY(draw.date)} ตัดต้นทุนจริงแค่ ${costed} ${p.unit} แต่มีรายการต้นทุนซื้อบันทึกไว้รวม ${recorded} ${p.unit} (เกินไป ${excess} ${p.unit}) — น่าจะมีรายการซ้ำ เช็คที่รายการต้นทุนซื้อวันที่: ${entries} แล้วลบรายการที่ซ้ำออก 1 รายการ`});
     }
   });
   return problems;
@@ -8031,7 +8055,7 @@ async function renderPurchaseGapsToday_(){
     // check ด้านล่าง จะกลายเป็นจุดบอด: ตรวจสอบวันย้อนหลังที่มีปัญหาจริงไม่เจอเลย เพราะเช็คไม่เคยรันให้
     const costedAuditProblems = await computeLotCostedQtyAudit_(rawLots);
     if(mySeq !== purchaseGapsSeq_) return;
-    gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type:'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
+    gaps = gaps.concat(costedAuditProblems.map(pr=>({iso, type: pr.type==='duplicate' ? 'lot-costed-duplicate' : 'lot-costed-orphan', text: pr.text, tab:'purchase', lotId:pr.lotId, drawId:pr.drawId})));
     // แจ้งเตือน "สต็อกค้างตัดต้นทุนนาน" อิงสถานะ ณ ตอนนี้จริงๆ เสมอ ไม่ใช่ของวันที่กำลังดูย้อนหลัง — โชว์เฉพาะตอนดูวันนี้จริงๆ
     // เท่านั้น กันสับสน (ต่างจาก costedQty audit ด้านบนตรงที่อันนี้ความหมายผูกกับ "วันนี้" จริงๆ)
     if(iso===todayISO()){

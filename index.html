@@ -8039,29 +8039,50 @@ async function renderCalPopup(){
 // แบบเงียบๆ ไม่มี error ให้เห็นเลย (ต่างจาก error ตอนเน็ตหลุดที่มี alert เตือนอยู่แล้ว) — นี่คือสาเหตุที่เคยเจอสองวันติดกัน
 // มีข้อมูลซ้ำกันเป๊ะ ทั้งที่กรอกไม่ซ้ำแน่ๆ แก้โดยรอให้โหลดข้อมูลวันใหม่เสร็จสมบูรณ์ก่อน ค่อยสลับ currentDate/ช่องวันที่
 // ไปพร้อมกันทีเดียว (atomic) ระหว่างรอโหลด currentDate ยังชี้วันเก่าอยู่ ถ้ามีคนกดบันทึกระหว่างนั้นจะยังบันทึกถูกวันเดิม
+// กันกดสลับวัน (ปุ่ม ไปวันนี้/ก่อนหน้า/ถัดไป หรือช่องเลือกวันที่) ซ้อนกันหลายครั้งระหว่างที่คำขอก่อนหน้ายังโหลดไม่เสร็จ
+// (เคยเป็นไปได้ที่จะยิง loadDay() สองครั้งพร้อมกันชนกัน) และให้ปุ่ม/ช่องเหล่านี้โชว์สถานะ "กำลังโหลด" ชัดเจนระหว่างรอ
+// เน็ตช้า/หลุด — เดิมกดแล้วไม่มีอะไรขึ้นบนจอเลยจนกว่าจะโหลดเสร็จหรือ error (สูงสุด 35 วิ ตาม withApiTimeout) ทำให้ดู
+// เหมือนกดแล้วไม่มีอะไรเกิดขึ้น ทั้งที่จริงๆ กำลังโหลดอยู่เบื้องหลัง
+let dateNavInFlight_ = false;
+function setDateNavControlsDisabled_(disabled){
+  ['dateInput','dwhDateInput','dwhPrevDay','dwhNextDay','dwhTodayBtn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = disabled;
+  });
+  const todayBtn = document.getElementById('dwhTodayBtn');
+  if(todayBtn) todayBtn.style.opacity = disabled ? '0.55' : '';
+}
 async function loadForDate(iso){
+  if(dateNavInFlight_) return;
+  dateNavInFlight_ = true;
+  setDateNavControlsDisabled_(true);
   const previousDate = currentDate;
-  let d;
   try{
-    d = await loadDay(iso);
-  }catch(e){
-    // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
-    // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
-    // ออเดอร์ต่อทันทีเลยดันไปเขียนทับข้อมูลของวันที่เปิดอยู่จริง (ไม่ใช่วันที่ตั้งใจสลับไป) ต้องให้ชัวร์ว่าเห็นแน่นอน
-    alert('สลับไปวันที่ '+formatDDMMYYYY(iso)+' ไม่สำเร็จ (เชื่อมต่อไม่ได้) — แอปยังอยู่ที่วันที่ '+formatDDMMYYYY(previousDate)+' เหมือนเดิม กรุณาลองสลับวันใหม่อีกครั้งก่อนอ่าน/บันทึกอะไรต่อ เพื่อกันบันทึกผิดวันโดยไม่ตั้งใจ');
-    return;
+    let d;
+    try{
+      d = await loadDay(iso);
+    }catch(e){
+      // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
+      // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
+      // ออเดอร์ต่อทันทีเลยดันไปเขียนทับข้อมูลของวันที่เปิดอยู่จริง (ไม่ใช่วันที่ตั้งใจสลับไป) ต้องให้ชัวร์ว่าเห็นแน่นอน
+      alert('สลับไปวันที่ '+formatDDMMYYYY(iso)+' ไม่สำเร็จ (เชื่อมต่อไม่ได้) — แอปยังอยู่ที่วันที่ '+formatDDMMYYYY(previousDate)+' เหมือนเดิม กรุณาลองสลับวันใหม่อีกครั้งก่อนอ่าน/บันทึกอะไรต่อ เพื่อกันบันทึกผิดวันโดยไม่ตั้งใจ');
+      return;
+    }
+    currentDate = iso;
+    dayData = d;
+    document.getElementById('dateInput').value = iso;
+    const dwhDateInput = document.getElementById('dwhDateInput');
+    if(dwhDateInput) dwhDateInput.value = iso;
+    const dwhDateLabel = document.getElementById('dwhDateLabel');
+    if(dwhDateLabel) dwhDateLabel.textContent = formatDDMMYYYY(iso);
+    editingCode = null;
+    renderStats(); refreshOrderTab();
+    updateTopbarCollapsedDate();
+    await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
+  } finally {
+    dateNavInFlight_ = false;
+    setDateNavControlsDisabled_(false);
   }
-  currentDate = iso;
-  dayData = d;
-  document.getElementById('dateInput').value = iso;
-  const dwhDateInput = document.getElementById('dwhDateInput');
-  if(dwhDateInput) dwhDateInput.value = iso;
-  const dwhDateLabel = document.getElementById('dwhDateLabel');
-  if(dwhDateLabel) dwhDateLabel.textContent = formatDDMMYYYY(iso);
-  editingCode = null;
-  renderStats(); refreshOrderTab();
-  updateTopbarCollapsedDate();
-  await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
 }
 // พับ/กางส่วนหัวสุดของเว็บ (โลโก้ + แถบวันที่ + สรุปย่อ) เพื่อให้เหลือพื้นที่จอดูเนื้อหาได้เยอะขึ้น — ตอนพับจะโชว์แค่วันที่ปัจจุบันตัวเล็กๆ มุมขวาแทน
 let topbarCollapsed = false;

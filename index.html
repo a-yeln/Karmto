@@ -178,10 +178,9 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .statbar-head-icon{font-size:12px;color:var(--accent);transition:transform .15s ease;}
 .statbar.collapsed .statrow{display:none;}
 .statbar.collapsed .statbar-head-icon{transform:rotate(-90deg);}
-.statbar-pin-btn{background:none;border:1px solid var(--border-soft);border-radius:7px;width:26px;height:26px;font-size:13px;cursor:pointer;flex:none;color:var(--text-dim);font-family:inherit;}
-.statbar-pin-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-.statbar.collapsed,
-.statbar.pinned{position:sticky;top:0;z-index:10;background:var(--bg);box-shadow:var(--dash-wide-shadow);border-bottom:1px solid var(--border-soft);}
+/* ตรึงบนสุดจอเฉพาะตอนพับเท่านั้น (ตอนกางโชว์รายละเอียดปกติ ให้เลื่อนไปกับหน้าตามปกติ ไม่ค้างบนสุด) — เดิมมีปุ่มตรึงแยก
+   ต่างหากที่ทำให้ค้างบนสุดได้แม้ตอนกางอยู่ ผู้ใช้แจ้งว่าไม่ต้องการแบบนั้น เอาออกแล้วให้การพับเป็นตัวคุมอย่างเดียว */
+.statbar.collapsed{position:sticky;top:0;z-index:10;background:var(--bg);box-shadow:var(--dash-wide-shadow);border-bottom:1px solid var(--border-soft);}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:12px 0 0;padding-bottom:10px;}
 .tab{flex:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
 .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -551,7 +550,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
             </button>
             <span class="statbar-date" id="statBarDate"></span>
             <div class="statrow" id="statRow"></div>
-            <button class="statbar-pin-btn" id="statBarPinBtn" aria-label="ตรึงแถบสรุปยอดไว้บนสุด" aria-pressed="false">📌</button>
           </div>
         </div>
 
@@ -8960,13 +8958,6 @@ function toggleStatBar(){
   document.getElementById('statBarToggle').setAttribute('aria-expanded', String(!collapsed));
   try{ localStorage.setItem('karmto.statBarCollapsed', collapsed?'1':'0'); }catch(e){}
 }
-function toggleStatBarPin(){
-  const bar = document.getElementById('statBar');
-  const pinned = bar.classList.toggle('pinned');
-  document.getElementById('statBarPinBtn').setAttribute('aria-pressed', String(pinned));
-  try{ localStorage.setItem('karmto.statBarPinned', pinned?'1':'0'); }catch(e){}
-}
-
 // ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
 function isListEmpty(elId){
   const el = document.getElementById(elId);
@@ -9200,13 +9191,6 @@ async function init(){
     if(localStorage.getItem('karmto.statBarCollapsed')==='1'){
       document.getElementById('statBar').classList.add('collapsed');
       document.getElementById('statBarToggle').setAttribute('aria-expanded', 'false');
-    }
-  }catch(e){}
-  document.getElementById('statBarPinBtn').addEventListener('click', toggleStatBarPin);
-  try{
-    if(localStorage.getItem('karmto.statBarPinned')==='1'){
-      document.getElementById('statBar').classList.add('pinned');
-      document.getElementById('statBarPinBtn').setAttribute('aria-pressed', 'true');
     }
   }catch(e){}
   document.getElementById('calBtn').addEventListener('click', (e)=>{

@@ -703,6 +703,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div id="pendingStockValueCard"></div>
     <div class="card dash-wide-card">
       <h3>🛒 บันทึกต้นทุนซื้อวันนี้</h3>
+      <div id="purchaseFormGapWarning"></div>
       <div class="hint" style="color:var(--accent);margin-top:2px;">🧊 ซื้อวันต่อวัน (ม๊ะก๊าด/มนต์/อื่นๆ ปกติ)</div>
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนที่ทำได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนที่ทำได้เท่ากับจำนวนซื้อ ช่องนี้คือจำนวนที่แปลงหน่วยได้ทั้งหมด ไม่ใช่จำนวนที่ขายได้จริงวันนั้น ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก</div>
       <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
@@ -742,21 +743,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
           <button class="btn" id="addCustomPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อสินค้าอื่นๆ</button>
         </div>
       </div>
-    </div>
-    <div class="card dash-wide-card">
-      <h3>🚚 ของขาดจากผู้ส่ง</h3>
-      <div class="hint">กรณีผู้ส่งจัดของให้สาขาไม่ครบ (เช่น สั่ง 15 ได้รับ 10) ต้องสั่งใหม่ไปให้ครบแต่ผู้ส่งควรรับผิดชอบส่วนต่างเอง — บันทึกไว้เป็นยอดค้างเฉยๆ (ไม่กระทบต้นทุน/รายจ่ายจริงใดๆ ในระบบ) ไว้เอาไปหักตอนจ่ายค่าแรงเองภายหลัง</div>
-      <div class="field" style="margin-top:8px;"><label>ผู้ส่ง</label><select id="shortfallSeller"></select></div>
-      <div class="field"><label>สาขาที่ได้รับของขาด</label><select id="shortfallBranch"></select></div>
-      <div class="field"><label>สินค้า</label><input type="text" id="shortfallProduct" placeholder="เช่น เนื้อหอยนางรม"></div>
-      <div class="grid7">
-        <div><label>สั่งไป</label><input type="number" step="0.01" id="shortfallOrdered" placeholder="0"></div>
-        <div><label>ได้รับจริง</label><input type="number" step="0.01" id="shortfallReceived" placeholder="0"></div>
-      </div>
-      <div class="field" style="margin-top:8px;"><label>มูลค่าที่ควรหัก (บาท) <span class="subhint">(กรอกเอง ระบบไม่คำนวณให้)</span></label><input type="number" step="1" id="shortfallValue" placeholder="0"></div>
-      <div class="field"><label>หมายเหตุ</label><input type="text" id="shortfallNote" placeholder="เช่น สั่งใหม่ไปแทนแล้ว"></div>
-      <button class="btn" id="addShortfallBtn" style="margin-top:10px;">+ บันทึกของขาด</button>
-      <div id="shortfallList" style="margin-top:12px;"></div>
     </div>
     <div id="lotSettleCards"></div>
     <div class="card dash-wide-card" data-no-collapse="1">
@@ -837,6 +823,21 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="expAmount" placeholder="0"></div>
       <button class="btn secondary" id="addExpenseBtn">+ เพิ่มรายจ่าย</button>
       <div class="hint" style="margin-top:8px;">รายการที่บันทึกแล้ว ดูและเปลี่ยนสถานะจ่าย/รอจ่ายได้ที่การ์ด "สรุปบิลวันนี้" ด้านบน</div>
+    </div>
+    <div class="card dash-wide-card">
+      <h3>📉 ของขาด/มูลค่าที่ต้องชดใช้</h3>
+      <div class="hint">กรณีจัดของให้สาขาไม่ครบ (เช่น สั่ง 15 ได้รับ 10) ต้องสั่งใหม่ไปให้ครบแต่มีคนต้องรับผิดชอบส่วนต่างเอง (ไม่จำเป็นต้องเป็นผู้ส่งเสมอไป บางทีก็เป็นความผิดพลาดของร้านเอง) — บันทึกไว้เป็นยอดค้างเฉยๆ (ไม่กระทบต้นทุน/รายจ่ายจริงใดๆ ในระบบ) ไว้เอาไปหักตอนจ่ายค่าแรงเองภายหลัง</div>
+      <div class="field" style="margin-top:8px;"><label>ผู้รับผิดชอบ</label><select id="shortfallSeller"></select></div>
+      <div class="field"><label>สาขาที่ได้รับของขาด</label><select id="shortfallBranch"></select></div>
+      <div class="field"><label>สินค้า</label><select id="shortfallProduct"></select></div>
+      <div class="grid7">
+        <div><label>สั่งไป</label><input type="number" step="0.01" id="shortfallOrdered" placeholder="0"></div>
+        <div><label>ได้รับจริง</label><input type="number" step="0.01" id="shortfallReceived" placeholder="0"></div>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>มูลค่าที่ควรหัก (บาท) <span class="subhint">(กรอกเอง ระบบไม่คำนวณให้)</span></label><input type="number" step="1" id="shortfallValue" placeholder="0"></div>
+      <div class="field"><label>หมายเหตุ</label><input type="text" id="shortfallNote" placeholder="เช่น สั่งใหม่ไปแทนแล้ว"></div>
+      <button class="btn" id="addShortfallBtn" style="margin-top:10px;">+ บันทึกของขาด</button>
+      <div id="shortfallList" style="margin-top:12px;"></div>
     </div>
     <div class="card dash-wide-card">
       <h3>📊 สรุปต้นทุนรายเดือน <span class="subhint">แยกตามสินค้า — รายงาน/สรุปภาพรวม ไม่ใช่การกรอกข้อมูล</span></h3>
@@ -1243,7 +1244,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:''}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -1395,6 +1396,7 @@ function normalizeDay_(d){
   d.purchases = d.purchases || [];
   d.purchaseGroupPayment = d.purchaseGroupPayment || {};
   d.messageOverrides = d.messageOverrides || {}; // ข้อความหน้า "ข้อความส่ง" ที่แก้ไข/เพิ่มเติมเองรายวัน (ถ้ามี จะโชว์แทนข้อความที่ระบบสร้างอัตโนมัติ)
+  d.feeNote = d.feeNote || ''; // หมายเหตุประจำวันของตาราง Brand Fee รายเดือน (เช่น "น้ำท่วม การจราจรไม่ปกติ") — ใช้อธิบายวันที่ไม่มีข้อมูลออเดอร์
   return d;
 }
 // In-memory cache so revisiting a tab/date already seen this session is instant —
@@ -2176,13 +2178,11 @@ async function renderMessages(){
         <span class="tag ${b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
         <div style="display:flex;align-items:center;gap:6px;flex:none;">
           <button class="iconbtn" data-copy="${i}" aria-label="คัดลอกข้อความส่วนนี้" title="คัดลอกข้อความ">📋</button>
+          <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้" title="แก้ไขข้อความ">✎</button>
           <span style="font-size:13px;color:var(--accent);" id="msgblockchevron-${i}">${open?'▾':'▸'}</span>
         </div>
       </div>
       <div id="msgblockbody-${i}" style="display:${open?'':'none'};margin-top:6px;">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-          <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้">✎</button>
-        </div>
         <pre class="msgtext" id="msgview-${i}">${escapeHtml(b.text)}</pre>
         <div id="msgeditwrap-${i}" style="display:none;margin-top:6px;">
           <textarea id="msgeditarea-${i}" style="width:100%;min-height:120px;font-family:inherit;font-size:13px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;">${escapeHtml(b.text)}</textarea>
@@ -2226,8 +2226,14 @@ async function renderMessages(){
       setTimeout(()=>{ btn.textContent=original; btn.classList.remove('copied'); }, 1500);
     });
   });
-  area.querySelectorAll('[data-msgedit]').forEach(btn=>btn.addEventListener('click', ()=>{
+  area.querySelectorAll('[data-msgedit]').forEach(btn=>btn.addEventListener('click', (e)=>{
+    e.stopPropagation(); // อยู่ในแถวหัวข้อที่มี toggle พับ/กางผูกทั้งแถวเหมือนปุ่มคัดลอก (data-msgblocktoggle) — กันกดแก้ไขแล้วพับ/กางไปด้วย
     const idx = btn.getAttribute('data-msgedit');
+    const tag = blocks[Number(idx)].tag;
+    // ปุ่มนี้ย้ายมาอยู่แถวหัวข้อแล้ว กดได้แม้ส่วนนั้นยังพับอยู่ — ต้องกางให้เห็นฟอร์มแก้ไขที่อยู่ในตัวเนื้อหาด้วยเสมอ
+    msgBlockOpen[tag] = true;
+    document.getElementById(`msgblockbody-${idx}`).style.display = '';
+    document.getElementById(`msgblockchevron-${idx}`).textContent = '▾';
     document.getElementById(`msgview-${idx}`).style.display = 'none';
     document.getElementById(`msgeditwrap-${idx}`).style.display = '';
   }));
@@ -2697,19 +2703,20 @@ function renderFeeToday(){
   const excludedEl = document.getElementById('feeExcludedToday');
   excludedEl.textContent = excludedCodes.length ? `สาขาที่ยกเว้นวันนี้ (ไม่นับในยอดข้างบน): ${excludedCodes.join(', ')}` : '';
 }
+// คืนทุกวันของเดือนนั้นจริงๆ (ไม่ใช่แค่วันที่เคยมีการบันทึกข้อมูลไว้) — เพื่อให้ตารางสรุปรายเดือนโชว์วันที่ครบทุกวัน แม้วันไหน
+// ไม่มีออเดอร์เลยก็ยังเห็นวันที่นั้นอยู่ในตาราง (โชว์ว่างแทนเลข 0 ที่หน้าเรียก) พร้อมช่องหมายเหตุอธิบายได้ (เช่น "น้ำท่วม")
 async function getMonthDays(monthVal){
-  const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys.filter(k=>k.startsWith('day:'+monthVal)) : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const [y,m] = monthVal.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const isoList = Array.from({length:daysInMonth}, (_,i)=>`${monthVal}-${String(i+1).padStart(2,'0')}`);
   const dayMap = await loadDaysBulk(isoList);
-  const rows = isoList.map(iso=>{
+  return isoList.map(iso=>{
     const d = dayMap[iso];
     const totals = computeFeeTotals(d.orders);
     const fee = computeFee(totals);
-    return {iso, totals, fee};
+    const hasOrders = Object.keys(d.orders||{}).some(c=>PRODUCTS.some(p=>Number(d.orders[c][p.id]||0)>0));
+    return {iso, totals, fee, hasOrders, note: d.feeNote||''};
   });
-  rows.sort((a,b)=>a.iso.localeCompare(b.iso));
-  return rows;
 }
 async function renderMonthFee(){
   const monthVal = document.getElementById('monthInput').value;
@@ -2718,28 +2725,51 @@ async function renderMonthFee(){
   ledgerEl.innerHTML = '<div class="loading">กำลังคำนวณ…</div>';
   sumEl.innerHTML = '<div class="loading">กำลังคำนวณ…</div>';
   try{
-    const rows = (await getMonthDays(monthVal)).filter(r=>r.fee.total>0);
-    if(rows.length===0){
-      ledgerEl.innerHTML = '<div class="empty">ยังไม่มีข้อมูลเดือนนี้</div>';
-      sumEl.innerHTML = '<div class="empty">ยังไม่มีข้อมูลเดือนนี้</div>';
-      return;
-    }
+    const allRows = await getMonthDays(monthVal);
+    const dataRows = allRows.filter(r=>r.hasOrders);
     let cum = 0;
-    const ledgerRows = rows.map(r=>{ cum += r.fee.total; return {...r, cum}; });
+    // โชว์ทุกวันของเดือนเรียงตามวันที่เสมอ ไม่ใช่แค่วันที่มีออเดอร์ — วันที่ไม่มีออเดอร์เลยจะโชว์ตัวเลขว่างเปล่า (ไม่ใช่ 0) แต่ยัง
+    // เห็นวันที่อยู่ในตาราง พร้อมกรอกหมายเหตุอธิบายได้ (เช่น "น้ำท่วม การจราจรไม่ปกติ") — สะสม (cum) ยังไล่ตามลำดับวันปกติ
+    const ledgerRows = allRows.map(r=>{ cum += r.fee.total; return {...r, cum}; });
     ledgerEl.innerHTML = `<div class="scrollx"><table class="plain">
-      <tr><th>วันที่</th>${PRODUCTS.map(p=>`<th class="num">${p.emoji}</th>`).join('')}<th class="num">กก.</th><th class="num">กระปุก</th><th class="num">กก.x5</th><th class="num">กระปุกx3</th><th class="num">รวม</th><th class="num">สะสม</th></tr>
-      ${ledgerRows.map(r=>`<tr><td>${formatDDMMYYYY(r.iso)}</td>${PRODUCTS.map(p=>`<td class="num num">${r.totals[p.id]}</td>`).join('')}<td class="num num">${r.fee.kg}</td><td class="num num">${r.fee.oyster}</td><td class="num num">${money(r.fee.kgAmt)}</td><td class="num num">${money(r.fee.oysterAmt)}</td><td class="num num">${money(r.fee.total)}</td><td class="num num" style="color:var(--accent);font-weight:600;">${money(r.cum)}</td></tr>`).join('')}
+      <tr><th>วันที่</th>${PRODUCTS.map(p=>`<th class="num">${p.emoji}</th>`).join('')}<th class="num">กก.</th><th class="num">กระปุก</th><th class="num">กก.x5</th><th class="num">กระปุกx3</th><th class="num">รวม</th><th class="num">สะสม</th><th>หมายเหตุ</th></tr>
+      ${ledgerRows.map(r=>{
+        const blank = !r.hasOrders;
+        const cell = (v)=> blank ? '' : v;
+        return `<tr${blank?' style="color:var(--text-faint);"':''}>
+          <td>${formatDDMMYYYY(r.iso)}</td>
+          ${PRODUCTS.map(p=>`<td class="num num">${cell(r.totals[p.id])}</td>`).join('')}
+          <td class="num num">${cell(r.fee.kg)}</td>
+          <td class="num num">${cell(r.fee.oyster)}</td>
+          <td class="num num">${cell(money(r.fee.kgAmt))}</td>
+          <td class="num num">${cell(money(r.fee.oysterAmt))}</td>
+          <td class="num num">${cell(money(r.fee.total))}</td>
+          <td class="num num" style="color:var(--accent);font-weight:600;">${money(r.cum)}</td>
+          <td><input type="text" data-feenote="${r.iso}" value="${escapeHtml(r.note)}" placeholder="+ หมายเหตุ" style="font-size:11.5px;width:130px;"></td>
+        </tr>`;
+      }).join('')}
     </table></div>`;
+    ledgerEl.querySelectorAll('[data-feenote]').forEach(inp=>inp.addEventListener('change', async (e)=>{
+      const iso = inp.getAttribute('data-feenote');
+      try{
+        const fresh = await writeDayFieldPath_(iso, ['feeNote'], e.target.value);
+        if(iso===currentDate) dayData = fresh;
+      }catch(err){ showToast('บันทึกหมายเหตุไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่'); }
+    }));
 
     const grandTotals = {}; PRODUCTS.forEach(p=>grandTotals[p.id]=0);
-    rows.forEach(r=>PRODUCTS.forEach(p=>grandTotals[p.id]+=r.totals[p.id]));
-    const grandTotal = ledgerRows[ledgerRows.length-1].cum;
+    dataRows.forEach(r=>PRODUCTS.forEach(p=>grandTotals[p.id]+=r.totals[p.id]));
+    const grandTotal = cum;
+    if(dataRows.length===0){
+      sumEl.innerHTML = '<div class="empty">ยังไม่มีข้อมูลออเดอร์เดือนนี้เลย</div>';
+      return;
+    }
     sumEl.innerHTML = `<div class="scrollx"><table class="plain">
       <tr><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวม</th></tr>
       ${PRODUCTS.map(p=>{ const mult = p.id==='p7'?3:5; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${grandTotals[p.id].toLocaleString('th-TH')}</td><td>${p.unit} ×${mult}</td><td class="num num">${money(grandTotals[p.id]*mult)}</td></tr>`; }).join('')}
       </table></div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
-        <span style="color:var(--text-dim);font-size:13px;">รวม ${rows.length} วัน — โอนให้บริษัททวีโชคสิ้นเดือน</span>
+        <span style="color:var(--text-dim);font-size:13px;">รวม ${dataRows.length} วันที่มีออเดอร์ — โอนให้บริษัททวีโชคสิ้นเดือน</span>
         <span class="feebig" style="font-size:20px;">${money(grandTotal)}</span>
       </div>`;
   }catch(e){
@@ -4595,11 +4625,25 @@ async function saveBranches(){
     showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
   }
 }
+function branchCodeNum_(code){ const m = String(code).match(/^\d+/); return m ? Number(m[0]) : null; }
 function addBranch(){
   const codeEl = document.getElementById('newBranchCode'); const areaEl = document.getElementById('newBranchArea');
   const code = codeEl.value.trim(); const area = areaEl.value.trim();
   if(!code || !area){ showToast('กรอกรหัสและชื่อสาขาก่อน'); return; }
-  settings.branches.push({code, area});
+  // แทรกตามลำดับเลขรหัส (เช่น เพิ่ม "20" ให้ไปอยู่ต่อจาก "19" เลย) แทนต่อท้ายลิสต์เสมอเหมือนเดิม — หาตำแหน่งของสาขาเลขน้อย
+  // กว่าตัวใหม่ตัวสุดท้ายในลิสต์ แล้วแทรกถัดจากนั้น ไม่จัดเรียงทั้งลิสต์ใหม่ทั้งหมด กันพังลำดับเดิมที่อาจจงใจจัดไว้ (เช่น
+  // 99บริษัททวีโชคอยู่ท้ายสุด หรือรหัสมีตัวอักษรต่อท้ายอย่าง 13T/16T) — ถ้ารหัสใหม่ไม่มีเลขให้เทียบเลย ต่อท้ายสุดเหมือนเดิม
+  const newNum = branchCodeNum_(code);
+  let insertAt = settings.branches.length;
+  if(newNum!==null){
+    let lastLessIdx = -1;
+    settings.branches.forEach((b,i)=>{
+      const n = branchCodeNum_(b.code);
+      if(n!==null && n<newNum) lastLessIdx = i;
+    });
+    insertAt = lastLessIdx + 1;
+  }
+  settings.branches.splice(insertAt, 0, {code, area});
   codeEl.value=''; areaEl.value='';
   renderBranchSettings();
 }
@@ -7020,11 +7064,15 @@ async function loadShortfalls(){
 function renderShortfallForm_(){
   const sellerSel = document.getElementById('shortfallSeller');
   const branchSel = document.getElementById('shortfallBranch');
-  if(!sellerSel || !branchSel) return;
-  sellerSel.innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  const productSel = document.getElementById('shortfallProduct');
+  if(!sellerSel || !branchSel || !productSel) return;
+  // เผื่อ "ฉัน" (เจ้าของร้าน) เองที่เป็นคนทำของขาด/ผิดพลาด ไม่จำเป็นต้องเป็นผู้ส่งเสมอไป — เพิ่มตัวเลือกนี้ไว้เป็นตัวแรกเสมอ
+  // (เป็นค่าที่เลือกได้ในช่องนี้เท่านั้น ไม่ได้บันทึกลงรายชื่อผู้ขายใน "ตั้งค่า")
+  sellerSel.innerHTML = `<option value="ฉัน (เจ้าของร้าน)">ฉัน (เจ้าของร้าน)</option>` + settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
   const phatOption = settings.purchaseSellers.find(s=>s.includes('พี่พัฒน์'));
   if(phatOption) sellerSel.value = phatOption; // ของขาดจากการจัดส่งเกิดกับพี่พัฒน์เป็นหลัก ล็อกค่าเริ่มต้นไว้ให้เลย
   branchSel.innerHTML = settings.branches.map(b=>`<option value="${b.code}">${escapeHtml(branchDisplayName(b))}</option>`).join('');
+  productSel.innerHTML = PRODUCTS.map(p=>`<option value="${escapeHtml(p.name)}">${p.emoji} ${p.name}</option>`).join('');
 }
 async function addShortfall(){
   const seller = document.getElementById('shortfallSeller').value;
@@ -7045,7 +7093,6 @@ async function addShortfall(){
     return;
   }
   showToast('บันทึกของขาดแล้ว');
-  document.getElementById('shortfallProduct').value = '';
   document.getElementById('shortfallOrdered').value = '';
   document.getElementById('shortfallReceived').value = '';
   document.getElementById('shortfallValue').value = '';
@@ -8436,6 +8483,12 @@ async function renderPurchaseGapsToday_(){
     if(mySeq !== purchaseGapsSeq_) return; // มีการเปลี่ยนวันที่/แท็บระหว่างรอโหลด ทิ้งผลลัพธ์รอบเก่าไป กันขึ้นแจ้งเตือนผิดวัน
     const lotProductIds = new Set(rawLots.map(l=>l.productId));
     let gaps = computeDayGaps_(iso, dayData, prevDay, lotProductIds).filter(g=>g.tab==='purchase');
+    // ณ จุดนี้ gaps มีแค่ 3 ชนิดที่เกี่ยวกับ "วันนี้กรอกต้นทุนซื้อครบตามออเดอร์หรือยัง" โดยตรง (purchase/purchase-mismatch/
+    // purchase-unexpected) — ยังไม่ปนกับ lot-costed-orphan ที่จะ concat เข้ามาทีหลัง (คนละเรื่องกัน เป็นการตรวจสอบข้อมูล
+    // เก่าข้ามวัน ไม่ใช่ "ออเดอร์วันนี้ยังขาดต้นทุนอะไร") ใช้ชุดนี้ตรงๆ กับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" ได้เลย ไม่ต้องคำนวณซ้ำ —
+    // เก็บสำเนาไว้ก่อน gaps จะถูก reassign เพิ่มชนิดอื่นเข้ามาทีหลัง (purchaseFormGaps ยังชี้อาเรย์เดิมไม่เปลี่ยนตาม)
+    const purchaseFormGaps = gaps;
+    updatePurchaseFormAutoFold(purchaseFormGaps);
     // costedQty ไม่มีรายการต้นทุนซื้อจริงรองรับ: เป็นการตรวจสอบข้อมูลจริงที่ไม่ขึ้นกับวันที่กำลังดูอยู่เลย (สแกนทุกวันเหมือนกัน
     // ไม่ว่าจะเปิดดูวันไหน) จึงต้องรันทุกครั้งไม่ว่าจะดูวันนี้หรือวันย้อนหลัง — ถ้าไปกันไว้เฉพาะตอนดูวันนี้เหมือน staleness
     // check ด้านล่าง จะกลายเป็นจุดบอด: ตรวจสอบวันย้อนหลังที่มีปัญหาจริงไม่เจอเลย เพราะเช็คไม่เคยรันให้
@@ -8449,20 +8502,26 @@ async function renderPurchaseGapsToday_(){
       gaps = gaps.concat(await computeLotOverdueSoldGaps_(rawLots, iso, dayData));
       if(mySeq !== purchaseGapsSeq_) return;
     }
-    if(gaps.length===0 && lotBackfillDoneLog_.length===0){ el.innerHTML=''; return; }
+    // แจ้งสถานะให้เห็นชัดทุกกรณี ไม่ใช่แค่ตอนมีปัญหา — ขาด/เกิน/ไม่ตรงออเดอร์ แจ้งเป็น 🔔 อยู่แล้ว (gapsHtml ด้านล่าง) ส่วนกรณี
+    // "ครบแล้วตรงกับออเดอร์วันนี้เป๊ะ" (มีออเดอร์จริง และไม่มี gap ชนิดที่เกี่ยวกับออเดอร์วันนี้เหลือเลย) ก็ต้องขึ้นยืนยันชัดๆ
+    // ด้วย (✔️) ไม่ใช่ปล่อยว่างเงียบๆ ให้ต้องเดาเอาเองว่า "เงียบ = ครบ"
+    const hasOrdersToday = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
+    const purchaseComplete = hasOrdersToday && purchaseFormGaps.length===0;
+    if(gaps.length===0 && lotBackfillDoneLog_.length===0 && !purchaseComplete){ el.innerHTML=''; return; }
     // กล่องสีเขียว: log รายการที่เติมต้นทุนสำเร็จไปแล้วในหน้านี้ (ดูคอมเมนต์ที่ lotBackfillDoneLog_) — ค้างให้เห็นตลอด
     // (ไม่ใช่แค่ toast แว้บเดียว) เพราะรายการมักถูกบันทึกไปคนละวันกับที่กำลังดูอยู่ตอนกด ถ้าไม่มีอะไรค้างให้เห็นเลยจะดู
     // เหมือนกดแล้วไม่มีอะไรเกิดขึ้น ทั้งที่จริงๆ สำเร็จแล้วแค่ไปโผล่ในรายการต้นทุนซื้อของอีกวันหนึ่ง
     const doneHtml = lotBackfillDoneLog_.length ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">
       ${lotBackfillDoneLog_.map(d=>`<div style="margin-bottom:2px;">✅ เติมต้นทุนแล้ว: ${d.text} (เช็คได้ที่รายการต้นทุนซื้อของวันนั้น)</div>`).join('')}
     </div>` : '';
+    const completeHtml = purchaseComplete ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>` : '';
     const gapsHtml = gaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
       ${gaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="flex:1 1 auto;">🔔 ${g.text}</span>
         ${g.type==='lot-costed-orphan' ? `<button class="btn small" data-backfilllotcost="${g.lotId}|${g.drawId}" style="width:auto;flex:none;">🔧 เติมต้นทุนที่ขาด</button>` : ''}
       </div>`).join('')}
     </div>` : '';
-    el.innerHTML = doneHtml + gapsHtml;
+    el.innerHTML = doneHtml + completeHtml + gapsHtml;
     el.querySelectorAll('[data-backfilllotcost]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const [lotId, drawId] = btn.getAttribute('data-backfilllotcost').split('|');
       btn.disabled = true;
@@ -8899,9 +8958,26 @@ function setCardFoldByH3(titleKeyword, collapsed){
     h3.classList.toggle('open', !collapsed);
   });
 }
-// พับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" อัตโนมัติถ้าวันนี้กรอกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายละเอียด ไม่ต้องเลื่อนผ่านฟอร์ม)
-function updatePurchaseFormAutoFold(){
-  setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', (dayData.purchases||[]).length>0);
+// พับ/กางฟอร์ม "บันทึกต้นทุนซื้อวันนี้" อัตโนมัติตามว่าวันนี้กรอกต้นทุนครบตามออเดอร์แล้วหรือยัง (ไม่ใช่แค่เช็คว่ามีรายการ
+// บันทึกไปกี่รายการเฉยๆ เหมือนเดิม) — purchaseFormGaps คือชุด gaps ที่ renderPurchaseGapsToday_() คำนวณไว้แล้ว (เฉพาะ 3
+// ชนิดที่เกี่ยวกับ "วันนี้ยังขาด/ไม่ตรงกับออเดอร์" โดยตรง) ไม่คำนวณซ้ำเอง กันยิง prevDay/rawLots ซ้ำสองรอบโดยไม่จำเป็น —
+// เรียกแบบไม่มี argument ได้เหมือนกัน (จากจุดอื่นที่ยังไม่มีข้อมูล gaps ให้ตอนนั้น) จะใช้กฎเดิมแบบง่ายไปพลางก่อน แล้วปล่อยให้
+// renderPurchaseGapsToday_() ที่ยิงคู่กันอยู่แล้วทุกจุดที่เรียก renderPurchaseList() มาอัปเดตให้ครบถ้วนอีกทีเมื่อโหลดเสร็จ
+function updatePurchaseFormAutoFold(purchaseFormGaps){
+  const warnEl = document.getElementById('purchaseFormGapWarning');
+  if(purchaseFormGaps===undefined){
+    setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', (dayData.purchases||[]).length>0);
+    updateLotListAutoFold();
+    return;
+  }
+  const hasOrders = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
+  const incomplete = hasOrders && purchaseFormGaps.length>0;
+  if(warnEl){
+    warnEl.innerHTML = incomplete
+      ? purchaseFormGaps.map(g=>`<div class="hint" style="color:var(--danger);border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);margin-bottom:6px;">⚠️ ${escapeHtml(g.text)}</div>`).join('')
+      : '';
+  }
+  setCardFoldByH3('บันทึกต้นทุนซื้อวันนี้', hasOrders ? !incomplete : (dayData.purchases||[]).length>0);
   updateLotListAutoFold();
 }
 // พับการ์ด "ล็อตที่มีอยู่ (แยกตามบิล)" อัตโนมัติถ้าวันนี้บันทึกต้นทุนซื้อไว้แล้วอย่างน้อย 1 รายการ (การ์ดนี้ใช้ปุ่มพับของตัวเอง ไม่ใช่ระบบพับทั่วไป)
@@ -8972,7 +9048,7 @@ function initCollapsibleSettings(){
   // เพิ่มปุ่ม ^ พับ/กางให้ทุกหัวข้อ (การ์ด) ในทุกแท็บ ไม่ใช่แค่หน้าตั้งค่า — กันต้องเลื่อนจอยาวๆ เวลาข้อมูลเยอะ
   // หัวข้อนอกหน้าตั้งค่าที่พับไว้ก่อนเป็นค่าเริ่มต้น: "เพิ่มล็อตใหม่" เพราะยาว/ไม่ค่อยได้แก้บ่อย ส่วนที่เหลือเป็นการ์ดรายงาน/สรุปย้อนหลัง
   // (ดูเป็นครั้งคราว ไม่ใช่ทุกวัน) พับไว้ก่อนกันจอรกตั้งแต่เปิดแท็บมา กดกางดูได้เองเมื่อต้องการ
-  const collapsedByDefaultKeywords = ['เพิ่มล็อตใหม่', 'สรุปรวมรายปี', 'สรุปต้นทุนรายเดือน', 'สรุปรายเดือน', 'สรุปยอดโอนบริษัทสิ้นเดือน'];
+  const collapsedByDefaultKeywords = ['เพิ่มล็อตใหม่', 'สรุปรวมรายปี', 'สรุปต้นทุนรายเดือน', 'สรุปรายเดือน', 'สรุปยอดโอนบริษัทสิ้นเดือน', 'ของขาด/มูลค่าที่ต้องชดใช้'];
   document.querySelectorAll('.panel .card').forEach(card=>{
     if(card.dataset.noCollapse) return; // การ์ดที่มีปุ่มกดบ่อยๆ แล้วเนื้อหาเปลี่ยนตลอด (เช่นเบิกล็อต) กันพับ/กางเองมั่ว
     const h3 = card.querySelector('h3');

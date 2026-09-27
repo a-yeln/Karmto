@@ -3235,7 +3235,7 @@ let expenseFieldEditId = null; // แก้ไขรายจ่ายแบบ�
 function renderExpenseList(){
   const wrap = document.getElementById('expenseList');
   const list = dayData.expenses || [];
-  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); updateExpenseFormAutoFold(); return; }
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีรายจ่ายวันนี้</div>'; updateBillSummaryVisibility(); applyDailyExpenseRoutine_(); return; }
   const payeeOptions = settings.purchaseSellers.filter(s=>s!=='ม๊ะก๊าด' && s!=='มนต์');
   wrap.innerHTML = list.map(e=>{
     const showDatePicker = expPayEditingId===e.id;
@@ -3372,7 +3372,7 @@ function renderExpenseList(){
     }
   }));
   updateBillSummaryVisibility();
-  updateExpenseFormAutoFold();
+  applyDailyExpenseRoutine_();
 }
 // แกนกลางบันทึกรายจ่าย ใช้ร่วมกันทั้งฟอร์มเดิมในแท็บต้นทุนซื้อ (addExpense) และ modal เพิ่มรายจ่ายด่วนบนแดชบอร์ด
 // (addExpenseFromDashboard) — กันไม่ให้ตรรกะบันทึก/validate เพี้ยนกันระหว่างสองฟอร์ม คืน true/false ว่าบันทึกสำเร็จไหม
@@ -3398,8 +3398,14 @@ async function addExpense(){
   const amount = Number(document.getElementById('expAmount').value||0);
   const ok = await addExpenseCore_(category, seller, note, amount);
   if(!ok) return;
-  document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
-  document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
+  // addExpenseCore_ เรียก renderExpenseList() ไปแล้วข้างใน ซึ่งถ้าวันนี้มีออเดอร์จะสั่ง applyDailyExpenseRoutine_() กรอกฟอร์ม
+  // ล่วงหน้าให้ขั้นถัดไปอัตโนมัติ (เช่น ค่าแรงพี่พัฒน์ 700 -> น้ำแข็งพี่พัฒน์) ไปแล้ว ห้ามมาเคลียร์ทับตรงนี้ซ้ำ ไม่งั้นจะล้างค่าที่
+  // เพิ่งกรอกไว้ให้อัตโนมัติจนว่างเปล่าไปเฉยๆ — เคลียร์ฟอร์มเองแบบเดิมเฉพาะวันที่ไม่มีออเดอร์เลย (ไม่มีรูทีนมาจัดการให้)
+  const hasOrdersToday = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
+  if(!hasOrdersToday){
+    document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
+    document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
+  }
 }
 async function addExpenseFromDashboard(){
   const category = document.getElementById('dashExpCategory').value;
@@ -5779,6 +5785,7 @@ async function addLot(){
     await renderLotTransportList();
     await renderLotList();
     renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+    setCardFoldByH3('เพิ่มล็อตใหม่', true); // บันทึกสำเร็จแล้วให้พับฟอร์มกลับไว้เสมอ ไม่ใช่แค่ค่าเริ่มต้นตอนโหลดหน้าครั้งแรก
   } catch(e){
     showToast('บันทึกล็อตไม่สำเร็จ (เน็ตมีปัญหา?) ลองกดบันทึกอีกครั้ง — ข้อมูลที่กรอกไว้ยังอยู่ ยังไม่หาย');
   } finally {
@@ -7097,6 +7104,7 @@ async function addShortfall(){
   document.getElementById('shortfallReceived').value = '';
   document.getElementById('shortfallValue').value = '';
   document.getElementById('shortfallNote').value = '';
+  setCardFoldByH3('ของขาด/มูลค่าที่ต้องชดใช้', true); // บันทึกสำเร็จแล้วให้พับการ์ดกลับไว้เสมอ ไม่ใช่แค่ค่าเริ่มต้นตอนโหลดหน้าครั้งแรก
 }
 function renderShortfallList(list){
   const wrap = document.getElementById('shortfallList');
@@ -9015,9 +9023,52 @@ function updateLotListAutoFold(){
   body.style.display = hasData ? 'none' : '';
   chevron.textContent = hasData ? '▸' : '▾';
 }
-// พับการ์ด "รายจ่ายกิจการวันนี้" อัตโนมัติถ้ากรอกไว้แล้วอย่างน้อย 1 รายการ
+// พับการ์ด "รายจ่ายกิจการวันนี้" อัตโนมัติถ้ากรอกไว้แล้วอย่างน้อย 1 รายการ — ใช้เป็น fallback สำหรับวันที่ไม่มีออเดอร์เลย
+// (ไม่เข้าเงื่อนไข routine ค่าแรง/น้ำแข็งด้านล่าง)
 function updateExpenseFormAutoFold(){
   setCardFoldByH3('รายจ่ายกิจการวันนี้', (dayData.expenses||[]).length>0);
+}
+// ทุกวันที่มีออเดอร์: เติมฟอร์ม "รายจ่ายกิจการวันนี้" ให้อัตโนมัติเป็น 2 ขั้นตอนเรียงกัน — (1) ค่าแรงพี่พัฒน์ 700 (2) น้ำแข็ง
+// จ่ายพี่พัฒน์ (ไม่ใส่ราคาให้ กรอกเอง) แค่ "เติมค่าในฟอร์ม" ให้เท่านั้น ไม่เขียนอะไรลงจริงจนกว่าจะกด "+ เพิ่มรายจ่าย" เอง
+// (ไม่ผิดคำสั่งห้ามเขียนต้นทุน/รายจ่ายจริงโดยไม่ได้รับการยืนยัน) พอบันทึกครบทั้ง 2 รายการแล้วค่อยพับการ์ดปิดไว้เสมอ
+// expenseRoutineLastKey_ กันเรียกซ้ำแล้วดันเขียนทับค่าที่ผู้ใช้กำลังพิมพ์อยู่ในฟอร์มเฉยๆ — renderExpenseList() (ที่เรียก
+// ฟังก์ชันนี้) ถูกเรียกจากที่อื่นๆ อีกเยอะที่ไม่เกี่ยวกับ 2 รายการนี้เลย (เช่น แก้ไข/ลบ/สลับสถานะจ่ายของรายจ่ายอื่น) จึงเติมค่า
+// ในฟอร์มจริงๆ เฉพาะตอน "สถานะขั้นตอนเปลี่ยนจริง" เท่านั้น (เปลี่ยนวัน หรือเพิ่งบันทึกขั้นก่อนหน้าสำเร็จ) ส่วนการพับ/กางการ์ด
+// ยัง sync ทุกครั้งได้ตามปกติ (ไม่กระทบค่าที่กรอกอยู่)
+let expenseRoutineLastKey_ = null;
+function applyDailyExpenseRoutine_(){
+  const iso = currentDate;
+  const hasOrders = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
+  if(!hasOrders){
+    expenseRoutineLastKey_ = null;
+    updateExpenseFormAutoFold();
+    return;
+  }
+  const payeeOptions = settings.purchaseSellers.filter(s=>s!=='ม๊ะก๊าด' && s!=='มนต์');
+  const phatOption = payeeOptions.find(s=>s.includes('พี่พัฒน์'));
+  const list = dayData.expenses||[];
+  const hasWage = !!(phatOption && list.some(e=>e.category==='ค่าแรง' && e.seller===phatOption));
+  const hasIce = !!(phatOption && list.some(e=>e.category==='น้ำแข็ง' && e.seller===phatOption));
+  const step = !hasWage ? 'wage' : (!hasIce ? 'ice' : 'done');
+  setCardFoldByH3('รายจ่ายกิจการวันนี้', step==='done');
+  const key = `${iso}:${step}`;
+  if(key===expenseRoutineLastKey_) return; // สถานะขั้นตอนเดิม ไม่ต้องเติมฟอร์มซ้ำ (กันทับค่าที่กำลังพิมพ์อยู่)
+  expenseRoutineLastKey_ = key;
+  const catEl = document.getElementById('expCategory');
+  const payEl = document.getElementById('expPayee');
+  const amtEl = document.getElementById('expAmount');
+  const noteEl = document.getElementById('expNote');
+  if(step==='wage'){
+    if(catEl) catEl.value = 'ค่าแรง';
+    if(payEl && phatOption) payEl.value = phatOption;
+    if(amtEl) amtEl.value = 700;
+    if(noteEl) noteEl.value = '';
+  }else if(step==='ice'){
+    if(catEl) catEl.value = 'น้ำแข็ง';
+    if(payEl && phatOption) payEl.value = phatOption;
+    if(amtEl) amtEl.value = '';
+    if(noteEl) noteEl.value = '';
+  }
 }
 // กางหัวข้อล็อตวัตถุดิบอัตโนมัติถ้ามีบิล/ค่าขนส่งค้างอยู่ (จะได้เห็นเลยไม่ต้องกดกาง) แต่พับฟอร์ม "เพิ่มล็อตใหม่" ไว้เสมอ
 // ถ้าไม่มีข้อมูลอะไรเลยก็พับทั้งหมดไว้เหมือนเดิม

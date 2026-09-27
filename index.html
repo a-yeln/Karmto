@@ -1078,6 +1078,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   <div class="modalBox">
     <h3>💸 เพิ่มรายจ่ายกิจการ</h3>
     <div class="hint">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</div>
+    <div class="field"><label>วันที่</label><input type="date" id="dashExpDate"></div>
     <div class="field"><label>หมวด</label><select id="dashExpCategory"></select></div>
     <div class="field"><label>จ่ายให้ใคร (ถ้ามี)</label><select id="dashExpPayee"></select></div>
     <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="dashExpNote" placeholder="เช่น น้ำแข็ง 5 ถุง"></div>
@@ -3376,9 +3377,9 @@ function renderExpenseList(){
 }
 // แกนกลางบันทึกรายจ่าย ใช้ร่วมกันทั้งฟอร์มเดิมในแท็บต้นทุนซื้อ (addExpense) และ modal เพิ่มรายจ่ายด่วนบนแดชบอร์ด
 // (addExpenseFromDashboard) — กันไม่ให้ตรรกะบันทึก/validate เพี้ยนกันระหว่างสองฟอร์ม คืน true/false ว่าบันทึกสำเร็จไหม
-async function addExpenseCore_(category, seller, note, amount){
+async function addExpenseCore_(category, seller, note, amount, isoOverride){
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return false; }
-  const iso = currentDate;
+  const iso = isoOverride || currentDate;
   const expense = {id: uid('e'), category, seller, note, amount, paid:false};
   // เพิ่มรายการแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทน push เข้า dayData แล้ว saveDay() ทั้งก้อน — เดิมถ้ามีคน
   // อื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกต้นทุนซื้อพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคนแบบเงียบๆ
@@ -3388,7 +3389,7 @@ async function addExpenseCore_(category, seller, note, amount){
   renderExpenseList();
   renderStats();
   renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
-  logActivity_(`เพิ่มรายจ่าย ${category}${seller?` (${seller})`:''} ${money(amount)}`);
+  logActivity_(`เพิ่มรายจ่าย ${category}${seller?` (${seller})`:''} ${money(amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
   return true;
 }
 async function addExpense(){
@@ -3412,7 +3413,8 @@ async function addExpenseFromDashboard(){
   const seller = document.getElementById('dashExpPayee').value;
   const note = document.getElementById('dashExpNote').value.trim();
   const amount = Number(document.getElementById('dashExpAmount').value||0);
-  const ok = await addExpenseCore_(category, seller, note, amount);
+  const iso = document.getElementById('dashExpDate').value || todayISO();
+  const ok = await addExpenseCore_(category, seller, note, amount, iso);
   if(!ok) return;
   document.getElementById('dashExpNote').value=''; document.getElementById('dashExpAmount').value='';
   document.getElementById('dashExpCategory').selectedIndex = 0; document.getElementById('dashExpPayee').value = '';
@@ -3420,6 +3422,7 @@ async function addExpenseFromDashboard(){
 }
 function openDashExpenseModal_(){
   renderExpenseCategorySelect(); // เติม/รีเฟรชตัวเลือกหมวด/ผู้รับเงินให้ตรงกับ settings ล่าสุดทุกครั้งที่เปิด
+  document.getElementById('dashExpDate').value = todayISO(); // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
   document.getElementById('dashExpenseModalOverlay').style.display = 'flex';
   document.getElementById('dashExpCategory').focus();
 }
@@ -7722,7 +7725,7 @@ async function renderDebts(){
     }
     renderDebts();
     showToast(d.owner==='ก้ามโต' ? 'บันทึกการจ่ายแล้ว (ชำระหนี้องค์กร)' : `บันทึกการจ่ายแล้ว (ลงรายจ่ายส่วนตัวของ ${d.owner} ให้ด้วย)`);
-    logActivity_(`ชำระหนี้ ${d.creditor} ${money(amount)}`);
+    logActivity_(`ชำระหนี้ ${d.creditor} ${money(amount)} — วันที่ ${formatDDMMYYYY(payDate)}`);
     } catch(e){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การจ่ายยังไม่ถูกบันทึก');
     } finally { debtPaymentInFlight = false; btn.disabled = false; }
@@ -8440,15 +8443,23 @@ async function computeLotUncoveredNeedGaps_(iso, d, lots){
   const gaps = [];
   const totals = computeTotals(d.orders||{});
   const lotProductIds = Array.from(new Set(lots.map(l=>l.productId)));
+  // หักจำนวนที่บันทึก "ต้นทุนซื้อวันนี้" ไว้ตรงๆ แล้วออกก่อนเทียบกับของในล็อต — สินค้ากลุ่มนี้ซื้อเป็นล็อตได้เหมือนสินค้าปกติ
+  // ด้วย (ไม่ได้ผ่านการเบิก/ตัดสต็อกล็อตเสมอไป) ถ้าบันทึกต้นทุนซื้อไว้แล้วจริงตรงๆ ถือว่าครอบคลุมแล้ว ไม่ควรเตือนซ้ำว่า
+  // "ของในล็อตไม่พอ" ทั้งที่มีรายการต้นทุนอยู่แล้วในตาราง (บั๊กที่ผู้ใช้เจอ: มีของครบแล้วแต่ยังขึ้นเตือนว่าล็อตมีของ 0)
+  const purchasedByProduct = {};
+  (d.purchases||[]).forEach(e=>{ if(e.customName) return; purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
   for(const pid of lotProductIds){
     const needed = totals[pid]||0;
     if(needed<=0) continue;
+    const alreadyBought = purchasedByProduct[pid]||0;
+    const remainingNeeded = Math.max(0, Math.round((needed-alreadyBought)*100)/100);
+    if(remainingNeeded<=0.001) continue;
     const {qty:pending} = await lotPendingStock_(pid, lots, iso);
-    if(pending>=needed-0.001) continue;
+    if(pending>=remainingNeeded-0.001) continue;
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
-    const gap = Math.round((needed-pending)*100)/100;
-    gaps.push({iso, type:'lot-uncovered', text:`${p.emoji}${p.name}: วันนี้ต้องการ ${needed} ${p.unit} แต่มีของในล็อตให้ตัดต้นทุนได้แค่ ${pending} ${p.unit} (ขาด ${gap} ${p.unit}) — เช็คว่าซื้อล็อตนี้ไว้หรือยัง หรือล็อตที่มีถูกใช้หมดไปแล้ว`, tab:'purchase'});
+    const gap = Math.round((remainingNeeded-pending)*100)/100;
+    gaps.push({iso, type:'lot-uncovered', text:`${p.emoji}${p.name}: วันนี้ต้องการ ${needed} ${p.unit}${alreadyBought>0?` (บันทึกต้นทุนซื้อแล้ว ${alreadyBought} ${p.unit})`:''} แต่มีของในล็อตให้ตัดต้นทุนได้แค่ ${pending} ${p.unit} (ยังขาดอีก ${gap} ${p.unit}) — เช็คว่าซื้อล็อตนี้ไว้หรือยัง หรือล็อตที่มีถูกใช้หมดไปแล้ว`, tab:'purchase'});
   }
   return gaps;
 }

@@ -724,6 +724,22 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
       <button class="btn" id="addPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อ</button>
     </div>
+    <div class="card dash-wide-card">
+      <h3>🧾 ต้นทุนซื้อสินค้าอื่นๆ</h3>
+      <div class="hint">สำหรับสินค้านอกเหนือ 7 รายการหลัก (เช่นที่เพิ่มไว้ในออเดอร์ผ่านปุ่ม "+ อื่นๆ") — บันทึกแล้วจะรวมเข้าตารางต้นทุนซื้อวันนี้ด้านล่างเลย ไม่แก้ไขได้ทีหลัง ถ้าพิมพ์ผิดให้ลบแล้วบันทึกใหม่</div>
+      <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customPurchName" placeholder="เช่น กุ้งเผา"></div>
+      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="customPurchSeller"></select></div>
+      <div class="grid7">
+        <div><label>จำนวนซื้อ</label><input type="number" step="0.01" id="customPurchQty" placeholder="0"></div>
+        <div><label>ราคาซื้อ/หน่วย (ต้นทุน)</label><input type="number" step="0.01" id="customPurchPrice" placeholder="0"></div>
+      </div>
+      <div class="grid7" style="margin-top:8px;">
+        <div><label>ค่าใช้จ่ายเพิ่ม</label><input type="number" step="1" id="customPurchExtra" placeholder="0"></div>
+        <div><label>ราคาขาย/หน่วย <span class="subhint">(ใส่ถ้าอยากให้คำนวณกำไรในตาราง)</span></label><input type="number" step="0.01" id="customPurchSellPrice" placeholder="0"></div>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="customPurchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
+      <button class="btn" id="addCustomPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อสินค้าอื่นๆ</button>
+    </div>
     <div id="lotSettleCards"></div>
     <div class="card dash-wide-card" data-no-collapse="1">
       <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
@@ -3822,7 +3838,7 @@ async function buildAllExpenseRows_(){
     });
     Object.entries(sellerGroups).forEach(([seller,g])=>{
       const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-      const itemLabel = g.items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
+      const itemLabel = g.items.map(e=>{ if(e.customName) return '📦'+e.customName; const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
       const paidDate = ((d.purchaseGroupPayment||{})[seller]||{}).paidDate || null;
       // ไม่ใส่ชื่อคู่ค้าซ้ำในป้ายชื่อแล้ว เพราะย้ายไปขึ้นต้นแถวแทน (ดูส่วนแสดงผลด้านล่าง)
       rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}`, amount:g.amount, paid:g.paid, paidDate, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
@@ -4781,6 +4797,7 @@ function purchaseSellUnit(pid){ const p = PRODUCTS.find(p=>p.id===pid); return p
 // ที่เป็นเศษได้ปกติ — เช็คจากชื่อหน่วยแทนเช็ค pid ตรงๆ เผื่อมีสินค้าแบบนับหน่วยเพิ่มในอนาคต
 function sellableUnitIsWhole_(pid){ return purchaseSellUnit(pid)==='กระปุก'; }
 function renderPurchaseForm(){
+  renderCustomPurchaseForm_();
   const prodSel = document.getElementById('purchProduct');
   prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   prodSel.onchange = ()=>{ updatePurchaseUnitLabels(); updatePurchaseLeftoverHint(); autofillPurchasePrice(); };
@@ -6864,6 +6881,45 @@ async function findNextUnrecordedPurchaseProduct(){
   }
   return null;
 }
+// บันทึกต้นทุนซื้อของสินค้านอกแคตตาล็อก (customName) — ตั้งใจแยกฟอร์ม/ฟังก์ชันออกมาจาก addPurchase() ทั้งก้อน ไม่ยุ่งกับ
+// ระบบที่ผูกกับ PRODUCTS ตรงๆ (คำนวณราคาอัตโนมัติ/เทียบสัดส่วนกับยอดออเดอร์/เติมของเหลืออัตโนมัติ/แก้ไขรายการ) เพราะสิ่งเหล่านั้น
+// ล้วนอิงแคตตาล็อกสินค้าหลักที่มีข้อมูลราคาขาย/ล็อตจริงรองรับอยู่ ไม่มีความหมายกับของนอกแคตตาล็อกเลย — เขียนลง purchases
+// อาเรย์เดียวกับรายการปกติตรงๆ (เข้าตารางต้นทุนซื้อเดียวกัน ตามที่ตกลงกันไว้) แค่ไม่มี productId จริง ไม่รองรับแก้ไขทีหลัง
+// (ลบแล้วบันทึกใหม่แทนถ้าพิมพ์ผิด) — paid:false เหมือนรายการปกติ จะได้เข้ากลุ่ม "สรุปบิลตามผู้ขายวันนี้" รอจ่ายตามปกติ
+function renderCustomPurchaseForm_(){
+  const sel = document.getElementById('customPurchSeller');
+  if(!sel) return;
+  sel.innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+}
+async function addCustomPurchase(){
+  const name = (document.getElementById('customPurchName').value||'').trim();
+  const seller = document.getElementById('customPurchSeller').value;
+  const qty = Number(document.getElementById('customPurchQty').value||0);
+  const price = Number(document.getElementById('customPurchPrice').value||0);
+  const extra = Number(document.getElementById('customPurchExtra').value||0);
+  const sellPrice = Number(document.getElementById('customPurchSellPrice').value||0);
+  const note = document.getElementById('customPurchNote').value||'';
+  if(!name){ showToast('กรอกชื่อสินค้าก่อน'); return; }
+  if(qty<=0){ showToast('กรอกจำนวนซื้อก่อน'); return; }
+  const iso = currentDate;
+  const entry = {id: uid('pu'), customName:name, customSellPrice: sellPrice, seller, qty, price, extra, sellableQty: qty, note, paid:false};
+  try{
+    const fresh = await writeDayArrayOp_(iso, 'purchases', {push:entry});
+    if(iso===currentDate) dayData = fresh;
+  }catch(e){
+    showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    return;
+  }
+  showToast('บันทึกต้นทุนซื้อสินค้าอื่นๆ แล้ว');
+  document.getElementById('customPurchName').value = '';
+  document.getElementById('customPurchQty').value = '';
+  document.getElementById('customPurchPrice').value = '';
+  document.getElementById('customPurchExtra').value = '';
+  document.getElementById('customPurchSellPrice').value = '';
+  document.getElementById('customPurchNote').value = '';
+  renderPurchaseList();
+  renderPurchaseGroups();
+}
 function startEditPurchase(id){
   const e = dayData.purchases.find(x=>x.id===id);
   if(!e) return;
@@ -6941,33 +6997,41 @@ function renderPurchaseList(){
   list.forEach(e=>{ if(e.billId) billIdCounts[e.billId] = (billIdCounts[e.billId]||0)+1; });
   const totalCost = list.reduce((s,e)=>s+purchaseCostTotal(e),0);
   const totalProfit = list.reduce((s,e)=>{
-    const sellPrice = priceOnDate(e.productId, currentDate);
+    // สินค้าอื่นๆ (e.customName) ไม่มี priceOnDate ให้ค้น — ใช้ราคาขายที่พิมพ์เองตอนบันทึก (customSellPrice) แทน ถ้าไม่ได้กรอกไว้ (0) ถือว่าไม่รู้กำไร ไม่นับรวม
+    const sellPrice = e.customName ? Number(e.customSellPrice||0) : priceOnDate(e.productId, currentDate);
+    if(e.customName && !e.customSellPrice) return s;
     const sq = purchaseSellableQty(e);
     return s + (sellPrice - purchaseCostPerUnit(e)) * sq;
   }, 0);
   wrap.innerHTML = `<div class="scrollx"><table class="plain">
     <tr><th>สินค้า</th><th>ผู้ขาย</th><th class="num">ซื้อ</th><th class="num">ราคา/หน่วย</th><th class="num">ค่าสินค้า</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th class="num">ราคาขาย/หน่วย</th><th class="num">กำไร/หน่วย</th><th class="num">กำไรรวม</th><th>สถานะ</th><th></th></tr>
     ${list.map(e=>{
-      const p = PRODUCTS.find(x=>x.id===e.productId);
+      // สินค้าอื่นๆ (นอกแคตตาล็อก) ไม่มี productId จริง — ใช้ชื่อ/ราคาขายที่พิมพ์เองแทนการค้น PRODUCTS/priceOnDate ทุกจุด
+      const isCustom = !!e.customName;
+      const p = isCustom ? null : PRODUCTS.find(x=>x.id===e.productId);
       const ct = purchaseCostTotal(e); const sq = purchaseSellableQty(e); const cpu = purchaseCostPerUnit(e);
       // กำไร = ราคาขาย/หน่วย (ตามประวัติราคาขายของวันนี้) หัก ต้นทุน/หน่วยขาย — คูณด้วยจำนวนที่ "ทำได้" (ยังไม่หักของเหลือค้าง/ของเสีย)
-      const sellPrice = priceOnDate(e.productId, currentDate);
+      const sellPrice = isCustom ? Number(e.customSellPrice||0) : priceOnDate(e.productId, currentDate);
+      const hasSellPrice = !isCustom || Number(e.customSellPrice||0)>0;
       const profitPerUnit = sellPrice - cpu;
       const profitTotal = profitPerUnit * sq;
       const profitColor = profitTotal>=0 ? 'var(--success)' : 'var(--danger)';
+      const displayName = isCustom ? `📦 ${escapeHtml(e.customName)}` : `${p.emoji} ${p.name}`;
+      const buyUnit = isCustom ? '' : purchaseBuyUnit(e.productId);
+      const sellUnit = isCustom ? '' : purchaseSellUnit(e.productId);
       return `<tr>
-        <td>${p.emoji} ${p.name}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
-        <td class="num num">${e.qty} ${purchaseBuyUnit(e.productId)}</td>
+        <td>${displayName}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
+        <td class="num num">${e.qty} ${buyUnit}</td>
         <td class="num num">${numP(e.productId, e.price)}</td>
         <td class="num num">${numP(e.productId, e.qty*e.price)}</td>
-        <td class="num num">${sq} ${purchaseSellUnit(e.productId)}</td>
+        <td class="num num">${sq} ${sellUnit}</td>
         <td class="num num">${moneyP(e.productId, ct)}</td>
         <td class="num num" style="color:var(--accent);">${moneyP(e.productId, cpu)}</td>
-        <td class="num num">${moneyP(e.productId, sellPrice)}</td>
-        <td class="num num" style="color:${profitColor};">${moneyP(e.productId, profitPerUnit)}</td>
-        <td class="num num" style="color:${profitColor};font-weight:600;">${moneyP(e.productId, profitTotal)}</td>
+        <td class="num num">${hasSellPrice ? moneyP(e.productId, sellPrice) : '-'}</td>
+        <td class="num num" style="color:${profitColor};">${hasSellPrice ? moneyP(e.productId, profitPerUnit) : '-'}</td>
+        <td class="num num" style="color:${profitColor};font-weight:600;">${hasSellPrice ? moneyP(e.productId, profitTotal) : '-'}</td>
         <td><span class="badge-delay" style="${e.fromLot?'background:var(--accent-soft);color:var(--accent);':(e.paid?'background:var(--success-soft);color:var(--success);':'')}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
-        <td><div style="display:flex;gap:4px;"><button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบรายการนี้">✕</button>${(e.billId && billIdCounts[e.billId]>1) ? `<button class="iconbtn" data-purchdelbill="${e.billId}" aria-label="ลบทั้งบิล" title="ลบทั้งบิล (${billIdCounts[e.billId]} รายการ)">🗑️</button>` : ''}</div></td>
+        <td><div style="display:flex;gap:4px;">${isCustom ? '' : `<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบรายการนี้">✕</button>${(e.billId && billIdCounts[e.billId]>1) ? `<button class="iconbtn" data-purchdelbill="${e.billId}" aria-label="ลบทั้งบิล" title="ลบทั้งบิล (${billIdCounts[e.billId]} รายการ)">🗑️</button>` : ''}</div></td>
       </tr>`;
     }).join('')}
   </table></div>
@@ -6984,9 +7048,10 @@ function renderPurchaseList(){
     const entry = dayData.purchases.find(x=>x.id===id);
     if(!entry) return;
     const p = PRODUCTS.find(x=>x.id===entry.productId);
+    const displayName = entry.customName || (p?p.name:'');
     const confirmMsg = entry.fromLot
-      ? `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้? (ของจะกลับไปเป็น "ค้างตัดต้นทุน" ในสต็อกล็อตเหมือนเดิม ไม่ได้ลบรอบเบิก)`
-      : `ลบรายการต้นทุนซื้อ ${p?p.name:''} นี้?`;
+      ? `ลบรายการต้นทุนซื้อ ${displayName} นี้? (ของจะกลับไปเป็น "ค้างตัดต้นทุน" ในสต็อกล็อตเหมือนเดิม ไม่ได้ลบรอบเบิก)`
+      : `ลบรายการต้นทุนซื้อ ${displayName} นี้?`;
     if(!confirm(confirmMsg)) return;
     const iso = currentDate;
     try{
@@ -7102,7 +7167,10 @@ function renderPurchaseGroups(){
     const info = dayData.purchaseGroupPayment[seller] || {paid:false, paidDate:null, extra:0, note:''};
     const total = subtotal + Number(info.extra||0);
     const showDatePicker = purchGroupEditingSeller===seller;
-    const itemsText = items.map(e=>{ const p=PRODUCTS.find(x=>x.id===e.productId); return `${p.emoji}${p.name} ${e.qty}${purchaseBuyUnit(e.productId)}×${e.price}`; }).join(' • ');
+    const itemsText = items.map(e=>{
+      if(e.customName) return `📦${e.customName} ${e.qty}×${e.price}`;
+      const p=PRODUCTS.find(x=>x.id===e.productId); return `${p.emoji}${p.name} ${e.qty}${purchaseBuyUnit(e.productId)}×${e.price}`;
+    }).join(' • ');
     const rowKey = 'pg-'+seller.replace(/[^a-zA-Z0-9ก-๙]/g,'');
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
@@ -7184,7 +7252,7 @@ function renderPurchaseGroups(){
   updateBillSummaryVisibility();
 }
 function purchaseNoteHint(list){
-  const notes = list.filter(e=>e.note).map(e=>`${PRODUCTS.find(p=>p.id===e.productId).name}: ${escapeHtml(e.note)}`);
+  const notes = list.filter(e=>e.note).map(e=>{ const nm = e.customName || (PRODUCTS.find(p=>p.id===e.productId)||{}).name || ''; return `${nm}: ${escapeHtml(e.note)}`; });
   return notes.length ? notes.map(n=>`• ${n}`).join('<br>') : 'ไม่มีหมายเหตุ';
 }
 async function computePurchaseMonth(monthVal){
@@ -7200,9 +7268,15 @@ async function computePurchaseMonth(monthVal){
     (d.purchases||[]).forEach(e=>{
       const ct = purchaseCostTotal(e);
       const sq = purchaseSellableQty(e);
+      grandTotal += ct;
+      // สินค้าอื่นๆ (e.customName) ไม่มี priceOnDate ให้ค้น ไม่มีในตาราง PRODUCTS ด้วย — รวมแค่ต้นทุนเข้ายอดรวมเดือน
+      // (grandTotal) ไม่รวมเข้า byProduct (ตารางแยกตามสินค้าหลัก) และคิดกำไรได้ก็ต่อเมื่อกรอกราคาขายเองไว้ตอนบันทึก
+      if(e.customName){
+        if(e.customSellPrice) grandProfit += (Number(e.customSellPrice) - purchaseCostPerUnit(e)) * sq;
+        return;
+      }
       // กำไรคิดตามราคาขาย ณ วันที่ซื้อ/ทำนั้นๆ (ราคาขายอาจเปลี่ยนระหว่างเดือน) หักต้นทุนของรายการนั้น
       const profit = (priceOnDate(e.productId, iso) - purchaseCostPerUnit(e)) * sq;
-      grandTotal += ct;
       grandProfit += profit;
       if(!byProduct[e.productId]) byProduct[e.productId] = {qty:0, sellQty:0, cost:0, profit:0};
       byProduct[e.productId].qty += Number(e.qty||0);
@@ -7969,7 +8043,7 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
   });
   // รวมจำนวนซื้อจริงที่บันทึกไว้ (ขายได้) แยกตามสินค้า เพื่อเทียบกับยอดที่ควรต้องใช้
   const purchasedByProduct = {};
-  (d.purchases||[]).forEach(e=>{ purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
+  (d.purchases||[]).forEach(e=>{ if(e.customName) return; purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
   const missingParts = []; const mismatchParts = []; const unexpectedParts = [];
   Object.entries(neededByProduct).forEach(([pid, needed])=>{
     // สินค้าที่มีล็อตวัตถุดิบ: ตั้งใจให้ตัดต้นทุนเหลื่อมวันได้ (ระบบ "ค้างตัดต้นทุน") — รายการต้นทุนซื้อจากการตัดสต็อกล็อต
@@ -8001,6 +8075,27 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
       unexpectedParts.push(`${p.emoji}${p.name} ซื้อ ${bought} ${p.unit} แต่ไม่มีออเดอร์เลย`);
     }
   });
+  // สินค้าอื่นๆ (นอกแคตตาล็อก) ที่สั่งวันนี้ (orders[code].custom) — เทียบยอดสั่งรวมทุกสาขากับยอดต้นทุนซื้อสินค้าอื่นๆ ที่
+  // บันทึกไว้แล้ว (purchases ที่มี customName) จับคู่กันด้วยชื่อตรงๆ (ไม่มี id ให้ผูกเหมือนสินค้าหลัก) — เช็คทิศทางเดียว
+  // (ขาด) พอ ไม่เช็ค "ซื้อเกิน/ไม่มีออเดอร์รองรับ" เหมือนสินค้าหลัก เพราะชื่อพิมพ์เองอาจสะกดไม่ตรงกันได้ง่าย ไม่อยากแจ้งเตือน
+  // ผิดๆ ถี่เกินไป
+  const customNeeded = {};
+  Object.values(d.orders||{}).forEach(row=>{
+    (row.custom||[]).forEach(it=>{ if(it.name) customNeeded[it.name] = (customNeeded[it.name]||0) + Number(it.qty||0); });
+  });
+  if(Object.keys(customNeeded).length){
+    const customBought = {};
+    (d.purchases||[]).forEach(e=>{ if(e.customName) customBought[e.customName] = (customBought[e.customName]||0) + purchaseSellableQty(e); });
+    const customMissingParts = [];
+    Object.entries(customNeeded).forEach(([name, needed])=>{
+      const bought = customBought[name] || 0;
+      if(bought < needed - 0.001){
+        const gap = Math.round((needed-bought)*100)/100;
+        customMissingParts.push(`📦${name} ขาด ${gap}`);
+      }
+    });
+    if(customMissingParts.length) missingParts.push(...customMissingParts);
+  }
   if(missingParts.length){
     gaps.push({iso, type:'purchase', text:`ยังไม่ได้บันทึกต้นทุนซื้อ: ${missingParts.join(', ')}`, tab:'purchase'});
   }
@@ -8857,6 +8952,7 @@ async function init(){
   document.getElementById('addPExpenseCategoryBtn').addEventListener('click', addPExpenseCategory);
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   guardedClick('addPurchaseBtn', addPurchase);
+  guardedClick('addCustomPurchaseBtn', addCustomPurchase);
   document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว

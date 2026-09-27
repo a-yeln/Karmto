@@ -216,6 +216,7 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orow .acts{display:flex;gap:6px;flex:none;}
 .iconbtn{background:var(--surface-3);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;width:30px;height:30px;font-size:13px;cursor:pointer;flex:none;}
 .iconbtn.danger{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
+.iconbtn.copied{background:var(--success-soft);border-color:var(--success);color:var(--success);}
 .msgblock{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:12px;margin-bottom:10px;}
 .msgblock .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:8px;font-weight:600;}
 .tag.mahkard{background:var(--mahkard-soft);color:var(--mahkard);}
@@ -615,6 +616,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <select id="branchSelect"></select>
       </div>
       <div id="productInputs" class="grid7"></div>
+      <div id="customItemsSection" style="margin-top:12px;"></div>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <button class="btn" id="saveRowBtn">บันทึกสาขานี้</button>
         <button class="btn secondary" id="clearRowBtn" style="width:auto;padding:10px 16px;">ล้าง</button>
@@ -1174,6 +1176,10 @@ let currentDate = todayISO();
 let dayData = emptyDay();
 let editingCode = null;
 let editingDebtId = null;
+// สินค้าอื่นๆ ที่พิมพ์ชื่อ/ราคา/จำนวนเอง (นอกเหนือ 7 สินค้าหลัก) ของสาขาที่กำลังกรอกอยู่ในฟอร์มตอนนี้ — โหลดจาก
+// dayData.orders[code].custom ตอนเลือก/แก้ไขสาขา แล้วเก็บพักไว้ตรงนี้จนกว่าจะกด "บันทึกสาขานี้" เหมือนกับ .prodinput ทั่วไป
+let customItemsStaged = [];
+let customItemFormOpen = false;
 
 // สร้างรหัสรายการที่ไม่ชนกันแน่นอน — เดิมใช้แค่ Date.now() เฉยๆ ถ้ากดบันทึกซ้ำเร็วมากๆ (เช่นดับเบิลแท็ปมือถือ/เน็ตกระตุก) อาจได้ timestamp เดียวกันจนรหัสซ้ำกัน
 // แล้วพอกดลบรายการหนึ่ง (ลบตามรหัส) จะพลอยลบรายการอื่นที่รหัสซ้ำกันไปด้วยทั้งหมดโดยไม่ตั้งใจ — เติมเลขสุ่มต่อท้ายกันชนแน่นอน
@@ -1585,7 +1591,9 @@ function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Obje
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function branchCount(orders){ return Object.values(orders).filter(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).length; }
 function computeFee(totals){ const kg = KG_FEE_IDS.reduce((s,id)=>s+totals[id],0); const oyster = totals.p7; return {kg, oyster, kgAmt:kg*5, oysterAmt:oyster*3, total:kg*5+oyster*3}; }
-function branchBillAmount(row, iso){ return PRODUCTS.reduce((s,p)=> s + Number(row[p.id]||0) * priceOnDate(p.id, iso), 0); }
+// รวมยอดสินค้าอื่นๆ (นอกแคตตาล็อก) เข้ายอดบิลของสาขาด้วยเสมอ ไม่ว่าจะเป็นสาขาปกติหรือสาขา "แยกส่ง" — เพราะ "แยกส่ง" มีผลแค่กับ
+// Brand Fee เท่านั้น (ดู isFeeExempt/computeFeeTotals) ไม่เกี่ยวกับยอดบิล/รายได้ที่เรียกเก็บจากสาขาซึ่งนับทุกสาขาอยู่แล้ว
+function branchBillAmount(row, iso){ return PRODUCTS.reduce((s,p)=> s + Number(row[p.id]||0) * priceOnDate(p.id, iso), 0) + (row.custom||[]).reduce((s,it)=>s+Number(it.qty||0)*Number(it.price||0), 0); }
 
 let statsRenderSeq_ = 0;
 // "รอจ่าย" ต้องรวมทุกอย่างที่ต้องจ่ายวันนี้ให้ตรงกับการ์ด "สรุปบิลวันนี้" (ผู้ขายวันนี้/บิลสินค้าล็อต/ค่าขนส่งล็อต/รายจ่ายกิจการ)
@@ -1635,10 +1643,16 @@ async function renderStats(){
 // ---- Order tab ----
 function renderBranchSelect(){
   const sel = document.getElementById('branchSelect');
-  sel.innerHTML = settings.branches.map(b=>{
+  const optionHtml = b=>{
     const has = dayData.orders[b.code] && PRODUCTS.some(p=>Number(dayData.orders[b.code][p.id]||0)>0);
     return `<option value="${b.code}">${escapeHtml(branchDisplayName(b))}${has?' ✓':''}</option>`;
-  }).join('');
+  };
+  // สาขาที่ติ๊ก "นานๆ สั่งที" ไว้ (ตั้งค่า → รายชื่อสาขา) แยกไว้เป็นกลุ่มท้ายดรอปดาวน์เสมอ (optgroup) กันต้องเลื่อนผ่าน
+  // ชื่อสาขาที่แทบไม่ได้ใช้ทุกครั้งที่จะเลือกสาขาประจำ — ไม่กระทบลำดับ/เนื้อหาของกลุ่มสาขาประจำด้านบนเลย
+  const regular = settings.branches.filter(b=>!b.rare);
+  const rare = settings.branches.filter(b=>b.rare);
+  sel.innerHTML = regular.map(optionHtml).join('') +
+    (rare.length ? `<optgroup label="นานๆ สั่งที">${rare.map(optionHtml).join('')}</optgroup>` : '');
   if(editingCode) sel.value = editingCode;
   renderProductInputs();
 }
@@ -1650,6 +1664,59 @@ function renderProductInputs(){
       <div class="prodlabel">${p.emoji} ${p.name} <span style="color:var(--text-faint)">(${p.unit})</span></div>
       <input type="number" min="0" step="0.1" inputmode="decimal" data-pid="${p.id}" class="prodinput" value="${row[p.id]||''}" placeholder="0">
     </div>`).join('');
+  // โหลดสินค้าอื่นๆ ที่เคยบันทึกไว้ของสาขานี้มาพักไว้ในฟอร์มด้วย (เหมือนที่ .prodinput โหลดค่าจาก row[p.id] ด้านบน)
+  customItemsStaged = ((row.custom||[]).map(it=>({...it})));
+  customItemFormOpen = false;
+  renderCustomItemsSection_();
+}
+// การ์ดย่อย "สินค้าอื่นๆ" ในฟอร์มบันทึกออเดอร์ทีละสาขา — สำหรับสินค้านอกเหนือ 7 รายการหลักที่ไม่มีในแคตตาล็อก (พิมพ์ชื่อ/ราคา/
+// จำนวนเอง) กด "+ เพิ่มสินค้าอื่นๆ" แล้วกรอกในฟอร์มที่โผล่ลงมา รายการที่เพิ่มจะรวมเข้ายอดบิล/ใบเสร็จของสาขานั้นตอนกด
+// "บันทึกสาขานี้" — ไม่เกี่ยวกับ Brand Fee (คิดจาก 7 สินค้าหลักตามสูตรคงที่เท่านั้น ของนอกแคตตาล็อกไม่มีหน่วยที่เข้าสูตรได้)
+// และไม่เข้าระบบต้นทุนล็อต/สต็อกใดๆ (เป็นแค่รายการบวกเข้าบิลเฉยๆ) — ถ้าสาขาไหนมีแต่สินค้าอื่นๆ ไม่มีสินค้าหลักเลยแม้แต่
+// รายการเดียว จุดที่เช็ค "สาขานี้มีออเดอร์วันนี้ไหม" หลายจุดในแอป (ยึดตาม PRODUCTS หลักเป็นหลักมาตั้งแต่แรก) จะยังไม่นับ
+// สาขานั้นว่าบันทึกแล้ว — ต้องมีสินค้าหลักอย่างน้อย 1 รายการคู่กันไปด้วยเสมอ
+function renderCustomItemsSection_(){
+  const wrap = document.getElementById('customItemsSection');
+  if(!wrap) return;
+  const rowsHtml = customItemsStaged.map((it,i)=>`
+    <div class="lrow">
+      <div class="lname">${escapeHtml(it.name)}</div>
+      <div class="lin num" style="width:auto;flex:1;text-align:right;">${it.qty} × ${money(it.price)} = ${money(Number(it.qty||0)*Number(it.price||0))}</div>
+      <button type="button" class="iconbtn danger" data-customitemdel="${i}" aria-label="ลบรายการนี้" style="margin-left:6px;">✕</button>
+    </div>`).join('');
+  wrap.innerHTML = `
+    <div class="hint" style="margin-bottom:6px;">📦 สินค้าอื่นๆ <span class="subhint">(นอกเหนือสินค้าหลัก — พิมพ์ชื่อ/ราคา/จำนวนเอง)</span></div>
+    ${rowsHtml}
+    ${customItemFormOpen ? `
+    <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customItemName" placeholder="เช่น กุ้งเผา"></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <div class="field" style="flex:1;"><label>ราคา/หน่วย</label><input type="number" min="0" step="0.01" inputmode="decimal" id="customItemPrice" placeholder="0"></div>
+      <div class="field" style="flex:1;"><label>จำนวน</label><input type="number" min="0" step="0.1" inputmode="decimal" id="customItemQty" placeholder="0"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button type="button" class="btn small" id="customItemAddBtn" style="width:auto;">เพิ่ม</button>
+      <button type="button" class="btn small secondary" id="customItemCancelBtn" style="width:auto;">ยกเลิก</button>
+    </div>` : `<button type="button" class="btn secondary" id="customItemOpenBtn" style="margin-top:8px;width:auto;padding:8px 14px;">+ เพิ่มสินค้าอื่นๆ</button>`}
+  `;
+  wrap.querySelectorAll('[data-customitemdel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    customItemsStaged.splice(Number(btn.getAttribute('data-customitemdel')), 1);
+    renderCustomItemsSection_();
+  }));
+  const openBtn = document.getElementById('customItemOpenBtn');
+  if(openBtn) openBtn.addEventListener('click', ()=>{ customItemFormOpen = true; renderCustomItemsSection_(); document.getElementById('customItemName').focus(); });
+  const cancelBtn = document.getElementById('customItemCancelBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ customItemFormOpen = false; renderCustomItemsSection_(); });
+  const addBtn = document.getElementById('customItemAddBtn');
+  if(addBtn) addBtn.addEventListener('click', ()=>{
+    const name = (document.getElementById('customItemName').value||'').trim();
+    const price = Number(document.getElementById('customItemPrice').value||0);
+    const qty = Math.round(Number(document.getElementById('customItemQty').value||0)*10)/10;
+    if(!name){ showToast('กรอกชื่อสินค้าก่อน'); return; }
+    if(qty<=0){ showToast('กรอกจำนวนก่อน'); return; }
+    customItemsStaged.push({name, price, qty});
+    customItemFormOpen = false;
+    renderCustomItemsSection_();
+  });
 }
 function renderOrderList(){
   const list = document.getElementById('orderList');
@@ -1665,7 +1732,8 @@ function renderOrderList(){
   if(entries.length===0){ list.innerHTML = '<div class="empty">ยังไม่มีสาขาที่บันทึกวันนี้</div>'; return; }
   entries.sort((a,b)=>a[0].localeCompare(b[0]));
   list.innerHTML = entries.map(([code,row])=>{
-    const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>`${p.emoji}${row[p.id]}`).join(' ');
+    const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>`${p.emoji}${row[p.id]}`).join(' ')
+      + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
     const exemptTag = isFeeExempt(code) ? ` <span style="color:var(--text-faint);font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:1px 6px;">แยกส่ง ไม่คิดค่าธรรมเนียม</span>` : '';
     return `<div class="orow"><div><div class="name"><span class="code">${code}</span>${branchName(code)}${exemptTag}</div><div class="items">${items}</div></div>
       <div class="acts"><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
@@ -1704,6 +1772,7 @@ async function saveRow(){
   const row = {};
   // ปัด 1 ตำแหน่งทศนิยม (ตรงกับ step="0.1" ของช่องกรอก) กันเศษทศนิยมแปลกๆ จากการคำนวณ float (เช่น 2.3000000000000003)
   document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
+  if(customItemsStaged.length) row.custom = customItemsStaged.map(it=>({...it})); // สินค้าอื่นๆ ที่พิมพ์เอง (ดูคอมเมนต์ที่ renderCustomItemsSection_)
   const iso = currentDate;
   // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน dayData.orders[code]=row; saveDay() ทั้งวัน — เดิมถ้าบันทึกสาขา
   // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
@@ -2068,7 +2137,10 @@ async function renderMessages(){
       return `<div class="msgblock">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-msgblocktoggle="${i}">
         <span class="tag ${b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
-        <span style="font-size:13px;color:var(--accent);flex:none;" id="msgblockchevron-${i}">${open?'▾':'▸'}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex:none;">
+          <button class="iconbtn" data-copy="${i}" aria-label="คัดลอกข้อความส่วนนี้" title="คัดลอกข้อความ">📋</button>
+          <span style="font-size:13px;color:var(--accent);" id="msgblockchevron-${i}">${open?'▾':'▸'}</span>
+        </div>
       </div>
       <div id="msgblockbody-${i}" style="display:${open?'':'none'};margin-top:6px;">
         <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
@@ -2083,7 +2155,6 @@ async function renderMessages(){
             ${b.edited?`<button class="btn small secondary" data-msgreset="${i}" style="width:auto;">รีเซ็ตเป็นข้อความอัตโนมัติ</button>`:''}
           </div>
         </div>
-        <button class="copybtn" data-copy="${i}">คัดลอกข้อความ</button>
       </div>
     </div>`;
     }).join('');
@@ -2108,12 +2179,14 @@ async function renderMessages(){
     setTimeout(()=>{ btn.textContent=original; btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }, 1500);
   });
   area.querySelectorAll('[data-copy]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation(); // ปุ่มนี้อยู่ในแถวหัวข้อที่มี toggle พับ/กางผูกอยู่ทั้งแถว (data-msgblocktoggle) — กันไม่ให้กดคัดลอกแล้วพับ/กางไปด้วย
       const idx = Number(btn.getAttribute('data-copy'));
       try{ await navigator.clipboard.writeText(blocks[idx].text); }
-      catch(e){ const ta=document.createElement('textarea'); ta.value=blocks[idx].text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-      btn.textContent='คัดลอกแล้ว ✓'; btn.classList.add('copied');
-      setTimeout(()=>{ btn.textContent='คัดลอกข้อความ'; btn.classList.remove('copied'); }, 1500);
+      catch(err){ const ta=document.createElement('textarea'); ta.value=blocks[idx].text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+      const original = btn.textContent;
+      btn.textContent='✅'; btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent=original; btn.classList.remove('copied'); }, 1500);
     });
   });
   area.querySelectorAll('[data-msgedit]').forEach(btn=>btn.addEventListener('click', ()=>{
@@ -2884,6 +2957,11 @@ function computeReceiptData(code, iso, d){
     const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso); const amount = Math.round(qty*price);
     return {p, qty, price, amount};
   });
+  // สินค้าอื่นๆ (นอกแคตตาล็อก) ใช้ราคาที่พิมพ์เองตอนบันทึกออเดอร์ตรงๆ (ไม่มี priceOnDate ให้ค้นเหมือนสินค้าหลัก)
+  (row.custom||[]).forEach(it=>{
+    const qty = Number(it.qty||0); const price = Number(it.price||0); const amount = Math.round(qty*price);
+    items.push({custom:true, name:it.name, qty, price, amount});
+  });
   const subtotal = items.reduce((s,it)=>s+it.amount,0);
   const extra = Number(d.billExtra[code]||0);
   const total = subtotal + extra;
@@ -2918,7 +2996,10 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       </div>` : ''}
       <table>
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
-        ${items.map(it=>`<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`).join('')}
+        ${items.map(it=>it.custom
+          ? `<tr><td>${it.qty}</td><td>${escapeHtml(it.name)}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+          : `<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+        ).join('')}
       </table>
       <div class="totline"><span>ผลรวมย่อย</span><span class="num">${subtotal.toLocaleString('th-TH')}</span></div>
       <div class="totline"><span>ค่าใช้จ่ายเพิ่มเติม / เคลม (+/-)</span><span class="num"><input type="number" step="1" data-extra="${code}" value="${extra||''}" placeholder="0" style="width:80px;background:#fff;border:1px solid #ccc;border-radius:5px;padding:3px 6px;color:var(--text);text-align:right;font-size:12.5px;"></span></div>
@@ -2966,7 +3047,7 @@ async function toggleReceipt(code){
       `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
-      ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
@@ -3025,7 +3106,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
-      ...items.map(it=>`${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
@@ -4398,6 +4479,9 @@ function renderBranchSettings(){
       <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:${b.separate?'var(--accent)':'var(--text-dim)'};margin-bottom:6px;font-weight:${b.separate?'600':'400'};">
         <input type="checkbox" data-bsep="${i}" ${b.separate?'checked':''} style="width:auto;"> แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)${b.separate?' ✓':''}
       </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:${b.rare?'var(--accent)':'var(--text-dim)'};margin-bottom:6px;font-weight:${b.rare?'600':'400'};">
+        <input type="checkbox" data-brare="${i}" ${b.rare?'checked':''} style="width:auto;"> นานๆ สั่งที (ย้ายไปกลุ่มท้ายดรอปดาวน์เลือกสาขา)${b.rare?' ✓':''}
+      </label>
       <input type="text" data-bbillname="${i}" value="${escapeHtml(b.billName)}" placeholder="ชื่อผู้ซื้อเฉพาะ (ว่าง = ใช้ชื่อสาขาอัตโนมัติ)" style="margin-bottom:6px;">
       <textarea data-bbilladdr="${i}" placeholder="รายละเอียดที่อยู่เพิ่มเติม เช่น เลขที่ 28/1 หมู่ 7 ต.บางรัก... (ไม่ต้องพิมพ์ชื่อสาขาซ้ำ ระบบใส่ให้ในชื่อผู้ซื้อแล้ว) ว่าง = ว่างบนบิล" rows="2" style="margin-bottom:6px;resize:vertical;">${escapeHtml(b.billAddr)}</textarea>
       <input type="text" data-bbilltax="${i}" value="${escapeHtml(b.billTax)}" placeholder="เลขภาษีเฉพาะ (ว่าง = ว่างบนบิล)">
@@ -4411,12 +4495,17 @@ function renderBranchSettings(){
     settings.branches[i].separate = cb.checked;
     renderBranchSettings();
   }));
+  wrap.querySelectorAll('[data-brare]').forEach((cb,i)=>cb.addEventListener('change', ()=>{
+    settings.branches[i].rare = cb.checked;
+    renderBranchSettings();
+  }));
 }
 async function saveBranches(){
   const codes = document.querySelectorAll('[data-bcode]');
   const areas = document.querySelectorAll('[data-barea]');
   const labels = document.querySelectorAll('[data-blabel]');
   const seps = document.querySelectorAll('[data-bsep]');
+  const rares = document.querySelectorAll('[data-brare]');
   const billNames = document.querySelectorAll('[data-bbillname]');
   const billAddrs = document.querySelectorAll('[data-bbilladdr]');
   const billTaxes = document.querySelectorAll('[data-bbilltax]');
@@ -4426,6 +4515,7 @@ async function saveBranches(){
     area: areas[i].value.trim(),
     label: labels[i].value.trim(),
     separate: seps[i].checked,
+    rare: rares[i].checked,
     billName: billNames[i].value.trim(),
     billAddr: billAddrs[i].value.trim(),
     billTax: billTaxes[i].value.trim(),

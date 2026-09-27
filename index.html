@@ -9023,6 +9023,22 @@ function updateLotListAutoFold(){
   body.style.display = hasData ? 'none' : '';
   chevron.textContent = hasData ? '▸' : '▾';
 }
+// น้ำแข็ง: ถ้าช่องหมวดเป็น "น้ำแข็ง" และกรอกตัวเลขไว้ในช่องรายละเอียด (หมายถึงจำนวนถุงที่ซื้อ) คำนวณราคาให้อัตโนมัติเป็น
+// จำนวน*40 ลงช่องจำนวนเงินให้เลย — เป็นแค่ค่าเริ่มต้นที่คำนวณให้ ไม่ได้ล็อกช่องจำนวนเงินไว้ แก้ไขทับเองได้เสมอ (เผื่อบางวัน
+// ซื้อคนละราคา) ไม่คำนวณถ้าเปลี่ยนหมวดออกจากน้ำแข็งหรือรายละเอียดไม่ใช่ตัวเลขจำนวนที่ถูกต้อง (>0)
+const ICE_PRICE_PER_UNIT_ = 40;
+function wireIceAutoCalc_(catId, noteId, amtId){
+  const catEl = document.getElementById(catId), noteEl = document.getElementById(noteId), amtEl = document.getElementById(amtId);
+  if(!catEl || !noteEl || !amtEl) return;
+  const recalc = ()=>{
+    if(catEl.value !== 'น้ำแข็ง') return;
+    const qty = Number(noteEl.value);
+    if(!noteEl.value.trim() || !(qty>0)) return;
+    amtEl.value = Math.round(qty*ICE_PRICE_PER_UNIT_*100)/100;
+  };
+  noteEl.addEventListener('input', recalc);
+  catEl.addEventListener('change', recalc);
+}
 // พับการ์ด "รายจ่ายกิจการวันนี้" อัตโนมัติถ้ากรอกไว้แล้วอย่างน้อย 1 รายการ — ใช้เป็น fallback สำหรับวันที่ไม่มีออเดอร์เลย
 // (ไม่เข้าเงื่อนไข routine ค่าแรง/น้ำแข็งด้านล่าง)
 function updateExpenseFormAutoFold(){
@@ -9224,6 +9240,8 @@ async function init(){
   document.getElementById('plMonthInput').addEventListener('change', renderMonthPL);
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
   guardedClick('addExpenseBtn', addExpense);
+  wireIceAutoCalc_('expCategory','expNote','expAmount');
+  wireIceAutoCalc_('dashExpCategory','dashExpNote','dashExpAmount');
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));

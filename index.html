@@ -723,22 +723,25 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <button type="button" class="btn small secondary" id="purchAddToStageBtn" style="width:auto;">➕ เพิ่มสินค้าในบิลนี้ (ถ้าบิลนี้มีหลายรายการ)</button>
       </div>
       <button class="btn" id="addPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อ</button>
-    </div>
-    <div class="card dash-wide-card">
-      <h3>🧾 ต้นทุนซื้อสินค้าอื่นๆ</h3>
-      <div class="hint">สำหรับสินค้านอกเหนือ 7 รายการหลัก (เช่นที่เพิ่มไว้ในออเดอร์ผ่านปุ่ม "+ อื่นๆ") — บันทึกแล้วจะรวมเข้าตารางต้นทุนซื้อวันนี้ด้านล่างเลย ไม่แก้ไขได้ทีหลัง ถ้าพิมพ์ผิดให้ลบแล้วบันทึกใหม่</div>
-      <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customPurchName" placeholder="เช่น กุ้งเผา"></div>
-      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="customPurchSeller"></select></div>
-      <div class="grid7">
-        <div><label>จำนวนซื้อ</label><input type="number" step="0.01" id="customPurchQty" placeholder="0"></div>
-        <div><label>ราคาซื้อ/หน่วย (ต้นทุน)</label><input type="number" step="0.01" id="customPurchPrice" placeholder="0"></div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+        <button type="button" class="btn small secondary" id="customPurchToggleBtn" style="width:auto;">+ สินค้าอื่นๆ (นอกแคตตาล็อก)</button>
+        <div id="customPurchFormArea" style="display:none;margin-top:10px;">
+          <div class="hint">สำหรับสินค้านอกเหนือ 7 รายการหลัก (เช่นที่เพิ่มไว้ในออเดอร์ผ่านปุ่ม "+ อื่นๆ") — บันทึกแล้วจะรวมเข้าตารางต้นทุนซื้อวันนี้ด้านล่างเลย ไม่แก้ไขได้ทีหลัง ถ้าพิมพ์ผิดให้ลบแล้วบันทึกใหม่</div>
+          <div id="customPurchQuickPicks" style="margin-top:8px;"></div>
+          <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customPurchName" placeholder="เช่น กุ้งเผา"></div>
+          <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="customPurchSeller"></select></div>
+          <div class="grid7">
+            <div><label>จำนวนซื้อ</label><input type="number" step="0.01" id="customPurchQty" placeholder="0"></div>
+            <div><label>ราคาซื้อ/หน่วย (ต้นทุน)</label><input type="number" step="0.01" id="customPurchPrice" placeholder="0"></div>
+          </div>
+          <div class="grid7" style="margin-top:8px;">
+            <div><label>ค่าใช้จ่ายเพิ่ม</label><input type="number" step="1" id="customPurchExtra" placeholder="0"></div>
+            <div><label>ราคาขาย/หน่วย <span class="subhint">(ใส่ถ้าอยากให้คำนวณกำไรในตาราง)</span></label><input type="number" step="0.01" id="customPurchSellPrice" placeholder="0"></div>
+          </div>
+          <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="customPurchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
+          <button class="btn" id="addCustomPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อสินค้าอื่นๆ</button>
+        </div>
       </div>
-      <div class="grid7" style="margin-top:8px;">
-        <div><label>ค่าใช้จ่ายเพิ่ม</label><input type="number" step="1" id="customPurchExtra" placeholder="0"></div>
-        <div><label>ราคาขาย/หน่วย <span class="subhint">(ใส่ถ้าอยากให้คำนวณกำไรในตาราง)</span></label><input type="number" step="0.01" id="customPurchSellPrice" placeholder="0"></div>
-      </div>
-      <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="customPurchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
-      <button class="btn" id="addCustomPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อสินค้าอื่นๆ</button>
     </div>
     <div class="card dash-wide-card">
       <h3>🚚 ของขาดจากผู้ส่ง</h3>
@@ -1211,6 +1214,7 @@ let editingDebtId = null;
 // dayData.orders[code].custom ตอนเลือก/แก้ไขสาขา แล้วเก็บพักไว้ตรงนี้จนกว่าจะกด "บันทึกสาขานี้" เหมือนกับ .prodinput ทั่วไป
 let customItemsStaged = [];
 let customItemFormOpen = false;
+let customPurchFormOpen = false;
 
 // สร้างรหัสรายการที่ไม่ชนกันแน่นอน — เดิมใช้แค่ Date.now() เฉยๆ ถ้ากดบันทึกซ้ำเร็วมากๆ (เช่นดับเบิลแท็ปมือถือ/เน็ตกระตุก) อาจได้ timestamp เดียวกันจนรหัสซ้ำกัน
 // แล้วพอกดลบรายการหนึ่ง (ลบตามรหัส) จะพลอยลบรายการอื่นที่รหัสซ้ำกันไปด้วยทั้งหมดโดยไม่ตั้งใจ — เติมเลขสุ่มต่อท้ายกันชนแน่นอน
@@ -5955,6 +5959,7 @@ async function renderLotList(preloadedLots){
                   </div>
                   <div class="grid7" style="margin-top:6px;">
                     <div><label>วันที่เบิก</label><input type="date" id="lotDrawEditDate-${d.id}" value="${d.date}" min="${lot.buyDate}"></div>
+                    <div><label>เคลมไปแล้ว <span class="subhint">(แก้ตรงนี้ถ้าตัวเลขผิด)</span></label><input type="number" step="0.01" min="0" id="lotDrawEditClaimed-${d.id}" value="${d.claimedQty||0}"></div>
                   </div>
                   <input type="text" id="lotDrawEditNote-${d.id}" value="${escapeHtml(d.note)}" placeholder="หมายเหตุ" style="margin-top:6px;font-size:12px;">
                   <div style="display:flex;gap:6px;margin-top:6px;">
@@ -6186,6 +6191,8 @@ async function renderLotList(preloadedLots){
     let sellableQty = Number(document.getElementById(`lotDrawEditSellable-${drawId}`).value||0);
     const newDate = document.getElementById(`lotDrawEditDate-${drawId}`).value;
     const note = document.getElementById(`lotDrawEditNote-${drawId}`).value.trim();
+    const claimedInput = document.getElementById(`lotDrawEditClaimed-${drawId}`);
+    let newClaimedQty = claimedInput ? Math.max(0, Number(claimedInput.value||0)) : undefined;
     if(qtyUsed<=0 || sellableQty<0 || !newDate){ showToast('กรอกจำนวนที่ใช้ จำนวนที่ได้ และวันที่เบิกให้ครบ'); return; }
     const lot = lots.find(x=>x.id===lotId);
     if(!lot) return;
@@ -6212,6 +6219,13 @@ async function renderLotList(preloadedLots){
     const setFields = {qtyUsed, sellableQty, note, date:newDate};
     if(d.totalCost!==undefined) setFields.totalCost = Math.round(qtyUsed*lotCostPerKg(lot)*100)/100;
     if(d.costedQty!==undefined) setFields.costedQty = Math.min(d.costedQty, sellableQty);
+    if(newClaimedQty!==undefined && Math.abs(newClaimedQty-Number(d.claimedQty||0))>0.001){
+      // แก้ยอด "เคลมไปแล้ว" ตรงๆ — ใช้กรณีเจอบั๊ก/ยอดผิดพลาดจริง (เช่น เคยเจอบั๊กเชื่อมรายการเคลมซ้ำสองจนยอดพองเกินจริง)
+      // ต้องให้ผู้ใช้เห็นเลขเก่า/เลขใหม่แล้วกดยืนยันเองเสมอ ไม่แก้เงียบๆ ตามคำสั่งห้ามยุ่งกับต้นทุนจริงถ้าไม่ยืนยัน
+      const clampedClaimed = Math.min(newClaimedQty, Math.max(0, sellableQty - Number(setFields.costedQty||0)));
+      if(!confirm(`แก้ยอด "เคลมไปแล้ว" ของรอบเบิกนี้จาก ${d.claimedQty||0} เป็น ${clampedClaimed}${clampedClaimed!==newClaimedQty?` (ปรับให้ไม่เกินยอดที่เหลือหลังหักตัดต้นทุนแล้ว)`:''}?\n\nยืนยันเฉพาะถ้าแน่ใจว่ายอดเดิมผิดจริง (เช่นเจอบั๊กที่ทำให้ยอดเคลมพองเกินจริง)`)) return;
+      setFields.claimedQty = clampedClaimed;
+    }
     try{
       // แก้เฉพาะรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set) แทนโหลด rawLots ทั้งก้อนมาแก้แล้วเขียนทับ
       // ทั้งอาเรย์ — กันเผลอทับรอบเบิก/ล็อตอื่นที่ไม่เกี่ยวข้องเลยถ้ามีคนบันทึกคาบเกี่ยวกันพอดี
@@ -6937,6 +6951,30 @@ function renderCustomPurchaseForm_(){
   const sel = document.getElementById('customPurchSeller');
   if(!sel) return;
   sel.innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  renderCustomPurchQuickPicks_();
+}
+// สินค้าอื่นๆ ที่มีคนสั่งไว้วันนี้ (orders[code].custom) แต่ยังไม่มีรายการต้นทุนซื้อ (customName) มารองรับครบ — โชว์เป็นชิปให้
+// กดเลือกแทนต้องพิมพ์ชื่อเอง (กันสะกดไม่ตรงกับที่สั่งไว้) จำนวนที่โชว์ = ยอดที่ยังขาดอยู่จริง (หักลบยอดที่ซื้อไปแล้วบางส่วน
+// ออกแล้ว) ไม่ใช่ยอดสั่งดิบ — ตรรกะเดียวกับที่ computeDayGaps_() ใช้เตือน "ยังไม่ได้บันทึกต้นทุนซื้อ"
+function renderCustomPurchQuickPicks_(){
+  const wrap = document.getElementById('customPurchQuickPicks');
+  if(!wrap) return;
+  const needed = {};
+  Object.values(dayData.orders||{}).forEach(row=>{
+    (row.custom||[]).forEach(it=>{ if(it.name) needed[it.name] = (needed[it.name]||0) + Number(it.qty||0); });
+  });
+  const bought = {};
+  (dayData.purchases||[]).forEach(e=>{ if(e.customName) bought[e.customName] = (bought[e.customName]||0) + purchaseSellableQty(e); });
+  const pending = Object.entries(needed).map(([name,qty])=>({name, remain: Math.round((qty-(bought[name]||0))*100)/100})).filter(x=>x.remain>0.001);
+  if(pending.length===0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<div class="hint" style="margin-bottom:4px;">สั่งวันนี้แต่ยังไม่ได้บันทึกต้นทุนซื้อ — กดเพื่อกรอกชื่อ/จำนวนให้อัตโนมัติ</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">${pending.map(x=>`<button type="button" class="tab" data-custompurchpick="${escapeHtml(x.name)}" data-custompurchpickqty="${x.remain}">📦 ${escapeHtml(x.name)} (ขาด ${x.remain})</button>`).join('')}</div>`;
+  wrap.querySelectorAll('[data-custompurchpick]').forEach(btn=>btn.addEventListener('click', ()=>{
+    document.getElementById('customPurchName').value = btn.getAttribute('data-custompurchpick');
+    const qtyInput = document.getElementById('customPurchQty');
+    if(!qtyInput.value) qtyInput.value = btn.getAttribute('data-custompurchpickqty');
+    document.getElementById('customPurchName').focus();
+  }));
 }
 async function addCustomPurchase(){
   const name = (document.getElementById('customPurchName').value||'').trim();
@@ -6966,6 +7004,7 @@ async function addCustomPurchase(){
   document.getElementById('customPurchNote').value = '';
   renderPurchaseList();
   renderPurchaseGroups();
+  renderCustomPurchQuickPicks_();
 }
 // ---- ของขาดจากผู้ส่ง (กรณีจัดออเดอร์ให้สาขาไม่ครบ) ----
 // ตามที่ยืนยันไว้ ("จดเป็นยอดค้างไว้เฉยๆ ปลอดภัยสุด") — เป็นบัญชีแยกต่างหากล้วนๆ ไม่แตะ/ไม่กระทบ purchases, expenses,
@@ -9085,6 +9124,11 @@ async function init(){
   guardedClick('addPurchaseBtn', addPurchase);
   guardedClick('addCustomPurchaseBtn', addCustomPurchase);
   guardedClick('addShortfallBtn', addShortfall);
+  document.getElementById('customPurchToggleBtn').addEventListener('click', ()=>{
+    customPurchFormOpen = !customPurchFormOpen;
+    document.getElementById('customPurchFormArea').style.display = customPurchFormOpen ? '' : 'none';
+    if(customPurchFormOpen) renderCustomPurchQuickPicks_();
+  });
   document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว

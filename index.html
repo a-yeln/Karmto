@@ -740,6 +740,21 @@ table.plain td.num,table.plain th.num{text-align:right;}
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="customPurchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
       <button class="btn" id="addCustomPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อสินค้าอื่นๆ</button>
     </div>
+    <div class="card dash-wide-card">
+      <h3>🚚 ของขาดจากผู้ส่ง</h3>
+      <div class="hint">กรณีผู้ส่งจัดของให้สาขาไม่ครบ (เช่น สั่ง 15 ได้รับ 10) ต้องสั่งใหม่ไปให้ครบแต่ผู้ส่งควรรับผิดชอบส่วนต่างเอง — บันทึกไว้เป็นยอดค้างเฉยๆ (ไม่กระทบต้นทุน/รายจ่ายจริงใดๆ ในระบบ) ไว้เอาไปหักตอนจ่ายค่าแรงเองภายหลัง</div>
+      <div class="field" style="margin-top:8px;"><label>ผู้ส่ง</label><select id="shortfallSeller"></select></div>
+      <div class="field"><label>สาขาที่ได้รับของขาด</label><select id="shortfallBranch"></select></div>
+      <div class="field"><label>สินค้า</label><input type="text" id="shortfallProduct" placeholder="เช่น เนื้อหอยนางรม"></div>
+      <div class="grid7">
+        <div><label>สั่งไป</label><input type="number" step="0.01" id="shortfallOrdered" placeholder="0"></div>
+        <div><label>ได้รับจริง</label><input type="number" step="0.01" id="shortfallReceived" placeholder="0"></div>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>มูลค่าที่ควรหัก (บาท) <span class="subhint">(กรอกเอง ระบบไม่คำนวณให้)</span></label><input type="number" step="1" id="shortfallValue" placeholder="0"></div>
+      <div class="field"><label>หมายเหตุ</label><input type="text" id="shortfallNote" placeholder="เช่น สั่งใหม่ไปแทนแล้ว"></div>
+      <button class="btn" id="addShortfallBtn" style="margin-top:10px;">+ บันทึกของขาด</button>
+      <div id="shortfallList" style="margin-top:12px;"></div>
+    </div>
     <div id="lotSettleCards"></div>
     <div class="card dash-wide-card" data-no-collapse="1">
       <div id="lotListToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
@@ -1233,7 +1248,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -1379,7 +1394,8 @@ function branchShortLabel(code){ return code==='00' ? 'ธง' : code.replace(/^
 function normalizeDay_(d){
   d.orders = d.orders || {}; d.leftoverOut = d.leftoverOut || {}; d.leftoverSince = d.leftoverSince || {}; // วันที่เริ่มค้างของของเหลือแต่ละสินค้า (รอบปัจจุบัน) ใช้คำนวณความเสี่ยงเสีย
   d.billingPaid = d.billingPaid || {}; d.billExtra = d.billExtra || {}; d.billNote = d.billNote || {}; d.expenses = d.expenses || [];
-  d.billClaimNotes = d.billClaimNotes || {}; // ข้อความแจ้งเคลม (ไม่มียอดเพิ่ม) ที่โชว์ในบิลของสาขานั้นจริงๆ — ต่างจาก billNote ที่เป็นโน้ตภายใน ไม่โชว์ในบิลที่พิมพ์
+  d.billClaimNotes = d.billClaimNotes || {}; // ข้อความแจ้งเคลม (ไม่มียอดเพิ่ม) ที่โชว์ในบิลของสาขานั้นจริงๆ เสมอ
+  d.billNoteShowOnBill = d.billNoteShowOnBill || {}; // ติ๊กเลือกได้ว่า billNote ของสาขานั้นจะโชว์ในบิลที่พิมพ์/คัดลอกด้วยหรือไม่ (ค่าเริ่มต้น false เหมือนพฤติกรรมเดิมของ billNote ก่อนมีช่องนี้)
   d.personalIncome = d.personalIncome || []; d.personalExpense = d.personalExpense || [];
   d.purchases = d.purchases || [];
   d.purchaseGroupPayment = d.purchaseGroupPayment || {};
@@ -2995,7 +3011,12 @@ function computeReceiptData(code, iso, d){
   const b = branchByCode(code);
   const buyer = buyerInfoFor(b);
   const claimNotes = (d.billClaimNotes && d.billClaimNotes[code]) || [];
-  return {row, billNo, items, subtotal, extra, total, bi, b, buyer, claimNotes};
+  // ถ้าติ๊ก "ลงในบิล" ไว้ (billNoteShowOnBill) ให้ข้อความหมายเหตุที่พิมพ์เองโชว์ในบิลรวมกับ claimNotes ไปเลย — จุดเดียวที่ต้องแก้
+  // เพราะทั้งการ์ดบิล (buildReceiptCardHTML) และตัวคัดลอกข้อความบิลทั้ง 2 จุด อ่าน claimNotes จาก return ค่านี้เหมือนกันหมด
+  const billNoteText = (d.billNote && d.billNote[code]) || '';
+  const showBillNoteOnBill = !!(d.billNoteShowOnBill && d.billNoteShowOnBill[code]);
+  const printedNotes = (showBillNoteOnBill && billNoteText) ? [...claimNotes, billNoteText] : claimNotes;
+  return {row, billNo, items, subtotal, extra, total, bi, b, buyer, claimNotes: printedNotes};
 }
 function buildReceiptCardHTML(code, iso, d, cardId){
   iso = iso || currentDate; d = d || dayData;
@@ -3046,13 +3067,25 @@ async function toggleReceipt(code){
       <button class="btn secondary" data-savebillimg="${code}" style="width:auto;">🖼️ บันทึกเป็นรูปภาพ</button>
       <button class="btn secondary" data-copybill="${code}" style="width:auto;">คัดลอกข้อความบิล</button>
     </div>
-    <input type="text" data-billnote="${code}" value="${escapeHtml(dayData.billNote&&dayData.billNote[code])}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี, ไม่แสดงในบิลที่พิมพ์)" style="margin-top:8px;font-size:12.5px;">`;
+    <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+      <input type="text" data-billnote="${code}" value="${escapeHtml(dayData.billNote&&dayData.billNote[code])}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="flex:1;font-size:12.5px;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap;"><input type="checkbox" data-billnoteshow="${code}" ${(dayData.billNoteShowOnBill&&dayData.billNoteShowOnBill[code])?'checked':''}> ลงในบิล</label>
+    </div>`;
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
   holder.querySelector(`[data-billnote="${code}"]`).addEventListener('change', async (e)=>{
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['billNote', code], e.target.value);
     if(iso===currentDate) dayData = fresh;
+    // พิมพ์/คัดลอกบิลอ่านค่านี้สดจาก dayData ทุกครั้งอยู่แล้ว (computeReceiptData) แต่การ์ดที่เปิดค้างอยู่ตอนนี้ยังโชว์เลขเก่า
+    // ถ้าติ๊ก "ลงในบิล" ไว้แล้ว — เปิดใหม่ให้ตรงกับค่าที่เพิ่งบันทึก
+    if(dayData.billNoteShowOnBill && dayData.billNoteShowOnBill[code]){ holder.innerHTML=''; toggleReceipt(code); }
+  });
+  holder.querySelector(`[data-billnoteshow="${code}"]`).addEventListener('change', async (e)=>{
+    const iso = currentDate;
+    const fresh = await writeDayFieldPath_(iso, ['billNoteShowOnBill', code], e.target.checked);
+    if(iso===currentDate) dayData = fresh;
+    holder.innerHTML=''; toggleReceipt(code);
   });
   const extraInput = holder.querySelector(`[data-extra="${code}"]`);
   extraInput.addEventListener('change', async ()=>{
@@ -4798,6 +4831,7 @@ function purchaseSellUnit(pid){ const p = PRODUCTS.find(p=>p.id===pid); return p
 function sellableUnitIsWhole_(pid){ return purchaseSellUnit(pid)==='กระปุก'; }
 function renderPurchaseForm(){
   renderCustomPurchaseForm_();
+  renderShortfallForm_();
   const prodSel = document.getElementById('purchProduct');
   prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   prodSel.onchange = ()=>{ updatePurchaseUnitLabels(); updatePurchaseLeftoverHint(); autofillPurchasePrice(); };
@@ -6920,6 +6954,90 @@ async function addCustomPurchase(){
   renderPurchaseList();
   renderPurchaseGroups();
 }
+// ---- ของขาดจากผู้ส่ง (กรณีจัดออเดอร์ให้สาขาไม่ครบ) ----
+// ตามที่ยืนยันไว้ ("จดเป็นยอดค้างไว้เฉยๆ ปลอดภัยสุด") — เป็นบัญชีแยกต่างหากล้วนๆ ไม่แตะ/ไม่กระทบ purchases, expenses,
+// rawLots หรือยอดต้นทุน/รายจ่ายจริงใดๆ ในระบบเลยแม้แต่จุดเดียว แค่เป็นที่จดยอดที่ควรหักจากผู้ส่งไว้ดูเฉยๆ ผู้ใช้ไปหักเอง
+// ตอนจ่ายค่าแรงจริงนอกระบบ — เก็บเป็น root array แยก (เหมือน debts/rawLots) ไม่ผูกกับวันที่ใดวันหนึ่งเพราะเป็นยอดค้างสะสม
+let shortfallsCache_ = null;
+async function loadShortfalls(){
+  if(shortfallsCache_) return shortfallsCache_;
+  try{ const r = await window.storage.get('supplierShortfalls'); shortfallsCache_ = JSON.parse(r.value); }
+  catch(e){ shortfallsCache_ = []; }
+  return shortfallsCache_;
+}
+function renderShortfallForm_(){
+  const sellerSel = document.getElementById('shortfallSeller');
+  const branchSel = document.getElementById('shortfallBranch');
+  if(!sellerSel || !branchSel) return;
+  sellerSel.innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  const phatOption = settings.purchaseSellers.find(s=>s.includes('พี่พัฒน์'));
+  if(phatOption) sellerSel.value = phatOption; // ของขาดจากการจัดส่งเกิดกับพี่พัฒน์เป็นหลัก ล็อกค่าเริ่มต้นไว้ให้เลย
+  branchSel.innerHTML = settings.branches.map(b=>`<option value="${b.code}">${escapeHtml(branchDisplayName(b))}</option>`).join('');
+}
+async function addShortfall(){
+  const seller = document.getElementById('shortfallSeller').value;
+  const branchCode = document.getElementById('shortfallBranch').value;
+  const product = (document.getElementById('shortfallProduct').value||'').trim();
+  const ordered = Number(document.getElementById('shortfallOrdered').value||0);
+  const received = Number(document.getElementById('shortfallReceived').value||0);
+  const value = Number(document.getElementById('shortfallValue').value||0);
+  const note = document.getElementById('shortfallNote').value||'';
+  if(!product){ showToast('กรอกชื่อสินค้าก่อน'); return; }
+  if(ordered<=0){ showToast('กรอกจำนวนที่สั่งก่อน'); return; }
+  const entry = {id: uid('sf'), date: currentDate, seller, branchCode, product, ordered, received, note, value, settled:false};
+  try{
+    const fresh = await writeRootArrayOp_('supplierShortfalls', {push:entry}, arr=>{shortfallsCache_=arr;});
+    renderShortfallList(fresh);
+  }catch(e){
+    showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+    return;
+  }
+  showToast('บันทึกของขาดแล้ว');
+  document.getElementById('shortfallProduct').value = '';
+  document.getElementById('shortfallOrdered').value = '';
+  document.getElementById('shortfallReceived').value = '';
+  document.getElementById('shortfallValue').value = '';
+  document.getElementById('shortfallNote').value = '';
+}
+function renderShortfallList(list){
+  const wrap = document.getElementById('shortfallList');
+  if(!wrap) return;
+  const outstanding = list.filter(x=>!x.settled);
+  const totalOutstanding = outstanding.reduce((s,x)=>s+Number(x.value||0),0);
+  if(list.length===0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <div class="hint" style="margin-top:0;">ยอดค้างหักรวม (ยังไม่ได้ติ๊ก "หักแล้ว"): <b class="num" style="color:${totalOutstanding>0?'var(--danger)':'inherit'};">${money(totalOutstanding)}</b></div>
+    ${list.slice().reverse().map(x=>{
+      const b = branchByCode(x.branchCode);
+      return `<div class="orow billrow" style="flex-direction:column;align-items:stretch;padding:8px 10px;${x.settled?'opacity:0.55;':''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div class="name">📦${escapeHtml(x.product)} — ${b?escapeHtml(branchDisplayName(b)):x.branchCode} <span style="color:var(--text-faint);">(${escapeHtml(x.seller||'-')})</span></div>
+          <div class="acts"><button class="iconbtn" data-shortfalldel="${x.id}" aria-label="ลบ">✕</button></div>
+        </div>
+        <div class="items" style="margin-top:2px;">สั่ง ${x.ordered} ได้รับ ${x.received} • ขาด ${Math.round((x.ordered-x.received)*100)/100} • ${formatDDMMYYYY(x.date)}${x.note?` • ${escapeHtml(x.note)}`:''}</div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;">
+          <input type="checkbox" data-shortfallsettle="${x.id}" ${x.settled?'checked':''}> หักแล้ว
+          <span class="num" style="margin-left:auto;">${money(x.value)}</span>
+        </label>
+      </div>`;
+    }).join('')}`;
+  wrap.querySelectorAll('[data-shortfalldel]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(!confirm('ลบรายการของขาดนี้?')) return;
+    const id = btn.getAttribute('data-shortfalldel');
+    try{
+      const fresh = await writeRootArrayOp_('supplierShortfalls', {remove:{matchField:'id', matchValue:id}}, arr=>{shortfallsCache_=arr;});
+      renderShortfallList(fresh);
+      showToast('ลบแล้ว');
+    }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+  }));
+  wrap.querySelectorAll('[data-shortfallsettle]').forEach(cb=>cb.addEventListener('change', async ()=>{
+    const id = cb.getAttribute('data-shortfallsettle');
+    try{
+      const fresh = await writeRootArrayOp_('supplierShortfalls', {matchField:'id', matchValue:id, set:{settled:cb.checked}}, arr=>{shortfallsCache_=arr;});
+      renderShortfallList(fresh);
+    }catch(e){ cb.checked = !cb.checked; showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+  }));
+}
 function startEditPurchase(id){
   const e = dayData.purchases.find(x=>x.id===id);
   if(!e) return;
@@ -8500,7 +8618,7 @@ async function switchTab(name){
     if(name==='order') await renderMessages(); // ย้ายข้อความส่งมารวมในแท็บออเดอร์วันนี้แล้ว (การ์ด "💬 ข้อความส่ง" ด้านล่างสุด)
     if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); }
+    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); renderShortfallList(await loadShortfalls()); }
     if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
@@ -8953,6 +9071,7 @@ async function init(){
   document.getElementById('savePCategoriesBtn').addEventListener('click', savePersonalCategories);
   guardedClick('addPurchaseBtn', addPurchase);
   guardedClick('addCustomPurchaseBtn', addCustomPurchase);
+  guardedClick('addShortfallBtn', addShortfall);
   document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว

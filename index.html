@@ -1215,15 +1215,6 @@ let customItemFormOpen = false;
 // สร้างรหัสรายการที่ไม่ชนกันแน่นอน — เดิมใช้แค่ Date.now() เฉยๆ ถ้ากดบันทึกซ้ำเร็วมากๆ (เช่นดับเบิลแท็ปมือถือ/เน็ตกระตุก) อาจได้ timestamp เดียวกันจนรหัสซ้ำกัน
 // แล้วพอกดลบรายการหนึ่ง (ลบตามรหัส) จะพลอยลบรายการอื่นที่รหัสซ้ำกันไปด้วยทั้งหมดโดยไม่ตั้งใจ — เติมเลขสุ่มต่อท้ายกันชนแน่นอน
 function uid(prefix){ return prefix + Date.now() + '-' + Math.random().toString(36).slice(2,8); }
-// ลบแค่รายการแรกที่ตรงรหัส ไม่ใช่ลบทุกรายการที่รหัสตรงกัน — กันไว้เผื่อมีข้อมูลเก่าก่อนแก้ uid() ที่รหัสดันชนกัน
-// จะได้ไม่โดนลบยกชุดโดยไม่ตั้งใจถ้ากดลบแค่รายการเดียว
-function removeFirstById(arr, id){
-  const idx = arr.findIndex(x=>x.id===id);
-  if(idx<0) return arr.slice();
-  const copy = arr.slice();
-  copy.splice(idx,1);
-  return copy;
-}
 // escape ข้อความอิสระที่ผู้ใช้พิมพ์เอง (หมายเหตุ/ชื่อที่ตั้งค่า/ผลอ่าน OCR ฯลฯ) ก่อนแทรกลงใน innerHTML เสมอ — กัน HTML/script
 // ที่แอบอยู่ในข้อความ (เช่น พิมพ์ "<img onerror=...>" ไว้ในช่องหมายเหตุ) รันจริงตอนมีคนเปิดดูหน้าที่โชว์ข้อความนั้น
 function escapeHtml(s){
@@ -2499,9 +2490,12 @@ async function renderLeftover(){
           lotClaimAllocations = allocations;
         }
       }
-      const records = await loadWasteRecords();
-      records.push({id:wasteId, productId:pid, qty, date:iso, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason, ...(lotClaimAllocations.length?{lotClaimAllocations}:{})});
-      await saveWasteRecords(records);
+      // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทนโหลดทั้งก้อน+ต่อท้าย+เขียนทับเหมือนเดิม (saveWasteRecords) — เขียน
+      // ทับทั้งก้อนแบบเดิมมีช่องให้ชนกับ ensureClaimsLinkedToLots_ (backfill ที่รันอัตโนมัติทุกครั้งที่โหลดล็อต) ได้ ถ้ารันซ้อน
+      // กันพอดี ฝั่งนั้นจะเขียนทับรายการนี้หายไปเงียบๆ ทั้งที่ rawLots (claimedQty) ถูกบวกไปแล้วจริง — เป็นสาเหตุจริงที่เจอ
+      // (เคลม 2 โลครั้งเดียว แต่ค้างตัดต้นทุนของล็อตขึ้น 4 เพราะสองจุดนี้บวก claimedQty ซ้ำกันคนละรอบ)
+      const wasteEntry = {id:wasteId, productId:pid, qty, date:iso, note:(noteInput&&noteInput.value.trim())||'', estCostPerKg, estCost: Math.round(qty*estCostPerKg), reason, ...(lotClaimAllocations.length?{lotClaimAllocations}:{})};
+      await writeRootArrayOp_('wasteRecords', {push:wasteEntry}, arr=>{wasteRecordsCache_=arr;});
       wasteRecordSaved = true;
       const remain = Math.max(0, Math.round((currentLeftover-qty)*100)/100);
       const leftoverOps = [{path:['leftoverOut', pid], value: remain}];
@@ -2559,7 +2553,7 @@ async function renderLeftover(){
       // เฉยๆ ทั้งที่รายการของเสียถูกบันทึกจริงไปแล้ว — กดลองใหม่จะสร้างรายการของเสียซ้ำอีกอัน (นับความเสียหายซ้ำสอง)
       // ตอนนี้ถ้าเกิดกรณีนี้ จะลบรายการของเสียที่เพิ่งบันทึกไปออกก่อน กันกดซ้ำแล้วได้ยอดของเสียซ้ำสอง
       if(wasteRecordSaved){
-        try{ const records2 = await loadWasteRecords(); await saveWasteRecords(removeFirstById(records2, wasteId)); }catch(_){}
+        try{ await writeRootArrayOp_('wasteRecords', {remove:{matchField:'id', matchValue:wasteId}}, arr=>{wasteRecordsCache_=arr;}); }catch(_){}
       }
       if(claimLotsRevertOps){
         try{ await writeRootArrayOp_('rawLots', claimLotsRevertOps, arr=>{rawLotsCache_=arr;}); }catch(_){}
@@ -2604,7 +2598,16 @@ async function renderWasteRecordList(){
       try{ await writeRootArrayOp_('rawLots', revertOps, arr=>{rawLotsCache_=arr;}); }
       catch(e){ showToast('คืนค่าค้างตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่'); return; }
     }
-    await saveWasteRecords(removeFirstById(records2, id));
+    // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps remove) แทนโหลดทั้งก้อน+ตัดออก+เขียนทับ (saveWasteRecords เดิม) — จุดเดิมไม่มี
+    // try/catch ห่อไว้เลยด้วย ถ้าคืนค่า rawLots ข้างบนสำเร็จแล้วแต่จุดนี้พัง (เน็ตสะดุดพอดี) จะเหลือรายการของเสียค้างอยู่ทั้งที่
+    // ค้างตัดต้นทุนถูกคืนไปแล้ว โดยไม่มี error โชว์ให้เห็นเลย (unhandled rejection เงียบๆ)
+    try{
+      await writeRootArrayOp_('wasteRecords', {remove:{matchField:'id', matchValue:id}}, arr=>{wasteRecordsCache_=arr;});
+    }catch(e){
+      showToast('ลบรายการของเสียไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ค้างตัดต้นทุนที่คืนไปแล้วยังถูกต้องอยู่');
+      renderWasteRecordList();
+      return;
+    }
     showToast('ลบแล้ว');
     renderWasteRecordList();
   }));
@@ -4981,7 +4984,6 @@ async function loadWasteRecords(){
   }
   return JSON.parse(JSON.stringify(wasteRecordsCache_));
 }
-async function saveWasteRecords(records){ await window.storage.set('wasteRecords', JSON.stringify(records)); wasteRecordsCache_ = records; }
 // บิลต้นทุนสินค้าของล็อต (ไม่รวมขนส่ง) — เก็บแยกไว้ให้มีสถานะจ่าย/รอจ่ายของตัวเอง เหมือนกับค่าขนส่ง
 // เพื่อให้โชว์ในหน้า "กรองเฉพาะคู่ค้า" และยอดรอจ่ายรวมของแดชบอร์ดได้ถูกต้อง
 let lotProductBillsCache_ = null;
@@ -5507,35 +5509,46 @@ async function ensureLotBillRecords(lots){
 // เติมข้อมูลย้อนหลังให้รายการเคลม/ของเสีย (wasteRecords) ที่บันทึกไว้ก่อนมีระบบหักค้างตัดต้นทุนอัตโนมัติ (ยังไม่มี
 // lotClaimAllocations) — ถ้าสินค้านั้นมีล็อตวัตถุดิบอยู่จริง หักจำนวนที่เคลมออกจากค้างตัดต้นทุนแบบเดียวกับเคลมใหม่
 // (FIFO ตามวันที่ของแต่ละรายการเคลม ไล่เก่าสุดก่อน) เรียกครั้งเดียวตอนโหลดล็อต (เหมือน ensureLotBillRecords ด้านบน)
-// เช็ค lotClaimAllocations ก่อนเสมอกันเชื่อม/หักซ้ำสอง จึงเรียกซ้ำได้ทุกครั้งที่โหลดหน้าอย่างปลอดภัย
+// เช็ค lotClaimAllocations ก่อนเสมอกันเชื่อม/หักซ้ำสอง จึงเรียกซ้ำได้ทุกครั้งที่โหลดหน้าอย่างปลอดภัย — "ปลอดภัย" ตรงนี้
+// พึ่งพา 2 อย่าง: (1) ต้องไม่รันซ้อนกัน 2 รอบพร้อมกัน (คนละรอบเห็น "ยังไม่เชื่อม" เหมือนกัน คำนวณ allocation ซ้ำ แล้วบวก
+// claimedQty ซ้ำสอง — เคยเป็นบั๊กจริงที่เจอ: เคลม 2 กก. ครั้งเดียว แต่ค้างตัดต้นทุนขึ้น 4) (2) เขียน wasteRecords ต้องเป็น
+// การเขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ ไม่ใช่โหลดทั้งก้อน+แก้+เขียนทับ (ของเดิม) ที่มีช่องให้รอบอื่นเขียนทับข้อมูลหายไป
+// เงียบๆ ได้ระหว่างรอ — แก้ทั้งสองจุดแล้ว
+let claimsLinkInFlight_ = false;
 async function ensureClaimsLinkedToLots_(lots){
+  if(claimsLinkInFlight_) return;
   const lotProductIds = new Set(lots.map(l=>l.productId));
   if(lotProductIds.size===0) return;
-  const records = await loadWasteRecords();
-  const unlinked = records.filter(r=>lotProductIds.has(r.productId) && !(r.lotClaimAllocations && r.lotClaimAllocations.length));
-  if(unlinked.length===0) return;
-  unlinked.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
-  let changed = false;
-  const rawLotsOps = [];
-  for(const r of unlinked){
-    const {allocations} = await allocateClaimToDrawsFIFO_(r.productId, r.qty, r.date, lots);
-    if(!allocations.length) continue;
-    r.lotClaimAllocations = allocations;
-    changed = true;
-    for(const a of allocations){
-      const lot = lots.find(l=>l.id===a.lotId);
-      const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
-      if(!draw) continue;
-      const newClaimedQty = Math.round((Number(draw.claimedQty||0)+a.qty)*100)/100;
-      // อัปเดตในหน่วยความจำด้วย ไม่ใช่แค่เก็บ op ไว้เฉยๆ — กันรายการเคลมถัดไปในลูปเดียวกัน (สินค้าเดียวกัน) คำนวณ
-      // ค้างตัดต้นทุนจากค่าเก่าที่ยังไม่ถูกหัก แล้วหักซ้ำทับช่วงเดียวกันของรอบเบิกเดิม
-      draw.claimedQty = newClaimedQty;
-      rawLotsOps.push({matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:newClaimedQty}}});
+  claimsLinkInFlight_ = true;
+  try{
+    const records = await loadWasteRecords();
+    const unlinked = records.filter(r=>lotProductIds.has(r.productId) && !(r.lotClaimAllocations && r.lotClaimAllocations.length));
+    if(unlinked.length===0) return;
+    unlinked.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+    const wasteOps = [];
+    const rawLotsOps = [];
+    for(const r of unlinked){
+      const {allocations} = await allocateClaimToDrawsFIFO_(r.productId, r.qty, r.date, lots);
+      if(!allocations.length) continue;
+      wasteOps.push({matchField:'id', matchValue:r.id, set:{lotClaimAllocations:allocations}});
+      for(const a of allocations){
+        const lot = lots.find(l=>l.id===a.lotId);
+        const draw = lot && (lot.draws||[]).find(d=>d.id===a.drawId);
+        if(!draw) continue;
+        const newClaimedQty = Math.round((Number(draw.claimedQty||0)+a.qty)*100)/100;
+        // อัปเดตในหน่วยความจำด้วย ไม่ใช่แค่เก็บ op ไว้เฉยๆ — กันรายการเคลมถัดไปในลูปเดียวกัน (สินค้าเดียวกัน) คำนวณ
+        // ค้างตัดต้นทุนจากค่าเก่าที่ยังไม่ถูกหัก แล้วหักซ้ำทับช่วงเดียวกันของรอบเบิกเดิม
+        draw.claimedQty = newClaimedQty;
+        rawLotsOps.push({matchField:'id', matchValue:a.lotId, nested:{field:'draws', matchField:'id', matchValue:a.drawId, set:{claimedQty:newClaimedQty}}});
+      }
     }
-  }
-  if(!changed) return;
-  await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
-  await saveWasteRecords(records);
+    if(!wasteOps.length) return;
+    // เขียน wasteRecords (ผูก lotClaimAllocations ไว้เป็นหลักฐานว่า "เชื่อมแล้ว") ก่อน rawLots (บวก claimedQty จริง) — ถ้า
+    // จุดแรกสำเร็จแต่จุดสองพังกลางทาง จะได้แค่ค้างตัดต้นทุนไม่ครบ (แก้ทีหลังได้ ไม่อันตราย) ดีกว่าเขียนสลับกัน ที่ถ้าจุดหลัง
+    // (saveWasteRecords เดิม) พัง/ชนกับรอบอื่น จะเหลือ claimedQty ที่บวกไปแล้วจริงแต่ไม่มีหลักฐานกันซ้ำ รอบหน้าคำนวณซ้ำอีกได้
+    await writeRootArrayOp_('wasteRecords', wasteOps, arr=>{wasteRecordsCache_=arr;});
+    await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
+  } finally { claimsLinkInFlight_ = false; }
 }
 // ลบทั้งบิล = ลบทุกล็อตในบิลนี้ + บิลต้นทุนสินค้า + บิลค่าขนส่งที่ผูกกับบิลนี้
 async function deleteWholeBill(billId){

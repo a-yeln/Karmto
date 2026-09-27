@@ -287,34 +287,34 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow input[type=number]{flex:1;}
 /* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFFFF;color:var(--text);border:1px solid var(--border-soft);border-top:5px solid #E2711D;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
+.receipt{background:#FFFCF6;color:var(--text);border:1px solid var(--border-soft);border-top:5px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:12px;}
-.receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:2px solid rgba(226,113,29,.35);background:#FFF8F1;padding:3px;box-sizing:border-box;}
+.receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:2px solid rgba(185,139,84,.35);background:#FFF9EF;padding:3px;box-sizing:border-box;}
 .receipt .rheadinfo{flex:1;min-width:0;}
 .receipt .rheadinfo .shopname{font-size:18px;font-weight:800;letter-spacing:.1px;}
-.receipt .rheadinfo .addr{font-size:10px;color:#598BAF;line-height:1.6;margin-top:4px;}
+.receipt .rheadinfo .addr{font-size:10px;color:#93897C;line-height:1.6;margin-top:4px;}
 .receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;}
-.receipt .rheadmeta .rbillno{font-size:11.5px;color:#FFFFFF;background:#E2711D;padding:4px 11px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
-.receipt .rheadmeta .rdate{font-size:10px;color:#7285A5;}
-.receipt hr{border:none;height:3px;border-radius:999px;background:linear-gradient(90deg,#E2711D,#0080FE);margin:14px 0;}
-.receipt .idblock{display:flex;flex-direction:column;gap:6px;background:rgba(0,128,254,.05);border:1px solid rgba(0,128,254,.14);border-radius:10px;padding:10px 12px;}
-.receipt .idrow .idlabel{font-size:10px;color:#7285A5;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
+.receipt .rheadmeta .rbillno{font-size:11.5px;color:#FFFCF6;background:#B98B54;padding:4px 11px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.receipt .rheadmeta .rdate{font-size:10px;color:#A39A8D;}
+.receipt hr{border:none;height:2px;border-radius:999px;background:linear-gradient(90deg,#B98B54,#8DA0B8);margin:14px 0;}
+.receipt .idblock{display:flex;flex-direction:column;gap:6px;background:rgba(141,160,184,.06);border:1px solid rgba(141,160,184,.18);border-radius:10px;padding:10px 12px;}
+.receipt .idrow .idlabel{font-size:10px;color:#A39A8D;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
 .receipt .idrow .idvalue{font-size:14px;color:var(--text);font-weight:600;}
-.receipt .idrow .idsub{font-size:11px;color:#598BAF;margin-top:1px;}
-.receipt .kv{font-size:11px;color:#598BAF;margin:2px 0;}
+.receipt .idrow .idsub{font-size:11px;color:#93897C;margin-top:1px;}
+.receipt .kv{font-size:11px;color:#93897C;margin:2px 0;}
 .receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px;}
-.receipt table th{text-align:left;background:rgba(0,128,254,.08);border-bottom:2.5px solid #E2711D;padding:7px 6px;font-size:10px;color:#1134A6;text-transform:uppercase;letter-spacing:.3px;font-weight:700;}
+.receipt table th{text-align:left;background:rgba(141,160,184,.10);border-bottom:2px solid #B98B54;padding:7px 6px;font-size:10px;color:#4B5A6E;text-transform:uppercase;letter-spacing:.3px;font-weight:700;}
 .receipt table th.num,.receipt table td.num{text-align:right;}
 .receipt table td{padding:7px 6px;font-size:12.5px;}
-.receipt table tr:nth-child(even){background:rgba(0,128,254,.035);}
-.receipt table tr:last-child td{border-bottom:0.75px solid #E2711D;}
-.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#598BAF;margin:4px 2px;}
-.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#0080FE;color:#FFFFFF;padding:13px 15px;border-radius:10px;margin:12px 0 6px;}
-.receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,255,255,0.75);}
-.receipt .bahttext{text-align:right;font-size:11px;color:#1134A6;font-style:italic;margin-bottom:12px;}
-.receipt .sign{text-align:right;font-size:12px;margin:18px 0 6px;color:#598BAF;}
-.receipt .thanks{text-align:center;font-size:12px;color:#E2711D;margin-top:10px;font-weight:600;}
-.receipt .rno{text-align:center;font-size:10px;color:#7285A5;margin-top:8px;letter-spacing:.2px;}
+.receipt table tr:nth-child(even){background:rgba(141,160,184,.04);}
+.receipt table tr:last-child td{border-bottom:0.75px solid #B98B54;}
+.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#93897C;margin:4px 2px;}
+.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:linear-gradient(135deg,#3E4C63,#5B7292);color:#FFF8ED;padding:13px 15px;border-radius:10px;margin:12px 0 6px;}
+.receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,248,237,0.75);}
+.receipt .bahttext{text-align:right;font-size:11px;color:#6E7B8E;font-style:italic;margin-bottom:12px;}
+.receipt .sign{text-align:right;font-size:12px;margin:18px 0 6px;color:#93897C;}
+.receipt .thanks{text-align:center;font-size:12px;color:#B98B54;margin-top:10px;font-weight:600;}
+.receipt .rno{text-align:center;font-size:10px;color:#A39A8D;margin-top:8px;letter-spacing:.2px;}
 @media (orientation:landscape) and (max-width:1023px){
   .receipt{width:500px;}
 }
@@ -1659,19 +1659,31 @@ function renderBranchSelect(){
 function renderProductInputs(){
   const code = document.getElementById('branchSelect').value;
   const row = dayData.orders[code] || {};
+  // ปุ่ม "+ อื่นๆ" อยู่ในกริดเดียวกัน ต่อจากนางรม (สินค้าหลักตัวสุดท้าย) เลย ไม่ต้องเลื่อนหาแยกส่วนด้านล่าง — กดแล้วฟอร์ม
+  // กรอกชื่อ/ราคา/จำนวนจะโผล่ลงมาด้านล่างกริดทั้งหมด (ดูคอมเมนต์ที่ renderCustomItemsSection_)
   document.getElementById('productInputs').innerHTML = PRODUCTS.map(p=>`
     <div>
       <div class="prodlabel">${p.emoji} ${p.name} <span style="color:var(--text-faint)">(${p.unit})</span></div>
       <input type="number" min="0" step="0.1" inputmode="decimal" data-pid="${p.id}" class="prodinput" value="${row[p.id]||''}" placeholder="0">
-    </div>`).join('');
+    </div>`).join('') + `
+    <div>
+      <div class="prodlabel">&nbsp;</div>
+      <button type="button" class="btn secondary" id="customItemOpenBtn" style="width:100%;">+ อื่นๆ</button>
+    </div>`;
+  document.getElementById('customItemOpenBtn').addEventListener('click', ()=>{
+    customItemFormOpen = true;
+    renderCustomItemsSection_();
+    const nameInput = document.getElementById('customItemName');
+    if(nameInput) nameInput.focus();
+  });
   // โหลดสินค้าอื่นๆ ที่เคยบันทึกไว้ของสาขานี้มาพักไว้ในฟอร์มด้วย (เหมือนที่ .prodinput โหลดค่าจาก row[p.id] ด้านบน)
   customItemsStaged = ((row.custom||[]).map(it=>({...it})));
   customItemFormOpen = false;
   renderCustomItemsSection_();
 }
-// การ์ดย่อย "สินค้าอื่นๆ" ในฟอร์มบันทึกออเดอร์ทีละสาขา — สำหรับสินค้านอกเหนือ 7 รายการหลักที่ไม่มีในแคตตาล็อก (พิมพ์ชื่อ/ราคา/
-// จำนวนเอง) กด "+ เพิ่มสินค้าอื่นๆ" แล้วกรอกในฟอร์มที่โผล่ลงมา รายการที่เพิ่มจะรวมเข้ายอดบิล/ใบเสร็จของสาขานั้นตอนกด
-// "บันทึกสาขานี้" — ไม่เกี่ยวกับ Brand Fee (คิดจาก 7 สินค้าหลักตามสูตรคงที่เท่านั้น ของนอกแคตตาล็อกไม่มีหน่วยที่เข้าสูตรได้)
+// รายการ+ฟอร์มกรอก "สินค้าอื่นๆ" ที่โผล่ลงมาใต้กริดสินค้าหลักตอนกดปุ่ม "+ อื่นๆ" (ดูคอมเมนต์ที่ renderProductInputs) — สำหรับ
+// สินค้านอกเหนือ 7 รายการหลักที่ไม่มีในแคตตาล็อก (พิมพ์ชื่อ/ราคา/จำนวนเอง) รายการที่เพิ่มจะรวมเข้ายอดบิล/ใบเสร็จของสาขานั้น
+// ตอนกด "บันทึกสาขานี้" — ไม่เกี่ยวกับ Brand Fee (คิดจาก 7 สินค้าหลักตามสูตรคงที่เท่านั้น ของนอกแคตตาล็อกไม่มีหน่วยที่เข้าสูตรได้)
 // และไม่เข้าระบบต้นทุนล็อต/สต็อกใดๆ (เป็นแค่รายการบวกเข้าบิลเฉยๆ) — ถ้าสาขาไหนมีแต่สินค้าอื่นๆ ไม่มีสินค้าหลักเลยแม้แต่
 // รายการเดียว จุดที่เช็ค "สาขานี้มีออเดอร์วันนี้ไหม" หลายจุดในแอป (ยึดตาม PRODUCTS หลักเป็นหลักมาตั้งแต่แรก) จะยังไม่นับ
 // สาขานั้นว่าบันทึกแล้ว — ต้องมีสินค้าหลักอย่างน้อย 1 รายการคู่กันไปด้วยเสมอ
@@ -1684,9 +1696,9 @@ function renderCustomItemsSection_(){
       <div class="lin num" style="width:auto;flex:1;text-align:right;">${it.qty} × ${money(it.price)} = ${money(Number(it.qty||0)*Number(it.price||0))}</div>
       <button type="button" class="iconbtn danger" data-customitemdel="${i}" aria-label="ลบรายการนี้" style="margin-left:6px;">✕</button>
     </div>`).join('');
+  if(!rowsHtml && !customItemFormOpen){ wrap.innerHTML = ''; return; }
   wrap.innerHTML = `
-    <div class="hint" style="margin-bottom:6px;">📦 สินค้าอื่นๆ <span class="subhint">(นอกเหนือสินค้าหลัก — พิมพ์ชื่อ/ราคา/จำนวนเอง)</span></div>
-    ${rowsHtml}
+    ${rowsHtml ? `<div class="hint" style="margin-bottom:6px;">📦 สินค้าอื่นๆ <span class="subhint">(นอกเหนือสินค้าหลัก)</span></div>${rowsHtml}` : ''}
     ${customItemFormOpen ? `
     <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customItemName" placeholder="เช่น กุ้งเผา"></div>
     <div style="display:flex;gap:8px;margin-top:6px;">
@@ -1696,14 +1708,12 @@ function renderCustomItemsSection_(){
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button type="button" class="btn small" id="customItemAddBtn" style="width:auto;">เพิ่ม</button>
       <button type="button" class="btn small secondary" id="customItemCancelBtn" style="width:auto;">ยกเลิก</button>
-    </div>` : `<button type="button" class="btn secondary" id="customItemOpenBtn" style="margin-top:8px;width:auto;padding:8px 14px;">+ เพิ่มสินค้าอื่นๆ</button>`}
+    </div>` : ''}
   `;
   wrap.querySelectorAll('[data-customitemdel]').forEach(btn=>btn.addEventListener('click', ()=>{
     customItemsStaged.splice(Number(btn.getAttribute('data-customitemdel')), 1);
     renderCustomItemsSection_();
   }));
-  const openBtn = document.getElementById('customItemOpenBtn');
-  if(openBtn) openBtn.addEventListener('click', ()=>{ customItemFormOpen = true; renderCustomItemsSection_(); document.getElementById('customItemName').focus(); });
   const cancelBtn = document.getElementById('customItemCancelBtn');
   if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ customItemFormOpen = false; renderCustomItemsSection_(); });
   const addBtn = document.getElementById('customItemAddBtn');

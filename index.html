@@ -235,7 +235,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .leftover-grid{display:flex;flex-direction:column;gap:8px;}
 .lrow{display:flex;align-items:center;gap:10px;}
 .lrow .lname{width:112px;font-size:13px;color:var(--text-dim);flex:none;white-space:normal;line-height:1.25;}
-.lrow .lin{min-width:100px;flex:none;background:var(--surface-3);border-radius:7px;padding:6px 8px;text-align:center;font-size:13px;color:var(--text-faint);white-space:nowrap;}
+.lrow .lin{min-width:118px;flex:none;background:var(--surface-3);border-radius:7px;padding:6px 8px;text-align:center;font-size:13px;color:var(--text-faint);white-space:nowrap;}
 .lrow input{flex:1;}
 .lrow-hint{font-size:10.5px;color:var(--text-faint);line-height:1.35;margin-top:2px;padding-left:122px;}
 .feebig{font-size:30px;color:var(--accent);font-weight:600;}
@@ -8422,6 +8422,28 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
   });
   return problems;
 }
+// สินค้ากลุ่มล็อตวัตถุดิบ (ปูจืด/นางรม ฯลฯ) ถูกข้ามจากเช็ค "ยังไม่ได้บันทึกต้นทุนซื้อ" ใน computeDayGaps_() ไปตั้งใจ (คนละระบบ
+// ตัดต้นทุนเหลื่อมวันได้ เทียบ "ต้องการวันนี้" กับ "บันทึกวันนี้" ตรงๆ ไม่ได้) แต่นั่นเปิดช่องโหว่จริง: ถ้าวันนี้มีออเดอร์สินค้า
+// กลุ่มนี้ แต่ "ไม่มีของในล็อตเหลือพอให้ตัดต้นทุนเลย" (เช่น ยังไม่เคยซื้อล็อตนี้เลย หรือล็อตที่มีถูกใช้จนหมดไปแล้ว) จะไม่มีการ
+// แจ้งเตือนใดๆ เลยสักระบบ (stale/overdue-sold/costed-audit ทั้งหมดต้องมี "ของค้างตัดต้นทุนอยู่แล้ว" ถึงจะ trigger — ไม่มีของ
+// ค้างเลยก็เงียบสนิท) — เพิ่มเช็คนี้แยกมาปิดช่องโหว่โดยเฉพาะ ไม่ผูกกับ "วันนี้จริงๆ" เหมือน stale/overdue-sold แต่ใช้ได้กับ
+// วันที่กำลังดูอยู่วันไหนก็ได้เหมือนเช็คของสินค้ากลุ่มไม่มีล็อต (asOfDate=iso กันนับของเบิกในอนาคตของวันที่ดูอยู่มาปนด้วย)
+async function computeLotUncoveredNeedGaps_(iso, d, lots){
+  const gaps = [];
+  const totals = computeTotals(d.orders||{});
+  const lotProductIds = Array.from(new Set(lots.map(l=>l.productId)));
+  for(const pid of lotProductIds){
+    const needed = totals[pid]||0;
+    if(needed<=0) continue;
+    const {qty:pending} = await lotPendingStock_(pid, lots, iso);
+    if(pending>=needed-0.001) continue;
+    const p = PRODUCTS.find(x=>x.id===pid);
+    if(!p) continue;
+    const gap = Math.round((needed-pending)*100)/100;
+    gaps.push({iso, type:'lot-uncovered', text:`${p.emoji}${p.name}: วันนี้ต้องการ ${needed} ${p.unit} แต่มีของในล็อตให้ตัดต้นทุนได้แค่ ${pending} ${p.unit} (ขาด ${gap} ${p.unit}) — เช็คว่าซื้อล็อตนี้ไว้หรือยัง หรือล็อตที่มีถูกใช้หมดไปแล้ว`, tab:'purchase'});
+  }
+  return gaps;
+}
 // แยกเช็ค "สต็อกล็อตค้างตัดต้นทุนนานผิดปกติ" ออกมาเช่นกัน (ไม่ผูกกับวันใดวันหนึ่งในประวัติ แต่เป็นสถานะ ณ ตอนนี้เทียบกับวันนี้จริงๆ เสมอ)
 function computeLotStaleGaps_(rawLots, today){
   const gaps = [];
@@ -8483,9 +8505,13 @@ async function renderPurchaseGapsToday_(){
     if(mySeq !== purchaseGapsSeq_) return; // มีการเปลี่ยนวันที่/แท็บระหว่างรอโหลด ทิ้งผลลัพธ์รอบเก่าไป กันขึ้นแจ้งเตือนผิดวัน
     const lotProductIds = new Set(rawLots.map(l=>l.productId));
     let gaps = computeDayGaps_(iso, dayData, prevDay, lotProductIds).filter(g=>g.tab==='purchase');
-    // ณ จุดนี้ gaps มีแค่ 3 ชนิดที่เกี่ยวกับ "วันนี้กรอกต้นทุนซื้อครบตามออเดอร์หรือยัง" โดยตรง (purchase/purchase-mismatch/
-    // purchase-unexpected) — ยังไม่ปนกับ lot-costed-orphan ที่จะ concat เข้ามาทีหลัง (คนละเรื่องกัน เป็นการตรวจสอบข้อมูล
-    // เก่าข้ามวัน ไม่ใช่ "ออเดอร์วันนี้ยังขาดต้นทุนอะไร") ใช้ชุดนี้ตรงๆ กับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" ได้เลย ไม่ต้องคำนวณซ้ำ —
+    // ปิดช่องโหว่ของสินค้ากลุ่มล็อตวัตถุดิบที่ computeDayGaps_() ข้ามไปตั้งใจ (ดูคอมเมนต์ที่ computeLotUncoveredNeedGaps_) —
+    // ผูกกับ purchaseFormGaps/ฟอร์มบันทึกต้นทุนซื้อเหมือนกัน เพราะเป็นคำถามเดียวกัน ("วันนี้ยังขาดต้นทุนอะไรที่ควรกรอก")
+    gaps = gaps.concat(await computeLotUncoveredNeedGaps_(iso, dayData, rawLots));
+    if(mySeq !== purchaseGapsSeq_) return;
+    // ณ จุดนี้ gaps มีทั้งชนิดที่เกี่ยวกับ "วันนี้กรอกต้นทุนซื้อครบตามออเดอร์หรือยัง" โดยตรง (purchase/purchase-mismatch/
+    // purchase-unexpected/lot-uncovered) — ยังไม่ปนกับ lot-costed-orphan ที่จะ concat เข้ามาทีหลัง (คนละเรื่องกัน เป็นการตรวจสอบ
+    // ข้อมูลเก่าข้ามวัน ไม่ใช่ "ออเดอร์วันนี้ยังขาดต้นทุนอะไร") ใช้ชุดนี้ตรงๆ กับฟอร์ม "บันทึกต้นทุนซื้อวันนี้" ได้เลย ไม่ต้องคำนวณซ้ำ —
     // เก็บสำเนาไว้ก่อน gaps จะถูก reassign เพิ่มชนิดอื่นเข้ามาทีหลัง (purchaseFormGaps ยังชี้อาเรย์เดิมไม่เปลี่ยนตาม)
     const purchaseFormGaps = gaps;
     updatePurchaseFormAutoFold(purchaseFormGaps);

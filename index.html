@@ -359,6 +359,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-nav button .dwn-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
+/* ปุ่มย่อ/ขยายเมนูด้านข้าง (ให้พื้นที่ฝั่งขวากว้างขึ้นตามที่ขอ) — คั่นเส้นบางๆ จากปุ่มเมนูจริงด้านล่าง กันสับสนว่าเป็นแท็บ */
+.dwn-collapse-btn{border-bottom:1px solid var(--border-soft);margin-bottom:4px;padding-bottom:11px!important;color:var(--text-faint);font-size:12.5px!important;}
 .dash-wide-main{flex:1;min-width:0;}
 .dash-wide-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
 .dwh-menu-btn{display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;color:var(--text);cursor:pointer;font-size:16px;flex:none;}
@@ -375,9 +377,17 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dwh-idchip:hover{filter:brightness(0.97);}
 .dwh-idchip .dot{width:24px;height:24px;border-radius:50%;background:var(--ocean-soft);color:var(--ocean);display:flex;align-items:center;justify-content:center;font-size:13px;}
 .dash-wide-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-.dwtile{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:14px;min-width:0;}
+.dwtile{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:14px;min-width:0;position:relative;}
 .dwtile .dm-label{font-size:12px;color:var(--text-faint);margin-bottom:6px;}
 .dwtile .dm-value{font-size:22px;font-weight:600;}
+/* ปุ่มเล็กๆ เพิ่ม/แก้ไขหมายเหตุประจำวัน (ใช้ฟิลด์ feeNote เดียวกับหมายเหตุใน Brand Fee รายเดือน) — มุมขวาบนของการ์ด
+   ยอดขายประมาณการ จางๆ ตอนยังไม่มีหมายเหตุ เข้มขึ้นเมื่อมีหมายเหตุอยู่แล้ว ให้รู้ว่ามีข้อมูลอยู่โดยไม่ต้องเปิดดู */
+.dwtile-note-btn{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:6px;border:1px solid var(--border-soft);background:var(--surface);color:var(--text-dim);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.5;transition:opacity .15s ease;flex:none;}
+.dwtile-note-btn:hover{opacity:1;}
+.dwtile-note-btn.has-note{opacity:1;background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+/* ไอคอน 📝 ในตารางสรุปรายเดือน Brand Fee — เล็กพอดีในแถว ไม่ใช่กล่อง input ยาวๆ เหมือนเดิม (บรรทัดจะได้ชิดกัน) โชว์เฉพาะ
+   แถวที่มีหมายเหตุจริงเท่านั้น (ไม่มีข้อมูล = ไม่มีอะไรในช่องนี้เลย) */
+.monthfee-note-btn{width:20px;height:20px;border-radius:5px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;}
 .dwtile.hero{grid-column:span 2;padding:18px;}
 .dwtile.hero .dm-value{font-size:30px;}
 .dwtile.chart{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;}
@@ -407,12 +417,23 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-outstanding-filter button.active{background:var(--surface-2);color:var(--accent);}
 .dwtile-mcard-top,.dwtile-mcard-amt,.dwtile-mcard-grid{display:none;}
 .dwtile-desktop-branch{display:inline;}
+/* ย่อเมนูด้านข้างเหลือแต่ไอคอน (กดปุ่ม ◀/▶ เอง) เฉพาะจอกว้างจริงๆ เท่านั้น — ต่ำกว่านี้เมนูถูกบังคับให้แคบ/เป็น
+   drawer อยู่แล้วโดย media query ด้านล่าง ไม่ต้องมีปุ่มย่อซ้ำซ้อน (ซ่อนปุ่มไว้ในช่วงนั้น) */
+@media (min-width:1024px){
+  body.dash-nav-collapsed .dash-wide-nav{width:64px;}
+  body.dash-nav-collapsed .dash-wide-brand .dwb-name,
+  body.dash-nav-collapsed .dash-wide-brand .dwb-sub,
+  body.dash-nav-collapsed .dash-wide-nav .dwn-lbl{display:none;}
+  body.dash-nav-collapsed .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
+  body.dash-nav-collapsed .dash-wide-nav button{justify-content:center;padding:11px 0;}
+}
 @media (max-width:1023px){
   .dash-wide-outer{padding:16px 16px 32px;}
   .dash-wide-nav{width:64px;}
   .dash-wide-brand .dwb-name,.dash-wide-brand .dwb-sub,.dash-wide-nav .dwn-lbl{display:none;}
   .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
   .dash-wide-nav button{justify-content:center;padding:11px 0;}
+  #dwNavCollapseBtn{display:none;}
   .dash-wide-bento{grid-template-columns:repeat(2,1fr);}
   .dwtile.hero,.dwtile.feed{grid-column:span 2;}
   .dwtile.chart{grid-column:span 2;grid-row:span 1;}
@@ -499,6 +520,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav" id="dashNav">
         <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div></div>
+        <button type="button" id="dwNavCollapseBtn" class="dwn-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span><span class="dwn-lbl">ย่อเมนู</span></button>
         <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
         <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">Orders</span></button>
         <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">Purchases</span></button>
@@ -558,7 +580,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   <div class="panel active" id="panel-dashboard">
         <div class="dash-wide-bento">
           <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
-          <div class="dwtile hero success"><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
+          <div class="dwtile hero success"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
           <div class="dwtile chart">
             <div class="dm-label" style="margin-bottom:4px;">🏷️ เทรนด์ Brand fee 14 วันล่าสุด</div>
             <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;"></div>
@@ -1074,6 +1096,17 @@ table.plain td.num,table.plain th.num{text-align:right;}
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="modalOverlay" id="dashNoteModalOverlay" style="display:none;">
+  <div class="modalBox">
+    <h3>📝 หมายเหตุวันนี้</h3>
+    <div class="hint" id="dashNoteModalDate"></div>
+    <div class="field"><textarea id="dashNoteTextarea" rows="4" placeholder="เช่น น้ำท่วม การจราจรไม่ปกติ ยอดขายเลยน้อยกว่าปกติ" style="width:100%;font-family:inherit;font-size:13px;resize:vertical;"></textarea></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn secondary" style="flex:1;" id="dashNoteModalCancel">ยกเลิก</button>
+      <button class="btn" style="flex:1;" id="dashNoteModalSave">บันทึก</button>
+    </div>
+  </div>
+</div>
 <div class="modalOverlay" id="dashExpenseModalOverlay" style="display:none;">
   <div class="modalBox">
     <h3>💸 เพิ่มรายจ่ายกิจการ</h3>
@@ -2746,16 +2779,16 @@ async function renderMonthFee(){
           <td class="num num">${cell(money(r.fee.oysterAmt))}</td>
           <td class="num num">${cell(money(r.fee.total))}</td>
           <td class="num num" style="color:var(--accent);font-weight:600;">${money(r.cum)}</td>
-          <td><input type="text" data-feenote="${r.iso}" value="${escapeHtml(r.note)}" placeholder="+ หมายเหตุ" style="font-size:11.5px;width:130px;"></td>
+          <td>${r.note ? `<button type="button" class="monthfee-note-btn" data-monthfeenote="${r.iso}" title="${escapeHtml(r.note)}" aria-label="ดู/แก้ไขหมายเหตุ">📝</button>` : ''}</td>
         </tr>`;
       }).join('')}
     </table></div>`;
-    ledgerEl.querySelectorAll('[data-feenote]').forEach(inp=>inp.addEventListener('change', async (e)=>{
-      const iso = inp.getAttribute('data-feenote');
-      try{
-        const fresh = await writeDayFieldPath_(iso, ['feeNote'], e.target.value);
-        if(iso===currentDate) dayData = fresh;
-      }catch(err){ showToast('บันทึกหมายเหตุไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่'); }
+    // กดไอคอน 📝 เพื่อเปิดดู/แก้ไขหมายเหตุของวันนั้นๆ ได้เหมือนเดิม (ใช้ modal เดียวกับปุ่ม 📝 บนแดชบอร์ด แค่ระบุวันที่เอง
+    // แทน currentDate) ไม่ต้องมีกล่อง input ค้างอยู่ทุกแถวให้บรรทัดห่างกันเหมือนเดิมอีกต่อไป
+    ledgerEl.querySelectorAll('[data-monthfeenote]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const iso = btn.getAttribute('data-monthfeenote');
+      const row = ledgerRows.find(x=>x.iso===iso);
+      openDayNoteModalFor_(iso, row ? row.note : '');
     }));
 
     const grandTotals = {}; PRODUCTS.forEach(p=>grandTotals[p.id]=0);
@@ -3428,6 +3461,43 @@ function openDashExpenseModal_(){
 }
 function closeDashExpenseModal_(){
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
+}
+// หมายเหตุประจำวันจากปุ่ม 📝 บนการ์ดยอดขายประมาณการหน้าแดชบอร์ด — ใช้ฟิลด์ feeNote เดียวกับหมายเหตุในตาราง Brand Fee
+// รายเดือน (ไม่ได้สร้างฟิลด์ใหม่แยกต่างหาก) แก้ไขจากจุดไหนก็เห็นตรงกันทั้งสองที่
+function updateDashNoteBtnState_(){
+  const btn = document.getElementById('dashDayNoteBtn');
+  if(!btn) return;
+  btn.classList.toggle('has-note', !!(dayData.feeNote && dayData.feeNote.trim()));
+}
+// dashNoteModalIso_ เก็บว่ากำลังแก้หมายเหตุของวันไหนอยู่ — เปิดได้ทั้งจากปุ่ม 📝 บนแดชบอร์ด (currentDate เสมอ) และจากไอคอน
+// 📝 ในตารางสรุปรายเดือน Brand Fee (เลือกวันที่อื่นในเดือนนั้นได้ ไม่ใช่แค่วันนี้)
+let dashNoteModalIso_ = null;
+function openDayNoteModalFor_(iso, noteValue){
+  dashNoteModalIso_ = iso;
+  document.getElementById('dashNoteModalDate').textContent = `วันที่ ${formatDDMMYYYY(iso)}`;
+  document.getElementById('dashNoteTextarea').value = noteValue != null ? noteValue : ((dayCache_[iso] && dayCache_[iso].feeNote) || '');
+  document.getElementById('dashNoteModalOverlay').style.display = 'flex';
+  document.getElementById('dashNoteTextarea').focus();
+}
+function openDashNoteModal_(){
+  openDayNoteModalFor_(currentDate, dayData.feeNote || '');
+}
+function closeDashNoteModal_(){
+  document.getElementById('dashNoteModalOverlay').style.display = 'none';
+}
+async function saveDashNote_(){
+  const iso = dashNoteModalIso_ || currentDate;
+  const value = document.getElementById('dashNoteTextarea').value;
+  try{
+    const fresh = await writeDayFieldPath_(iso, ['feeNote'], value);
+    if(iso===currentDate) dayData = fresh;
+    showToast('บันทึกหมายเหตุแล้ว');
+    updateDashNoteBtnState_();
+    closeDashNoteModal_();
+    // ถ้ากำลังเปิดแท็บ Brand Fee อยู่พอดี (แก้จากตารางสรุปรายเดือน) รีเฟรชตารางให้ไอคอน 📝 อัปเดตทันที
+    const feePanel = document.getElementById('panel-fee');
+    if(feePanel && feePanel.classList.contains('active')) renderMonthFee();
+  }catch(e){ showToast('บันทึกหมายเหตุไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
 }
 async function openCalRangeSummary(startIso, endIso){
   document.getElementById('calRangeModalTitle').textContent = `📅 สรุปช่วง ${formatDDMMYYYY(startIso)} - ${formatDDMMYYYY(endIso)}`;
@@ -8674,6 +8744,7 @@ async function renderDashboard(){
   setDashDual_('dashProfitToday', money(profitToday));
   const profitCardWide = document.getElementById('dashProfitCardWide');
   if(profitCardWide) profitCardWide.className = 'dwtile hero ' + (profitToday>=0 ? 'success' : 'danger');
+  updateDashNoteBtnState_();
   // รายละเอียดสัดส่วนต้นทุนรวม — แบ่งเป็นต้นทุนซื้อสินค้ากับรายจ่ายกิจการอื่นๆ กี่ % ของแต่ละส่วน
   // ฝั่งจอแคบ (เดิม) โชว์แค่ข้อความ ส่วนฝั่งจอกว้าง (bento ใหม่) เพิ่มแถบสัดส่วนภาพด้วย
   const costBreakdownEl = document.getElementById('dashCostBreakdown');
@@ -8953,6 +9024,22 @@ function toggleTopbarCollapse(){
   dateLabel.style.display = topbarCollapsed ? '' : 'none';
   updateTopbarCollapsedDate();
 }
+// ย่อ/ขยายเมนูด้านข้าง (เหลือแต่ไอคอน) — เฉพาะจอกว้าง (เดสก์ท็อป) เท่านั้น กันพื้นที่ให้เนื้อหาฝั่งขวากว้างขึ้นตามที่ขอ
+// จอแคบกว่านั้นถูกบังคับให้แคบ/เป็น drawer อยู่แล้วโดย media query จึงไม่มีปุ่มนี้ให้กด (ซ่อนไว้)
+let sidebarCollapsed = false;
+function updateSidebarCollapseIcon_(){
+  const icon = document.querySelector('#dwNavCollapseBtn .dwn-ic');
+  const lbl = document.querySelector('#dwNavCollapseBtn .dwn-lbl');
+  if(icon) icon.textContent = sidebarCollapsed ? '▶' : '◀';
+  if(lbl) lbl.textContent = sidebarCollapsed ? 'ขยายเมนู' : 'ย่อเมนู';
+}
+function toggleSidebarCollapse(){
+  sidebarCollapsed = !sidebarCollapsed;
+  document.body.classList.toggle('dash-nav-collapsed', sidebarCollapsed);
+  document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', String(sidebarCollapsed));
+  updateSidebarCollapseIcon_();
+  try{ localStorage.setItem('karmto.sidebarCollapsed', sidebarCollapsed?'1':'0'); }catch(e){}
+}
 
 function toggleStatBar(){
   const bar = document.getElementById('statBar');
@@ -9195,6 +9282,15 @@ async function init(){
       document.getElementById('statBarToggle').setAttribute('aria-expanded', 'false');
     }
   }catch(e){}
+  document.getElementById('dwNavCollapseBtn').addEventListener('click', toggleSidebarCollapse);
+  try{
+    if(localStorage.getItem('karmto.sidebarCollapsed')==='1'){
+      sidebarCollapsed = true;
+      document.body.classList.add('dash-nav-collapsed');
+      document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', 'true');
+      updateSidebarCollapseIcon_();
+    }
+  }catch(e){}
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');
@@ -9385,6 +9481,11 @@ async function init(){
   document.getElementById('dashExpenseModalSave').addEventListener('click', addExpenseFromDashboard);
   const dashExpenseOverlayEl = document.getElementById('dashExpenseModalOverlay');
   dashExpenseOverlayEl.addEventListener('click', e=>{ if(e.target===dashExpenseOverlayEl) closeDashExpenseModal_(); });
+  document.getElementById('dashDayNoteBtn').addEventListener('click', openDashNoteModal_);
+  document.getElementById('dashNoteModalCancel').addEventListener('click', closeDashNoteModal_);
+  guardedClick('dashNoteModalSave', saveDashNote_);
+  const dashNoteOverlayEl = document.getElementById('dashNoteModalOverlay');
+  dashNoteOverlayEl.addEventListener('click', e=>{ if(e.target===dashNoteOverlayEl) closeDashNoteModal_(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && dashExpenseOverlayEl.style.display!=='none') closeDashExpenseModal_(); });
   document.getElementById('calRangeModalCloseBtn').addEventListener('click', closeCalRangeModal);
   const calRangeOverlayEl = document.getElementById('calRangeModalOverlay');

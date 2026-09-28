@@ -174,15 +174,15 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .statbar{margin-bottom:14px;}
 .statbar-headrow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:6px 0;}
 .statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0;color:var(--text-dim);flex:none;}
-.statbar-date{font-size:12.5px;font-weight:700;color:var(--text);flex:none;white-space:nowrap;}
-/* ไอคอนหมุด 📌 ปุ่มเดียวทำทั้งพับ+ตรึง — จางๆ ตอนยังไม่ตรึง (กางอยู่) แล้วเข้มขึ้นเป็นสีเน้นตอนตรึงอยู่ (พับ) ให้เห็นสถานะชัด
-   โดยไม่ต้องมีปุ่มตรึงแยกอีกอัน (ของเดิมหมุนลูกศร ▾/▸ แต่หมุนไอคอนรูปหมุดแล้วดูแปลกเลยเปลี่ยนมาใช้ความเข้ม/สีแทน) */
+.statbar-date{font-size:12.5px;font-weight:700;color:var(--text);flex:none;white-space:nowrap;cursor:pointer;}
+/* แถบหัว (dash-wide-header) + แถบสรุปยอด (statbar) ตรึงอยู่บนสุดจอด้วยกันเสมอเมื่อเลื่อนจอ (ไม่ต้องกดตรึงแยกอีกต่อไป) —
+   ปุ่ม 📌 ควบคุมแค่ว่าจะโชว์หัวข้อเต็ม (วันที่/ปุ่มเปลี่ยนวัน/เพิ่มรายจ่ายด่วน) ไปด้วยไหม หรือย่อเหลือแค่แถบสรุปยอดสั้นๆ
+   (ย่อ = ซ่อน dash-wide-header ไปเลย ประหยัดพื้นที่ แต่ยังเห็นวันที่+สรุปยอดสินค้าครบเหมือนเดิม) */
+.dwh-sticky-wrap{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border-soft);}
+/* ไอคอนหมุด 📌 เข้มขึ้นเป็นสีเน้นตอนย่ออยู่ (ให้รู้ว่ากำลังอยู่โหมดย่อ) จางๆ ตอนกางเต็ม */
 .statbar-head-icon{font-size:14px;opacity:.5;transition:opacity .15s ease, color .15s ease;}
-.statbar.collapsed .statrow{display:none;}
-.statbar.collapsed .statbar-head-icon{opacity:1;color:var(--accent);}
-/* ตรึงบนสุดจอเฉพาะตอนพับเท่านั้น (ตอนกางโชว์รายละเอียดปกติ ให้เลื่อนไปกับหน้าตามปกติ ไม่ค้างบนสุด) — เดิมมีปุ่มตรึงแยก
-   ต่างหากที่ทำให้ค้างบนสุดได้แม้ตอนกางอยู่ ผู้ใช้แจ้งว่าไม่ต้องการแบบนั้น รวมเป็นปุ่มเดียว (ไอคอนหมุด) ควบคุมทั้งคู่ */
-.statbar.collapsed{position:sticky;top:0;z-index:10;background:var(--bg);box-shadow:var(--dash-wide-shadow);border-bottom:1px solid var(--border-soft);}
+body.statbar-compact .dash-wide-header{display:none;}
+body.statbar-compact .statbar-head-icon{opacity:1;color:var(--accent);}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:12px 0 0;padding-bottom:10px;}
 .tab{flex:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
 .tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
@@ -539,6 +539,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <button data-tab="settings"><span class="dwn-ic">⚙️</span><span class="dwn-lbl">Settings</span></button>
       </nav>
       <div class="dash-wide-main">
+        <div class="dwh-sticky-wrap" id="dwhStickyWrap">
         <div class="dash-wide-header">
           <button class="dwh-menu-btn" id="dashMenuBtn" aria-label="เปิดเมนู">☰</button>
           <div class="dwh-titles">
@@ -576,12 +577,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
 
         <div class="statbar" id="statBar">
           <div class="statbar-headrow" id="statBarHeadrow">
-            <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="พับ+ตรึงแถบสรุปยอดไว้บนสุด / กางแสดงรายละเอียดปกติ">
+            <button class="statbar-head" id="statBarToggle" aria-expanded="true" aria-label="ย่อ/ขยายหัวข้อ (แถบสรุปยอดตรึงอยู่บนสุดเสมอเมื่อเลื่อนจอ)">
               <span class="statbar-head-icon" id="statBarToggleIcon">📌</span>
             </button>
             <span class="statbar-date" id="statBarDate"></span>
             <div class="statrow" id="statRow"></div>
           </div>
+        </div>
         </div>
 
   <div class="panel active" id="panel-dashboard">
@@ -1682,7 +1684,7 @@ async function renderStats(){
   let payableToday = expensePayable + sellerPayable;
 
   const renderChips = ()=>{
-    document.getElementById('statBarDate').textContent = formatDDMMYYYY(currentDate);
+    updateStatBarDateText_();
     document.getElementById('statRow').innerHTML = `<div class="statchip">สาขา<b class="num">${n}</b></div>` +
       PRODUCTS.map(p=>`<div class="statchip">${p.emoji}<b class="num">${totals[p.id]}</b></div>`).join('') +
       `<div class="statchip">Fee<b class="num">${money(fee.total)}</b></div>` +
@@ -9067,10 +9069,19 @@ function toggleSidebarCollapse(){
 }
 
 function toggleStatBar(){
-  const bar = document.getElementById('statBar');
-  const collapsed = bar.classList.toggle('collapsed');
-  document.getElementById('statBarToggle').setAttribute('aria-expanded', String(!collapsed));
-  try{ localStorage.setItem('karmto.statBarCollapsed', collapsed?'1':'0'); }catch(e){}
+  const compact = document.body.classList.toggle('statbar-compact');
+  document.getElementById('statBarToggle').setAttribute('aria-expanded', String(!compact));
+  updateStatBarDateText_();
+  try{ localStorage.setItem('karmto.statBarCollapsed', compact?'1':'0'); }catch(e){}
+}
+// วันที่บนแถบสรุปยอด — เต็ม (วว/ดด/ปปปป) ตอนกางปกติ แต่ตอนย่อ (statbar-compact) ย่อเหลือแค่วัน/เดือน กันแถบสั้นๆ ยาวเกิน
+// จำเป็น แล้วกดที่ตัววันที่เองก็ย่อ/ขยายได้เหมือนกด 📌 (ให้เป็นอีกจุดที่แตะได้ ไม่ต้องเล็งปุ่มหมุดเล็กๆ เท่านั้น)
+function formatDDMM(iso){ const [,m,d] = iso.split('-'); return `${d}/${m}`; }
+function updateStatBarDateText_(){
+  const el = document.getElementById('statBarDate');
+  if(!el) return;
+  const compact = document.body.classList.contains('statbar-compact');
+  el.textContent = compact ? formatDDMM(currentDate) : formatDDMMYYYY(currentDate);
 }
 // ซ่อน/โชว์แต่ละหมวดย่อยในการ์ด "สรุปบิลวันนี้" ตามว่ามีข้อมูลจริงหรือเปล่า (เช็คจาก .empty ที่แต่ละ render ใส่ไว้ให้อยู่แล้วเวลาไม่มีรายการ)
 function isListEmpty(elId){
@@ -9286,9 +9297,10 @@ async function init(){
   document.getElementById('todayBtn').addEventListener('click', ()=>loadForDate(todayISO()));
   document.getElementById('topbarHeadRow').addEventListener('click', toggleTopbarCollapse);
   document.getElementById('statBarToggle').addEventListener('click', toggleStatBar);
+  document.getElementById('statBarDate').addEventListener('click', toggleStatBar);
   try{
     if(localStorage.getItem('karmto.statBarCollapsed')==='1'){
-      document.getElementById('statBar').classList.add('collapsed');
+      document.body.classList.add('statbar-compact');
       document.getElementById('statBarToggle').setAttribute('aria-expanded', 'false');
     }
   }catch(e){}

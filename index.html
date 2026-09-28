@@ -360,7 +360,11 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
 /* ปุ่มย่อ/ขยายเมนูด้านข้าง (ให้พื้นที่ฝั่งขวากว้างขึ้นตามที่ขอ) — คั่นเส้นบางๆ จากปุ่มเมนูจริงด้านล่าง กันสับสนว่าเป็นแท็บ */
-.dwn-collapse-btn{border-bottom:1px solid var(--border-soft);margin-bottom:4px;padding-bottom:11px!important;color:var(--text-faint);font-size:12.5px!important;}
+/* ปุ่มย่อ/ขยายเมนู — แค่ไอคอนเล็กๆ มุมขวาบนของแถวแบรนด์ (เทียบเท่าบรรทัดเดียวกับ "ระบบสั่งของรายวัน") ไม่ใช่แถวเต็มความกว้าง
+   แยกต่างหากแบบเดิมอีกต่อไป */
+.dwn-brand-collapse-btn{margin-left:auto;align-self:flex-end;background:none;border:none;color:var(--text-faint);cursor:pointer;padding:4px;border-radius:6px;flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+.dwn-brand-collapse-btn:hover{background:var(--surface-2);color:var(--text);}
+.dwn-brand-collapse-btn .dwn-ic{font-size:11px;width:auto;}
 .dash-wide-main{flex:1;min-width:0;}
 .dash-wide-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
 .dwh-menu-btn{display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;color:var(--text);cursor:pointer;font-size:16px;flex:none;}
@@ -388,6 +392,9 @@ table.plain td.num,table.plain th.num{text-align:right;}
 /* ไอคอน 📝 ในตารางสรุปรายเดือน Brand Fee — เล็กพอดีในแถว ไม่ใช่กล่อง input ยาวๆ เหมือนเดิม (บรรทัดจะได้ชิดกัน) โชว์เฉพาะ
    แถวที่มีหมายเหตุจริงเท่านั้น (ไม่มีข้อมูล = ไม่มีอะไรในช่องนี้เลย) */
 .monthfee-note-btn{width:20px;height:20px;border-radius:5px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-size:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+/* กากบาทปิดแจ้งเตือนแต่ละอันในหน้าต้นทุน — ปิดแค่ชั่วคราว (ดูคอมเมนต์ที่ dismissedGapKeys_) */
+.gap-dismiss-btn{width:20px;height:20px;border-radius:5px;border:1px solid var(--danger);background:none;color:var(--danger);font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;opacity:.7;}
+.gap-dismiss-btn:hover{opacity:1;background:var(--danger-soft);}
 .dwtile.hero{grid-column:span 2;padding:18px;}
 .dwtile.hero .dm-value{font-size:30px;}
 .dwtile.chart{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;}
@@ -425,6 +432,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   body.dash-nav-collapsed .dash-wide-brand .dwb-sub,
   body.dash-nav-collapsed .dash-wide-nav .dwn-lbl{display:none;}
   body.dash-nav-collapsed .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
+  body.dash-nav-collapsed .dwn-brand-collapse-btn{margin-left:0;align-self:center;}
   body.dash-nav-collapsed .dash-wide-nav button{justify-content:center;padding:11px 0;}
 }
 @media (max-width:1023px){
@@ -519,8 +527,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="dash-wide-scrim" id="dashNavScrim"></div>
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav" id="dashNav">
-        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div></div>
-        <button type="button" id="dwNavCollapseBtn" class="dwn-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span><span class="dwn-lbl">ย่อเมนู</span></button>
+        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div><button type="button" id="dwNavCollapseBtn" class="dwn-brand-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span></button></div>
         <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
         <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">Orders</span></button>
         <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">Purchases</span></button>
@@ -580,7 +587,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   <div class="panel active" id="panel-dashboard">
         <div class="dash-wide-bento">
           <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
-          <div class="dwtile hero success"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div></div>
+          <div class="dwtile hero success"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div><div id="dashDayNoteText" class="hint" style="margin-top:6px;display:none;white-space:pre-wrap;"></div></div>
           <div class="dwtile chart">
             <div class="dm-label" style="margin-bottom:4px;">🏷️ เทรนด์ Brand fee 14 วันล่าสุด</div>
             <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;"></div>
@@ -773,7 +780,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
         <span id="lotListChevron" style="font-size:14px;color:var(--accent);flex:none;">▾</span>
       </div>
       <div id="lotListBody">
-        <div class="hint">เบิกใช้ล็อตวัตถุดิบที่ซื้อไว้ (ปูจืด/เชอรี่/นางรม ฯลฯ) — ถ้ายังไม่มีล็อตให้เบิก ไปเพิ่มล็อตใหม่ได้ที่หัวข้อ "📦 ล็อตวัตถุดิบ" ด้านล่าง</div>
+        <div class="hint">เบิกใช้ล็อตวัตถุดิบที่ซื้อไว้ (ปูจืด/เชอรี่/นางรม ฯลฯ) — ถ้ายังไม่มีล็อตให้เบิก ไปเพิ่มล็อตใหม่ได้ที่หัวข้อ "📦 เพิ่มล็อตใหม่" ด้านล่าง</div>
         <div id="lotList" class="loading">กำลังโหลด…</div>
       </div>
     </div>
@@ -810,29 +817,21 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </div>
       </div>
     </div>
-    <div class="card dash-wide-card" id="lotSectionToggle" style="border-color:var(--accent);cursor:pointer;" data-lotsectiontoggle="1">
-      <div class="hint" style="color:var(--accent);font-size:12.5px;display:flex;justify-content:space-between;align-items:center;">
-        <span>📦 ล็อตวัตถุดิบ (ซื้อเผื่อหลายวัน — ปูจืด/เชอรี่/นางรม ฯลฯ)</span>
-        <span id="lotSectionChevron" style="font-size:14px;">▸</span>
+    <div class="card dash-wide-card">
+      <h3>📦 เพิ่มล็อตใหม่ <span class="subhint">(ล็อตวัตถุดิบ — ซื้อเผื่อหลายวัน — ปูจืด/เชอรี่/นางรม ฯลฯ)</span></h3>
+      <div class="hint">สำหรับทริปที่สั่งหลายสินค้าพร้อมกันเป็นบิลเดียว (เช่น ปูจืด+เชอรี่+หอยนางรมจากตลาดใหม่) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน</div>
+      <div class="field" style="margin-top:8px;"><label>ผู้ขายสินค้า (บิลเดียวกัน)</label><select id="lotSeller"></select></div>
+      <div class="field"><label>หมายเหตุผู้ขาย (ถ้ามี — เช่น ระบุคนขายจริงเป็นรายล็อต)</label><input type="text" id="lotSellerNote" placeholder="เช่น เจ๊ต๊อกล็อตเช้า / คุณสมชาย"></div>
+      <div class="field"><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
+      <div id="lotItemRows" style="margin-top:6px;"></div>
+      <button class="btn small secondary" id="addLotItemRowBtn" style="width:auto;margin-top:4px;">+ เพิ่มสินค้า</button>
+      <div class="hint" style="margin-top:10px;color:var(--accent);">🚚 ค่าขนส่ง — จ่ายแยกกับผู้ขายสินค้า (เช่น จ่ายให้คนขนส่งต่างหาก) ระบบจะแบ่งตามสัดส่วนน้ำหนักให้อัตโนมัติ</div>
+      <div class="grid7" style="margin-top:6px;">
+        <div><label>ค่าขนส่งรวมทั้งทริป</label><input type="number" step="1" id="lotTransportTotal" placeholder="0"></div>
+        <div><label>จ่ายให้ใคร (ถ้ามี)</label><select id="lotTransportPayee"><option value="">— ไม่ระบุ —</option></select></div>
       </div>
-    </div>
-    <div id="lotSectionBody" style="display:none;">
-      <div class="card dash-wide-card">
-        <h3>📦 เพิ่มล็อตใหม่</h3>
-        <div class="hint">สำหรับทริปที่สั่งหลายสินค้าพร้อมกันเป็นบิลเดียว (เช่น ปูจืด+เชอรี่+หอยนางรมจากตลาดใหม่) แล้วทยอยเบิกมาทำทีละวัน — ระบบคิดต้นทุน/หน่วยขายตามจำนวนที่เบิกจริงแต่ละวัน ไม่เฉลี่ยเท่ากันทุกวัน</div>
-        <div class="field" style="margin-top:8px;"><label>ผู้ขายสินค้า (บิลเดียวกัน)</label><select id="lotSeller"></select></div>
-        <div class="field"><label>หมายเหตุผู้ขาย (ถ้ามี — เช่น ระบุคนขายจริงเป็นรายล็อต)</label><input type="text" id="lotSellerNote" placeholder="เช่น เจ๊ต๊อกล็อตเช้า / คุณสมชาย"></div>
-        <div class="field"><label>วันที่ซื้อ</label><input type="date" id="lotBuyDate"></div>
-        <div id="lotItemRows" style="margin-top:6px;"></div>
-        <button class="btn small secondary" id="addLotItemRowBtn" style="width:auto;margin-top:4px;">+ เพิ่มสินค้า</button>
-        <div class="hint" style="margin-top:10px;color:var(--accent);">🚚 ค่าขนส่ง — จ่ายแยกกับผู้ขายสินค้า (เช่น จ่ายให้คนขนส่งต่างหาก) ระบบจะแบ่งตามสัดส่วนน้ำหนักให้อัตโนมัติ</div>
-        <div class="grid7" style="margin-top:6px;">
-          <div><label>ค่าขนส่งรวมทั้งทริป</label><input type="number" step="1" id="lotTransportTotal" placeholder="0"></div>
-          <div><label>จ่ายให้ใคร (ถ้ามี)</label><select id="lotTransportPayee"><option value="">— ไม่ระบุ —</option></select></div>
-        </div>
-        <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
-        <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
-      </div>
+      <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
+      <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
     </div>
     <div class="card dash-wide-card">
       <h3>💸 รายจ่ายกิจการวันนี้ <span class="subhint">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</span></h3>
@@ -1098,7 +1097,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
 <div class="toast" id="toast"></div>
 <div class="modalOverlay" id="dashNoteModalOverlay" style="display:none;">
   <div class="modalBox">
-    <h3>📝 หมายเหตุวันนี้</h3>
+    <h3 id="dashNoteModalTitle">📝 หมายเหตุวันนี้</h3>
     <div class="hint" id="dashNoteModalDate"></div>
     <div class="field"><textarea id="dashNoteTextarea" rows="4" placeholder="เช่น น้ำท่วม การจราจรไม่ปกติ ยอดขายเลยน้อยกว่าปกติ" style="width:100%;font-family:inherit;font-size:13px;resize:vertical;"></textarea></div>
     <div style="display:flex;gap:8px;">
@@ -1278,7 +1277,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:''}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:''}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -1431,6 +1430,7 @@ function normalizeDay_(d){
   d.purchaseGroupPayment = d.purchaseGroupPayment || {};
   d.messageOverrides = d.messageOverrides || {}; // ข้อความหน้า "ข้อความส่ง" ที่แก้ไข/เพิ่มเติมเองรายวัน (ถ้ามี จะโชว์แทนข้อความที่ระบบสร้างอัตโนมัติ)
   d.feeNote = d.feeNote || ''; // หมายเหตุประจำวันของตาราง Brand Fee รายเดือน (เช่น "น้ำท่วม การจราจรไม่ปกติ") — ใช้อธิบายวันที่ไม่มีข้อมูลออเดอร์
+  d.dashNote = d.dashNote || ''; // ความเห็น/บันทึกวันนี้จากปุ่ม 📝 บนการ์ดยอดขายประมาณการหน้าแดชบอร์ด — คนละฟิลด์กับ feeNote โดยตั้งใจ (ห้ามผูกกัน)
   return d;
 }
 // In-memory cache so revisiting a tab/date already seen this session is instant —
@@ -2783,12 +2783,13 @@ async function renderMonthFee(){
         </tr>`;
       }).join('')}
     </table></div>`;
-    // กดไอคอน 📝 เพื่อเปิดดู/แก้ไขหมายเหตุของวันนั้นๆ ได้เหมือนเดิม (ใช้ modal เดียวกับปุ่ม 📝 บนแดชบอร์ด แค่ระบุวันที่เอง
-    // แทน currentDate) ไม่ต้องมีกล่อง input ค้างอยู่ทุกแถวให้บรรทัดห่างกันเหมือนเดิมอีกต่อไป
+    // กดไอคอน 📝 เพื่อเปิดดู/แก้ไขหมายเหตุ Brand Fee ของวันนั้นๆ ได้เหมือนเดิม (ใช้ modal UI เดียวกับปุ่ม 📝 บนแดชบอร์ด
+    // แต่ระบุฟิลด์เป็น feeNote ชัดเจน — คนละฟิลด์กับ dashNote ของแดชบอร์ด ไม่เชื่อมกัน) ไม่ต้องมีกล่อง input ค้างอยู่ทุกแถว
+    // ให้บรรทัดห่างกันเหมือนเดิมอีกต่อไป
     ledgerEl.querySelectorAll('[data-monthfeenote]').forEach(btn=>btn.addEventListener('click', ()=>{
       const iso = btn.getAttribute('data-monthfeenote');
       const row = ledgerRows.find(x=>x.iso===iso);
-      openDayNoteModalFor_(iso, row ? row.note : '');
+      openDayNoteModalFor_(iso, row ? row.note : '', 'feeNote');
     }));
 
     const grandTotals = {}; PRODUCTS.forEach(p=>grandTotals[p.id]=0);
@@ -3462,41 +3463,52 @@ function openDashExpenseModal_(){
 function closeDashExpenseModal_(){
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
 }
-// หมายเหตุประจำวันจากปุ่ม 📝 บนการ์ดยอดขายประมาณการหน้าแดชบอร์ด — ใช้ฟิลด์ feeNote เดียวกับหมายเหตุในตาราง Brand Fee
-// รายเดือน (ไม่ได้สร้างฟิลด์ใหม่แยกต่างหาก) แก้ไขจากจุดไหนก็เห็นตรงกันทั้งสองที่
+// ความเห็น/บันทึกวันนี้ (ปุ่ม 📝 บนการ์ดยอดขายประมาณการหน้าแดชบอร์ด) กับหมายเหตุ Brand Fee รายเดือน (ไอคอน 📝 ในตาราง
+// สรุปรายเดือน) เป็นคนละฟิลด์กันโดยตั้งใจ (dashNote vs feeNote) — ผู้ใช้ยืนยันชัดเจนว่าห้ามผูกกัน ใช้ modal เดียวกัน (UI
+// เดียวกัน ประหยัดโค้ด) แต่ dashNoteModalField_ เป็นตัวกำหนดว่ากำลังแก้ฟิลด์ไหนอยู่ แล้วเขียน/อ่านแยกกันจริงๆ
 function updateDashNoteBtnState_(){
   const btn = document.getElementById('dashDayNoteBtn');
   if(!btn) return;
-  btn.classList.toggle('has-note', !!(dayData.feeNote && dayData.feeNote.trim()));
+  const hasNote = !!(dayData.dashNote && dayData.dashNote.trim());
+  btn.classList.toggle('has-note', hasNote);
+  const textEl = document.getElementById('dashDayNoteText');
+  if(textEl){
+    textEl.textContent = hasNote ? dayData.dashNote : '';
+    textEl.style.display = hasNote ? '' : 'none';
+  }
 }
-// dashNoteModalIso_ เก็บว่ากำลังแก้หมายเหตุของวันไหนอยู่ — เปิดได้ทั้งจากปุ่ม 📝 บนแดชบอร์ด (currentDate เสมอ) และจากไอคอน
-// 📝 ในตารางสรุปรายเดือน Brand Fee (เลือกวันที่อื่นในเดือนนั้นได้ ไม่ใช่แค่วันนี้)
+// dashNoteModalIso_/dashNoteModalField_ เก็บว่ากำลังแก้ฟิลด์ไหนของวันไหนอยู่ — เปิดได้ทั้งจากปุ่ม 📝 บนแดชบอร์ด
+// (currentDate + dashNote เสมอ) และจากไอคอน 📝 ในตารางสรุปรายเดือน Brand Fee (เลือกวันไหนในเดือนนั้นก็ได้ + feeNote เสมอ)
 let dashNoteModalIso_ = null;
-function openDayNoteModalFor_(iso, noteValue){
+let dashNoteModalField_ = 'dashNote';
+function openDayNoteModalFor_(iso, noteValue, field){
   dashNoteModalIso_ = iso;
+  dashNoteModalField_ = field;
+  document.getElementById('dashNoteModalTitle').textContent = field==='feeNote' ? '📝 หมายเหตุ Brand Fee' : '📝 ความเห็น/บันทึกวันนี้';
   document.getElementById('dashNoteModalDate').textContent = `วันที่ ${formatDDMMYYYY(iso)}`;
-  document.getElementById('dashNoteTextarea').value = noteValue != null ? noteValue : ((dayCache_[iso] && dayCache_[iso].feeNote) || '');
+  document.getElementById('dashNoteTextarea').value = noteValue != null ? noteValue : ((dayCache_[iso] && dayCache_[iso][field]) || '');
   document.getElementById('dashNoteModalOverlay').style.display = 'flex';
   document.getElementById('dashNoteTextarea').focus();
 }
 function openDashNoteModal_(){
-  openDayNoteModalFor_(currentDate, dayData.feeNote || '');
+  openDayNoteModalFor_(currentDate, dayData.dashNote || '', 'dashNote');
 }
 function closeDashNoteModal_(){
   document.getElementById('dashNoteModalOverlay').style.display = 'none';
 }
 async function saveDashNote_(){
   const iso = dashNoteModalIso_ || currentDate;
+  const field = dashNoteModalField_ || 'dashNote';
   const value = document.getElementById('dashNoteTextarea').value;
   try{
-    const fresh = await writeDayFieldPath_(iso, ['feeNote'], value);
+    const fresh = await writeDayFieldPath_(iso, [field], value);
     if(iso===currentDate) dayData = fresh;
     showToast('บันทึกหมายเหตุแล้ว');
     updateDashNoteBtnState_();
     closeDashNoteModal_();
-    // ถ้ากำลังเปิดแท็บ Brand Fee อยู่พอดี (แก้จากตารางสรุปรายเดือน) รีเฟรชตารางให้ไอคอน 📝 อัปเดตทันที
+    // ถ้าแก้ feeNote จากตารางสรุปรายเดือน Brand Fee และแท็บนั้นเปิดอยู่พอดี รีเฟรชตารางให้ไอคอน 📝 อัปเดตทันที
     const feePanel = document.getElementById('panel-fee');
-    if(feePanel && feePanel.classList.contains('active')) renderMonthFee();
+    if(field==='feeNote' && feePanel && feePanel.classList.contains('active')) renderMonthFee();
   }catch(e){ showToast('บันทึกหมายเหตุไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
 }
 async function openCalRangeSummary(startIso, endIso){
@@ -8583,11 +8595,18 @@ async function computeLotOverdueSoldGaps_(rawLots, today, todayDayData){
 // เช็คเฉพาะ "วันที่กำลังดูอยู่" วันเดียว (เร็วกว่า computeDataGaps() ที่สแกนทุกวันในระบบมาก) ใช้แสดงในการ์ด "รายการต้นทุนซื้อวันนี้"
 // โดยเฉพาะ ให้เห็นแจ้งเตือนของวันนั้นๆ ทันทีโดยไม่ต้องไปเปิดแดชบอร์ดแยกต่างหาก
 let purchaseGapsSeq_ = 0;
+// ปิดแจ้งเตือนแต่ละอันได้ด้วยกากบาท — จำไว้แค่ "ระหว่างที่ยังดูวันนี้อยู่" เท่านั้น (เก็บในตัวแปรชั่วคราว ไม่ได้บันทึกถาวร)
+// ตั้งใจให้ปิดแค่ "ลดความรก" ไม่ใช่ "ปิดถาวรจนลืมปัญหาจริงที่ยังไม่ได้แก้" — สลับวันที่/รีโหลดหน้าแล้วจะกลับมาเตือนใหม่เสมอถ้า
+// ปัญหายังไม่ถูกแก้จริง และการปิดจะไม่กระทบตัวเลข/สถานะ "ครบแล้ว" ที่คำนวณจาก gaps จริงเสมอ (แค่ซ่อนจากสายตา ไม่ได้ล้างปัญหา)
+let dismissedGapKeys_ = new Set();
+let dismissedGapKeysIso_ = null;
+function gapDismissKey_(g){ return `${g.type}|${g.lotId||''}|${g.drawId||''}|${g.text}`; }
 async function renderPurchaseGapsToday_(){
   const el = document.getElementById('purchaseGapsToday');
   if(!el) return;
   const mySeq = ++purchaseGapsSeq_;
   const iso = currentDate;
+  if(dismissedGapKeysIso_ !== iso){ dismissedGapKeysIso_ = iso; dismissedGapKeys_ = new Set(); }
   try{
     const prevDay = await loadDay(addDaysISO(iso,-1));
     const rawLots = await loadRawLots();
@@ -8621,8 +8640,11 @@ async function renderPurchaseGapsToday_(){
     // "ครบแล้วตรงกับออเดอร์วันนี้เป๊ะ" (มีออเดอร์จริง และไม่มี gap ชนิดที่เกี่ยวกับออเดอร์วันนี้เหลือเลย) ก็ต้องขึ้นยืนยันชัดๆ
     // ด้วย (✔️) ไม่ใช่ปล่อยว่างเงียบๆ ให้ต้องเดาเอาเองว่า "เงียบ = ครบ"
     const hasOrdersToday = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
+    // purchaseComplete/early-return อิงจาก gaps ทั้งหมดจริงๆ เสมอ (ไม่ใช่ visibleGaps ที่กรองอันที่กดปิดออกแล้ว) — กดปิด
+    // แจ้งเตือนแค่ซ่อนจากสายตา ไม่ทำให้สถานะ "ครบแล้ว" เพี้ยนไปจากของจริง
     const purchaseComplete = hasOrdersToday && purchaseFormGaps.length===0;
     if(gaps.length===0 && lotBackfillDoneLog_.length===0 && !purchaseComplete){ el.innerHTML=''; return; }
+    const visibleGaps = gaps.filter(g=>!dismissedGapKeys_.has(gapDismissKey_(g)));
     // กล่องสีเขียว: log รายการที่เติมต้นทุนสำเร็จไปแล้วในหน้านี้ (ดูคอมเมนต์ที่ lotBackfillDoneLog_) — ค้างให้เห็นตลอด
     // (ไม่ใช่แค่ toast แว้บเดียว) เพราะรายการมักถูกบันทึกไปคนละวันกับที่กำลังดูอยู่ตอนกด ถ้าไม่มีอะไรค้างให้เห็นเลยจะดู
     // เหมือนกดแล้วไม่มีอะไรเกิดขึ้น ทั้งที่จริงๆ สำเร็จแล้วแค่ไปโผล่ในรายการต้นทุนซื้อของอีกวันหนึ่ง
@@ -8630,10 +8652,11 @@ async function renderPurchaseGapsToday_(){
       ${lotBackfillDoneLog_.map(d=>`<div style="margin-bottom:2px;">✅ เติมต้นทุนแล้ว: ${d.text} (เช็คได้ที่รายการต้นทุนซื้อของวันนั้น)</div>`).join('')}
     </div>` : '';
     const completeHtml = purchaseComplete ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>` : '';
-    const gapsHtml = gaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
-      ${gaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    const gapsHtml = visibleGaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
+      ${visibleGaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="flex:1 1 auto;">🔔 ${g.text}</span>
         ${g.type==='lot-costed-orphan' ? `<button class="btn small" data-backfilllotcost="${g.lotId}|${g.drawId}" style="width:auto;flex:none;">🔧 เติมต้นทุนที่ขาด</button>` : ''}
+        <button type="button" class="gap-dismiss-btn" data-dismissgap="${escapeHtml(gapDismissKey_(g))}" aria-label="ปิดการแจ้งเตือนนี้" title="ปิดไว้ก่อน (ถ้ายังไม่ได้แก้จริง จะกลับมาเตือนอีกทีหลังรีเฟรช/เปลี่ยนวันที่)">✕</button>
       </div>`).join('')}
     </div>` : '';
     el.innerHTML = doneHtml + completeHtml + gapsHtml;
@@ -8641,6 +8664,10 @@ async function renderPurchaseGapsToday_(){
       const [lotId, drawId] = btn.getAttribute('data-backfilllotcost').split('|');
       btn.disabled = true;
       try{ await backfillLotCostGap_(lotId, drawId); } finally { btn.disabled = false; }
+    }));
+    el.querySelectorAll('[data-dismissgap]').forEach(btn=>btn.addEventListener('click', ()=>{
+      dismissedGapKeys_.add(btn.getAttribute('data-dismissgap'));
+      renderPurchaseGapsToday_();
     }));
   }catch(e){
     if(mySeq !== purchaseGapsSeq_) return;
@@ -8845,7 +8872,7 @@ async function switchTab(name){
     if(name==='order') await renderMessages(); // ย้ายข้อความส่งมารวมในแท็บออเดอร์วันนี้แล้ว (การ์ด "💬 ข้อความส่ง" ด้านล่างสุด)
     if(name==='leftover'){ await renderLeftover(); await renderLotStockSummary(); }
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
-    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); await updateLotSectionAutoFold(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); renderShortfallList(await loadShortfalls()); }
+    if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); renderShortfallList(await loadShortfalls()); }
     if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
@@ -9029,9 +9056,7 @@ function toggleTopbarCollapse(){
 let sidebarCollapsed = false;
 function updateSidebarCollapseIcon_(){
   const icon = document.querySelector('#dwNavCollapseBtn .dwn-ic');
-  const lbl = document.querySelector('#dwNavCollapseBtn .dwn-lbl');
   if(icon) icon.textContent = sidebarCollapsed ? '▶' : '◀';
-  if(lbl) lbl.textContent = sidebarCollapsed ? 'ขยายเมนู' : 'ย่อเมนู';
 }
 function toggleSidebarCollapse(){
   sidebarCollapsed = !sidebarCollapsed;
@@ -9176,21 +9201,6 @@ function applyDailyExpenseRoutine_(){
     if(amtEl) amtEl.value = '';
     if(noteEl) noteEl.value = '';
   }
-}
-// กางหัวข้อล็อตวัตถุดิบอัตโนมัติถ้ามีบิล/ค่าขนส่งค้างอยู่ (จะได้เห็นเลยไม่ต้องกดกาง) แต่พับฟอร์ม "เพิ่มล็อตใหม่" ไว้เสมอ
-// ถ้าไม่มีข้อมูลอะไรเลยก็พับทั้งหมดไว้เหมือนเดิม
-async function updateLotSectionAutoFold(){
-  let lots, productBills, transportBills;
-  try{
-    [lots, productBills, transportBills] = await Promise.all([loadRawLots(), loadLotProductBills(), loadLotTransportBills()]);
-  }catch(e){
-    lots = []; productBills = []; transportBills = [{}]; // โหลดไม่สำเร็จ ให้กางไว้ก่อนดีกว่าพับซ่อนจนดูเหมือนไม่มีข้อมูล
-  }
-  const hasData = lots.length>0 || productBills.length>0 || transportBills.length>0;
-  const body = document.getElementById('lotSectionBody');
-  const chevron = document.getElementById('lotSectionChevron');
-  if(body){ body.style.display = hasData ? '' : 'none'; }
-  if(chevron){ chevron.textContent = hasData ? '▾' : '▸'; }
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){
@@ -9406,13 +9416,6 @@ async function init(){
   });
   document.getElementById('addLotBtn').addEventListener('click', addLot);
   document.getElementById('addLotItemRowBtn').addEventListener('click', addLotItemRow);
-  document.getElementById('lotSectionToggle').addEventListener('click', ()=>{
-    const body = document.getElementById('lotSectionBody');
-    const chevron = document.getElementById('lotSectionChevron');
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    chevron.textContent = open ? '▸' : '▾';
-  });
   // พับ/กางการ์ด "ล็อตที่มีอยู่" ด้วยปุ่มของตัวเอง (ไม่ใช้ระบบพับอัตโนมัติทั่วไป เพราะการ์ดนี้เนื้อหาเปลี่ยนบ่อยตอนกดเบิก การพับ/กางแบบนี้ยึดที่ #lotListBody ตรงๆ เลยไม่หลุดเวลา renderLotList() รีเฟรชแค่เนื้อหาข้างใน)
   document.getElementById('lotListToggle').addEventListener('click', ()=>{
     const body = document.getElementById('lotListBody');

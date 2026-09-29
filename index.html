@@ -3487,12 +3487,17 @@ function updateDashNoteBtnState_(){
 // (currentDate + dashNote เสมอ) และจากไอคอน 📝 ในตารางสรุปรายเดือน Brand Fee (เลือกวันไหนในเดือนนั้นก็ได้ + feeNote เสมอ)
 let dashNoteModalIso_ = null;
 let dashNoteModalField_ = 'dashNote';
+// เก็บ "ร่าง" ข้อความที่พิมพ์ค้างไว้แต่ยังไม่ได้กดบันทึก กันข้อมูลหายถ้ากล่องถูกปิดไปโดยไม่ตั้งใจ (เช่น แตะโดนพื้นหลังมืด
+// รอบนอกกล่องตอนกำลังพิมพ์ความเห็นยาวๆ บนมือถือ) — คีย์ด้วยวันที่+ฟิลด์ เพราะโน้ตของแต่ละวัน/แต่ละฟิลด์ไม่เกี่ยวกัน
+let dashNoteDrafts_ = {};
+function dashNoteDraftKey_(iso, field){ return iso+'|'+field; }
 function openDayNoteModalFor_(iso, noteValue, field){
   dashNoteModalIso_ = iso;
   dashNoteModalField_ = field;
   document.getElementById('dashNoteModalTitle').textContent = field==='feeNote' ? '📝 หมายเหตุ Brand Fee' : '📝 ความเห็น/บันทึกวันนี้';
   document.getElementById('dashNoteModalDate').textContent = `วันที่ ${formatDDMMYYYY(iso)}`;
-  document.getElementById('dashNoteTextarea').value = noteValue != null ? noteValue : ((dayCache_[iso] && dayCache_[iso][field]) || '');
+  const draft = dashNoteDrafts_[dashNoteDraftKey_(iso, field)];
+  document.getElementById('dashNoteTextarea').value = draft != null ? draft : (noteValue != null ? noteValue : ((dayCache_[iso] && dayCache_[iso][field]) || ''));
   document.getElementById('dashNoteModalOverlay').style.display = 'flex';
   document.getElementById('dashNoteTextarea').focus();
 }
@@ -3500,6 +3505,15 @@ function openDashNoteModal_(){
   openDayNoteModalFor_(currentDate, dayData.dashNote || '', 'dashNote');
 }
 function closeDashNoteModal_(){
+  // ก่อนปิด เก็บสิ่งที่พิมพ์ไว้เป็นร่างถ้ายังไม่ตรงกับค่าที่บันทึกแล้วจริง (ไม่ว่าจะกดยกเลิกหรือแตะพื้นหลังปิดไปเฉยๆ)
+  // เปิดใหม่รอบหน้าจะได้เจอข้อความเดิมที่พิมพ์ค้างไว้ ไม่ต้องพิมพ์ใหม่ทั้งหมด
+  if(dashNoteModalIso_){
+    const draftKey = dashNoteDraftKey_(dashNoteModalIso_, dashNoteModalField_);
+    const val = document.getElementById('dashNoteTextarea').value;
+    const saved = (dayCache_[dashNoteModalIso_] && dayCache_[dashNoteModalIso_][dashNoteModalField_]) || '';
+    if(val !== saved) dashNoteDrafts_[draftKey] = val;
+    else delete dashNoteDrafts_[draftKey];
+  }
   document.getElementById('dashNoteModalOverlay').style.display = 'none';
 }
 async function saveDashNote_(){
@@ -3509,6 +3523,7 @@ async function saveDashNote_(){
   try{
     const fresh = await writeDayFieldPath_(iso, [field], value);
     if(iso===currentDate) dayData = fresh;
+    delete dashNoteDrafts_[dashNoteDraftKey_(iso, field)]; // บันทึกสำเร็จแล้ว ไม่ต้องเก็บร่างค้างไว้อีก
     showToast('บันทึกหมายเหตุแล้ว');
     updateDashNoteBtnState_();
     closeDashNoteModal_();

@@ -174,7 +174,10 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .statbar{margin-bottom:14px;}
 .statbar-headrow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:6px 0;}
 .statbar-head{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:inherit;cursor:pointer;padding:0;color:var(--text-dim);flex:none;}
-.statbar-date{font-size:12.5px;font-weight:700;color:var(--text);flex:none;white-space:nowrap;cursor:pointer;}
+/* วันที่ตรงแถบสรุปยอดโชว์เฉพาะตอนย่อ (statbar-compact) เท่านั้น — ตอนกางเต็มมีวันที่โชว์อยู่แล้วถึง 2 จุด
+   (ป้ายวันที่ในเฮด + ช่องเลือกวันที่) การมีอันนี้ด้วยเลยซ้ำซ้อนเกินไป จุดกด ย่อ/ขยาย ย้ายไปอยู่ที่ชิป "สาขา" แทน */
+.statbar-date{display:none;font-size:12.5px;font-weight:700;color:var(--text);flex:none;white-space:nowrap;}
+body.statbar-compact .statbar-date{display:inline;}
 /* แถบหัว (dash-wide-header) + แถบสรุปยอด (statbar) ตรึงอยู่บนสุดจอด้วยกันเสมอเมื่อเลื่อนจอ (ไม่ต้องกดตรึงแยกอีกต่อไป) —
    ปุ่ม 📌 ควบคุมแค่ว่าจะโชว์หัวข้อเต็ม (วันที่/ปุ่มเปลี่ยนวัน/เพิ่มรายจ่ายด่วน) ไปด้วยไหม หรือย่อเหลือแค่แถบสรุปยอดสั้นๆ
    (ย่อ = ซ่อน dash-wide-header ไปเลย ประหยัดพื้นที่ แต่ยังเห็นวันที่+สรุปยอดสินค้าครบเหมือนเดิม) */
@@ -359,12 +362,13 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-nav button .dwn-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
-/* ปุ่มย่อ/ขยายเมนูด้านข้าง (ให้พื้นที่ฝั่งขวากว้างขึ้นตามที่ขอ) — คั่นเส้นบางๆ จากปุ่มเมนูจริงด้านล่าง กันสับสนว่าเป็นแท็บ */
 /* ปุ่มย่อ/ขยายเมนู — แค่ไอคอนเล็กๆ มุมขวาบนของแถวแบรนด์ (เทียบเท่าบรรทัดเดียวกับ "ระบบสั่งของรายวัน") ไม่ใช่แถวเต็มความกว้าง
-   แยกต่างหากแบบเดิมอีกต่อไป */
-.dwn-brand-collapse-btn{margin-left:auto;align-self:flex-end;background:none;border:none;color:var(--text-faint);cursor:pointer;padding:4px;border-radius:6px;flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
-.dwn-brand-collapse-btn:hover{background:var(--surface-2);color:var(--text);}
-.dwn-brand-collapse-btn .dwn-ic{font-size:11px;width:auto;}
+   แยกต่างหากแบบเดิมอีกต่อไป — ต้องใช้ selector ที่ specificity สูงกว่า ".dash-wide-nav button" (มี type selector "button"
+   ผสมอยู่) ไม่งั้น width:100%/padding:9px 10px ของกฎนั้นจะชนะทับ width:22px ที่ตั้งใจไว้ (บั๊กที่ทำให้ปุ่มยืดเป็นแถบยาว
+   ล้นกรอบเมนูออกไป) เลยต้องผูกกับ .dash-wide-brand เป็น ancestor ด้วยเพื่อเพิ่ม specificity ให้ชนะแน่ๆ */
+.dash-wide-brand .dwn-brand-collapse-btn{margin-left:auto;align-self:flex-end;background:none;border:none;color:var(--text-faint);cursor:pointer;padding:4px;border-radius:6px;flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+.dash-wide-brand .dwn-brand-collapse-btn:hover{background:var(--surface-2);color:var(--text);}
+.dash-wide-brand .dwn-brand-collapse-btn .dwn-ic{font-size:11px;width:auto;}
 .dash-wide-main{flex:1;min-width:0;}
 .dash-wide-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
 .dwh-menu-btn{display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;color:var(--text);cursor:pointer;font-size:16px;flex:none;}
@@ -1685,7 +1689,7 @@ async function renderStats(){
 
   const renderChips = ()=>{
     updateStatBarDateText_();
-    document.getElementById('statRow').innerHTML = `<div class="statchip">สาขา<b class="num">${n}</b></div>` +
+    document.getElementById('statRow').innerHTML = `<div class="statchip" id="statBarBranchChip" style="cursor:pointer;" title="ย่อ/ขยายหัวข้อ">สาขา<b class="num">${n}</b></div>` +
       PRODUCTS.map(p=>`<div class="statchip">${p.emoji}<b class="num">${totals[p.id]}</b></div>`).join('') +
       `<div class="statchip">Fee<b class="num">${money(fee.total)}</b></div>` +
       `<div class="statchip" style="${unpaidCount>0?'border-color:var(--danger);color:var(--danger);':''}">ค้างโอน<b class="num">${unpaidCount}</b></div>` +
@@ -9297,7 +9301,11 @@ async function init(){
   document.getElementById('todayBtn').addEventListener('click', ()=>loadForDate(todayISO()));
   document.getElementById('topbarHeadRow').addEventListener('click', toggleTopbarCollapse);
   document.getElementById('statBarToggle').addEventListener('click', toggleStatBar);
-  document.getElementById('statBarDate').addEventListener('click', toggleStatBar);
+  // ชิป "สาขา" เป็นอีกจุดกด ย่อ/ขยาย แทนวันที่ (renderChips() วาด #statRow ใหม่ทุกครั้งที่มีข้อมูลเปลี่ยน เลยผูก
+  // click แบบ delegation ไว้ที่ #statRow เอง กันต้อง bind ใหม่ทุกรอบ render)
+  document.getElementById('statRow').addEventListener('click', e=>{
+    if(e.target.closest('#statBarBranchChip')) toggleStatBar();
+  });
   try{
     if(localStorage.getItem('karmto.statBarCollapsed')==='1'){
       document.body.classList.add('statbar-compact');

@@ -364,17 +364,21 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
 /* ปุ่มย่อ/ขยายเมนู — วาง position:absolute อิงกับ .dash-wide-nav เอง (ซึ่ง position:sticky อยู่แล้วเลยเป็น positioned
    ancestor ให้ในตัว ไม่ต้องเพิ่ม position:relative ที่ไหนอีก) แยกออกจาก flex ของแถวแบรนด์ทั้งหมด ไม่กินพื้นที่เลย์เอาต์
-   เลย เพื่อไม่ให้กระทบอิโมจิปู 🦀 ที่ต้องอยู่กึ่งกลางแถวตอนเมนูถูกย่อเหลือแต่ไอคอน (แถวแบรนด์ตอนย่อเหลือกว้างแค่ ~44px
-   เท่านั้น ถ้าปุ่มยังแย่งพื้นที่ในแถวนั้นอยู่จะชนหรือเบียดปูได้ง่าย เลยยกไปแปะมุมขวาบนของกรอบเมนูทั้งกรอบแทน ห่างจากปู
-   พอสมควร) ขนาด/สไตล์ตั้งใจให้เหมือนปุ่มพับการ์ดต่างๆ (.chev) เป๊ะๆ คือตัวอักษรเปล่าๆ ไม่มีกล่อง/พื้นหลังครอบ แม้ตอน
-   โฮเวอร์หรือกดก็แค่สีเข้มขึ้น ไม่มีกล่องผุดขึ้นมา — ใช้ #dwNavCollapseBtn (id) + all:unset แทนการไล่ specificity เอา
-   ชนะทีละกฎ เพราะ ".dash-wide-nav button" (ตั้ง width:100%/display:flex/padding ฯลฯ) และกฎช่วง body.dash-nav-collapsed
-   ที่ตั้ง padding ทับอีกชั้นตอนเมนูย่อ (specificity สูงกว่ากฎ class ล้วนๆ) ทั้งคู่ยังมีผลแม้ปุ่มจะเป็น position:absolute
-   แล้วก็ตาม (พร็อพเพอร์ตี้ที่กฎเราไม่ได้ประกาศไว้เอง เช่น width ยังโดนกฎอื่นทับอยู่ดี) id selector ชนะทุกกฎที่เป็น
-   class ล้วนๆ แน่นอน 100% เลยตัดปัญหานี้ทิ้งไปได้ทั้งหมดในคราวเดียว */
-#dwNavCollapseBtn.dwn-brand-collapse-btn{all:unset;position:absolute;top:9px;right:5px;cursor:pointer;color:var(--text-faint);font-size:12px;line-height:1;z-index:1;}
+   เลย เพื่อไม่ให้กระทบอิโมจิปู 🦀 ที่ต้องอยู่กึ่งกลางแถวตอนเมนูถูกย่อเหลือแต่ไอคอน — ตำแหน่งตั้งใจให้แปะอยู่มุมขวาล่าง
+   ของปู (ไม่ใช่เสมอแนวเดียวกับตัวปู) ชิดริมกรอบเมนูจริงๆ ขนาด/ตัวอักษร/สไตล์ตั้งใจให้เหมือนปุ่มพับการ์ดต่างๆ (.chev)
+   เป๊ะๆ เลยใช้ตัวอักษรสามเหลี่ยมเล็ก ▸/◂ (ไม่ใช่ ▶/◀ ตัวใหญ่ที่ดูหนาไม่เท่ากับ .chev แม้ font-size จะเท่ากันก็ตาม —
+   กลีฟคนละแบบ น้ำหนักภาพต่างกัน) เป็นตัวอักษรเปล่าๆ ไม่มีกล่อง/พื้นหลังครอบ แม้ตอนโฮเวอร์หรือกดก็แค่สีเข้มขึ้น ไม่มี
+   กล่องผุดขึ้นมา — ใช้ #dwNavCollapseBtn (id) + all:unset แทนการไล่ specificity เอาชนะทีละกฎ เพราะ ".dash-wide-nav
+   button" (ตั้ง width:100%/display:flex/padding ฯลฯ) และกฎช่วง body.dash-nav-collapsed ที่ตั้ง padding ทับอีกชั้นตอน
+   เมนูย่อ (specificity สูงกว่ากฎ class ล้วนๆ) ทั้งคู่ยังมีผลแม้ปุ่มจะเป็น position:absolute แล้วก็ตาม (พร็อพเพอร์ตี้ที่
+   กฎเราไม่ได้ประกาศไว้เอง เช่น width ยังโดนกฎอื่นทับอยู่ดี) id selector ชนะทุกกฎที่เป็น class ล้วนๆ แน่นอน 100%
+   เลยตัดปัญหานี้ทิ้งไปได้ทั้งหมดในคราวเดียว — เพิ่ม appearance:none + outline:none กันเผื่อบางเบราว์เซอร์/มือถือ
+   ยังมีกรอบโฟกัส/ปุ่มดีฟอลต์หลุดรอดมาแม้ all:unset ไปแล้วก็ตาม */
+#dwNavCollapseBtn.dwn-brand-collapse-btn{all:unset;position:absolute;top:36px;right:4px;cursor:pointer;color:var(--text-faint);font-size:8px;line-height:1;z-index:1;appearance:none;-webkit-appearance:none;outline:none;}
 #dwNavCollapseBtn.dwn-brand-collapse-btn:hover{color:var(--text);}
-#dwNavCollapseBtn .dwn-ic{font-size:12px;width:auto;}
+/* เล็กลงกว่า .chev ปกติอีกเป็นพิเศษเฉพาะปุ่มพับเมนูนี้จุดเดียว (ตามที่ขอ) เพื่อไม่ให้แย่งความเด่นไปจากอิโมจิปู 🦀 —
+   ปุ่มพับการ์ดอื่นๆ ทั่วแอพยังใช้ .chev ขนาดเดิม ไม่เกี่ยวกับกฎนี้ */
+#dwNavCollapseBtn .dwn-ic{font-size:8px;width:auto;}
 .dash-wide-main{flex:1;min-width:0;}
 .dash-wide-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
 .dwh-menu-btn{display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;color:var(--text);cursor:pointer;font-size:16px;flex:none;}
@@ -539,7 +543,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="dash-wide-scrim" id="dashNavScrim"></div>
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav" id="dashNav">
-        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div class="dwb-textwrap"><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div><button type="button" id="dwNavCollapseBtn" class="dwn-brand-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span></button></div>
+        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div class="dwb-textwrap"><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div><button type="button" id="dwNavCollapseBtn" class="dwn-brand-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◂</span></button></div>
         <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
         <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">Orders</span></button>
         <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">Purchases</span></button>
@@ -9085,7 +9089,7 @@ function toggleTopbarCollapse(){
 let sidebarCollapsed = false;
 function updateSidebarCollapseIcon_(){
   const icon = document.querySelector('#dwNavCollapseBtn .dwn-ic');
-  if(icon) icon.textContent = sidebarCollapsed ? '▶' : '◀';
+  if(icon) icon.textContent = sidebarCollapsed ? '▸' : '◂';
 }
 function toggleSidebarCollapse(){
   sidebarCollapsed = !sidebarCollapsed;

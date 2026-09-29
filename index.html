@@ -362,13 +362,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .dash-wide-nav button .dwn-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dash-wide-nav button:hover{background:var(--surface-2);color:var(--text);}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
-/* ปุ่มย่อ/ขยายเมนู — แค่ไอคอนเล็กๆ มุมขวาบนของแถวแบรนด์ (เทียบเท่าบรรทัดเดียวกับ "ระบบสั่งของรายวัน") ไม่ใช่แถวเต็มความกว้าง
-   แยกต่างหากแบบเดิมอีกต่อไป — ต้องใช้ selector ที่ specificity สูงกว่า ".dash-wide-nav button" (มี type selector "button"
-   ผสมอยู่) ไม่งั้น width:100%/padding:9px 10px ของกฎนั้นจะชนะทับ width:22px ที่ตั้งใจไว้ (บั๊กที่ทำให้ปุ่มยืดเป็นแถบยาว
-   ล้นกรอบเมนูออกไป) เลยต้องผูกกับ .dash-wide-brand เป็น ancestor ด้วยเพื่อเพิ่ม specificity ให้ชนะแน่ๆ */
-.dash-wide-brand .dwn-brand-collapse-btn{margin-left:auto;align-self:flex-end;background:none;border:none;color:var(--text-faint);cursor:pointer;padding:4px;border-radius:6px;flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
-.dash-wide-brand .dwn-brand-collapse-btn:hover{background:var(--surface-2);color:var(--text);}
-.dash-wide-brand .dwn-brand-collapse-btn .dwn-ic{font-size:11px;width:auto;}
+/* ปุ่มย่อ/ขยายเมนู — วาง position:absolute อิงกับ .dash-wide-nav เอง (ซึ่ง position:sticky อยู่แล้วเลยเป็น positioned
+   ancestor ให้ในตัว ไม่ต้องเพิ่ม position:relative ที่ไหนอีก) แยกออกจาก flex ของแถวแบรนด์ทั้งหมด ไม่กินพื้นที่เลย์เอาต์
+   เลย เพื่อไม่ให้กระทบอิโมจิปู 🦀 ที่ต้องอยู่กึ่งกลางแถวตอนเมนูถูกย่อเหลือแต่ไอคอน (แถวแบรนด์ตอนย่อเหลือกว้างแค่ ~44px
+   เท่านั้น ถ้าปุ่มยังแย่งพื้นที่ในแถวนั้นอยู่จะชนหรือเบียดปูได้ง่าย เลยยกไปแปะมุมขวาบนของกรอบเมนูทั้งกรอบแทน ห่างจากปู
+   พอสมควร) ขนาด/สไตล์ตั้งใจให้เหมือนปุ่มพับการ์ดต่างๆ (.chev) เป๊ะๆ คือตัวอักษรเปล่าๆ ไม่มีกล่อง/พื้นหลังครอบ แม้ตอน
+   โฮเวอร์หรือกดก็แค่สีเข้มขึ้น ไม่มีกล่องผุดขึ้นมา — ใช้ #dwNavCollapseBtn (id) + all:unset แทนการไล่ specificity เอา
+   ชนะทีละกฎ เพราะ ".dash-wide-nav button" (ตั้ง width:100%/display:flex/padding ฯลฯ) และกฎช่วง body.dash-nav-collapsed
+   ที่ตั้ง padding ทับอีกชั้นตอนเมนูย่อ (specificity สูงกว่ากฎ class ล้วนๆ) ทั้งคู่ยังมีผลแม้ปุ่มจะเป็น position:absolute
+   แล้วก็ตาม (พร็อพเพอร์ตี้ที่กฎเราไม่ได้ประกาศไว้เอง เช่น width ยังโดนกฎอื่นทับอยู่ดี) id selector ชนะทุกกฎที่เป็น
+   class ล้วนๆ แน่นอน 100% เลยตัดปัญหานี้ทิ้งไปได้ทั้งหมดในคราวเดียว */
+#dwNavCollapseBtn.dwn-brand-collapse-btn{all:unset;position:absolute;top:9px;right:5px;cursor:pointer;color:var(--text-faint);font-size:12px;line-height:1;z-index:1;}
+#dwNavCollapseBtn.dwn-brand-collapse-btn:hover{color:var(--text);}
+#dwNavCollapseBtn .dwn-ic{font-size:12px;width:auto;}
 .dash-wide-main{flex:1;min-width:0;}
 .dash-wide-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
 .dwh-menu-btn{display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;color:var(--text);cursor:pointer;font-size:16px;flex:none;}
@@ -432,17 +438,19 @@ table.plain td.num,table.plain th.num{text-align:right;}
    drawer อยู่แล้วโดย media query ด้านล่าง ไม่ต้องมีปุ่มย่อซ้ำซ้อน (ซ่อนปุ่มไว้ในช่วงนั้น) */
 @media (min-width:1024px){
   body.dash-nav-collapsed .dash-wide-nav{width:64px;}
-  body.dash-nav-collapsed .dash-wide-brand .dwb-name,
-  body.dash-nav-collapsed .dash-wide-brand .dwb-sub,
+  /* ซ่อนทั้ง .dwb-textwrap (ไม่ใช่แค่ .dwb-name/.dwb-sub ข้างในมันเฉยๆ) ตอนย่อเมนู — ถ้าซ่อนแค่ลูกข้างใน ตัว div
+     wrapper เปล่าๆ ยังนับเป็น flex item อยู่ ยังกิน gap ในแถวแบรนด์อยู่ดี ทำให้ justify-content:center คำนวณจุด
+     กึ่งกลางผิดไปจากตำแหน่งจริงของอิโมจิปู (เยื้องซ้ายจากจุดกึ่งกลางจริงของกรอบเมนู) ต้องซ่อนทั้ง wrapper ไปเลย
+     ปูถึงจะอยู่กึ่งกลางแถวจริงๆ */
+  body.dash-nav-collapsed .dash-wide-brand .dwb-textwrap,
   body.dash-nav-collapsed .dash-wide-nav .dwn-lbl{display:none;}
   body.dash-nav-collapsed .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
-  body.dash-nav-collapsed .dwn-brand-collapse-btn{margin-left:0;align-self:center;}
   body.dash-nav-collapsed .dash-wide-nav button{justify-content:center;padding:11px 0;}
 }
 @media (max-width:1023px){
   .dash-wide-outer{padding:16px 16px 32px;}
   .dash-wide-nav{width:64px;}
-  .dash-wide-brand .dwb-name,.dash-wide-brand .dwb-sub,.dash-wide-nav .dwn-lbl{display:none;}
+  .dash-wide-brand .dwb-textwrap,.dash-wide-nav .dwn-lbl{display:none;}
   .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
   .dash-wide-nav button{justify-content:center;padding:11px 0;}
   #dwNavCollapseBtn{display:none;}
@@ -457,7 +465,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .dash-wide-nav{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:40;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.35);border-radius:0;}
   body.dash-nav-open .dash-wide-nav{transform:translateX(0);}
   body.dash-nav-open .dash-wide-scrim{display:block;}
-  .dash-wide-brand .dwb-name,.dash-wide-brand .dwb-sub,.dash-wide-nav .dwn-lbl{display:block;}
+  .dash-wide-brand .dwb-textwrap,.dash-wide-nav .dwn-lbl{display:block;}
   .dash-wide-brand{justify-content:flex-start;padding:8px 8px 14px;}
   .dash-wide-nav button{justify-content:flex-start;padding:9px 10px;}
   .dwh-menu-btn{display:inline-flex;align-items:center;justify-content:center;}
@@ -531,7 +539,7 @@ table.plain td.num,table.plain th.num{text-align:right;}
     <div class="dash-wide-scrim" id="dashNavScrim"></div>
     <div class="dash-wide-shell">
       <nav class="dash-wide-nav" id="dashNav">
-        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div><button type="button" id="dwNavCollapseBtn" class="dwn-brand-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span></button></div>
+        <div class="dash-wide-brand"><span class="dwb-mark">🦀</span><div class="dwb-textwrap"><div class="dwb-name">KARMTO</div><div class="dwb-sub">ระบบสั่งของรายวัน</div></div><button type="button" id="dwNavCollapseBtn" class="dwn-brand-collapse-btn" aria-label="ย่อ/ขยายเมนูด้านข้าง" aria-pressed="false" title="ย่อ/ขยายเมนูด้านข้าง"><span class="dwn-ic">◀</span></button></div>
         <button class="active" data-tab="dashboard"><span class="dwn-ic">📊</span><span class="dwn-lbl">Dashboard</span></button>
         <button data-tab="order"><span class="dwn-ic">📝</span><span class="dwn-lbl">Orders</span></button>
         <button data-tab="purchase"><span class="dwn-ic">🛒</span><span class="dwn-lbl">Purchases</span></button>

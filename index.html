@@ -232,9 +232,9 @@ pre.msgtext{white-space:pre-wrap;font-family:'IBM Plex Sans Thai',sans-serif;fon
 .copybtn{background:var(--surface-3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;}
 .copybtn.copied{background:var(--success-soft);border-color:var(--success);color:var(--success);}
 table.plain{width:100%;border-collapse:collapse;font-size:13px;}
-table.plain th{text-align:left;color:var(--text-faint);font-weight:500;font-size:11.5px;padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;}
+table.plain th{text-align:center;color:var(--text-faint);font-weight:500;font-size:11.5px;padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap;}
 table.plain td{padding:7px 6px;border-bottom:1px solid var(--border-soft);white-space:nowrap;text-align:left;}
-table.plain td.num,table.plain th.num{text-align:right;}
+table.plain td.num{text-align:right;}
 .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .leftover-grid{display:flex;flex-direction:column;gap:8px;}
 .lrow{display:flex;align-items:center;gap:10px;}
@@ -289,36 +289,38 @@ table.plain td.num,table.plain th.num{text-align:right;}
 .addhistrow{display:flex;gap:6px;margin-top:6px;}
 .addhistrow input[type=date]{flex:1.3;}
 .addhistrow input[type=number]{flex:1;}
-/* receipt — เปลี่ยนโทนจากครีม/ทองเดิมมาเป็นฟ้าน้ำทะเล-ส้มให้ตรงทิศทางเดียวกับแอพ แต่ยังคงพื้นขาวสะอาด
+/* receipt — ปรับให้ "หรูหรา สะอาดตา" มากขึ้น: คุมโทนด้วยสีเดียวเป็นหลัก (ทอง/บรอนซ์ #B98B54 เป็นซิกเนเจอร์) แทนที่จะ
+   ผสมทอง+ฟ้าน้ำทะเลแข่งกันหลายจุดเหมือนก่อน (ดูรกตา ไม่นิ่ง) เอาลายทางสลับสี (zebra stripe) ของตารางออก เหลือแค่เส้น
+   บางๆ คั่นแถว แบบใบเสร็จ/invoice หรูๆ ที่ไม่มีพื้นหลังสีปะทะกันเป็นแถบๆ เส้นคาดบนบางลง (จาก 5px เหลือ 3px) ให้ดู
+   เรียบร้อยขึ้นไม่หนาเทอะทะ ยอดรวมใช้พื้นเข้มทึบแทน gradient 2 สี (สงบตา เป็นทางการกว่า) ยังคงพื้นขาวนวลสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFCF6;color:var(--text);border:1px solid var(--border-soft);border-top:5px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:20px 18px 18px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
+.receipt{background:#FFFDF9;color:var(--text);border:1px solid var(--border-soft);border-top:3px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:22px 20px 20px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:12px;}
-.receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:2px solid rgba(185,139,84,.35);background:#FFF9EF;padding:3px;box-sizing:border-box;}
+.receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:1.5px solid rgba(185,139,84,.4);background:#FFF9EF;padding:3px;box-sizing:border-box;}
 .receipt .rheadinfo{flex:1;min-width:0;}
-.receipt .rheadinfo .shopname{font-size:18px;font-weight:800;letter-spacing:.1px;}
-.receipt .rheadinfo .addr{font-size:10px;color:#93897C;line-height:1.6;margin-top:4px;}
+.receipt .rheadinfo .shopname{font-size:18px;font-weight:800;letter-spacing:.2px;color:#2B2420;}
+.receipt .rheadinfo .addr{font-size:10px;color:#9C9388;line-height:1.6;margin-top:4px;}
 .receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;}
-.receipt .rheadmeta .rbillno{font-size:11.5px;color:#FFFCF6;background:#B98B54;padding:4px 11px;border-radius:999px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.receipt .rheadmeta .rbillno{font-size:11px;color:#FFFCF6;background:#B98B54;padding:4px 11px;border-radius:3px;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
 .receipt .rheadmeta .rdate{font-size:10px;color:#A39A8D;}
-.receipt hr{border:none;height:2px;border-radius:999px;background:linear-gradient(90deg,#B98B54,#8DA0B8);margin:14px 0;}
-.receipt .idblock{display:flex;flex-direction:column;gap:6px;background:rgba(141,160,184,.06);border:1px solid rgba(141,160,184,.18);border-radius:10px;padding:10px 12px;}
-.receipt .idrow .idlabel{font-size:10px;color:#A39A8D;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px;}
-.receipt .idrow .idvalue{font-size:14px;color:var(--text);font-weight:600;}
+.receipt hr{border:none;height:1px;background:#E4DACB;margin:16px 0;}
+.receipt .idblock{display:flex;flex-direction:column;gap:6px;background:#FBF7F0;border:1px solid #EDE4D5;border-radius:8px;padding:10px 12px;}
+.receipt .idrow .idlabel{font-size:9.5px;color:#A39A8D;text-transform:uppercase;letter-spacing:.6px;margin-bottom:1px;}
+.receipt .idrow .idvalue{font-size:14px;color:#2B2420;font-weight:600;}
 .receipt .idrow .idsub{font-size:11px;color:#93897C;margin-top:1px;}
 .receipt .kv{font-size:11px;color:#93897C;margin:2px 0;}
-.receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px;}
-.receipt table th{text-align:left;background:rgba(141,160,184,.10);border-bottom:2px solid #B98B54;padding:7px 6px;font-size:10px;color:#4B5A6E;text-transform:uppercase;letter-spacing:.3px;font-weight:700;}
+.receipt table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:16px;}
+.receipt table th{text-align:center;background:none;border-bottom:1.5px solid #B98B54;padding:6px 6px 8px;font-size:9.5px;color:#9C9388;text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
 .receipt table th.num,.receipt table td.num{text-align:right;}
-.receipt table td{padding:7px 6px;font-size:12.5px;}
-.receipt table tr:nth-child(even){background:rgba(141,160,184,.04);}
-.receipt table tr:last-child td{border-bottom:0.75px solid #B98B54;}
-.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#93897C;margin:4px 2px;}
-.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:linear-gradient(135deg,#3E4C63,#5B7292);color:#FFF8ED;padding:13px 15px;border-radius:10px;margin:12px 0 6px;}
-.receipt .grand span:first-child{font-size:13px;font-weight:500;color:rgba(255,248,237,0.75);}
-.receipt .bahttext{text-align:right;font-size:11px;color:#6E7B8E;font-style:italic;margin-bottom:12px;}
+.receipt table td{padding:8px 6px;font-size:12.5px;border-bottom:1px solid #EDE4D5;}
+.receipt table tr:last-child td{border-bottom:1.5px solid #B98B54;}
+.receipt .totline{display:flex;justify-content:space-between;font-size:12.5px;color:#93897C;margin:6px 2px;}
+.receipt .grand{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:700;background:#2B2420;color:#FBF3E3;padding:13px 16px;border-radius:8px;margin:14px 0 8px;}
+.receipt .grand span:first-child{font-size:12.5px;font-weight:500;letter-spacing:.3px;color:#C6A972;}
+.receipt .bahttext{text-align:right;font-size:11px;color:#9C9388;font-style:italic;margin-bottom:12px;}
 .receipt .sign{text-align:right;font-size:12px;margin:18px 0 6px;color:#93897C;}
-.receipt .thanks{text-align:center;font-size:12px;color:#B98B54;margin-top:10px;font-weight:600;}
-.receipt .rno{text-align:center;font-size:10px;color:#A39A8D;margin-top:8px;letter-spacing:.2px;}
+.receipt .thanks{text-align:center;font-size:12px;color:#B98B54;margin-top:10px;font-weight:600;letter-spacing:.2px;}
+.receipt .rno{text-align:center;font-size:10px;color:#A39A8D;margin-top:8px;letter-spacing:.3px;}
 @media (orientation:landscape) and (max-width:1023px){
   .receipt{width:500px;}
 }
@@ -330,8 +332,6 @@ table.plain td.num,table.plain th.num{text-align:right;}
   .receipt,.receipt *{visibility:visible;}
   .receipt{position:absolute;top:0;left:0;width:100%;max-width:none;margin:0;border-radius:0;border:none;border-top:none;box-shadow:none;}
   .receipt .idblock{background:none;border-color:#ccc;}
-  .receipt table th{background:none;}
-  .receipt table tr:nth-child(even){background:none;}
 }.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .dash-metric{background:var(--surface-2);border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:12px;}
 .dash-metric .dm-label{font-size:11.5px;color:var(--text-faint);margin-bottom:4px;}
@@ -735,9 +735,8 @@ table.plain td.num,table.plain th.num{text-align:right;}
       </table>
     </div>
     <div class="card dash-wide-card">
-      <h3>📊 สรุปรายเดือน <span class="subhint">(สไตล์ตารางสะสมยอด)</span></h3>
-      <div class="hint">ไม่รวมสาขา "แยกส่ง" — ตารางนี้คือยอดที่ใช้คิดค่าธรรมเนียมจ่ายบริษัทเท่านั้น</div>
-      <div class="field"><label>เดือน</label><input type="month" id="monthInput"></div>
+      <h3>📊 สรุปรายเดือน</h3>
+      <div class="field"><label>เดือน</label><input type="month" id="monthInput"> <span class="subhint" id="monthInputLabel"></span></div>
       <div id="monthLedger" class="loading">กำลังโหลด…</div>
     </div>
     <div class="card dash-wide-card">
@@ -2610,6 +2609,10 @@ async function renderLeftover(){
       // แค่ไม่ต้องไปรีเฟรชหน้าที่กำลังดูวันอื่นอยู่ให้งงเปล่าๆ)
       if(iso===currentDate){ await renderLeftover(); renderMessages(); }
       renderWasteRecordList();
+      {
+        const p = PRODUCTS.find(x=>x.id===pid);
+        logActivity_(`${reason==='claim'?'บันทึกเคลม':'บันทึกของเสีย'} ${p?p.emoji+p.name:pid} ${qty} — วันที่ ${formatDDMMYYYY(iso)}`);
+      }
     }catch(e){
       // เดิม: ถ้า saveWasteRecords สำเร็จแล้วแต่ saveDay (บันทึกของเหลือที่ลดลง) พังทีหลัง จะโชว์ "บันทึกไม่สำเร็จ ลองใหม่"
       // เฉยๆ ทั้งที่รายการของเสียถูกบันทึกจริงไปแล้ว — กดลองใหม่จะสร้างรายการของเสียซ้ำอีกอัน (นับความเสียหายซ้ำสอง)
@@ -2672,6 +2675,10 @@ async function renderWasteRecordList(){
     }
     showToast('ลบแล้ว');
     renderWasteRecordList();
+    if(target){
+      const p = PRODUCTS.find(x=>x.id===target.productId);
+      logActivity_(`ลบ${target.reason==='claim'?'เคลม':'ของเสีย'} ${p?p.emoji+p.name:target.productId} ${target.qty} — วันที่ ${formatDDMMYYYY(target.date)}`);
+    }
   }));
 }
 // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps หลาย path ในคำขอเดียว) แทนแก้ dayData.leftoverOut/leftoverSince เองแล้ว
@@ -2772,6 +2779,8 @@ async function getMonthDays(monthVal){
 }
 async function renderMonthFee(){
   const monthVal = document.getElementById('monthInput').value;
+  const monthLabelEl = document.getElementById('monthInputLabel');
+  if(monthLabelEl) monthLabelEl.textContent = formatMonthEnglish_(monthVal);
   const ledgerEl = document.getElementById('monthLedger');
   const sumEl = document.getElementById('monthProductSummary');
   ledgerEl.innerHTML = '<div class="loading">กำลังคำนวณ…</div>';
@@ -3383,12 +3392,14 @@ function renderExpenseList(){
     const id = btn.getAttribute('data-expdel');
     if(!confirm('ลบรายจ่ายนี้?')) return;
     const iso = currentDate;
+    const target = (dayData.expenses||[]).find(x=>x.id===id); // เก็บรายละเอียดไว้ก่อนลบ เอาไปใส่ประวัติ
     try{
       const fresh = await writeDayArrayOp_(iso, 'expenses', {remove:{matchField:'id', matchValue:id}});
       if(iso===currentDate) dayData = fresh;
       renderExpenseList();
       showToast('ลบรายจ่ายแล้ว');
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      if(target) logActivity_(`ลบรายจ่าย ${target.category}${target.seller?` (${target.seller})`:''} ${money(target.amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
     }catch(err){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
@@ -3419,6 +3430,7 @@ function renderExpenseList(){
       renderExpenseList();
       renderStats();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
+      logActivity_(`แก้ไขรายจ่าย ${category}${seller?` (${seller})`:''} ${money(amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
     }catch(err){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       btn.disabled = false; btn.textContent = 'บันทึก';
@@ -3535,6 +3547,9 @@ async function saveDashNote_(){
   try{
     const fresh = await writeDayFieldPath_(iso, [field], value);
     if(iso===currentDate) dayData = fresh;
+    dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์เสมอ (จุดนี้เคยลืมไว้ — ลบ/แก้โน้ตของวันอื่นที่ไม่ใช่
+    // currentDate เช่นแก้ feeNote ผ่านตาราง Brand Fee แล้วบันทึกสำเร็จจริง แต่แคชยังเป็นค่าเก่า พอตารางรีเรนเดอร์ทันที
+    // (renderMonthFee ด้านล่าง) เลยยังโชว์ข้อความเดิมอยู่ เหมือนลบไม่ออกทั้งที่จริงๆ บันทึกค่าว่างสำเร็จไปแล้ว)
     delete dashNoteDrafts_[dashNoteDraftKey_(iso, field)]; // บันทึกสำเร็จแล้ว ไม่ต้องเก็บร่างค้างไว้อีก
     showToast('บันทึกหมายเหตุแล้ว');
     updateDashNoteBtnState_();
@@ -4706,21 +4721,35 @@ function renderBranchSettings(){
       <textarea data-bbilladdr="${i}" placeholder="รายละเอียดที่อยู่เพิ่มเติม เช่น เลขที่ 28/1 หมู่ 7 ต.บางรัก... (ไม่ต้องพิมพ์ชื่อสาขาซ้ำ ระบบใส่ให้ในชื่อผู้ซื้อแล้ว) ว่าง = ว่างบนบิล" rows="2" style="margin-bottom:6px;resize:vertical;">${escapeHtml(b.billAddr)}</textarea>
       <input type="text" data-bbilltax="${i}" value="${escapeHtml(b.billTax)}" placeholder="เลขภาษีเฉพาะ (ว่าง = ว่างบนบิล)">
     </div>`).join('');
-  wrap.querySelectorAll('[data-brdel]').forEach(btn=>btn.addEventListener('click', ()=>{
+  wrap.querySelectorAll('[data-brdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(!confirm('ลบสาขานี้ออกจากรายชื่อสาขา? (ออเดอร์เก่าที่เคยบันทึกไว้ของสาขานี้จะยังอยู่ แต่จะไม่มีในรายชื่อให้เลือกอีก)')) return;
+    const removed = settings.branches[Number(btn.getAttribute('data-brdel'))];
     settings.branches.splice(Number(btn.getAttribute('data-brdel')),1); renderBranchSettings();
+    await saveBranches({silent:true});
+    showToast('ลบสาขาแล้ว');
+    if(removed) logActivity_(`ลบสาขา ${removed.code} ${removed.area||removed.label||''}`.trim());
   }));
-  // อัปเดตสรุปด้านบนทันทีเวลามีคนติ๊ก/เลิกติ๊ก โดยยังไม่ต้องกดบันทึก จะได้เห็นผลตอบรับทันที
-  wrap.querySelectorAll('[data-bsep]').forEach((cb,i)=>cb.addEventListener('change', ()=>{
+  // อัปเดตสรุปด้านบนทันทีเวลามีคนติ๊ก/เลิกติ๊ก พร้อมบันทึกขึ้นเซิร์ฟเวอร์ทันทีในตัว — เดิมติ๊กแล้วแค่กางค่าในหน่วยความจำ
+  // ดูเหมือนบันทึกแล้ว (มีผลกับหน้าจอทันที) แต่จริงๆ ยังไม่ถูกส่งขึ้นเซิร์ฟเวอร์จนกว่าจะกดปุ่ม "บันทึกรายชื่อสาขา" แยก
+  // ต่างหากด้านล่าง ถ้าลืมกด/ปิดหน้าไปก่อน การแก้ไข (รวมถึงสาขาที่เพิ่งเพิ่มด้วย addBranch()) จะหายไปเงียบๆ — นี่คือ
+  // สาเหตุที่น่าจะทำให้สาขาที่เพิ่มแล้วหายไปจริง (ผู้ใช้จำได้ว่าเพิ่ม+ติ๊ก "นานๆ สั่งที" แล้ว แต่ไม่ได้กดปุ่มบันทึกแยก)
+  wrap.querySelectorAll('[data-bsep]').forEach((cb,i)=>cb.addEventListener('change', async ()=>{
     settings.branches[i].separate = cb.checked;
     renderBranchSettings();
+    await saveBranches({silent:true});
   }));
-  wrap.querySelectorAll('[data-brare]').forEach((cb,i)=>cb.addEventListener('change', ()=>{
+  wrap.querySelectorAll('[data-brare]').forEach((cb,i)=>cb.addEventListener('change', async ()=>{
     settings.branches[i].rare = cb.checked;
     renderBranchSettings();
+    await saveBranches({silent:true});
   }));
+  // ช่องข้อความ (รหัส/ชื่อพื้นที่/ป้ายชื่อ/ชื่อผู้ซื้อ/ที่อยู่/เลขภาษี) บันทึกอัตโนมัติตอนออกจากช่อง (blur) ด้วยเหตุผล
+  // เดียวกับเช็คบ็อกซ์ด้านบน — ไม่ต้องพึ่งปุ่มบันทึกแยกอีกต่อไป (ปุ่มยังอยู่ไว้เผื่ออยากกดบันทึกทุกช่องรวดเดียวเอง)
+  wrap.querySelectorAll('[data-bcode],[data-barea],[data-blabel],[data-bbillname],[data-bbilladdr],[data-bbilltax]').forEach(el=>{
+    el.addEventListener('blur', ()=>{ saveBranches({silent:true}); });
+  });
 }
-async function saveBranches(){
+async function saveBranches(opts={}){
   const codes = document.querySelectorAll('[data-bcode]');
   const areas = document.querySelectorAll('[data-barea]');
   const labels = document.querySelectorAll('[data-blabel]');
@@ -4744,13 +4773,13 @@ async function saveBranches(){
   try{
     await writeSettingsFieldPath_(['branches'], settings.branches);
     refreshOrderTab();
-    showToast('บันทึกรายชื่อสาขาแล้ว');
+    if(!opts.silent) showToast('บันทึกรายชื่อสาขาแล้ว');
   }catch(e){
     showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
   }
 }
 function branchCodeNum_(code){ const m = String(code).match(/^\d+/); return m ? Number(m[0]) : null; }
-function addBranch(){
+async function addBranch(){
   const codeEl = document.getElementById('newBranchCode'); const areaEl = document.getElementById('newBranchArea');
   const code = codeEl.value.trim(); const area = areaEl.value.trim();
   if(!code || !area){ showToast('กรอกรหัสและชื่อสาขาก่อน'); return; }
@@ -4770,6 +4799,11 @@ function addBranch(){
   settings.branches.splice(insertAt, 0, {code, area});
   codeEl.value=''; areaEl.value='';
   renderBranchSettings();
+  // บันทึกขึ้นเซิร์ฟเวอร์ทันทีตอนเพิ่มเลย — เดิมแค่กางค่าในหน่วยความจำ+เรนเดอร์ใหม่ ต้องกดปุ่ม "บันทึกรายชื่อสาขา"
+  // แยกต่างหากถึงจะติดจริง ถ้าลืมกด/ปิดหน้าไปก่อน สาขาที่เพิ่งเพิ่มจะหายไปเงียบๆ โดยไม่มีอะไรเตือนเลย
+  await saveBranches({silent:true});
+  showToast(`เพิ่มสาขา ${code} ${area} แล้ว`);
+  logActivity_(`เพิ่มสาขา ${code} ${area}`);
 }
 
 function showBackupFallbackModal(jsonStr){
@@ -4866,11 +4900,13 @@ function renderPersonalLists(){
     const id = btn.getAttribute('data-pincdel');
     if(!confirm('ลบรายรับส่วนตัวนี้?')) return;
     const iso = currentDate;
+    const target = incList.find(x=>x.id===id);
     try{
       const fresh = await writeDayArrayOp_(iso, 'personalIncome', {remove:{matchField:'id', matchValue:id}});
       if(iso===currentDate) dayData = fresh;
       renderPersonalLists();
       showToast('ลบแล้ว');
+      if(target) logActivity_(`ลบรายรับส่วนตัว ${target.person||'-'} ${target.category} ${money(target.amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
@@ -4887,11 +4923,13 @@ function renderPersonalLists(){
     const id = btn.getAttribute('data-pexpdel');
     if(!confirm('ลบรายจ่ายส่วนตัวนี้?')) return;
     const iso = currentDate;
+    const target = expList.find(x=>x.id===id);
     try{
       const fresh = await writeDayArrayOp_(iso, 'personalExpense', {remove:{matchField:'id', matchValue:id}});
       if(iso===currentDate) dayData = fresh;
       renderPersonalLists();
       showToast('ลบแล้ว');
+      if(target) logActivity_(`ลบรายจ่ายส่วนตัว ${target.person||'-'} ${target.category} ${money(target.amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
@@ -4909,6 +4947,7 @@ async function addPersonalIncome(){
   document.getElementById('pIncomeNote').value=''; document.getElementById('pIncomeAmount').value='';
   renderPersonalLists();
   showToast('เพิ่มรายรับแล้ว');
+  logActivity_(`เพิ่มรายรับส่วนตัว ${person||'-'} ${category} ${money(amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
 }
 async function addPersonalExpense(){
   const person = document.getElementById('pExpensePerson').value;
@@ -4922,6 +4961,7 @@ async function addPersonalExpense(){
   document.getElementById('pExpenseNote').value=''; document.getElementById('pExpenseAmount').value='';
   renderPersonalLists();
   showToast('เพิ่มรายจ่ายแล้ว');
+  logActivity_(`เพิ่มรายจ่ายส่วนตัว ${person||'-'} ${category} ${money(amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
 }
 async function computePersonalMonth(monthVal){
   const listRes = await window.storage.list('day:');
@@ -6963,7 +7003,22 @@ function renderPurchStagedList(){
     renderPurchStagedList();
   }));
   const cancelBtn = el.querySelector('[data-purchbillcancel]');
-  if(cancelBtn) cancelBtn.addEventListener('click', cancelPurchBillEdit_);
+  // เดิมกดแล้วหายทันทีไม่มีถามยืนยันเลย เผลอกดพลาดรายการที่พักไว้ทั้งหมดหายไปเฉยๆ ต้องกรอกใหม่ทั้งบิล — เพิ่ม confirm()
+  // ก่อนเสมอถ้ามีอะไรจะเสียจริง (ไม่ถามถ้าฟอร์มว่างเปล่าอยู่แล้ว ไม่มีอะไรให้เสีย) กรณีกำลังแก้บิลที่เคยบันทึกไว้แล้ว
+  // (purchBillEditingId) ย้ำในข้อความด้วยว่าบิลเดิมบนเซิร์ฟเวอร์ไม่ได้ถูกลบ แค่ยกเลิกการแก้ที่ค้างอยู่ในฟอร์มเท่านั้น
+  // กันผู้ใช้เข้าใจผิดว่าข้อมูลบิลหายไปจริงๆ
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{
+    const hasSomethingToLose = purchStagedRows.length>0 || !!purchBillEditingId || !!purchEditingId;
+    if(hasSomethingToLose){
+      const msg = purchBillEditingId
+        ? `ยกเลิกการแก้บิลนี้? การแก้ไขที่พักไว้ในฟอร์ม (${purchStagedRows.length} รายการ) จะหายไป — บิลเดิมที่บันทึกไว้แล้วบนเซิร์ฟเวอร์ไม่หาย ไม่เปลี่ยนแปลงใดๆ`
+        : purchEditingId
+        ? 'ยกเลิกการแก้ไขรายการนี้? ข้อมูลที่แก้ไว้ในฟอร์มจะหายไป'
+        : `ยกเลิกบิลนี้? รายการที่พักไว้ทั้งหมด (${purchStagedRows.length} รายการ) จะหายไป ต้องกรอกใหม่`;
+      if(!confirm(msg)) return;
+    }
+    cancelPurchBillEdit_();
+  });
 }
 function addPurchToStage(){
   // ระหว่างกำลังแก้ทีละแถว (เช่น รายการเบิกจากล็อต) ไม่ให้พักรวมเป็นบิลใหม่ปนกัน — ต้องกดยกเลิกก่อนถึงจะเริ่มบิลใหม่ได้
@@ -7030,6 +7085,7 @@ async function addPurchase(){
     purchBillEditingSnapshot_ = null;
     purchStagedRows = [];
     showToast(`แก้ไขบิลแล้ว (${rows.length} รายการ)`);
+    logActivity_(`แก้ไขบิลต้นทุนซื้อ (${rows.length} รายการ) — วันที่ ${formatDDMMYYYY(iso)}`);
     for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
   }else if(purchEditingId){
     if(!currentRow){ showToast('กรอกสินค้า จำนวนซื้อ และราคาให้ครบ'); return; }
@@ -7048,6 +7104,10 @@ async function addPurchase(){
     purchEditingId = null;
     document.getElementById('addPurchaseBtn').textContent = '+ บันทึกต้นทุนซื้อ';
     showToast('แก้ไขรายการแล้ว');
+    {
+      const p = PRODUCTS.find(x=>x.id===finalProductId);
+      logActivity_(`แก้ไขต้นทุนซื้อ ${p?p.emoji+p.name:finalProductId} ${currentRow.qty}×${finalPrice} — วันที่ ${formatDDMMYYYY(iso)}`);
+    }
     await autoFillLeftoverIfNeeded(finalProductId);
   }else if(purchStagedRows.length===0){
     // ทางเดิมทุกอย่าง ไม่มีการพักบิลเลยสักครั้ง — พฤติกรรมเหมือนก่อนมีฟีเจอร์นี้ทุกประการ รวมทั้งเช็คสัดส่วนกับยอดออเดอร์
@@ -7065,6 +7125,10 @@ async function addPurchase(){
     const fresh = await writeDayArrayOp_(iso, 'purchases', {push:Object.assign({id:uid('pu'), paid:false}, currentRow)});
     if(iso===currentDate) dayData = fresh;
     showToast('บันทึกต้นทุนซื้อแล้ว');
+    {
+      const p = PRODUCTS.find(x=>x.id===currentRow.productId);
+      logActivity_(`เพิ่มต้นทุนซื้อ ${p?p.emoji+p.name:currentRow.productId} ${currentRow.qty}×${currentRow.price} — วันที่ ${formatDDMMYYYY(iso)}`);
+    }
     await autoFillLeftoverIfNeeded(currentRow.productId); // ถ้าซื้อ/ทำได้เกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     // บันทึกรายการใหม่เสร็จ (ไม่ใช่แก้ไข/ไม่ใช่บิลหลายรายการ) แจ้งเตือนสินค้าถัดไปที่มีออเดอร์วันนี้แต่ยังไม่ได้กรอกต้นทุนซื้อ
     // กันลืมกรอกตกหล่น — สำคัญ: เดิมระบบจะ "สลับสินค้าในฟอร์ม + เติมราคาให้อัตโนมัติ" ทันทีแบบเงียบๆ ตรงนี้ — อันตรายมากถ้า
@@ -7088,6 +7152,7 @@ async function addPurchase(){
     if(iso===currentDate) dayData = fresh;
     purchStagedRows = [];
     showToast(`บันทึกบิลแล้ว (${rows.length} รายการ)`);
+    logActivity_(`เพิ่มบิลต้นทุนซื้อ (${rows.length} รายการ) — วันที่ ${formatDDMMYYYY(iso)}`);
     for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
   }
   clearPurchFormRowFields_();
@@ -7472,6 +7537,7 @@ function renderPurchaseList(){
     if(!reversalWarned) showToast('ลบแล้ว'); // ถ้าเตือนปัญหาคืนสถานะสต็อกล็อตไปแล้วด้านบน อย่าทับด้วย toast "ลบแล้ว" เฉยๆ ให้ดูเหมือนไม่มีอะไรผิดปกติ
     renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     renderPurchaseGroups();
+    logActivity_(`ลบต้นทุนซื้อ ${displayName} ${entry.qty}×${entry.price} — วันที่ ${formatDDMMYYYY(iso)}`);
   }));
   // ลบทั้งบิล (ทุกรายการที่มี billId เดียวกัน) ในคำขอเดียว — บิลจากฟอร์มนี้ไม่ใช่รายการเบิกจากล็อต/ตัดต้นทุนล็อตเลย จึง
   // ไม่ต้องมีลอจิกคืนสถานะสต็อกล็อตเหมือน data-purchdel ด้านบน (นั่นมีไว้สำหรับรายการ fromLot/lotSettle เท่านั้น)
@@ -7494,6 +7560,7 @@ function renderPurchaseList(){
     showToast('ลบทั้งบิลแล้ว');
     renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
     renderPurchaseGroups();
+    logActivity_(`ลบทั้งบิลต้นทุนซื้อ ${items[0].seller||'ไม่ระบุผู้ขาย'} (${items.length} รายการ) ${money(total)} — วันที่ ${formatDDMMYYYY(iso)}`);
   }));
   updatePurchaseFormAutoFold();
 }
@@ -7788,10 +7855,13 @@ async function renderDebts(){
   listEl.querySelectorAll('[data-debtdel]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(!confirm('ลบรายการหนี้นี้? (ประวัติการจ่ายที่บันทึกไปแล้วจะหายไปด้วย)')) return;
     const id = btn.getAttribute('data-debtdel');
+    const all = await loadDebts();
+    const target = all.find(x=>x.id===id);
     try{
       await writeRootArrayOp_('debts', {remove:{matchField:'id', matchValue:id}}, arr=>{debtsCache_=arr;});
       renderDebts();
       showToast('ลบหนี้แล้ว');
+      if(target) logActivity_(`ลบหนี้ ${target.creditor} (${target.type||'-'}) ${money(debtRemaining(target))}`);
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
@@ -7866,11 +7936,13 @@ async function addDebt(){
     applyInitialAdjustment(tmp, principalStart, remainNowRaw);
     await writeRootArrayOp_('debts', {matchField:'id', matchValue:editingDebtId, set:{creditor, type, owner, interestRate, dueDate, principalStart, payments: tmp.payments}}, arr=>{debtsCache_=arr;});
     showToast('แก้ไขหนี้แล้ว');
+    logActivity_(`แก้ไขหนี้ ${creditor} (${type||'-'}) เงินต้น ${money(principalStart)}`);
   }else{
     const newDebt = {id:uid('d'), creditor, type, owner, interestRate, dueDate, principalStart, payments:[]};
     applyInitialAdjustment(newDebt, principalStart, remainNowRaw);
     await writeRootArrayOp_('debts', {push:newDebt}, arr=>{debtsCache_=arr;});
     showToast('เพิ่มหนี้แล้ว');
+    logActivity_(`เพิ่มหนี้ ${creditor} (${type||'-'}) เงินต้น ${money(principalStart)}`);
   }
   cancelDebtEdit();
   renderDebts();
@@ -8918,6 +8990,14 @@ async function switchTab(name){
 // จุดแดงมุมล่างซ้าย = มีบันทึกต้นทุนซื้อวันนั้น, จุดเขียว = มีออเดอร์ขายวันนั้น (โชว์คู่กันได้ถ้ามีทั้งสอง)
 // มีสวิตซ์เปิด/ปิดจุดสถานะ เผื่อช่วงกรอกข้อมูลย้อนหลังจำนวนมากแล้วอยากให้ปฏิทินโหลดไว ไม่ต้องรอเช็คทุกวัน
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const ENGLISH_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+// ตัว <input type="month"> เองแสดงผลเป็นภาษาอะไรก็ได้ตามการตั้งค่าของเบราว์เซอร์/OS ผู้ใช้ บังคับผ่าน HTML ไม่ได้ตรงๆ —
+// เลยทำป้ายกำกับภาษาอังกฤษแยกไว้ข้างๆ ให้ชัดเจนแน่นอนเสมอ ไม่ขึ้นกับเบราว์เซอร์
+function formatMonthEnglish_(monthVal){
+  const [y,m] = (monthVal||'').split('-').map(Number);
+  if(!y || !m) return '';
+  return `${ENGLISH_MONTHS[m-1]} ${y}`;
+}
 let calViewYear = null, calViewMonth = null; // เดือนเป็น 0-11 แบบ JS Date
 let calRangeMode = false, calRangeStart = null, calRangeEnd = null; // โหมดเลือกช่วงวันที่ (แตะ 2 ครั้ง = วันเริ่ม/วันจบ)
 const CAL_RANGE_MAX_DAYS = 62; // กันเลือกช่วงยาวเกินไปโดยไม่ตั้งใจ (โหลดข้อมูลทีเดียวหลายเดือน/ปีจะช้า)

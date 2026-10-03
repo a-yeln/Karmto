@@ -246,10 +246,16 @@ table.plain td.num{text-align:right;}
 .feebig .unit{font-size:14px;color:var(--text-dim);margin-left:6px;font-weight:400;}
 .branchbill{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:10px 11px;margin-bottom:8px;}
 .branchbill .toprow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.branchbill .toprow .left{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:left;}
+/* .left เป็นตัวเดียวที่ flex:1 (กินพื้นที่ที่เหลือทั้งหมด) ส่วน .amtcol/.acts2 เป็น flex:none (กว้างเท่าเนื้อหาตัวเอง) —
+   ทำให้ยอดเงิน/วันที่จ่ายของทุกแถวไปรวมชิดขวาเป็นคอลัมน์เดียวกันเสมอ ไม่ว่าชื่อ (.n) จะยาวสั้นแค่ไหน (เดิม .amt อยู่
+   ใน .left ติดกับชื่อเป็น flex-wrap ธรรมดา ตำแหน่งเลยขยับไปตามความยาวชื่อแต่ละแถว ไม่ตรงกันเป็นคอลัมน์เลย) */
+.branchbill .toprow .left{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:left;flex:1;min-width:0;}
 .branchbill .toprow .left .d{flex-basis:100%;}
+.branchbill .toprow .amtcol{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
 .branchbill .left .n{font-size:13.5px;}
-.branchbill .left .amt{font-size:12px;color:var(--text-dim);margin-top:0;min-width:70px;display:inline-block;}
+/* ไม่ผูก selector กับ .left โดยตรงอีกต่อไป (ใช้ .branchbill .amt เฉยๆ) เพราะตอนนี้ .amt อยู่ได้ทั้งใน .left (จุดเดิมที่ยัง
+   ไม่ได้ย้ายโครงสร้าง เช่น รายการสาขาในแท็บบิล) และใน .amtcol (จุดที่ย้ายโครงสร้างใหม่แล้วเพื่อให้ยอดชิดขวาเป็นคอลัมน์) */
+.branchbill .amt{font-size:12px;color:var(--text-dim);margin-top:0;}
 .branchbill .acts2{display:flex;gap:6px;flex:none;align-items:center;}
 .paidtag{color:var(--success);font-size:11.5px;font-weight:600;white-space:nowrap;}
 .billrow{margin-bottom:4px;}
@@ -3309,9 +3315,10 @@ function renderExpenseList(){
     return `
     <div class="orow billrow" style="flex-direction:column;align-items:stretch;padding:8px 10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;" data-billrowtoggle="${rowKey}">
-          <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;"><span class="name">${escapeHtml(e.category)}${e.seller?` — ${escapeHtml(e.seller)}`:''}</span><span class="items num">${money(e.amount)}</span>${paidTagHtml(e.paid, e.paidDate)}</div>
+        <div style="cursor:pointer;flex:1;min-width:0;text-align:left;" data-billrowtoggle="${rowKey}">
+          <span class="name">${escapeHtml(e.category)}${e.seller?` — ${escapeHtml(e.seller)}`:''}</span>
         </div>
+        <div style="flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span class="items num">${money(e.amount)}</span>${paidTagHtml(e.paid, e.paidDate)}</div>
         <div class="acts">
           <button class="paytoggle ${e.paid?'paid':'unpaid'}" data-exppay="${e.id}" style="padding:5px 9px;font-size:11px;">${e.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
           <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>
@@ -6622,9 +6629,10 @@ async function renderLotTransportList(){
     const rowKey = 'lottrans-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}${b.note?` (${escapeHtml(b.note)})`:''}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.payee)||'ไม่ระบุผู้รับ'}${b.note?` (${escapeHtml(b.note)})`:''}</div></div>
+        <div class="amtcol">
           <div class="amt num">${money(b.amount)}</div>${paidTagHtml(b.paid, b.paidDate)}
-          ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
+          ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div style="color:var(--text-faint);font-size:11.5px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
         </div>
         <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lottranspay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
@@ -6778,9 +6786,10 @@ async function renderLotProductBillList(){
     const rowKey = 'lotprod-'+b.id;
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.seller)||'ไม่ระบุผู้ขาย'}${b.sellerNote?` (${escapeHtml(b.sellerNote)})`:''}</div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(b.seller)||'ไม่ระบุผู้ขาย'}${b.sellerNote?` (${escapeHtml(b.sellerNote)})`:''}</div></div>
+        <div class="amtcol">
           <div class="amt num">${money(b.amount)}</div>${paidTagHtml(b.paid, b.paidDate)}
-          ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div class="d" style="color:var(--text-faint);font-size:11.5px;margin-top:2px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
+          ${b.paid && b.paidAmount!=null && billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount) ? `<div style="color:var(--text-faint);font-size:11.5px;">${billPaidDiffHtml({transferAmount:b.paidAmount, billedAmount:b.amount}, b.amount).replace(/^ /,'')}</div>`:''}
         </div>
         <div class="acts2"><button class="paytoggle ${b.paid?'paid':'unpaid'}" data-lotprodpay="${b.id}">${b.paid?'จ่ายแล้ว':'รอจ่าย'}</button><button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button></div>
       </div>
@@ -7584,8 +7593,8 @@ function renderPurchaseGroups(){
     const rowKey = 'pg-'+seller.replace(/[^a-zA-Z0-9ก-๙]/g,'');
     return `<div class="branchbill billrow" style="padding:8px 10px;">
       <div class="toprow">
-        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(seller)}</div><div class="amt num">${money(total)}</div>${paidTagHtml(info.paid, info.paidDate)}
-        </div>
+        <div class="left" data-billrowtoggle="${rowKey}" style="cursor:pointer;"><div class="n">${escapeHtml(seller)}</div></div>
+        <div class="amtcol"><div class="amt num">${money(total)}</div>${paidTagHtml(info.paid, info.paidDate)}</div>
         <div class="acts2">
           <button class="paytoggle ${info.paid?'paid':'unpaid'}" data-grouppay="${seller}">${info.paid?'จ่ายแล้ว':'รอจ่าย'}</button>
           <button class="iconbtn" data-billrowtoggle="${rowKey}" aria-label="แสดงรายละเอียด">▾</button>

@@ -864,7 +864,9 @@ table.plain td.num{text-align:right;}
         <label>หมวด</label>
         <select id="expCategory"></select>
       </div>
-      <div class="field"><label>จ่ายให้ใคร (ถ้ามี — เช่น จ่ายรวมกับค่าเชอรี่ให้พี่พัฒน์)</label><select id="expPayee"><option value="">— ไม่ระบุ —</option></select></div>
+      <div class="field"><label>จ่ายให้ใคร (ถ้ามี — เช่น จ่ายรวมกับค่าเชอรี่ให้พี่พัฒน์)</label><select id="expPayee"><option value="">— ไม่ระบุ —</option></select>
+        <input type="text" id="expPayeeOther" placeholder="ชื่อ/ร้าน" style="display:none;margin-top:6px;">
+      </div>
       <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="expNote" placeholder="เช่น น้ำแข็ง 5 ถุง"></div>
       <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="expAmount" placeholder="0"></div>
       <button class="btn secondary" id="addExpenseBtn">+ เพิ่มรายจ่าย</button>
@@ -1137,7 +1139,9 @@ table.plain td.num{text-align:right;}
     <div class="hint">จ่ายให้ซัพพลายเออร์/อื่นๆ — ไม่ใช่การซื้อสินค้า</div>
     <div class="field"><label>วันที่</label><input type="date" id="dashExpDate"></div>
     <div class="field"><label>หมวด</label><select id="dashExpCategory"></select></div>
-    <div class="field"><label>จ่ายให้ใคร (ถ้ามี)</label><select id="dashExpPayee"></select></div>
+    <div class="field"><label>จ่ายให้ใคร (ถ้ามี)</label><select id="dashExpPayee"></select>
+      <input type="text" id="dashExpPayeeOther" placeholder="ชื่อ/ร้าน" style="display:none;margin-top:6px;">
+    </div>
     <div class="field"><label>รายละเอียด (ถ้ามี)</label><input type="text" id="dashExpNote" placeholder="เช่น น้ำแข็ง 5 ถุง"></div>
     <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="dashExpAmount" placeholder="0"></div>
     <div style="display:flex;gap:8px;">
@@ -3282,6 +3286,38 @@ async function toggleBranchDetailReceipt(iso, code){
     showToast('คัดลอกข้อความบิลแล้ว');
   });
 }
+// โชว์/ซ่อนช่องพิมพ์ชื่อเองของ "จ่ายให้ใคร" ตามตัวเลือกปัจจุบัน — ใช้ร่วมกันทั้งฟอร์มเดิมและ modal เพิ่มรายจ่ายด่วน
+// (เหมือน togglePurchSellerOther_/setPurchFormSeller_ ของฟอร์มบันทึกต้นทุนซื้อ แต่รับพารามิเตอร์ id เพราะมี 2 ฟอร์มใช้ร่วมกัน)
+function togglePayeeOther_(selectId, otherId){
+  const sel = document.getElementById(selectId);
+  const otherEl = document.getElementById(otherId);
+  if(!sel || !otherEl) return;
+  otherEl.style.display = sel.value==='อื่นๆ' ? '' : 'none';
+}
+function setPayeeOtherValue_(selectId, otherId, value){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const otherEl = document.getElementById(otherId);
+  const known = Array.from(sel.options).some(o=>o.value===value);
+  if(value && !known){
+    sel.value = 'อื่นๆ';
+    if(otherEl) otherEl.value = value;
+  }else{
+    sel.value = value||'';
+    if(otherEl) otherEl.value = '';
+  }
+  togglePayeeOther_(selectId, otherId);
+}
+function readPayeeOtherValue_(selectId, otherId){
+  const sel = document.getElementById(selectId);
+  let v = sel ? sel.value : '';
+  if(v==='อื่นๆ'){
+    const otherEl = document.getElementById(otherId);
+    const typed = otherEl ? otherEl.value.trim() : '';
+    if(typed) v = typed; // ใช้ชื่อที่พิมพ์เองแทน "อื่นๆ" ตรงๆ
+  }
+  return v;
+}
 function renderExpenseCategorySelect(){
   const categoryOptionsHtml = settings.expenseCategories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   // ตัดม๊ะก๊าด/มนต์ออกจากช่องนี้ — สองรายนี้ไม่เคยจ่ายรวมกับรายจ่ายอื่นๆ (มีแต่พี่พัฒน์ที่จ่ายรวมค่าน้ำแข็ง/ถุงต่างๆ ไปด้วย)
@@ -3299,6 +3335,9 @@ function renderExpenseCategorySelect(){
     payeeSel.innerHTML = payeeOptionsHtml;
     // ล็อกค่าเริ่มต้นเป็นพี่พัฒน์ไว้ก่อนเสมอ เพราะรายจ่ายกิจการส่วนใหญ่ (น้ำแข็ง/ถุง ฯลฯ) จ่ายรวมกับพี่พัฒน์
     if(phatOption) payeeSel.value = phatOption;
+    const otherId = id==='expPayee' ? 'expPayeeOther' : 'dashExpPayeeOther';
+    payeeSel.onchange = ()=>togglePayeeOther_(id, otherId);
+    togglePayeeOther_(id, otherId);
   });
 }
 let expPayEditingId = null;
@@ -3332,7 +3371,8 @@ function renderExpenseList(){
           <label>หมวด</label>
           <select id="expeditcat-${e.id}">${categoryOptionsForEdit.map(c=>`<option value="${escapeHtml(c)}" ${c===e.category?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select>
           <label style="margin-top:6px;">จ่ายให้ใคร (ถ้ามี)</label>
-          <select id="expeditpayee-${e.id}"><option value="">— ไม่ระบุ —</option>${payeeOptionsForEdit.map(s=>`<option value="${escapeHtml(s)}" ${s===(e.seller||'')?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+          <select id="expeditpayee-${e.id}" onchange="togglePayeeOther_('expeditpayee-${e.id}','expeditpayeeother-${e.id}')"><option value="">— ไม่ระบุ —</option>${payeeOptionsForEdit.map(s=>`<option value="${escapeHtml(s)}" ${s===(e.seller||'')?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+          <input type="text" id="expeditpayeeother-${e.id}" placeholder="ชื่อ/ร้าน" style="display:${e.seller==='อื่นๆ'?'':'none'};margin-top:6px;">
           <label style="margin-top:6px;">รายละเอียด (ถ้ามี)</label>
           <input type="text" id="expeditnote-${e.id}" value="${escapeHtml(e.note)}" placeholder="เช่น น้ำแข็ง 5 ถุง">
           <label style="margin-top:6px;">จำนวนเงิน</label>
@@ -3425,7 +3465,7 @@ function renderExpenseList(){
   wrap.querySelectorAll('[data-expfieldsave]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const id = btn.getAttribute('data-expfieldsave');
     const category = document.getElementById(`expeditcat-${id}`).value;
-    const seller = document.getElementById(`expeditpayee-${id}`).value;
+    const seller = readPayeeOtherValue_(`expeditpayee-${id}`, `expeditpayeeother-${id}`);
     const note = document.getElementById(`expeditnote-${id}`).value.trim();
     const amount = Number(document.getElementById(`expeditamt-${id}`).value||0);
     if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return; }
@@ -3468,7 +3508,7 @@ async function addExpenseCore_(category, seller, note, amount, isoOverride){
 }
 async function addExpense(){
   const category = document.getElementById('expCategory').value;
-  const seller = document.getElementById('expPayee').value;
+  const seller = readPayeeOtherValue_('expPayee', 'expPayeeOther');
   const note = document.getElementById('expNote').value.trim();
   const amount = Number(document.getElementById('expAmount').value||0);
   const ok = await addExpenseCore_(category, seller, note, amount);
@@ -3479,19 +3519,21 @@ async function addExpense(){
   const hasOrdersToday = Object.values(dayData.orders||{}).some(r=>PRODUCTS.some(p=>Number(r[p.id]||0)>0) || (r.custom||[]).length>0);
   if(!hasOrdersToday){
     document.getElementById('expNote').value=''; document.getElementById('expAmount').value='';
-    document.getElementById('expCategory').selectedIndex = 0; document.getElementById('expPayee').value = '';
+    document.getElementById('expCategory').selectedIndex = 0;
+    setPayeeOtherValue_('expPayee', 'expPayeeOther', '');
   }
 }
 async function addExpenseFromDashboard(){
   const category = document.getElementById('dashExpCategory').value;
-  const seller = document.getElementById('dashExpPayee').value;
+  const seller = readPayeeOtherValue_('dashExpPayee', 'dashExpPayeeOther');
   const note = document.getElementById('dashExpNote').value.trim();
   const amount = Number(document.getElementById('dashExpAmount').value||0);
   const iso = document.getElementById('dashExpDate').value || todayISO();
   const ok = await addExpenseCore_(category, seller, note, amount, iso);
   if(!ok) return;
   document.getElementById('dashExpNote').value=''; document.getElementById('dashExpAmount').value='';
-  document.getElementById('dashExpCategory').selectedIndex = 0; document.getElementById('dashExpPayee').value = '';
+  document.getElementById('dashExpCategory').selectedIndex = 0;
+  setPayeeOtherValue_('dashExpPayee', 'dashExpPayeeOther', '');
   closeDashExpenseModal_();
 }
 function openDashExpenseModal_(){
@@ -9366,6 +9408,8 @@ function applyDailyExpenseRoutine_(){
     if(amtEl) amtEl.value = '';
     if(noteEl) noteEl.value = '';
   }
+  // ตั้งค่าตรงๆ ด้านบนไม่ยิง onchange — ซิงก์ช่องพิมพ์ชื่อเองของ "จ่ายให้ใคร" ให้ซ่อนตามเสมอ (ไม่งั้นค้างโชว์จากที่เลือกไว้ก่อนหน้า)
+  togglePayeeOther_('expPayee', 'expPayeeOther');
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){

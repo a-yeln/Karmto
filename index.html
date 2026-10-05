@@ -8481,7 +8481,9 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
     // ขึ้นจำนวนที่ "ขาด" ตรงๆ ก่อนเสมอ (เดิมบอกแค่ "ต้องการ X แต่บันทึกไว้ Y" ให้ไปลบเลขเองว่าขาดเท่าไร) กระชับกว่าเดิม
     if(bought===undefined){
       missingParts.push(`${p.emoji}${p.name} ขาด ${needed} ${p.unit}`);
-    }else if(bought < needed*0.8){
+    }else if(bought < needed - 0.001){
+      // ขาดเท่าไรก็เตือนหมด ไม่เผื่อ % — เพราะพิมพ์เร็วๆแล้วลืมใส่เพิ่ม (เช่น ขาด 5 โลจาก 93 ~5.4%) ก็ถือว่าพลาดจริง
+      // ต้องรู้ ไม่ใช่ "ความคลาดเคลื่อนปกติ" ที่ปล่อยผ่านได้
       const gap = Math.round((needed-bought)*100)/100;
       mismatchParts.push(`${p.emoji}${p.name} ขาดอีก ${gap} ${p.unit} (ต้องการ ${needed} มี ${bought})`);
     }else if(bought > needed*1.5){
@@ -8524,7 +8526,7 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
     gaps.push({iso, type:'purchase', text:`ยังไม่ได้บันทึกต้นทุนซื้อ: ${missingParts.join(', ')}`, tab:'purchase'});
   }
   if(mismatchParts.length){
-    gaps.push({iso, type:'purchase-mismatch', text:`จำนวนซื้อกับยอดออเดอร์ต่างกันมาก เช็คว่ากรอกผิดหรือเปล่า: ${mismatchParts.join(', ')}`, tab:'purchase'});
+    gaps.push({iso, type:'purchase-mismatch', text:`จำนวนซื้อกับยอดออเดอร์ไม่ตรงกัน เช็คว่ากรอกผิดหรือเปล่า: ${mismatchParts.join(', ')}`, tab:'purchase'});
   }
   if(unexpectedParts.length){
     gaps.push({iso, type:'purchase-unexpected', text:`มีต้นทุนซื้อที่ไม่มีออเดอร์รองรับ เช็คว่ากรอกผิดวัน/ผิดสินค้าหรือเปล่า: ${unexpectedParts.join(', ')}`, tab:'purchase'});

@@ -761,7 +761,9 @@ table.plain td.num{text-align:right;}
       <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
       <div id="purchLeftoverHint" class="hint" style="margin-top:-4px;margin-bottom:6px;"></div>
       <div id="purchLotEditHint" class="hint" style="color:var(--accent);"></div>
-      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select></div>
+      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select>
+        <input type="text" id="purchSellerOther" placeholder="ชื่อร้าน/ผู้ขาย" style="display:none;margin-top:6px;">
+      </div>
       <div class="grid7">
         <div><label>จำนวนซื้อ (<span id="purchBuyUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchQty" placeholder="0"></div>
         <div><label>ราคาซื้อ/หน่วย</label><input type="number" step="0.01" id="purchPrice" placeholder="0"></div>
@@ -5058,7 +5060,8 @@ function renderPurchaseForm(){
   prodSel.innerHTML = PRODUCTS.map(p=>`<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   prodSel.onchange = ()=>{ updatePurchaseUnitLabels(); updatePurchaseLeftoverHint(); autofillPurchasePrice(); };
   document.getElementById('purchSeller').innerHTML = settings.purchaseSellers.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-  document.getElementById('purchSeller').onchange = ()=>{ autofillPurchasePrice(); }; // เปลี่ยนผู้ขายก็ต้องค้นราคาใหม่ด้วย เพราะราคาซื้อขึ้นกับคู่ค้าแต่ละเจ้าไม่เท่ากัน
+  document.getElementById('purchSeller').onchange = ()=>{ togglePurchSellerOther_(); autofillPurchasePrice(); }; // เปลี่ยนผู้ขายก็ต้องค้นราคาใหม่ด้วย เพราะราคาซื้อขึ้นกับคู่ค้าแต่ละเจ้าไม่เท่ากัน
+  togglePurchSellerOther_();
   // ถ้าผู้ใช้พิมพ์ราคาเองมือ (ไม่ใช่ค่าที่ระบบเติมให้) ให้เลิกถือว่าเป็นค่า autofill ทันที
   // กันบั๊ก: เปลี่ยนสินค้าแล้วราคาไม่อัปเดตตามเพราะเข้าใจผิดว่าเป็นค่าที่พิมพ์เองไว้
   const purchPriceEl = document.getElementById('purchPrice');
@@ -6944,12 +6947,35 @@ let purchBillEditingSnapshot_ = null;
 function serializeBillRows_(rows){
   return JSON.stringify(rows.map(r=>({id:r.id, productId:r.productId, seller:r.seller||'', qty:r.qty, price:r.price, extra:r.extra||0, sellableQty:r.sellableQty!=null?r.sellableQty:null, note:r.note||''})).sort((a,b)=>String(a.id).localeCompare(String(b.id))));
 }
+// โชว์/ซ่อนช่องพิมพ์ชื่อร้านเองตามตัวเลือกผู้ขายปัจจุบัน — เรียกทุกครั้งที่เปลี่ยนค่า #purchSeller (onchange) หรือตอนเติม
+// ฟอร์มจากข้อมูลเดิม (setPurchFormSeller_) เพื่อให้ช่องนี้โชว์ตรงกับตัวเลือกเสมอ
+function togglePurchSellerOther_(){
+  const otherEl = document.getElementById('purchSellerOther');
+  if(!otherEl) return;
+  otherEl.style.display = document.getElementById('purchSeller').value==='อื่นๆ' ? '' : 'none';
+}
+// ตั้งค่าผู้ขายในฟอร์ม รองรับทั้งชื่อที่อยู่ในรายการ dropdown ปกติ และชื่อร้านที่พิมพ์เองตอนเลือก "อื่นๆ" (ซึ่งจะไม่ตรงกับ
+// option ไหนเลย ตั้งค่า select.value ตรงๆ จะเงียบๆไม่เลือกอะไรให้) — ใช้ร่วมกันทั้งตอนเติมฟอร์มจากแถวที่พักไว้/บิลเดิม
+// และตอนเปิดมาแก้รายการเดี่ยว (startEditPurchase)
+function setPurchFormSeller_(sellerValue){
+  const sel = document.getElementById('purchSeller');
+  const otherEl = document.getElementById('purchSellerOther');
+  const known = Array.from(sel.options).some(o=>o.value===sellerValue);
+  if(sellerValue && !known){
+    sel.value = 'อื่นๆ';
+    if(otherEl) otherEl.value = sellerValue;
+  }else{
+    sel.value = sellerValue||'';
+    if(otherEl) otherEl.value = '';
+  }
+  togglePurchSellerOther_();
+}
 // เติมฟิลด์ในฟอร์มบันทึกต้นทุนซื้อจากแถวที่กำหนด (ใช้ตอนเปิดมาแก้บิลหลายรายการ และตอนสลับแถวที่พักไว้เข้าฟอร์ม) — ไม่รวม
 // ลอจิกล็อกฟิลด์พิเศษของรายการเบิกจากล็อต (purchEditingId เดี่ยวๆ) ซึ่งมีเงื่อนไขเฉพาะของตัวเองแยกต่างหาก
 function fillPurchFormFields_(row){
   document.getElementById('purchProduct').value = row.productId;
   updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
-  document.getElementById('purchSeller').value = row.seller||'';
+  setPurchFormSeller_(row.seller||'');
   document.getElementById('purchQty').value = row.qty;
   document.getElementById('purchPrice').value = row.price;
   document.getElementById('purchExtra').value = row.extra||'';
@@ -6974,8 +7000,13 @@ function readPurchFormRow_(){
   if(!productId || qty<=0 || price<=0) return null;
   let sellableQty = document.getElementById('purchSellable').value!=='' ? Number(document.getElementById('purchSellable').value) : null;
   if(sellableQty!=null && sellableUnitIsWhole_(productId)) sellableQty = Math.round(sellableQty);
+  let seller = document.getElementById('purchSeller').value;
+  if(seller==='อื่นๆ'){
+    const typedName = document.getElementById('purchSellerOther').value.trim();
+    if(typedName) seller = typedName; // ใช้ชื่อร้านที่พิมพ์เองแทน "อื่นๆ" ตรงๆ จะได้แยกกลุ่มในสรุปบิลตามชื่อร้านจริง
+  }
   return {
-    productId, seller: document.getElementById('purchSeller').value,
+    productId, seller,
     qty, price, extra: Number(document.getElementById('purchExtra').value||0),
     sellableQty,
     note: document.getElementById('purchNote').value.trim()
@@ -7373,7 +7404,7 @@ function startEditPurchase(id){
   purchEditingId = id;
   document.getElementById('purchProduct').value = e.productId;
   updatePurchaseUnitLabels(); updatePurchaseLeftoverHint();
-  document.getElementById('purchSeller').value = e.seller||'';
+  setPurchFormSeller_(e.seller||'');
   document.getElementById('purchQty').value = e.qty;
   // ถ้ามีเงินที่จ่ายจริงจากล็อตผูกอยู่ โชว์ราคาที่คำนวณสดจากเงินจริง ÷ จำนวนซื้อเสมอ (เผื่อ e.price ที่บันทึกไว้เดิม
   // เพี้ยนไปจากเงินจริงอยู่แล้วจากการแก้ไขก่อนหน้านี้ ก่อนจะมีการล็อกช่องนี้)

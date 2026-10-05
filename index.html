@@ -435,8 +435,8 @@ table.plain td.num{text-align:right;}
 .dash-cost-bar span{height:100%;}
 .dash-wide-main .card.dash-wide-card{border:1px solid var(--border-soft);box-shadow:var(--dash-wide-shadow);border-radius:14px;}
 #dashTrend .trendchart{flex:1;display:flex;align-items:flex-end;}
-.dwtile-feed-list{display:flex;flex-direction:column;gap:9px;max-height:150px;overflow-y:auto;}
-.dwtile-feed-item{font-size:11.5px;line-height:1.4;padding-bottom:9px;border-bottom:1px dashed var(--border-soft);}
+.dwtile-feed-list{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto;}
+.dwtile-feed-item{font-size:11.5px;line-height:1.4;padding:3px 0;border-bottom:1px dashed var(--border-soft);}
 .dwtile-feed-item:last-child{border-bottom:none;padding-bottom:0;}
 .dwtile-feed-time{color:var(--text-faint);font-weight:600;margin-right:4px;}
 .dash-outstanding-filter{display:flex;gap:5px;background:var(--surface-3);padding:3px;border-radius:999px;border:1px solid var(--border-soft);width:fit-content;margin-bottom:10px;}
@@ -1667,7 +1667,8 @@ async function logActivity_(text){
 function renderActivityFeed_(){
   const el = document.getElementById('dashActivityFeed');
   if(!el || !activityLogCache_) return;
-  const latest = activityLogCache_.slice(-6).reverse();
+  // เพิ่มจำนวนที่โชว์ไว้มาก (ไม่ใช่แค่ 6 ล่าสุด) เพราะกล่องนี้เลื่อนดูได้อยู่แล้ว (overflow-y:auto) อยากย้อนดูประวัติได้ไกลๆ
+  const latest = activityLogCache_.slice(-200).reverse();
   el.innerHTML = latest.length ? latest.map(e=>{
     const d = new Date(e.ts);
     const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');

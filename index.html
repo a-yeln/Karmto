@@ -916,22 +916,20 @@ table.plain td.num{text-align:right;}
     </div>
     <div class="card dash-wide-card">
       <h3>⏳ รายการที่ต้องตามโอน <span class="subhint">(ทุกวันที่ยังไม่ปิด)</span></h3>
-      <div class="field"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="tab active" data-outstatusfilter="unpaid">ค้างโอน</button>
+        <button type="button" class="tab" data-outstatusfilter="paid">โอนแล้ว</button>
+        <button type="button" class="tab" data-outstatusfilter="all">ทุกบิล</button>
+      </div>
+      <div id="outstandingMonthPickerWrap" style="display:none;margin-top:6px;">
+        <label style="font-size:12.5px;color:var(--text-dim);">เดือนที่จะดู (สำหรับ "โอนแล้ว"/"ทุกบิล" — บิลที่ยังค้างโอนจะโชว์ทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน)</label>
+        <input type="month" id="outstandingMonthInput" style="width:100%;">
+      </div>
+      <div class="field" style="margin-top:10px;"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
       <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);">
         <label class="cal-switch"><input type="checkbox" id="recheckModeToggle"><span class="track"></span><span class="knob"></span></label>
         <span id="recheckModeLabel" style="font-size:13px;color:var(--text-dim);">🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)</span>
-      </div>
-      <div id="recheckFilterRow" style="display:none;margin-top:8px;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn small secondary" data-recheckfilter="unpaid" style="width:auto;">รอจ่าย</button>
-          <button type="button" class="btn small secondary" data-recheckfilter="paid" style="width:auto;">โอนแล้ว</button>
-          <button type="button" class="btn small secondary" data-recheckfilter="all" style="width:auto;">ทั้งหมด</button>
-        </div>
-        <div id="recheckMonthPickerWrap" style="display:none;margin-top:6px;">
-          <label style="font-size:12.5px;color:var(--text-dim);">เดือนที่จะดู (สำหรับ "โอนแล้ว"/"ทั้งหมด" — บิลที่ยังรอจ่ายจะโชว์ทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน)</label>
-          <input type="month" id="recheckMonthInput" style="width:100%;">
-        </div>
       </div>
       <div id="recheckRoundSummary" style="display:none;margin-top:8px;"></div>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
@@ -4432,29 +4430,24 @@ let outstandingBranchFilterValue = '';
 let outstandingSortDir = 'desc'; // 'desc' = ดีเลย์มาก→น้อย (ค่าเริ่มต้น), 'asc' = ดีเลย์น้อย→มาก
 // กันเรนเดอร์ซ้อนกัน (เช่น กดสลับสาขาถี่ๆ หรือกดปุ่มสถานะรัวๆ) ไม่ให้ผลลัพธ์เก่าที่เพิ่งโหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
 let outstandingRenderSeq_ = 0;
-// ฟิลเตอร์ของโหมดรีเช็คเท่านั้น (ปิดโหมดรีเช็ค = บังคับ 'unpaid' เสมอ ให้พฤติกรรมการ์ดนี้เหมือนเดิมทุกประการตอนไม่ได้ใช้รีเช็ค)
-let recheckFilterMode = 'unpaid'; // 'unpaid' | 'paid' | 'all'
-// เดือนที่จะดูตอนเลือกฟิลเตอร์ "โอนแล้ว"/"ทั้งหมด" — ต่างจาก "รอจ่าย" (ปกติ/ปิดโหมดรีเช็ค) ที่ยังคงดูทุกวันที่ค้างอยู่เสมอ
-// ไม่จำกัดเดือน เพราะบิลค้างจ่ายไม่ควรมีสะสมเยอะอยู่แล้ว แต่บิลที่จ่ายแล้วสะสมไปเรื่อยๆ ตามอายุร้าน โหลดทั้งหมดทุกครั้งจะช้าลง
-// เรื่อยๆ จึงต้องจำกัดช่วงเวลาที่จะดูไว้เสมอสำหรับฟิลเตอร์นี้
-let recheckMonthValue = todayISO().slice(0,7);
+// ฟิลเตอร์สถานะของการ์ดนี้ (ค้างโอน/โอนแล้ว/ทุกบิล) — ใช้ตลอดไม่ว่าจะเปิด "โหมดรีเช็ค" อยู่หรือไม่ก็ตาม (เดิมดูได้แค่ "ค้างโอน"
+// เท่านั้นนอกโหมดรีเช็ค ต้องเปิดโหมดรีเช็คซึ่งเป็นคนละฟีเจอร์กัน — การเช็คซ้ำ/มาร์คว่าเช็คแล้ว — แค่จะอยากดูว่า "โอนแล้ว" ไปแล้วก็ตาม)
+let outstandingFilterMode = 'unpaid'; // 'unpaid' | 'paid' | 'all'
+// เดือนที่จะดูตอนเลือกฟิลเตอร์ "โอนแล้ว"/"ทุกบิล" — ต่างจาก "ค้างโอน" (ค่าเริ่มต้น) ที่ยังคงดูทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน
+// เพราะบิลค้างจ่ายไม่ควรมีสะสมเยอะอยู่แล้ว แต่บิลที่จ่ายแล้วสะสมไปเรื่อยๆ ตามอายุร้าน โหลดทั้งหมดทุกครั้งจะช้าลงเรื่อยๆ
+// จึงต้องจำกัดช่วงเวลาที่จะดูไว้เสมอสำหรับฟิลเตอร์นี้
+let outstandingMonthValue = todayISO().slice(0,7);
 async function renderOutstanding(){
   const mySeq = ++outstandingRenderSeq_;
   const container = document.getElementById('outstandingList');
   const branchDetailEl = document.getElementById('outstandingBranchDetail');
   const branchSel = document.getElementById('outstandingBranchFilter');
   const sortBtn = document.getElementById('outstandingSortToggle');
-  const filterRow = document.getElementById('recheckFilterRow');
-  if(filterRow){
-    filterRow.style.display = billingRecheckMode ? '' : 'none';
-    if(billingRecheckMode){
-      filterRow.querySelectorAll('[data-recheckfilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-recheckfilter')===recheckFilterMode));
-      const monthWrap = document.getElementById('recheckMonthPickerWrap');
-      if(monthWrap) monthWrap.style.display = recheckFilterMode==='unpaid' ? 'none' : '';
-      const monthInput = document.getElementById('recheckMonthInput');
-      if(monthInput && !monthInput.value) monthInput.value = recheckMonthValue;
-    }
-  }
+  document.querySelectorAll('[data-outstatusfilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-outstatusfilter')===outstandingFilterMode));
+  const monthWrap = document.getElementById('outstandingMonthPickerWrap');
+  if(monthWrap) monthWrap.style.display = outstandingFilterMode==='unpaid' ? 'none' : '';
+  const monthInput = document.getElementById('outstandingMonthInput');
+  if(monthInput && !monthInput.value) monthInput.value = outstandingMonthValue;
   if(branchSel && branchSel.options.length<=1){
     branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${escapeHtml(branchDisplayName(b))}</option>`).join('');
     branchSel.value = outstandingBranchFilterValue;
@@ -4471,13 +4464,13 @@ async function renderOutstanding(){
   container.style.display = '';
   if(sortBtn) sortBtn.style.display = '';
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
-  // "รอจ่าย" (ค่าเริ่มต้น/ปิดโหมดรีเช็ค) ยังคงดูทุกวันที่ค้างอยู่เหมือนเดิมทุกประการ — "โอนแล้ว"/"ทั้งหมด" จำกัดแค่เดือน
-  // ที่เลือกเท่านั้น (ผ่าน prefix ของคีย์ day:YYYY-MM) กันโหลดประวัติทั้งร้านทุกครั้งซึ่งจะช้าลงเรื่อยๆ ตามอายุร้าน
-  const includePaid = billingRecheckMode && (recheckFilterMode==='paid' || recheckFilterMode==='all');
-  const includeUnpaid = !billingRecheckMode || recheckFilterMode==='unpaid' || recheckFilterMode==='all';
-  const useMonthScope = billingRecheckMode && recheckFilterMode!=='unpaid';
+  // "ค้างโอน" (ค่าเริ่มต้น) ยังคงดูทุกวันที่ค้างอยู่เหมือนเดิมทุกประการ — "โอนแล้ว"/"ทุกบิล" จำกัดแค่เดือนที่เลือกเท่านั้น
+  // (ผ่าน prefix ของคีย์ day:YYYY-MM) กันโหลดประวัติทั้งร้านทุกครั้งซึ่งจะช้าลงเรื่อยๆ ตามอายุร้าน
+  const includePaid = outstandingFilterMode==='paid' || outstandingFilterMode==='all';
+  const includeUnpaid = outstandingFilterMode==='unpaid' || outstandingFilterMode==='all';
+  const useMonthScope = outstandingFilterMode!=='unpaid';
   try{
-    const listRes = await window.storage.list(useMonthScope ? 'day:'+recheckMonthValue : 'day:');
+    const listRes = await window.storage.list(useMonthScope ? 'day:'+outstandingMonthValue : 'day:');
     if(mySeq !== outstandingRenderSeq_) return; // มีการเรียกเรนเดอร์รอบใหม่มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
     const keys = (listRes && listRes.keys) ? listRes.keys : [];
     const isoList = keys.map(k=>k.slice(4));
@@ -9701,7 +9694,6 @@ async function init(){
   });
   document.getElementById('recheckModeToggle').addEventListener('change', async (e)=>{
     billingRecheckMode = e.target.checked;
-    if(!billingRecheckMode) recheckFilterMode = 'unpaid'; // ปิดโหมดแล้วรีเซ็ตฟิลเตอร์ไว้ เผื่อเปิดใหม่รอบหน้าจะได้เริ่มจากค่าเริ่มต้นเสมอ
     const label = document.getElementById('recheckModeLabel');
     if(label) label.textContent = billingRecheckMode
       ? '🔍 โหมดรีเช็ค — เปิดอยู่ กดปุ่ม "เช็คแล้ว" ทีละบิลด้านล่างได้เลย'
@@ -9709,14 +9701,14 @@ async function init(){
     await renderRecheckRoundSummary_();
     await renderOutstanding();
   });
-  document.getElementById('recheckFilterRow').querySelectorAll('[data-recheckfilter]').forEach(btn=>{
+  document.querySelectorAll('[data-outstatusfilter]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      recheckFilterMode = btn.getAttribute('data-recheckfilter');
+      outstandingFilterMode = btn.getAttribute('data-outstatusfilter');
       await renderOutstanding();
     });
   });
-  document.getElementById('recheckMonthInput').addEventListener('change', async (e)=>{
-    recheckMonthValue = e.target.value || todayISO().slice(0,7);
+  document.getElementById('outstandingMonthInput').addEventListener('change', async (e)=>{
+    outstandingMonthValue = e.target.value || todayISO().slice(0,7);
     await renderOutstanding();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);

@@ -921,12 +921,14 @@ table.plain td.num{text-align:right;}
         <button type="button" class="tab" data-outstatusfilter="paid">โอนแล้ว</button>
         <button type="button" class="tab" data-outstatusfilter="all">ทุกบิล</button>
       </div>
-      <div id="outstandingMonthPickerWrap" style="display:none;margin-top:6px;">
+      <div id="outstandingMonthPickerWrap" style="display:none;margin-top:8px;">
         <label style="font-size:12.5px;color:var(--text-dim);">เดือนที่จะดู (สำหรับ "โอนแล้ว"/"ทุกบิล" — บิลที่ยังค้างโอนจะโชว์ทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน)</label>
         <input type="month" id="outstandingMonthInput" style="width:100%;">
       </div>
-      <div class="field" style="margin-top:10px;"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
-      <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
+        <div class="field" style="flex:1;min-width:160px;margin:0;"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
+        <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;">⇅ ดีเลย์มาก→น้อย</button>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);">
         <label class="cal-switch"><input type="checkbox" id="recheckModeToggle"><span class="track"></span><span class="knob"></span></label>
         <span id="recheckModeLabel" style="font-size:13px;color:var(--text-dim);">🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)</span>

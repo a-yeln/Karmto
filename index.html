@@ -856,6 +856,7 @@ table.plain td.num{text-align:right;}
         <div><label>จ่ายให้ใคร (ถ้ามี)</label><select id="lotTransportPayee"><option value="">— ไม่ระบุ —</option></select></div>
       </div>
       <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="lotNote" placeholder="เช่น ตลาดใหม่ คุณสมชาย"></div>
+      <div id="lotFormTotal" class="hint" style="margin-top:8px;font-weight:700;color:var(--accent);"></div>
       <button class="btn" id="addLotBtn" style="margin-top:6px;">+ บันทึกล็อตทั้งหมด</button>
     </div>
     <div class="card dash-wide-card">
@@ -5875,9 +5876,49 @@ function renderLotForm(){
   if(prevPayee && settings.purchaseSellers.includes(prevPayee)){
     payeeEl.value = prevPayee;
   }
+  // เปลี่ยนคู่ค้าแล้วต้องค้นราคาใหม่ทุกแถวเสมอ เพราะราคาซื้อขึ้นกับคู่ค้าแต่ละเจ้าไม่เท่ากัน (เหมือนฟอร์มบันทึกต้นทุนซื้อ) —
+  // ทับเฉพาะราคาที่ระบบเติมให้เอง (autofilled) ไม่ทับราคาที่พิมพ์เองไว้
+  sellerEl.onchange = ()=>{
+    lotFormRows.forEach(r=>{
+      const priceInput = document.querySelector(`[data-lotrowprice="${r.rid}"]`);
+      if(priceInput && priceInput.dataset.autofilled==='1'){ priceInput.value=''; delete priceInput.dataset.autofilled; r.price=''; }
+      autofillLotRowPrice_(r.rid);
+    });
+  };
   const dateEl = document.getElementById('lotBuyDate');
   dateEl.value = currentDate;
+  document.getElementById('lotTransportTotal').oninput = renderLotFormTotal_; // ค่าขนส่งเปลี่ยน ผลรวมก็ต้องอัปเดตสดๆด้วย
   renderLotItemRows();
+}
+// ดึงราคาซื้อล่าสุดของสินค้า+คู่ค้านี้จากประวัติล็อตที่เคยบันทึกไว้ (เทียบ pricePerKg ของล็อตที่ตรงกัน เรียงตามวันที่ซื้อล่าสุด)
+// มาเติมให้อัตโนมัติ เหมือน autofillPurchasePrice() ของฟอร์มบันทึกต้นทุนซื้อ — เติมให้เฉพาะตอนที่ยังไม่มีใครพิมพ์ราคาเองไว้
+async function autofillLotRowPrice_(rid){
+  const row = lotFormRows.find(r=>r.rid===rid);
+  const priceInput = document.querySelector(`[data-lotrowprice="${rid}"]`);
+  if(!row || !priceInput) return;
+  if(priceInput.value && priceInput.dataset.autofilled!=='1') return; // มีคนพิมพ์เองไว้แล้ว ไม่ต้องไปทับ
+  const seller = document.getElementById('lotSeller').value;
+  const pid = row.productId;
+  priceInput.value = '';
+  delete priceInput.dataset.autofilled;
+  priceInput.placeholder = 'กำลังค้นหาราคาล่าสุด…';
+  try{
+    const lots = await loadRawLots();
+    const matches = lots.filter(l=>l.productId===pid && l.seller===seller).sort((a,b)=>(a.buyDate||'').localeCompare(b.buyDate||''));
+    if(matches.length){
+      const latest = matches[matches.length-1];
+      priceInput.placeholder = `${latest.pricePerKg} (ราคาล่าสุดเมื่อ ${formatDDMMYYYY(latest.buyDate)})`;
+      priceInput.value = latest.pricePerKg;
+      priceInput.dataset.autofilled = '1';
+      row.price = latest.pricePerKg;
+      renderLotFormTotal_(); // ราคาเติมมาสดๆ (async) หลังเรนเดอร์ครั้งแรกไปแล้ว ต้องอัปเดตผลรวมด้วย
+    }else{
+      priceInput.placeholder = '0';
+    }
+  }catch(e){
+    // เน็ตมีปัญหาตอนค้นราคาย้อนหลัง — แค่เติมราคาอัตโนมัติให้ไม่ได้ ไม่กระทบการกรอกข้อมูลอื่น ปล่อยให้กรอกราคาเองแทน
+    priceInput.placeholder = '0';
+  }
 }
 function renderLotItemRows(){
   const wrap = document.getElementById('lotItemRows');
@@ -5894,21 +5935,46 @@ function renderLotItemRows(){
     </div>`).join('');
   wrap.querySelectorAll('[data-lotrowproduct]').forEach(sel=>sel.addEventListener('change', ()=>{
     const rid = Number(sel.getAttribute('data-lotrowproduct'));
-    const row = lotFormRows.find(r=>r.rid===rid); if(row) row.productId = sel.value;
+    const row = lotFormRows.find(r=>r.rid===rid);
+    if(row){
+      row.productId = sel.value;
+      row.price = ''; // เปลี่ยนสินค้าแล้วราคาเดิมอาจไม่ตรงกับสินค้าใหม่เลย ต้องค้นราคาใหม่เสมอ
+      const priceInput = document.querySelector(`[data-lotrowprice="${rid}"]`);
+      if(priceInput){ priceInput.value=''; delete priceInput.dataset.autofilled; }
+      autofillLotRowPrice_(rid);
+    }
   }));
   wrap.querySelectorAll('[data-lotrowqty]').forEach(inp=>inp.addEventListener('input', ()=>{
     const rid = Number(inp.getAttribute('data-lotrowqty'));
     const row = lotFormRows.find(r=>r.rid===rid); if(row) row.qty = inp.value;
+    renderLotFormTotal_();
   }));
   wrap.querySelectorAll('[data-lotrowprice]').forEach(inp=>inp.addEventListener('input', ()=>{
     const rid = Number(inp.getAttribute('data-lotrowprice'));
     const row = lotFormRows.find(r=>r.rid===rid); if(row) row.price = inp.value;
+    delete inp.dataset.autofilled; // พิมพ์เองแล้ว เลิกถือว่าเป็นค่า autofill กันโดนทับทีหลัง
+    renderLotFormTotal_();
   }));
   wrap.querySelectorAll('[data-lotrowdel]').forEach(btn=>btn.addEventListener('click', ()=>{
     const rid = Number(btn.getAttribute('data-lotrowdel'));
     lotFormRows = lotFormRows.filter(r=>r.rid!==rid);
     renderLotItemRows();
   }));
+  lotFormRows.forEach(row=>autofillLotRowPrice_(row.rid)); // เติมราคาล่าสุดให้ทุกแถวที่ยังไม่มีราคา (รวมแถวที่เพิ่งเพิ่ม/เปิดแท็บครั้งแรก)
+  renderLotFormTotal_();
+}
+// โชว์ผลรวมสดๆขณะกำลังกรอก/เพิ่มสินค้าล็อต (ค่าสินค้ารวมทุกแถว + ค่าขนส่ง = รวมทั้งหมด) ให้เห็นผลก่อนกดบันทึกจริง
+function renderLotFormTotal_(){
+  const totalEl = document.getElementById('lotFormTotal');
+  if(!totalEl) return;
+  const validRows = lotFormRows.filter(r=>Number(r.qty)>0 && Number(r.price)>0);
+  if(validRows.length===0){ totalEl.textContent = ''; return; }
+  const itemTotal = validRows.reduce((s,r)=>s+Number(r.qty)*Number(r.price), 0);
+  const transportTotal = Number((document.getElementById('lotTransportTotal')||{}).value||0);
+  const grandTotal = itemTotal + transportTotal;
+  totalEl.textContent = transportTotal>0
+    ? `💰 รวมค่าสินค้า ${money(itemTotal)} + ค่าขนส่ง ${money(transportTotal)} = รวมทั้งหมด ${money(grandTotal)}`
+    : `💰 รวมค่าสินค้าทั้งหมด ${money(itemTotal)}`;
 }
 function addLotItemRow(){
   lotFormRowSeq++;
@@ -8711,7 +8777,7 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
 // แจ้งเตือนใดๆ เลยสักระบบ (stale/overdue-sold/costed-audit ทั้งหมดต้องมี "ของค้างตัดต้นทุนอยู่แล้ว" ถึงจะ trigger — ไม่มีของ
 // ค้างเลยก็เงียบสนิท) — เพิ่มเช็คนี้แยกมาปิดช่องโหว่โดยเฉพาะ ไม่ผูกกับ "วันนี้จริงๆ" เหมือน stale/overdue-sold แต่ใช้ได้กับ
 // วันที่กำลังดูอยู่วันไหนก็ได้เหมือนเช็คของสินค้ากลุ่มไม่มีล็อต (asOfDate=iso กันนับของเบิกในอนาคตของวันที่ดูอยู่มาปนด้วย)
-async function computeLotUncoveredNeedGaps_(iso, d, lots){
+async function computeLotUncoveredNeedGaps_(iso, d, lots, prevDay){
   const gaps = [];
   const totals = computeTotals(d.orders||{});
   const lotProductIds = Array.from(new Set(lots.map(l=>l.productId)));
@@ -8721,8 +8787,16 @@ async function computeLotUncoveredNeedGaps_(iso, d, lots){
   const purchasedByProduct = {};
   (d.purchases||[]).forEach(e=>{ if(e.customName) return; purchasedByProduct[e.productId] = (purchasedByProduct[e.productId]||0) + purchaseSellableQty(e); });
   for(const pid of lotProductIds){
-    const needed = totals[pid]||0;
+    let needed = totals[pid]||0;
     if(needed<=0) continue;
+    // หักของเหลือยกมาเมื่อวานออกก่อนเทียบกับของในล็อต (เหมือน logic เดียวกับใน computeDayGaps_) — ไม่งั้นสินค้าที่มีทั้ง
+    // ล็อตและของเหลือยกมา (เช่น นางรม/ปูจืด) จะเตือนว่า "ของในล็อตไม่พอ" ทั้งที่จริงมีของเหลือจากเมื่อวานมาช่วยคลุมอยู่แล้ว
+    let leftoverIn = 0;
+    if(LEFTOVER_IDS.includes(pid) && prevDay){
+      leftoverIn = Number((prevDay.leftoverOut||{})[pid]||0);
+      needed = Math.max(needed - leftoverIn, 0);
+      if(needed<=0) continue;
+    }
     const alreadyBought = purchasedByProduct[pid]||0;
     const remainingNeeded = Math.max(0, Math.round((needed-alreadyBought)*100)/100);
     if(remainingNeeded<=0.001) continue;
@@ -8731,7 +8805,7 @@ async function computeLotUncoveredNeedGaps_(iso, d, lots){
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p) continue;
     const gap = Math.round((remainingNeeded-pending)*100)/100;
-    gaps.push({iso, type:'lot-uncovered', text:`${p.emoji}${p.name}: วันนี้ต้องการ ${needed} ${p.unit}${alreadyBought>0?` (บันทึกต้นทุนซื้อแล้ว ${alreadyBought} ${p.unit})`:''} แต่มีของในล็อตให้ตัดต้นทุนได้แค่ ${pending} ${p.unit} (ยังขาดอีก ${gap} ${p.unit}) — เช็คว่าซื้อล็อตนี้ไว้หรือยัง หรือล็อตที่มีถูกใช้หมดไปแล้ว`, tab:'purchase'});
+    gaps.push({iso, type:'lot-uncovered', text:`${p.emoji}${p.name}: วันนี้ต้องการ ${needed} ${p.unit}${leftoverIn>0?` (หักของเหลือเมื่อวาน ${leftoverIn} ${p.unit}แล้ว)`:''}${alreadyBought>0?` (บันทึกต้นทุนซื้อแล้ว ${alreadyBought} ${p.unit})`:''} แต่มีของในล็อตให้ตัดต้นทุนได้แค่ ${pending} ${p.unit} (ยังขาดอีก ${gap} ${p.unit}) — เช็คว่าซื้อล็อตนี้ไว้หรือยัง หรือล็อตที่มีถูกใช้หมดไปแล้ว`, tab:'purchase'});
   }
   return gaps;
 }
@@ -8805,7 +8879,7 @@ async function renderPurchaseGapsToday_(){
     let gaps = computeDayGaps_(iso, dayData, prevDay, lotProductIds).filter(g=>g.tab==='purchase');
     // ปิดช่องโหว่ของสินค้ากลุ่มล็อตวัตถุดิบที่ computeDayGaps_() ข้ามไปตั้งใจ (ดูคอมเมนต์ที่ computeLotUncoveredNeedGaps_) —
     // ผูกกับ purchaseFormGaps/ฟอร์มบันทึกต้นทุนซื้อเหมือนกัน เพราะเป็นคำถามเดียวกัน ("วันนี้ยังขาดต้นทุนอะไรที่ควรกรอก")
-    gaps = gaps.concat(await computeLotUncoveredNeedGaps_(iso, dayData, rawLots));
+    gaps = gaps.concat(await computeLotUncoveredNeedGaps_(iso, dayData, rawLots, prevDay));
     if(mySeq !== purchaseGapsSeq_) return;
     // ณ จุดนี้ gaps มีทั้งชนิดที่เกี่ยวกับ "วันนี้กรอกต้นทุนซื้อครบตามออเดอร์หรือยัง" โดยตรง (purchase/purchase-mismatch/
     // purchase-unexpected/lot-uncovered) — ยังไม่ปนกับ lot-costed-orphan ที่จะ concat เข้ามาทีหลัง (คนละเรื่องกัน เป็นการตรวจสอบ

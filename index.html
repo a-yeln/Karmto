@@ -4603,7 +4603,14 @@ async function renderOutstanding(){
         rows.push({iso, code, amt, delay, paid, payInfo: (paid && typeof payInfo==='object') ? payInfo : null});
       });
     }
-    rows.sort((a,b)=> outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay);
+    // เรียงรองด้วยรหัสสาขาเมื่อดีเลย์เท่ากัน (บิลวันเดียวกันหลายสาขา) — ถ้าไม่ใส่ไว้ ลำดับจะขึ้นกับลำดับที่ JS คืนค่า
+    // Object.entries(d.orders) ให้มา ซึ่งมีพฤติกรรมแปลกคือเอารหัสสาขาที่เป็นตัวเลขล้วนไม่มีเลข 0 นำหน้า (เช่น "10","25")
+    // ขึ้นก่อนเสมอตามลำดับตัวเลข ไม่ว่าจะแทรกไว้ตรงไหน ส่วนรหัสที่มีเลข 0 นำหน้า ("01") หรือไม่ใช่ตัวเลขล้วน ("00" ธงฯ)
+    // จะตามมาทีหลังตามลำดับที่แทรกเข้าไป ทำให้สาขาโผล่ไม่เรียงกันเลยเวลาดูวันเดียวกันหลายสาขา (เจอจริง: 10, 25, 01, ธงฯ)
+    rows.sort((a,b)=> {
+      const d = outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay;
+      return d!==0 ? d : a.code.localeCompare(b.code);
+    });
     if(rows.length===0){
       container.innerHTML = includePaid && includeUnpaid
         ? '<div class="empty">ไม่มีบิลในเดือนนี้</div>'
@@ -8252,11 +8259,13 @@ function renderTopOutstandingTable(){
   const outEl = document.getElementById('dashTopOutstanding');
   const agg = lastTopOutstandingAgg;
   if(!outEl || !agg) return;
+  // เรียงรองท้ายสุดด้วยรหัสสาขาเสมอ (กันปัญหาเดียวกับที่เจอใน "รายการที่ต้องตามโอน": สองสาขาตัวเลขค่าเท่ากันหมดจนต้อง
+  // เทียบตัวสุดท้าย ลำดับจะขึ้นกับ Object.entries(agg) ซึ่งเอารหัสสาขาตัวเลขไม่มีเลข 0 นำหน้าขึ้นก่อนเสมอ ไม่เรียงตามจริง)
   const sortFns = {
-    unpaidTotal: (a,b)=>(b.amt-a.amt) || ((b.maxDelay||0)-(a.maxDelay||0)),
-    unpaidCount: (a,b)=>(b.count-a.count) || ((b.maxDelay||0)-(a.maxDelay||0)),
-    avgDelay: (a,b)=>((b.avgDelay||0)-(a.avgDelay||0)) || (b.amt-a.amt),
-    maxDelay: (a,b)=>((b.maxDelay||0)-(a.maxDelay||0)) || (b.amt-a.amt),
+    unpaidTotal: (a,b)=>(b.amt-a.amt) || ((b.maxDelay||0)-(a.maxDelay||0)) || a.code.localeCompare(b.code),
+    unpaidCount: (a,b)=>(b.count-a.count) || ((b.maxDelay||0)-(a.maxDelay||0)) || a.code.localeCompare(b.code),
+    avgDelay: (a,b)=>((b.avgDelay||0)-(a.avgDelay||0)) || (b.amt-a.amt) || a.code.localeCompare(b.code),
+    maxDelay: (a,b)=>((b.maxDelay||0)-(a.maxDelay||0)) || (b.amt-a.amt) || a.code.localeCompare(b.code),
   };
   const filterEl = document.getElementById('dashOutstandingFilter');
   if(filterEl) filterEl.querySelectorAll('[data-outfilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-outfilter')===topOutstandingFilterMode));

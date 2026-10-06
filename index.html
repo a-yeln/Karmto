@@ -4435,6 +4435,119 @@ let outstandingFilterMode = 'unpaid'; // 'unpaid' | 'paid' | 'all'
 // เพราะบิลค้างจ่ายไม่ควรมีสะสมเยอะอยู่แล้ว แต่บิลที่จ่ายแล้วสะสมไปเรื่อยๆ ตามอายุร้าน โหลดทั้งหมดทุกครั้งจะช้าลงเรื่อยๆ
 // จึงต้องจำกัดช่วงเวลาที่จะดูไว้เสมอสำหรับฟิลเตอร์นี้
 let outstandingMonthValue = todayISO().slice(0,7);
+// สร้าง HTML ของพื้นที่ "เช็คแล้ว" ของ 1 แถว (ฟอร์มให้กดผลเช็ค หรือข้อความสรุปผลเช็คที่เคยมาร์คไว้แล้ว) — แยกออกมาเป็น
+// ฟังก์ชันล้วนๆ (ไม่แตะ DOM เอง) ใช้ได้ทั้งตอนเรนเดอร์ทั้งลิสต์ และตอนแพตช์แถวเดียวหลังยืนยัน/ยกเลิกผลเช็ค
+function buildOutstandingRecheckAreaHtml_(key, mark, paid){
+  if(!billingRecheckMode) return '';
+  // ป้ายปุ่มปรับตามสถานะปัจจุบันของบิลนี้ — บิลที่ "จ่ายแล้ว" อยู่ก่อน กำลังรีเช็คว่าที่มาร์คไว้ถูกไหม (ไม่ใช่เช็คก่อนไปทวง)
+  const notPaidLabel = paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
+  const paidLabel = paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
+  if(mark){
+    return `<div class="lrow-hint" style="margin-top:8px;padding-left:0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="color:${mark.result==='found_paid'?'var(--accent)':'var(--success)'};">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
+      <button class="iconbtn" data-recheckundo="${key}" aria-label="ยกเลิกการเช็ค" style="flex:none;">↺</button>
+    </div>`;
+  }
+  return `<div style="margin-top:8px;">
+    <button class="btn small secondary" data-recheckstart="${key}" style="width:auto;">🔍 เช็คแล้ว</button>
+    <div style="display:none;margin-top:6px;" data-recheckform="${key}">
+      <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
+        <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
+      </div>
+    </div>
+  </div>`;
+}
+// สถานะปัจจุบัน (จ่ายแล้ว/ไม่) ยังควรอยู่ในมุมมองฟิลเตอร์ที่กำลังดูอยู่ไหม — ใช้ตัดสินใจตอนแพตช์แถวเดียวหลังยืนยันผลเช็คว่า
+// ควรลบแถวออกจากจอ (เปลี่ยนสถานะจนไม่ตรงฟิลเตอร์แล้ว) หรือแค่แก้ตัวเลข/ป้ายในแถวเดิมพอ
+function shouldStayInOutstandingView_(paid){
+  if(outstandingFilterMode==='all') return true;
+  return outstandingFilterMode==='paid' ? paid : !paid;
+}
+// ผูก event ของพื้นที่ "เช็คแล้ว" ของแถวเดียว (key) — เรียกได้ทั้งตอนเรนเดอร์ทั้งลิสต์ครั้งแรก และตอนแพตช์แถวเดียวหลัง
+// ยืนยัน/ยกเลิกผลเช็ค (ซึ่ง innerHTML ของพื้นที่นี้ถูกสร้างใหม่ ทำให้ event เดิมหลุดไปด้วย ต้องผูกใหม่เฉพาะจุดนี้)
+function wireOutstandingRecheckArea_(container, key, rows){
+  const area = container.querySelector(`[data-recheckarea="${CSS.escape(key)}"]`);
+  if(!area) return;
+  const startBtn = area.querySelector('[data-recheckstart]');
+  if(startBtn) startBtn.addEventListener('click', ()=>{
+    const form = area.querySelector(`[data-recheckform="${CSS.escape(key)}"]`);
+    if(form) form.style.display = form.style.display==='none' ? '' : 'none';
+  });
+  const undoBtn = area.querySelector('[data-recheckundo]');
+  if(undoBtn) undoBtn.addEventListener('click', async ()=>{
+    undoBtn.disabled = true;
+    try{
+      await unmarkBillingRecheck_(key);
+      await renderRecheckRoundSummary_();
+      // แพตช์เฉพาะพื้นที่นี้กลับเป็นฟอร์มเช็คเปล่าๆ แทนการเรียก renderOutstanding() ทั้งก้อน (เดิมทำให้จอกระพริบ/โหลดใหม่
+      // ทั้งลิสต์ทุกครั้งที่กดยกเลิกการเช็คแค่บิลเดียว)
+      const r = rows.find(x=>`${x.iso}|${x.code}`===key);
+      area.innerHTML = buildOutstandingRecheckAreaHtml_(key, null, r?r.paid:false);
+      wireOutstandingRecheckArea_(container, key, rows);
+    }catch(e){
+      showToast('ยกเลิกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      undoBtn.disabled = false;
+    }
+  });
+  area.querySelectorAll('[data-recheckresult]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const result = btn.getAttribute('data-recheckresult');
+    const r = rows.find(x=>`${x.iso}|${x.code}`===key);
+    if(!r) return;
+    const noteInput = area.querySelector(`[data-recheckinput="${CSS.escape(key)}"]`);
+    const note = (noteInput && noteInput.value.trim()) || '';
+    const formButtons = area.querySelectorAll(`[data-recheckkey="${CSS.escape(key)}"]`);
+    formButtons.forEach(b=>b.disabled = true);
+    const mark = {key, iso:r.iso, code:r.code, amt:r.amt, checkedAt:new Date().toISOString(), note, result};
+    try{
+      await writeBillingRecheckMark_(key, mark);
+      // ถ้าผลเช็คไม่ตรงกับสถานะปัจจุบันของบิลนี้ (เดิมรองรับแค่กรณีบิล "รอจ่าย" แต่เจอว่าจริงๆ โอนแล้ว — ตอนนี้รองรับ
+      // กรณีกลับกันด้วย: บิลที่มาร์คว่า "จ่ายแล้ว" อยู่ก่อน แต่รีเช็คแล้วพบว่าจริงๆ ยังไม่ได้จ่าย ก็แก้สถานะกลับให้อัตโนมัติ
+      // เหมือนกัน) แก้สถานะให้ตรงในจุดเดียวกันนี้เลย ไม่ต้องสลับไปหน้าอื่นแยก
+      const resultMeansPaid = result==='found_paid';
+      const statusChanged = resultMeansPaid !== r.paid;
+      if(statusChanged){
+        if(resultMeansPaid){
+          const payValue = {paid:true, paidDate: todayISO(), transferAmount: r.amt, billedAmount: r.amt};
+          await writeBillingPaid_(r.iso, r.code, payValue);
+          if(r.iso===currentDate){ dayData.billingPaid[r.code] = payValue; renderBillingList(); }
+          r.paid = true; r.payInfo = payValue;
+          showToast('บันทึกว่าเช็คแล้ว — และแก้สถานะเป็นโอนแล้วให้ด้วย');
+        }else{
+          await writeBillingPaid_(r.iso, r.code, false);
+          if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
+          r.paid = false; r.payInfo = null;
+          showToast('บันทึกว่าเช็คแล้ว — พบว่าจริงๆ ยังไม่ได้จ่าย แก้สถานะกลับเป็นรอโอนให้ด้วย');
+        }
+        renderStats();
+      }else{
+        showToast('บันทึกว่าเช็คแล้ว');
+      }
+      await renderRecheckRoundSummary_();
+      // แพตช์เฉพาะแถวนี้แทนการเรียก renderOutstanding() ทั้งก้อน (เดิมทำให้จอกระพริบ/โหลด "กำลังโหลด…" ใหม่ทั้งลิสต์ทุกครั้ง
+      // ที่ยืนยันผลเช็คแค่บิลเดียว รู้สึกเหมือนรีโหลดทั้งหน้า) — ถ้าสถานะจ่าย/ไม่จ่ายเปลี่ยนจนไม่ตรงฟิลเตอร์ที่กำลังดูอยู่แล้ว
+      // (เช่น ดู "ค้างโอน" อยู่แต่บิลนี้เพิ่งกลายเป็นโอนแล้ว) ก็เอาแถวนี้ออกจากจอไปเลย เหมือนพฤติกรรมปุ่มยืนยันจ่ายปกติ
+      const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
+      if(statusChanged && !shouldStayInOutstandingView_(r.paid)){
+        if(rowEl) rowEl.remove();
+        if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
+        return;
+      }
+      if(rowEl){
+        const amtcolEl = rowEl.querySelector('.amtcol');
+        if(amtcolEl) amtcolEl.innerHTML = `<span class="amt num">${money(r.amt)}</span>${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}`;
+        const payBtn = rowEl.querySelector('[data-outstandingpay]');
+        if(payBtn){ payBtn.textContent = r.paid?'โอนแล้ว':'รอโอน'; payBtn.classList.toggle('paid', r.paid); payBtn.classList.toggle('unpaid', !r.paid); }
+      }
+      area.innerHTML = buildOutstandingRecheckAreaHtml_(key, mark, r.paid);
+      wireOutstandingRecheckArea_(container, key, rows);
+    }catch(e){
+      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      formButtons.forEach(b=>b.disabled = false);
+    }
+  }));
+}
 async function renderOutstanding(){
   const mySeq = ++outstandingRenderSeq_;
   const container = document.getElementById('outstandingList');
@@ -4507,24 +4620,7 @@ async function renderOutstanding(){
     container.innerHTML = rows.map(r=>{
       const key = `${r.iso}|${r.code}`;
       const mark = recheckCurrent ? recheckCurrent.marks[key] : null;
-      // ป้ายปุ่มปรับตามสถานะปัจจุบันของบิลนี้ — บิลที่ "จ่ายแล้ว" อยู่ก่อน กำลังรีเช็คว่าที่มาร์คไว้ถูกไหม (ไม่ใช่เช็คก่อนไปทวง)
-      const notPaidLabel = r.paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
-      const paidLabel = r.paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
-      const recheckHtml = !billingRecheckMode ? '' : mark
-        ? `<div class="lrow-hint" style="margin-top:8px;padding-left:0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="color:${mark.result==='found_paid'?'var(--accent)':'var(--success)'};">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
-            <button class="iconbtn" data-recheckundo="${key}" aria-label="ยกเลิกการเช็ค" style="flex:none;">↺</button>
-          </div>`
-        : `<div style="margin-top:8px;">
-            <button class="btn small secondary" data-recheckstart="${key}" style="width:auto;">🔍 เช็คแล้ว</button>
-            <div style="display:none;margin-top:6px;" data-recheckform="${key}">
-              <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
-              <div style="display:flex;gap:6px;margin-top:6px;">
-                <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
-                <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
-              </div>
-            </div>
-          </div>`;
+      const recheckHtml = `<div data-recheckarea="${key}">${buildOutstandingRecheckAreaHtml_(key, mark, r.paid)}</div>`;
       return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
         <div class="toprow">
           <div class="left"><div class="n">${escapeHtml(branchName(r.code))}</div></div>
@@ -4556,60 +4652,9 @@ async function renderOutstanding(){
       </div>`;
     }).join('');
     const findEditor = (key)=> container.querySelector(`[data-outstandingeditor="${CSS.escape(key)}"]`);
-    container.querySelectorAll('[data-recheckstart]').forEach(btn=>btn.addEventListener('click', ()=>{
-      const form = container.querySelector(`[data-recheckform="${CSS.escape(btn.getAttribute('data-recheckstart'))}"]`);
-      if(form) form.style.display = form.style.display==='none' ? '' : 'none';
-    }));
-    container.querySelectorAll('[data-recheckresult]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const key = btn.getAttribute('data-recheckkey');
-      const result = btn.getAttribute('data-recheckresult');
-      const r = rows.find(x=>`${x.iso}|${x.code}`===key);
-      if(!r) return;
-      const noteInput = container.querySelector(`[data-recheckinput="${CSS.escape(key)}"]`);
-      const note = (noteInput && noteInput.value.trim()) || '';
-      const formButtons = container.querySelectorAll(`[data-recheckkey="${CSS.escape(key)}"]`);
-      formButtons.forEach(b=>b.disabled = true);
-      const mark = {key, iso:r.iso, code:r.code, amt:r.amt, checkedAt:new Date().toISOString(), note, result};
-      try{
-        await writeBillingRecheckMark_(key, mark);
-        // ถ้าผลเช็คไม่ตรงกับสถานะปัจจุบันของบิลนี้ (เดิมรองรับแค่กรณีบิล "รอจ่าย" แต่เจอว่าจริงๆ โอนแล้ว — ตอนนี้รองรับ
-        // กรณีกลับกันด้วย: บิลที่มาร์คว่า "จ่ายแล้ว" อยู่ก่อน แต่รีเช็คแล้วพบว่าจริงๆ ยังไม่ได้จ่าย ก็แก้สถานะกลับให้อัตโนมัติ
-        // เหมือนกัน) แก้สถานะให้ตรงในจุดเดียวกันนี้เลย ไม่ต้องสลับไปหน้าอื่นแยก
-        const resultMeansPaid = result==='found_paid';
-        if(resultMeansPaid !== r.paid){
-          if(resultMeansPaid){
-            const payValue = {paid:true, paidDate: todayISO(), transferAmount: r.amt, billedAmount: r.amt};
-            await writeBillingPaid_(r.iso, r.code, payValue);
-            if(r.iso===currentDate){ dayData.billingPaid[r.code] = payValue; renderBillingList(); }
-            showToast('บันทึกว่าเช็คแล้ว — และแก้สถานะเป็นโอนแล้วให้ด้วย');
-          }else{
-            await writeBillingPaid_(r.iso, r.code, false);
-            if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
-            showToast('บันทึกว่าเช็คแล้ว — พบว่าจริงๆ ยังไม่ได้จ่าย แก้สถานะกลับเป็นรอโอนให้ด้วย');
-          }
-          renderStats();
-        }else{
-          showToast('บันทึกว่าเช็คแล้ว');
-        }
-        await renderRecheckRoundSummary_();
-        await renderOutstanding();
-      }catch(e){
-        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
-        formButtons.forEach(b=>b.disabled = false);
-      }
-    }));
-    container.querySelectorAll('[data-recheckundo]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const key = btn.getAttribute('data-recheckundo');
-      btn.disabled = true;
-      try{
-        await unmarkBillingRecheck_(key);
-        await renderRecheckRoundSummary_();
-        await renderOutstanding();
-      }catch(e){
-        showToast('ยกเลิกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
-        btn.disabled = false;
-      }
-    }));
+    // ผูก event ของพื้นที่ "เช็คแล้ว" ของทุกแถว — แยกเป็นฟังก์ชันกลาง (wireOutstandingRecheckArea_) เพื่อให้เรียกซ้ำได้
+    // ตอนแพตช์แถวเดียวหลังยืนยัน/ยกเลิกผลเช็ค โดยไม่ต้องเรนเดอร์ทั้งลิสต์ใหม่ (ดูคอมเมนต์ที่ data-recheckresult ด้านล่าง)
+    rows.forEach(r=>wireOutstandingRecheckArea_(container, `${r.iso}|${r.code}`, rows));
     container.querySelectorAll('[data-outstandingbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const [iso, code] = btn.getAttribute('data-outstandingbill').split('|');
       await toggleBranchDetailReceipt(iso, code); // เปิดดู/ทำรายการบิลฝังอยู่ตรงนี้เลย ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป

@@ -2924,12 +2924,15 @@ function renderBillingList(){
     }
     const showDatePicker = payDateEditingCode===code;
     return `<div class="branchbill" id="bb-${code}">
-      <div class="toprow">
-        <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${branchName(code)}</div><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;"><span class="amt num">${money(amt)}</span>${paidTagHtml(paid,paidDate)}${delayInfo}</div></div>
-        <div class="acts2">
-          <button class="iconbtn" data-viewbill="${code}" aria-label="ดูบิล">🧾</button>
-          <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
-        </div>
+      <div class="allexp-fields">
+        <span class="allexp-name"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${escapeHtml(branchName(code))}</span>
+        <span class="allexp-amount">${money(amt)}</span>
+        <span class="allexp-date${paid?' paid':''}">${paid ? `✅ ${paidDate?formatDDMMYYYY(paidDate):'-'}` : '—'}</span>
+        <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
+      </div>
+      <div class="d" style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        ${delayInfo}
+        <button class="iconbtn" data-viewbill="${code}" aria-label="ดูบิล" style="margin-left:auto;">🧾</button>
       </div>
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
@@ -4532,16 +4535,16 @@ async function renderOutstanding(){
             </div>
           </div>`;
       return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
-        <div class="toprow">
-          <div class="left" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;">
-            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;"><span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span><span class="amt num">${money(r.amt)}</span>${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}</div>
-            <div class="n" style="margin-top:2px;">${escapeHtml(branchName(r.code))}</div>
-          </div>
-          <div class="acts2">
-            <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:44px;">${r.delay} วัน</span>
-            <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
-            <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
-          </div>
+        <div class="allexp-fields">
+          <span class="allexp-name">${escapeHtml(branchName(r.code))}</span>
+          <span class="allexp-amount">${money(r.amt)}</span>
+          <span class="allexp-date${r.paid?' paid':''}">${r.paid ? `✅ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}` : '—'}</span>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':`ค้าง ${r.delay} วัน`}</button>
+        </div>
+        <div class="d" style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</span>
+          ${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}
+          <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล" style="margin-left:auto;">🧾</button>
         </div>
         <div style="margin-top:8px;display:none;" data-outstandingeditor="${key}">
           <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
@@ -8507,20 +8510,64 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
           </div>
           <div class="acts2">
             <button class="iconbtn" data-viewdetailbill="${u.iso}" aria-label="ดูบิล">🧾</button>
-            <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}" title="${u.paid?'':'กดเพื่อบันทึกว่าโอนแล้ว (วันนี้ ยอดเต็มบิล) — ถ้าจะระบุวันที่/ยอดโอนเอง หรือโอนรวมหลายบิล ให้ติ๊กช่องด้านซ้ายแล้วกดยืนยันด้านบนแทน'}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
+            <button class="paytoggle ${u.paid?'paid':'unpaid'}" data-quickpay="${u.iso}" title="${u.paid?'':'กดเพื่อระบุวันที่/ยอดโอนจริงก่อนบันทึกว่าโอนแล้ว — หรือติ๊กช่องด้านซ้ายเพื่อโอนรวมหลายบิลพร้อมกัน'}">${u.paid?'โอนแล้ว':'รอโอน'}</button>
           </div>
         </div>
+        ${!u.paid ? `<div style="margin-top:8px;display:none;" data-quickpayeditor="${u.iso}">
+          <input type="date" id="quickpaydate-${code}-${u.iso}" value="${lastUsedPayDate}" style="width:100%;">
+          <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+            <label style="flex:none;">โอนจริง</label>
+            <input type="number" step="1" id="quickpayamt-${code}-${u.iso}" value="${u.amt}" placeholder="${u.amt}" style="flex:1;">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn small" data-quickpayconfirm="${u.iso}" style="width:auto;">ยืนยัน</button>
+            <button class="btn small secondary" data-quickpaycancel="${u.iso}" style="width:auto;">ยกเลิก</button>
+          </div>
+        </div>` : ''}
         <div id="bdreceipt-${code}-${u.iso}"></div>
       </div>`).join('')}`;
     wrap.querySelectorAll('[data-viewdetailbill]').forEach(btn=>{
       btn.addEventListener('click', ()=>toggleBranchDetailReceipt(btn.getAttribute('data-viewdetailbill'), code));
     });
     wrap.querySelectorAll('[data-quickpay]').forEach(btn=>{
-      // กดตรงป้ายสถานะได้เลยทั้งสองทาง: บิลที่ยังไม่จ่าย กดครั้งเดียวบันทึกว่าโอนแล้ววันนี้ยอดเต็มบิลทันที (ไม่ต้องติ๊กก่อน)
-      // ส่วนบิลที่จ่ายแล้ว กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — การติ๊กเลือก+ยืนยันด้านบนยังใช้ได้เหมือนเดิม สำหรับตอนต้องการ
-      // ระบุวันที่/ยอดโอนเองไม่ตรงยอดบิล หรือโอนรวมหลายบิลพร้อมกัน
-      btn.addEventListener('click', ()=>toggleBranchBillPaidQuick(btn.getAttribute('data-quickpay'), code, btn));
+      // บิลที่จ่ายแล้ว: กดเพื่อยกเลิก (เปลี่ยนกลับเป็นรอโอน) — ใช้เส้นทางเดิมเหมือนตลอด ไม่ต้องเลือกวันที่
+      // บิลที่ยังไม่จ่าย: เดิมกดครั้งเดียวบันทึกว่าโอนแล้ววันนี้ทันทีโดยไม่ให้เลือกวันที่เลย (เงียบๆใช้วันนี้เสมอ แม้จริงๆโอนไปแล้ว
+      // ตั้งแต่วันก่อน) — ตอนนี้เปลี่ยนเป็นกาง/ซ่อนช่องกรอกวันที่+ยอดโอนจริงก่อนเสมอ เหมือนรายการ "ที่ต้องตามโอน" ด้านบน
+      btn.addEventListener('click', async ()=>{
+        const iso = btn.getAttribute('data-quickpay');
+        const bill = rows.find(x=>x.iso===iso);
+        if(bill && bill.paid){ await toggleBranchBillPaidQuick(iso, code, btn); return; }
+        const editor = wrap.querySelector(`[data-quickpayeditor="${CSS.escape(iso)}"]`);
+        if(editor) editor.style.display = editor.style.display==='none' ? '' : 'none';
+      });
     });
+    wrap.querySelectorAll('[data-quickpaycancel]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const editor = wrap.querySelector(`[data-quickpayeditor="${CSS.escape(btn.getAttribute('data-quickpaycancel'))}"]`);
+      if(editor) editor.style.display = 'none';
+    }));
+    wrap.querySelectorAll('[data-quickpayconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const iso = btn.getAttribute('data-quickpayconfirm');
+      const bill = rows.find(x=>x.iso===iso);
+      if(!bill) return;
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+      const dateInput = document.getElementById(`quickpaydate-${code}-${iso}`);
+      const paidDate = dateInput.value || todayISO();
+      lastUsedPayDate = paidDate;
+      const amtInput = document.getElementById(`quickpayamt-${code}-${iso}`);
+      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : bill.amt;
+      try{
+        const payValue = {paid:true, paidDate, transferAmount, billedAmount: bill.amt};
+        await writeBillingPaid_(iso, code, payValue);
+        if(iso===currentDate) dayData.billingPaid[code] = payValue;
+        showToast('บันทึกว่าโอนแล้ว');
+        const dashSelectEl = document.getElementById('dashBranchSelect');
+        if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
+        if(outstandingBranchFilterValue===code) await renderOutstanding();
+      }catch(e){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        btn.disabled = false; btn.textContent = 'ยืนยัน';
+      }
+    }));
     wrap.querySelectorAll('[data-billselect]').forEach(cb=>{
       cb.addEventListener('change', ()=>{
         const iso = cb.getAttribute('data-billselect');

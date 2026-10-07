@@ -287,6 +287,9 @@ table.plain td.num{text-align:right;}
 .modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;}
 .modalBox{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:10px;}
 .modalBox textarea{width:100%;flex:1;min-height:220px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:monospace;font-size:11.5px;resize:vertical;}
+.calrange-branchlist{display:flex;flex-wrap:wrap;gap:6px;max-height:110px;overflow-y:auto;padding:2px;}
+.calrange-branchtab{display:inline-flex;align-items:center;}
+.calrange-branchtab input{display:none;}
 .toast.show{opacity:1;}
 .pricehist{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12.5px;}
 .pricehist .pd{color:var(--text-dim);width:92px;flex:none;}
@@ -1152,6 +1155,8 @@ table.plain td.num{text-align:right;}
 <div class="modalOverlay" id="calRangeModalOverlay" style="display:none;">
   <div class="modalBox">
     <h3 id="calRangeModalTitle">📅 สรุปช่วงวันที่</h3>
+    <div class="hint" style="margin-bottom:-4px;">เลือกสาขา (ไม่เลือก = ทุกสาขา)</div>
+    <div id="calRangeBranchFilterList" class="calrange-branchlist"></div>
     <div id="calRangeModalBody" class="loading">กำลังคำนวณ…</div>
     <button class="btn secondary" id="calRangeModalCloseBtn">ปิด</button>
   </div>
@@ -3611,22 +3616,54 @@ async function saveDashNote_(){
     if(field==='feeNote' && feePanel && feePanel.classList.contains('active')) renderMonthFee();
   }catch(e){ showToast('บันทึกหมายเหตุไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
 }
+let calRangeStartIso_ = null, calRangeEndIso_ = null;
+let calRangeSelectedBranches_ = new Set();
+function renderCalRangeBranchFilter_(){
+  const wrap = document.getElementById('calRangeBranchFilterList');
+  if(!wrap) return;
+  const allActive = calRangeSelectedBranches_.size===0;
+  const chips = [`<label class="tab calrange-branchtab${allActive?' active':''}"><input type="checkbox" data-calrangebranch="__all__" ${allActive?'checked':''}>ทุกสาขา</label>`]
+    .concat(settings.branches.map(b=>{
+      const checked = calRangeSelectedBranches_.has(b.code);
+      return `<label class="tab calrange-branchtab${checked?' active':''}"><input type="checkbox" data-calrangebranch="${b.code}" ${checked?'checked':''}>${escapeHtml(branchDisplayName(b))}</label>`;
+    }));
+  wrap.innerHTML = chips.join('');
+  wrap.querySelectorAll('[data-calrangebranch]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const code = cb.getAttribute('data-calrangebranch');
+      if(code==='__all__'){
+        calRangeSelectedBranches_.clear();
+      } else {
+        if(cb.checked) calRangeSelectedBranches_.add(code); else calRangeSelectedBranches_.delete(code);
+      }
+      openCalRangeSummary(calRangeStartIso_, calRangeEndIso_);
+    });
+  });
+}
 async function openCalRangeSummary(startIso, endIso){
+  if(calRangeStartIso_ !== startIso || calRangeEndIso_ !== endIso){
+    calRangeSelectedBranches_ = new Set(); // ช่วงวันที่ใหม่ -> เริ่มเลือกสาขาใหม่ (ทุกสาขา)
+  }
+  calRangeStartIso_ = startIso; calRangeEndIso_ = endIso;
   document.getElementById('calRangeModalTitle').textContent = `📅 สรุปช่วง ${formatDDMMYYYY(startIso)} - ${formatDDMMYYYY(endIso)}`;
+  renderCalRangeBranchFilter_();
   const body = document.getElementById('calRangeModalBody');
   body.className = 'loading'; body.innerHTML = 'กำลังคำนวณ…';
   document.getElementById('calRangeModalOverlay').style.display = 'flex';
   try{
-    const r = await computeRangeFinancials(startIso, endIso);
+    const r = await computeRangeFinancials(startIso, endIso, calRangeSelectedBranches_);
     body.className = '';
+    const note = r.branchFiltered ? ' <span class="hint">(เฉพาะสาขาที่เลือก)</span>' : '';
+    const noteAll = r.branchFiltered ? ' <span class="hint">(ทั้งร้าน)</span>' : '';
     body.innerHTML = `
-      <div class="hint" style="margin-bottom:6px;">${r.days} วัน</div>
+      <div class="hint" style="margin-bottom:6px;">${r.days} วัน${r.branchFiltered?` • เลือก ${r.branchCount} สาขา`:''}</div>
       <div class="dash-grid" style="margin-bottom:12px;">
-        <div class="dash-metric info"><div class="dm-label">💰 ยอดขายรวม (บิล)</div><div class="dm-value num">${money(r.revenue)}</div></div>
-        <div class="dash-metric danger"><div class="dm-label">📦 ต้นทุนซื้อ (COGS)</div><div class="dm-value num">${money(r.cogsTotal)}</div></div>
-        <div class="dash-metric danger"><div class="dm-label">🧾 รายจ่าย + Fee</div><div class="dm-value num">${money(r.expenseTotal + r.feeTotal)}</div></div>
-        <div class="dash-metric hero ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ</div><div class="dm-value num">${money(r.netProfit)}</div></div>
+        <div class="dash-metric info"><div class="dm-label">💰 ยอดขายรวม (บิล)${note}</div><div class="dm-value num">${money(r.branchFiltered ? r.filteredRevenue : r.revenue)}</div></div>
+        <div class="dash-metric danger"><div class="dm-label">📦 ต้นทุนซื้อ (COGS)${noteAll}</div><div class="dm-value num">${money(r.cogsTotal)}</div></div>
+        <div class="dash-metric danger"><div class="dm-label">🧾 รายจ่าย + Fee${noteAll}</div><div class="dm-value num">${money(r.expenseTotal + r.feeTotal)}</div></div>
+        <div class="dash-metric hero ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ${noteAll}</div><div class="dm-value num">${money(r.netProfit)}</div></div>
       </div>
+      ${r.branchFiltered?'<div class="hint" style="margin-bottom:8px;">* ต้นทุนซื้อ/รายจ่าย+Fee/กำไรสุทธิ เป็นยอดรวมทั้งร้าน เพราะระบบยังไม่ได้บันทึกแยกต้นทุนตามสาขา มีแค่ยอดขายและจำนวนสินค้าที่แยกตามสาขาที่เลือกได้จริง</div>':''}
       <div class="statrow">
         <div class="statchip">สาขา<b class="num">${r.branchCount}</b></div>
         ${PRODUCTS.map(p=>`<div class="statchip">${p.emoji}<b class="num">${r.productTotals[p.id]}</b></div>`).join('')}
@@ -3786,7 +3823,7 @@ function computeDebtsByOwnerForRangeFromDebts_(debts, startIso, endIso){
   });
   return result;
 }
-async function computeRangeFinancials(startIso, endIso){
+async function computeRangeFinancials(startIso, endIso, branchCodes){
   const isoList = [];
   for(let iso=startIso; iso<=endIso; iso=addDaysISO(iso,1)) isoList.push(iso);
   const dayMap = await loadDaysBulk(isoList);
@@ -3795,16 +3832,32 @@ async function computeRangeFinancials(startIso, endIso){
   const wasteRecords = await loadWasteRecords();
   const wasteTotal = sumWasteForRange_(wasteRecords, startIso, endIso);
   const core = computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal);
+  const hasBranchFilter = !!(branchCodes && branchCodes.size);
   const productTotals = {}; PRODUCTS.forEach(p=>productTotals[p.id]=0);
   const branchSet = new Set();
+  const filteredBranchSet = new Set();
+  let branchRevenue = 0;
   isoList.forEach(iso=>{
-    const t = computeTotals(dayMap[iso].orders);
-    PRODUCTS.forEach(p=>productTotals[p.id]+=t[p.id]);
-    Object.entries(dayMap[iso].orders).forEach(([code,row])=>{
-      if(PRODUCTS.some(p=>Number(row[p.id]||0)>0)) branchSet.add(code);
+    const d = dayMap[iso];
+    Object.entries(d.orders).forEach(([code,row])=>{
+      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      branchSet.add(code);
+      if(hasBranchFilter && !branchCodes.has(code)) return;
+      filteredBranchSet.add(code);
+      PRODUCTS.forEach(p=>{ productTotals[p.id] += Number(row[p.id]||0); });
+      branchRevenue += branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
     });
   });
-  return {...core, productTotals, branchCount: branchSet.size, days: isoList.length};
+  // COGS/รายจ่าย/Fee/กำไรสุทธิ (core) ยังเป็นยอดรวมทั้งร้านเสมอ เพราะข้อมูลจริงไม่มีการบันทึกแยกตามสาขา —
+  // มีแค่ยอดขายและจำนวนสินค้าที่คำนวณแยกตามสาขาที่เลือกได้จริง (branchRevenue/productTotals ด้านบน)
+  return {
+    ...core,
+    productTotals,
+    branchCount: hasBranchFilter ? filteredBranchSet.size : branchSet.size,
+    days: isoList.length,
+    branchFiltered: hasBranchFilter,
+    filteredRevenue: hasBranchFilter ? branchRevenue : core.revenue,
+  };
 }
 function buildTrendLineSVG(dailyMap, monthVal){
   const [y,m] = monthVal.split('-').map(Number);

@@ -221,6 +221,26 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .iconbtn{background:var(--surface-3);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;width:30px;height:30px;font-size:13px;cursor:pointer;flex:none;}
 .iconbtn.danger{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
 .iconbtn.copied{background:var(--success-soft);border-color:var(--success);color:var(--success);}
+/* ป้ายแพ็คออเดอร์สำหรับพิมพ์ผ่านแอพ PeriPage (เครื่องพิมพ์ความร้อนขาวดำล้วน ไม่มีสี ใส่สีไปก็ไม่มีผลตอนพิมพ์จริง) — ตั้งใจ
+   ออกแบบเป็น "เช็คลิสต์แพ็คของ" (ช่องติ๊ก✓ + อิโมจิสินค้าให้กวาดตาเจอไว + ชื่อ + จำนวนตัวหนาใหญ่ชิดขวา) แทนตารางใบเสร็จ
+   ธรรมดา เพราะของจริงคนแพ็คต้องกาเช็คทีละรายการระหว่างใส่กล่อง ไม่ใช่แค่อ่านอย่างเดียว — ต่างจาก .receipt (บิลเก็บเงิน)
+   ที่เน้นอ่านละเอียด มีราคา/ที่อยู่ ป้ายนี้มีแค่ชื่อสินค้า+จำนวนเท่านั้น ไม่มีราคาเลย */
+.orderticket{background:#fff;color:#000;border:3px solid #000;border-radius:10px;padding:16px;font-family:'IBM Plex Sans Thai',sans-serif;width:380px;flex:none;box-sizing:border-box;}
+.orderticket-kicker{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#000;margin-bottom:8px;}
+.orderticket-kicker .ok-brand{display:flex;align-items:center;gap:4px;}
+.orderticket-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-branch{font-size:40px;font-weight:800;line-height:1;color:#000;}
+.orderticket-date{background:#000;color:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap;flex:none;}
+.orderticket-rows{display:flex;flex-direction:column;}
+.orderticket-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px dashed #999;}
+.orderticket-row:last-child{border-bottom:none;}
+.orderticket-check{width:24px;height:24px;border:2.5px solid #000;border-radius:5px;flex:none;}
+.orderticket-emoji{font-size:28px;flex:none;width:34px;text-align:center;}
+.orderticket-itemname{flex:1;font-size:22px;font-weight:700;color:#000;}
+.orderticket-qty{font-size:28px;font-weight:800;color:#000;flex:none;min-width:66px;text-align:right;}
+.orderticket-qty .oti-unit{font-size:13px;font-weight:600;margin-left:2px;}
+.orderticket-empty{padding:22px 6px;text-align:center;font-size:17px;font-weight:600;color:#555;}
+.orderticket-foot{margin-top:10px;padding-top:8px;border-top:1.5px dashed #999;font-size:11px;color:#777;text-align:center;letter-spacing:.5px;}
 .msgblock{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:12px;margin-bottom:10px;}
 .msgblock .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:8px;font-weight:600;}
 .tag.mahkard{background:var(--mahkard-soft);color:var(--mahkard);}
@@ -688,6 +708,7 @@ table.plain td.num{text-align:right;}
     <div class="card dash-wide-card">
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="dash-grid" id="orderSummaryGrid" style="margin-bottom:10px;"></div>
+      <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกออเดอร์ทุกสาขาเป็นภาพสำหรับพิมพ์ (PeriPage)</button>
       <div class="rowlist" id="orderList"></div>
     </div>
     <div class="card dash-wide-card" data-no-collapse="1">
@@ -1855,8 +1876,9 @@ function renderOrderList(){
       + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
     const exemptTag = isFeeExempt(code) ? ` <span style="color:var(--text-faint);font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:1px 6px;">แยกส่ง ไม่คิดค่าธรรมเนียม</span>` : '';
     return `<div class="orow"><div><div class="name"><span class="code">${code}</span>${branchName(code)}${exemptTag}</div><div class="items">${items}</div></div>
-      <div class="acts"><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
+      <div class="acts"><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
   }).join('');
+  list.querySelectorAll('[data-printticket]').forEach(b=>b.addEventListener('click', ()=>saveOrderTicketAsImage(b.getAttribute('data-printticket'))));
   list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
     editingCode = b.getAttribute('data-edit');
     document.getElementById('branchSelect').value = editingCode;
@@ -1921,6 +1943,122 @@ async function saveRow(){
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
 function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); }
+// ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — มีแค่ชื่อสาขา/วันที่/รายการสินค้าที่สั่งจริง (qty>0) เท่านั้น ไม่มีราคา
+// เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จเก็บเงิน (อันนั้นมี buildReceiptCardHTML อยู่แล้ว คนละการ์ดกัน)
+function buildOrderTicketHTML(code, iso, row, cardId){
+  const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>({emoji:p.emoji, name:p.name, qty:row[p.id], unit:p.unit}));
+  (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:it.qty, unit:''}); });
+  const rowsHtml = items.length ? items.map(it=>`
+    <div class="orderticket-row">
+      <div class="orderticket-check"></div>
+      <div class="orderticket-emoji">${it.emoji}</div>
+      <div class="orderticket-itemname">${escapeHtml(it.name)}</div>
+      <div class="orderticket-qty">${it.qty}${it.unit?`<span class="oti-unit">${escapeHtml(it.unit)}</span>`:''}</div>
+    </div>`).join('') : `<div class="orderticket-empty">ไม่มีรายการสั่งวันนี้</div>`;
+  return `
+    <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
+      <div class="orderticket-kicker"><div class="ok-brand">🦀 KARMTO</div><div>ป้ายแพ็คออเดอร์</div></div>
+      <div class="orderticket-head">
+        <div class="orderticket-branch">สาขา ${escapeHtml(code)}</div>
+        <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+      </div>
+      <div class="orderticket-rows">${rowsHtml}</div>
+      <div class="orderticket-foot">ติ๊ก ✓ ให้ครบทุกช่อง ก่อนปิดกล่อง</div>
+    </div>`;
+}
+// ความกว้างล็อกตายตัวไว้ (ไม่ตามความกว้างจอเหมือน renderOffscreenReceipt) เพราะป้ายนี้จะไปพิมพ์ลงกระดาษสติ๊กเกอร์จริงที่ขนาด
+// คงที่เสมอ ไม่ว่าจะกดจากมือถือจอเล็กหรือเดสก์ท็อปจอกว้าง ต้องได้สัดส่วนเดียวกันทุกใบ
+function renderOffscreenOrderTicket(code, row, iso, width){
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = (width || 380) + 'px';
+  wrapper.innerHTML = buildOrderTicketHTML(code, iso, row);
+  document.body.appendChild(wrapper);
+  return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(wrapper))));
+}
+async function saveOrderTicketAsImage(code){
+  const row = dayData.orders[code];
+  if(!row){ showToast('ไม่พบออเดอร์สาขานี้'); return; }
+  showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
+  if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
+  showToast('กำลังสร้างรูปภาพ…');
+  let wrapper;
+  try{
+    wrapper = await renderOffscreenOrderTicket(code, row, currentDate, 380);
+    const node = wrapper.querySelector('.orderticket');
+    // backgroundColor ขาวทึบตรงๆ (ไม่ใช่ null/โปร่งใสแบบ .receipt) เพราะป้ายนี้เอาไปพิมพ์ผ่านแอพ PeriPage — บางแอพตีความพื้น
+    // โปร่งใสเป็นสีดำ ล็อกเป็นขาวชัดๆ กันพิมพ์ออกมาผิดเพี้ยน — scale สูงกว่าใบเสร็จปกติด้วย (ตัวหนังสือใหญ่/หนา พิมพ์ความ
+    // ละเอียดสูงจะคมชัดกว่าตอนย่อลงกระดาษสติ๊กเกอร์จริง)
+    const canvas = await html2canvas(node, {backgroundColor:'#ffffff', scale:3});
+    const blob = await canvasToBlobAsync(canvas);
+    if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
+    const fileName = `order-${code}-${currentDate}.png`;
+    try{
+      const file = new File([blob], fileName, {type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:fileName});
+        return;
+      }
+    }catch(shareErr){ /* fall through to download */ }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('บันทึกรูปออเดอร์สำหรับพิมพ์แล้ว');
+  }catch(e){
+    showToast('สร้างรูปภาพไม่สำเร็จ');
+  } finally{
+    if(wrapper) wrapper.remove();
+  }
+}
+async function saveAllOrderTicketsAsImages(){
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
+  showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
+  if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
+  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  showToast(`กำลังสร้างรูปภาพ ${entries.length} ใบ…`);
+  const files = [];
+  for(const [code,row] of entries){
+    let wrapper;
+    try{
+      wrapper = await renderOffscreenOrderTicket(code, row, currentDate, 380);
+      const node = wrapper.querySelector('.orderticket');
+      const canvas = await html2canvas(node, {backgroundColor:'#ffffff', scale:3});
+      const blob = await canvasToBlobAsync(canvas);
+      if(blob) files.push({code, fileName:`order-${code}-${currentDate}.png`, blob});
+    }catch(e){ /* ข้ามสาขานี้ไป ทำใบที่เหลือต่อ */ }
+    finally{ if(wrapper) wrapper.remove(); }
+  }
+  if(files.length===0){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
+  try{
+    const shareFiles = files.map(f=>new File([f.blob], f.fileName, {type:'image/png'}));
+    if(navigator.canShare && navigator.canShare({files:shareFiles})){
+      await navigator.share({files:shareFiles, title:`ออเดอร์วันที่ ${currentDate}`});
+      showToast(`แชร์รูปออเดอร์แยก ${files.length} ใบแล้ว`);
+      return;
+    }
+  }catch(shareErr){ /* เครื่อง/เบราว์เซอร์ไม่รองรับแชร์หลายไฟล์ ไปใช้วิธี zip แทน */ }
+  showToast('กำลังโหลดตัวช่วยบีบอัดไฟล์…');
+  if(!(await ensureJSZip_())){ showToast('โหลดตัวช่วยบีบอัดไฟล์ไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
+  try{
+    const zip = new JSZip();
+    files.forEach(f=>zip.file(f.fileName, f.blob));
+    const zipBlob = await zip.generateAsync({type:'blob'});
+    const zipName = `orders-${currentDate}.zip`;
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = zipName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`บันทึกรูปออเดอร์แยก ${files.length} ใบใน ${zipName} แล้ว (แตกไฟล์ zip เพื่อดูรูปแยกแต่ละใบ)`);
+  }catch(e){
+    showToast('รวมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  }
+}
 // การ์ด "ออเดอร์วันนี้ที่ดูผิดปกติ" ย้ายมาอยู่ในแท็บ order แล้ว (ต่อจาก "สาขาที่บันทึกแล้ววันนี้") — ต้องอัปเดตทุกครั้งที่ข้อมูลออเดอร์เปลี่ยน
 // ไม่ผูกกับ renderDashboard() อีกต่อไปเพราะบางคนอาจไม่เปิดแท็บแดชบอร์ดเลยในแต่ละวัน ทำงานแบบ fire-and-forget ไม่ await เพื่อไม่ให้บันทึกออเดอร์ช้าลง
 async function refreshTodayAnomalyCard_(){
@@ -5164,6 +5302,10 @@ function showBackupFallbackModal(jsonStr){
   });
   document.getElementById('backupCloseBtn').addEventListener('click', ()=>{ document.body.removeChild(overlay); });
 }
+// root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย ไม่งั้นกู้คืนจากไฟล์สำรองแล้วสต็อกล็อต/ของเสีย/ประวัติต่างๆ
+// จะหายไปทั้งหมด (เดิม exportAllData/importAllData สำรองแค่ 3 ตัวแรกเท่านั้น) — รายชื่อนี้คือทุก root key ที่แอปใช้จริง
+// (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
+const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls'];
 async function exportAllData(){
   let payload;
   try{
@@ -5174,7 +5316,12 @@ async function exportAllData(){
     const days = {};
     isoList.forEach(iso=>{ days['day:'+iso] = dayMap[iso]; });
     const debts = await loadDebts();
-    payload = {exportedAt: new Date().toISOString(), settings, days, debts};
+    const extra = {};
+    for(const k of BACKUP_EXTRA_ROOT_KEYS){
+      try{ const r = await window.storage.get(k); extra[k] = JSON.parse(r.value); }
+      catch(e){ extra[k] = null; } // ยังไม่เคยมีข้อมูล key นี้เลย (Key not found) ถือว่าไม่มีอะไรต้องสำรอง ไม่ใช่ error
+    }
+    payload = {exportedAt: new Date().toISOString(), settings, days, debts, ...extra};
   }catch(e){
     console.error('Export: failed to gather data', e);
     showToast('ส่งออกข้อมูลไม่สำเร็จ (รวบรวมข้อมูลไม่ได้): ' + (e && e.message ? e.message : 'ไม่ทราบสาเหตุ'));
@@ -5210,6 +5357,14 @@ async function importAllData(file){
       importedCount = items.length;
     }
     if(payload.debts){ await saveDebts(payload.debts); }
+    // กู้คืน root key อื่นๆ ที่ exportAllData() สำรองไว้ด้วย (ดูคอมเมนต์ที่ BACKUP_EXTRA_ROOT_KEYS) — ไฟล์สำรองเก่าก่อนรอบนี้
+    // จะไม่มีฟิลด์พวกนี้เลย ก็แค่ข้ามไปเฉยๆ ไม่ต้องเขียนทับด้วยค่าว่าง
+    for(const k of BACKUP_EXTRA_ROOT_KEYS){
+      if(payload[k] !== undefined && payload[k] !== null){
+        await window.storage.set(k, JSON.stringify(payload[k]));
+      }
+    }
+    rawLotsCache_ = null; lotTransportBillsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null; activityLogCache_ = null;
     showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
@@ -10102,6 +10257,7 @@ async function init(){
     await renderOutstanding();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);
+  document.getElementById('saveAllOrderTicketsBtn').addEventListener('click', saveAllOrderTicketsAsImages);
   document.getElementById('addExpCategoryBtn').addEventListener('click', addExpenseCategory);
   document.getElementById('saveExpCategoriesBtn').addEventListener('click', saveExpenseCategories);
   guardedClick('addDebtBtn', addDebt);

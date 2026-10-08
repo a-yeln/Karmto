@@ -9113,11 +9113,18 @@ async function renderPurchaseGapsToday_(){
     </div>` : '';
     const completeHtml = purchaseComplete ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>` : '';
     const gapsHtml = visibleGaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
-      ${visibleGaps.map(g=>`<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      ${visibleGaps.map(g=>{
+        // lot-costed-orphan/lot-costed-duplicate คือปัญหาข้อมูลจริง (ตัดต้นทุนไปแล้วแต่ไม่มีรายการรองรับ/มีรายการซ้ำ) ไม่ใช่แค่
+        // เตือนเรื่อง workflow ของวันนี้ — ห้ามมีปุ่ม "ปิดไว้ก่อน" ให้กดหลุดมือใกล้ๆ ปุ่ม "เติมต้นทุนที่ขาด" เพราะถ้าปิดไปโดยยังไม่ได้
+        // แก้จริง จะไม่กลับมาเตือนอีกจนกว่าจะรีเฟรชหน้า/เปลี่ยนวันที่ดู (เคยเกิดจริง: ผู้ใช้เห็นแจ้งเตือน พอสลับแท็บไปทำอย่างอื่นแล้ว
+        // กลับมาดูอีกที หายไปหมดทั้งที่ยังไม่ได้แก้ — อ่านครั้งแรกเข้าใจผิดว่า "แก้เองแล้ว" ทั้งที่จริงแค่โดนปิดไปเฉยๆ)
+        const isLotCostIntegrity = g.type==='lot-costed-orphan' || g.type==='lot-costed-duplicate';
+        return `<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="flex:1 1 auto;">🔔 ${g.text}</span>
         ${g.type==='lot-costed-orphan' ? `<button class="btn small" data-backfilllotcost="${g.lotId}|${g.drawId}" style="width:auto;flex:none;">🔧 เติมต้นทุนที่ขาด</button>` : ''}
-        <button type="button" class="gap-dismiss-btn" data-dismissgap="${escapeHtml(gapDismissKey_(g))}" aria-label="ปิดการแจ้งเตือนนี้" title="ปิดไว้ก่อน (ถ้ายังไม่ได้แก้จริง จะกลับมาเตือนอีกทีหลังรีเฟรช/เปลี่ยนวันที่)">✕</button>
-      </div>`).join('')}
+        ${isLotCostIntegrity ? '' : `<button type="button" class="gap-dismiss-btn" data-dismissgap="${escapeHtml(gapDismissKey_(g))}" aria-label="ปิดการแจ้งเตือนนี้" title="ปิดไว้ก่อน (ถ้ายังไม่ได้แก้จริง จะกลับมาเตือนอีกทีหลังรีเฟรช/เปลี่ยนวันที่)">✕</button>`}
+      </div>`;
+      }).join('')}
     </div>` : '';
     el.innerHTML = doneHtml + completeHtml + gapsHtml;
     el.querySelectorAll('[data-backfilllotcost]').forEach(btn=>btn.addEventListener('click', async ()=>{

@@ -256,6 +256,7 @@ table.plain td.num{text-align:right;}
 /* ไม่ผูก selector กับ .left โดยตรงอีกต่อไป (ใช้ .branchbill .amt เฉยๆ) เพราะตอนนี้ .amt อยู่ได้ทั้งใน .left (จุดเดิมที่ยัง
    ไม่ได้ย้ายโครงสร้าง เช่น รายการสาขาในแท็บบิล) และใน .amtcol (จุดที่ย้ายโครงสร้างใหม่แล้วเพื่อให้ยอดชิดขวาเป็นคอลัมน์) */
 .branchbill .amt{font-size:12px;color:var(--text-dim);margin-top:0;}
+.branchbill .amt.big{font-size:16px;font-weight:800;color:var(--accent);}
 .branchbill .acts2{display:flex;gap:6px;flex:none;align-items:center;}
 .paidtag{color:var(--success);font-size:11.5px;font-weight:600;white-space:nowrap;}
 .billrow{margin-bottom:4px;}
@@ -913,6 +914,7 @@ table.plain td.num{text-align:right;}
     <div class="dash-grid" id="billingSummaryGrid" style="margin-bottom:16px;"></div>
     <div class="card dash-wide-card">
       <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
+      <div class="statrow" id="billingTodayStats" style="margin-bottom:10px;"></div>
       <button class="btn secondary" id="saveAllBillsBtn" style="margin-bottom:4px;">🖼️ บันทึกบิลทุกใบของวันนี้เป็นรูปภาพ (แยกทีละใบ)</button>
       <div class="hint" style="margin-bottom:10px;">ได้ไฟล์รูปแยกกัน 1 บิล 1 ไฟล์ — มือถือที่รองรับจะเด้งหน้าแชร์ไฟล์แยกให้เลย ถ้าไม่รองรับจะรวมไว้ในไฟล์ .zip ไฟล์เดียว (แตกไฟล์ดูรูปแยกแต่ละใบได้)</div>
       <div id="billingList"></div>
@@ -2910,9 +2912,32 @@ async function renderBillingSummaryTiles(){
     <div class="dash-metric danger"><div class="dm-label">📤 รอจ่ายทั้งหมด</div><div class="dm-value num">${money(payables.total)}</div></div>
     <div class="dash-metric danger"><div class="dm-label">⏳ บิลค้างโอน</div><div class="dm-value num">${totalUnpaidCount} บิล</div></div>`;
 }
+// สถิติสรุปของ "บิลรายสาขา — วันที่เลือก" (สาขาที่สั่งวันนี้/ชำระแล้วกี่สาขา/ยอดรวมออเดอร์/ยอดที่โอนเข้าจริงแล้ว) — คนละเรื่องกับ
+// #billingSummaryGrid ด้านบนสุด (renderBillingSummaryTiles) ซึ่งเป็นยอดสะสมข้ามวันทั้งร้าน ตัวนี้ผูกกับวันที่กำลังดูอยู่วันเดียว
+function renderBillingTodayStats_(entries){
+  const el = document.getElementById('billingTodayStats');
+  if(!el) return;
+  if(entries.length===0){ el.innerHTML = ''; return; }
+  let paidCount = 0, orderTotal = 0, receivedTotal = 0;
+  entries.forEach(([code,row])=>{
+    const amt = branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0);
+    orderTotal += amt;
+    const payInfo = dayData.billingPaid[code];
+    if(payInfo){
+      paidCount++;
+      receivedTotal += Number(payInfo.transferAmount!=null ? payInfo.transferAmount : amt);
+    }
+  });
+  el.innerHTML = `
+    <div class="statchip">🏪 สาขาที่ออเดอร์<b class="num">${entries.length}</b></div>
+    <div class="statchip">✅ ชำระแล้ว<b class="num">${paidCount}/${entries.length}</b></div>
+    <div class="statchip">💰 ยอดรวมออเดอร์<b class="num">${money(orderTotal)}</b></div>
+    <div class="statchip">💵 โอนแล้วได้รับ<b class="num">${money(receivedTotal)}</b></div>`;
+}
 function renderBillingList(){
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  renderBillingTodayStats_(entries);
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
   entries.sort((a,b)=>a[0].localeCompare(b[0]));
   wrap.innerHTML = entries.map(([code,row])=>{
@@ -2926,15 +2951,20 @@ function renderBillingList(){
       delayInfo = ` <span style="color:var(--text-faint);font-size:11px;font-weight:400;">(ดีเลย์ ${delay} วัน)</span>${billPaidDiffHtml(payInfo, amt)}`;
     }
     const showDatePicker = payDateEditingCode===code;
+    const paidInfoLine = (paid || delayInfo) ? `<div class="d" style="margin-top:2px;color:var(--text-faint);font-size:11.5px;">${paidTagHtml(paid,paidDate).replace(/^ /,'')}${delayInfo}</div>` : '';
     return `<div class="branchbill" id="bb-${code}">
       <div class="toprow">
-        <div class="left"><div class="n"><span class="code" style="color:var(--accent);font-weight:600;">${code}</span> ${escapeHtml(branchName(code))}</div></div>
-        <div class="amtcol"><span class="amt num">${money(amt)}</span>${paidTagHtml(paid,paidDate)}${delayInfo}</div>
+        <div class="left">
+          <span class="code" style="color:var(--accent);font-weight:600;">${code}</span>
+          <span class="n">${escapeHtml(branchName(code))}</span>
+          <span class="amt num big">${money(amt)}</span>
+        </div>
         <div class="acts2">
           <button class="iconbtn" data-viewbill="${code}" aria-label="ดูบิล">🧾</button>
           <button class="paytoggle ${paid?'paid':'unpaid'}" data-pay="${code}">${paid?'โอนแล้ว':'รอโอน'}</button>
         </div>
       </div>
+      ${paidInfoLine}
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
           <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
@@ -4456,10 +4486,25 @@ async function renderRecheckRoundSummary_(){
     const current = await loadBillingRecheckCurrent();
     const marks = Object.values(current.marks||{});
     const foundPaid = marks.filter(m=>m.result==='found_paid').length;
-    el.innerHTML = `<div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span>${current.startedAt ? `รอบนี้เริ่ม ${formatRecheckTimestamp_(current.startedAt)} — เช็คแล้ว ${marks.length} บิล${foundPaid?` (เจอว่าโอนแล้ว ${foundPaid})`:''}` : 'ยังไม่เริ่มเช็คบิลไหนในรอบนี้เลย'}</span>
-      <button class="btn small secondary" id="recheckClearBtn" style="width:auto;" ${marks.length===0?'disabled':''}>🧹 เคลียร์รอบนี้</button>
-    </div>`;
+    const stillUnpaid = marks.filter(m=>m.result==='still_unpaid').length;
+    // total อิงจำนวนบิลที่กำลังแสดงอยู่ในลิสต์รวมทุกสาขาล่าสุด (outstandingLastRowsCount_ — renderOutstanding() เป็นคนอัปเดตให้
+    // ทุกครั้งที่เรนเดอร์) ตรงกับฟิลเตอร์สถานะ/เดือนที่กำลังดูอยู่ตอนนั้นจริงๆ ไม่ใช่เลขคงที่ที่อาจไม่ตรงกับหน้าจอ
+    const total = outstandingLastRowsCount_;
+    const checked = marks.length;
+    const remaining = Math.max(0, total - checked);
+    const pct = total>0 ? Math.round((checked/total)*100) : 0;
+    el.innerHTML = `
+      <div class="hint">${current.startedAt ? `🔍 รอบนี้เริ่ม ${formatRecheckTimestamp_(current.startedAt)}` : 'ยังไม่เริ่มเช็คบิลไหนในรอบนี้เลย'}</div>
+      <div class="statrow" style="margin-top:6px;">
+        <div class="statchip">📋 ทั้งหมด<b class="num">${total} บิล</b></div>
+        <div class="statchip">🔍 เช็คแล้ว<b class="num">${checked} บิล</b></div>
+        <div class="statchip">⏳ เหลือ<b class="num">${remaining} บิล</b></div>
+        <div class="statchip">📊 คิดเป็น<b class="num">${pct}%</b></div>
+        ${foundPaid?`<div class="statchip">✅ เจอว่าโอนแล้ว<b class="num">${foundPaid}</b></div>`:''}
+        ${stillUnpaid?`<div class="statchip">❌ ยังไม่โอนจริง<b class="num">${stillUnpaid}</b></div>`:''}
+      </div>
+      <button class="btn small secondary" id="recheckClearBtn" style="width:auto;margin-top:8px;" ${checked===0?'disabled':''}>🧹 เคลียร์รอบนี้</button>
+    `;
     const clearBtn = document.getElementById('recheckClearBtn');
     if(clearBtn) clearBtn.addEventListener('click', async ()=>{
       if(!confirm(`เคลียร์รอบรีเช็คนี้? (เช็คไปแล้ว ${marks.length} บิล — จะย้ายไปเก็บไว้ในประวัติ แล้วเริ่มรอบใหม่)`)) return;
@@ -4488,6 +4533,11 @@ let outstandingFilterMode = 'unpaid'; // 'unpaid' | 'paid' | 'all'
 // เพราะบิลค้างจ่ายไม่ควรมีสะสมเยอะอยู่แล้ว แต่บิลที่จ่ายแล้วสะสมไปเรื่อยๆ ตามอายุร้าน โหลดทั้งหมดทุกครั้งจะช้าลงเรื่อยๆ
 // จึงต้องจำกัดช่วงเวลาที่จะดูไว้เสมอสำหรับฟิลเตอร์นี้
 let outstandingMonthValue = todayISO().slice(0,7);
+// จำนวนบิลทั้งหมดที่กำลังแสดงอยู่ในลิสต์รวมทุกสาขาล่าสุด (ตามฟิลเตอร์สถานะ/เดือนที่เลือกอยู่ตอนนั้น) — เก็บไว้ให้
+// renderRecheckRoundSummary_() อ่านไปคำนวณ "เช็คแล้ว X จาก Y บิล" โดยไม่ต้องสแกนข้อมูลซ้ำเอง (renderOutstanding() เป็นคน
+// คำนวณ rows อยู่แล้ว) ไม่อัปเดตตอนกำลังดูมุมมองสาขาเดียว (outstandingBranchFilterValue) เพราะโหมดรีเช็คทำงานเฉพาะ
+// ลิสต์รวมทุกสาขาเท่านั้น ไม่มีปุ่มเช็คในมุมมองสาขาเดียว
+let outstandingLastRowsCount_ = 0;
 // สร้าง HTML ของพื้นที่ "เช็คแล้ว" ของ 1 แถว (ฟอร์มให้กดผลเช็ค หรือข้อความสรุปผลเช็คที่เคยมาร์คไว้แล้ว) — แยกออกมาเป็น
 // ฟังก์ชันล้วนๆ (ไม่แตะ DOM เอง) ใช้ได้ทั้งตอนเรนเดอร์ทั้งลิสต์ และตอนแพตช์แถวเดียวหลังยืนยัน/ยกเลิกผลเช็ค
 function buildOutstandingRecheckAreaHtml_(key, mark, paid){
@@ -4588,8 +4638,24 @@ function wireOutstandingRecheckArea_(container, key, rows){
         return;
       }
       if(rowEl){
-        const amtcolEl = rowEl.querySelector('.amtcol');
-        if(amtcolEl) amtcolEl.innerHTML = `<span class="amt num">${money(r.amt)}</span>${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}`;
+        const amtEl = rowEl.querySelector('.left .amt');
+        if(amtEl) amtEl.textContent = money(r.amt);
+        // บรรทัดป้ายจ่ายแล้ว/ส่วนต่างโอน (data-outstandingpaidinfo) ไม่ได้มีอยู่ทุกแถวตั้งแต่แรก (เดิมไม่มีเลยถ้ายังไม่จ่าย) —
+        // ต้องสร้าง/ลบ element เองตามสถานะใหม่ ไม่ใช่แค่แก้ innerHTML ของที่มีอยู่แล้วเหมือนตอนเป็น .amtcol คอลัมน์เดียว
+        let paidInfoEl = rowEl.querySelector(`[data-outstandingpaidinfo="${CSS.escape(key)}"]`);
+        const paidInfoHtml = (r.paid || r.payInfo) ? `${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate).replace(/^ /,''):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}` : '';
+        if(paidInfoHtml){
+          if(!paidInfoEl){
+            paidInfoEl = document.createElement('div');
+            paidInfoEl.className = 'd';
+            paidInfoEl.setAttribute('data-outstandingpaidinfo', key);
+            paidInfoEl.style.cssText = 'margin-top:2px;color:var(--text-faint);font-size:11.5px;';
+            rowEl.querySelector('.toprow').insertAdjacentElement('afterend', paidInfoEl);
+          }
+          paidInfoEl.innerHTML = paidInfoHtml;
+        } else if(paidInfoEl){
+          paidInfoEl.remove();
+        }
         const payBtn = rowEl.querySelector('[data-outstandingpay]');
         if(payBtn){ payBtn.textContent = r.paid?'โอนแล้ว':'รอโอน'; payBtn.classList.toggle('paid', r.paid); payBtn.classList.toggle('unpaid', !r.paid); }
       }
@@ -4652,8 +4718,13 @@ async function renderOutstanding(){
         const paid = !!payInfo;
         if(paid && !includePaid) return;
         if(!paid && !includeUnpaid) return;
-        const delay = Math.round((new Date(today)-new Date(iso))/86400000);
-        rows.push({iso, code, amt, delay, paid, payInfo: (paid && typeof payInfo==='object') ? payInfo : null});
+        const normalizedPayInfo = (paid && typeof payInfo==='object') ? payInfo : null;
+        // ดีเลย์ของบิลที่โอนแล้ว ต้องนับถึง "วันที่ชำระจริง" (เสร็จสิ้นแล้ว ไม่ขยับอีก) ไม่ใช่วันปัจจุบัน — เดิมใช้วันปัจจุบัน
+        // เสมอไม่ว่าจะจ่ายไปแล้วกี่วันก่อนหน้าก็ตาม ทำให้บิลที่จ่ายไปนานแล้วยังโชว์ดีเลย์เพิ่มขึ้นเรื่อยๆ ทุกวันที่เข้ามาดูหน้านี้
+        // ทั้งที่จริงๆ ปิดจบไปแล้ว ส่วนบิลที่ยังไม่จ่ายยังต้องนับถึงวันนี้เหมือนเดิม (ยังไม่มีวันที่ชำระให้อ้างอิง)
+        const delayRefDate = (normalizedPayInfo && normalizedPayInfo.paidDate) ? normalizedPayInfo.paidDate : today;
+        const delay = Math.round((new Date(delayRefDate)-new Date(iso))/86400000);
+        rows.push({iso, code, amt, delay, paid, payInfo: normalizedPayInfo});
       });
     }
     // เรียงรองด้วยรหัสสาขาเมื่อดีเลย์เท่ากัน (บิลวันเดียวกันหลายสาขา) — ถ้าไม่ใส่ไว้ ลำดับจะขึ้นกับลำดับที่ JS คืนค่า
@@ -4664,6 +4735,8 @@ async function renderOutstanding(){
       const d = outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay;
       return d!==0 ? d : a.code.localeCompare(b.code);
     });
+    outstandingLastRowsCount_ = rows.length;
+    if(billingRecheckMode) await renderRecheckRoundSummary_();
     if(rows.length===0){
       container.innerHTML = includePaid && includeUnpaid
         ? '<div class="empty">ไม่มีบิลในเดือนนี้</div>'
@@ -4681,13 +4754,13 @@ async function renderOutstanding(){
       const key = `${r.iso}|${r.code}`;
       const mark = recheckCurrent ? recheckCurrent.marks[key] : null;
       const recheckHtml = `<div data-recheckarea="${key}">${buildOutstandingRecheckAreaHtml_(key, mark, r.paid)}</div>`;
+      const paidInfoLine = (r.paid || r.payInfo) ? `<div class="d" data-outstandingpaidinfo="${key}" style="margin-top:2px;color:var(--text-faint);font-size:11.5px;">${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate).replace(/^ /,''):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}</div>` : '';
       return `<div class="branchbill" style="padding:8px 10px;margin-bottom:6px;" data-outstandingrow="${key}">
         <div class="toprow">
-          <div class="left"><div class="n">${escapeHtml(branchName(r.code))}</div></div>
-          <div class="amtcol">
-            <span class="amt num">${money(r.amt)}</span>
-            ${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate):''}
-            ${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}
+          <div class="left">
+            <span style="color:var(--text-faint);font-size:11.5px;flex:none;">${formatDDMMYYYY(r.iso)}</span>
+            <span class="n">${escapeHtml(branchName(r.code))}</span>
+            <span class="amt num big">${money(r.amt)}</span>
           </div>
           <div class="acts2">
             <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:44px;">${r.delay} วัน</span>
@@ -4695,7 +4768,7 @@ async function renderOutstanding(){
             <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
           </div>
         </div>
-        <div class="d" style="margin-top:2px;color:var(--text-faint);font-size:11.5px;">${formatDDMMYYYY(r.iso)}</div>
+        ${paidInfoLine}
         <div style="margin-top:8px;display:none;" data-outstandingeditor="${key}">
           <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
           <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">

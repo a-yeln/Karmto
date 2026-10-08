@@ -1,0 +1,12 @@
+{
+  "name": "karmto-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Regression test suite for Karmto (index.html) — Playwright specs run against a local static server.",
+  "scripts": {
+    "test": "node run-all.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

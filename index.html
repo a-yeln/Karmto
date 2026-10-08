@@ -927,6 +927,7 @@ table.plain td.num{text-align:right;}
     </div>
     <div class="card dash-wide-card">
       <h3>⏳ รายการที่ต้องตามโอน <span class="subhint">(ทุกวันที่ยังไม่ปิด)</span></h3>
+      <div class="statrow" id="outstandingStats" style="margin-bottom:10px;"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button type="button" class="tab active" data-outstatusfilter="unpaid">ค้างโอน</button>
         <button type="button" class="tab" data-outstatusfilter="paid">โอนแล้ว</button>
@@ -937,7 +938,10 @@ table.plain td.num{text-align:right;}
         <input type="month" id="outstandingMonthInput" style="width:100%;">
       </div>
       <div class="field" style="margin-top:12px;"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
-      <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;margin-top:6px;">⇅ ดีเลย์มาก→น้อย</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+        <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;">⇅ ดีเลย์มาก→น้อย</button>
+        <button class="btn small secondary" id="outstandingDateSortToggle" style="width:auto;">📅 เรียงตามวันที่</button>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);">
         <label class="cal-switch"><input type="checkbox" id="recheckModeToggle"><span class="track"></span><span class="knob"></span></label>
         <span id="recheckModeLabel" style="font-size:13px;color:var(--text-dim);">🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)</span>
@@ -4581,6 +4585,9 @@ async function renderRecheckRoundSummary_(){
 }
 let outstandingBranchFilterValue = '';
 let outstandingSortDir = 'desc'; // 'desc' = ดีเลย์มาก→น้อย (ค่าเริ่มต้น), 'asc' = ดีเลย์น้อย→มาก
+// ปุ่มเรียงตามวันที่ (คนละปุ่มจากเรียงดีเลย์ด้านบน) — null = ปิดอยู่ (ใช้การเรียงดีเลย์ตามปกติ), 'desc' = ล่าสุด→เก่าสุด,
+// 'asc' = เก่าสุด→ล่าสุด — กดวนครบ 3 สถานะ (null→desc→asc→null) ตอนเปิดอยู่จะใช้แทนการเรียงดีเลย์ไปเลย (ซ่อนปุ่มดีเลย์ไว้กันงง)
+let outstandingDateSortDir = null;
 // กันเรนเดอร์ซ้อนกัน (เช่น กดสลับสาขาถี่ๆ หรือกดปุ่มสถานะรัวๆ) ไม่ให้ผลลัพธ์เก่าที่เพิ่งโหลดเสร็จช้ากว่ามาทับของใหม่จนจอเด้งไปเด้งมา
 let outstandingRenderSeq_ = 0;
 // ฟิลเตอร์สถานะของการ์ดนี้ (ค้างโอน/โอนแล้ว/ทุกบิล) — ใช้ตลอดไม่ว่าจะเปิด "โหมดรีเช็ค" อยู่หรือไม่ก็ตาม (เดิมดูได้แค่ "ค้างโอน"
@@ -4736,6 +4743,9 @@ async function renderOutstanding(){
   const branchDetailEl = document.getElementById('outstandingBranchDetail');
   const branchSel = document.getElementById('outstandingBranchFilter');
   const sortBtn = document.getElementById('outstandingSortToggle');
+  const dateSortBtn = document.getElementById('outstandingDateSortToggle');
+  const statsEl = document.getElementById('outstandingStats');
+  if(dateSortBtn) dateSortBtn.textContent = outstandingDateSortDir==='desc' ? '📅 ล่าสุด→เก่าสุด' : outstandingDateSortDir==='asc' ? '📅 เก่าสุด→ล่าสุด' : '📅 เรียงตามวันที่';
   document.querySelectorAll('[data-outstatusfilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-outstatusfilter')===outstandingFilterMode));
   const monthWrap = document.getElementById('outstandingMonthPickerWrap');
   if(monthWrap) monthWrap.style.display = outstandingFilterMode==='unpaid' ? 'none' : '';
@@ -4745,18 +4755,21 @@ async function renderOutstanding(){
     branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${escapeHtml(branchDisplayName(b))}</option>`).join('');
     branchSel.value = outstandingBranchFilterValue;
   }
-  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา — ปุ่มเรียงดีเลย์ใช้ไม่ได้ในมุมมองนี้เลยซ่อนไว้
+  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา — ปุ่มเรียง/กล่องสรุปตัวเลขรวมทุกสาขาใช้ไม่ได้ในมุมมองนี้เลยซ่อนไว้ (branchDetail มีสรุปของตัวเองอยู่แล้ว)
   if(outstandingBranchFilterValue){
     container.style.display = 'none';
     branchDetailEl.style.display = '';
     if(sortBtn) sortBtn.style.display = 'none';
+    if(dateSortBtn) dateSortBtn.style.display = 'none';
+    if(statsEl) statsEl.innerHTML = '';
     await renderBranchDetail(outstandingBranchFilterValue, null, 'outstandingBranchDetail');
     return;
   }
   branchDetailEl.style.display = 'none';
   container.style.display = '';
-  // โหมดรีเช็คเรียงตามวันที่/สาขาตายตัวเสมอ (ดูคอมเมนต์ตรง rows.sort ด้านล่าง) ปุ่มเรียงดีเลย์เลยใช้ไม่ได้ผล ซ่อนไว้กันงง
-  if(sortBtn) sortBtn.style.display = billingRecheckMode ? 'none' : '';
+  if(dateSortBtn) dateSortBtn.style.display = billingRecheckMode ? 'none' : '';
+  // โหมดรีเช็คเรียงตามวันที่/สาขาตายตัวเสมอ (ดูคอมเมนต์ตรง rows.sort ด้านล่าง) หรือเปิดปุ่มเรียงตามวันที่ไว้อยู่ ปุ่มเรียงดีเลย์เลยใช้ไม่ได้ผล ซ่อนไว้กันงง
+  if(sortBtn) sortBtn.style.display = (billingRecheckMode || outstandingDateSortDir) ? 'none' : '';
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   // "ค้างโอน" (ค่าเริ่มต้น) ยังคงดูทุกวันที่ค้างอยู่เหมือนเดิมทุกประการ — "โอนแล้ว"/"ทุกบิล" จำกัดแค่เดือนที่เลือกเท่านั้น
   // (ผ่าน prefix ของคีย์ day:YYYY-MM) กันโหลดประวัติทั้งร้านทุกครั้งซึ่งจะช้าลงเรื่อยๆ ตามอายุร้าน
@@ -4772,6 +4785,10 @@ async function renderOutstanding(){
     if(mySeq !== outstandingRenderSeq_) return;
     const today = todayISO();
     let rows = [];
+    // สรุปตัวเลขรวม (ทั้งหมด/ค้างโอน/โอนแล้ว/ยอดเงิน) ของกล่อง #outstandingStats — นับจากข้อมูลทุกบิลที่โหลดมาในสโคปนี้เสมอ
+    // (ไม่ขึ้นกับฟิลเตอร์ค้างโอน/โอนแล้ว/ทุกบิลที่กำลังเลือกดูอยู่) เพื่อให้เห็นภาพรวมจริงไม่ว่ากำลังกรองดูอะไรอยู่ก็ตาม — สโคป
+    // เดือน/ทั้งหมดเป็นไปตาม useMonthScope ด้านบน (ฟิลเตอร์ "ค้างโอน" ดูทุกวันที่ค้างอยู่เสมอ ส่วน "โอนแล้ว"/"ทุกบิล" จำกัดแค่เดือนที่เลือก)
+    let statTotal=0, statPaid=0, statUnpaid=0, statTotalAmt=0, statPaidAmt=0, statUnpaidAmt=0;
     for(const iso of isoList){
       const d = dayMap[iso];
       Object.entries(d.orders).forEach(([code,row])=>{
@@ -4780,6 +4797,8 @@ async function renderOutstanding(){
         if(amt<=0) return;
         const payInfo = d.billingPaid[code];
         const paid = !!payInfo;
+        statTotal++; statTotalAmt += amt;
+        if(paid){ statPaid++; statPaidAmt += amt; } else { statUnpaid++; statUnpaidAmt += amt; }
         if(paid && !includePaid) return;
         if(!paid && !includeUnpaid) return;
         const normalizedPayInfo = (paid && typeof payInfo==='object') ? payInfo : null;
@@ -4798,8 +4817,23 @@ async function renderOutstanding(){
     // โหมดรีเช็ค: เรียงตามวันที่ออเดอร์ (เก่าสุดก่อน) แล้วตามด้วยรหัสสาขา เสมอ — ไล่เช็คทีละบิลเป็นระบบได้ง่ายกว่าเรียงตาม
     // ดีเลย์ (ซึ่งตอนนี้บิลที่จ่ายแล้วคำนวณจากวันที่ชำระจริง ไม่ใช่วันที่ออเดอร์แล้ว อาจทำให้บิลคนละวันมาดีเลย์เท่ากันแล้ว
     // เรียงปนกันไม่เป็นลำดับวันที่ ดูยากเวลาจะไล่เช็คทีละวันจริงๆ) นอกโหมดรีเช็คยังเรียงตามดีเลย์แบบเดิมทุกประการ
+    // ปุ่ม "เรียงตามวันที่" (outstandingDateSortDir) คนละตัวจากปุ่มเรียงดีเลย์ — กดวนครบ 3 สถานะ เปิดอยู่ตอนไหนจะแทนที่การ
+    // เรียงดีเลย์ไปเลย (แต่ยังเป็นรองโหมดรีเช็คซึ่งเรียงตามวันที่/สาขาตายตัวอยู่แล้วเหมือนกัน เลยให้โหมดรีเช็คเช็คก่อนเสมอ)
+    if(statsEl){
+      statsEl.innerHTML = statTotal===0 ? '' : `
+        <div class="statchip">📋 ทั้งหมด<b class="num">${statTotal} บิล</b></div>
+        <div class="statchip">⏳ ค้างโอน<b class="num">${statUnpaid} บิล</b></div>
+        <div class="statchip">✅ โอนแล้ว<b class="num">${statPaid} บิล</b></div>
+        <div class="statchip">💰 ยอดค้างโอน<b class="num">${money(statUnpaidAmt)}</b></div>
+        <div class="statchip">💵 ยอดรวมทั้งหมด<b class="num">${money(statTotalAmt)}</b></div>
+      `;
+    }
     rows.sort((a,b)=> {
       if(billingRecheckMode) return a.iso.localeCompare(b.iso) || a.code.localeCompare(b.code);
+      if(outstandingDateSortDir){
+        const dd = outstandingDateSortDir==='desc' ? b.iso.localeCompare(a.iso) : a.iso.localeCompare(b.iso);
+        return dd!==0 ? dd : a.code.localeCompare(b.code);
+      }
       const d = outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay;
       return d!==0 ? d : a.code.localeCompare(b.code);
     });
@@ -10039,6 +10073,12 @@ async function init(){
   document.getElementById('outstandingSortToggle').addEventListener('click', async (e)=>{
     outstandingSortDir = outstandingSortDir==='desc' ? 'asc' : 'desc';
     e.target.textContent = outstandingSortDir==='desc' ? '⇅ ดีเลย์มาก→น้อย' : '⇅ ดีเลย์น้อย→มาก';
+    await renderOutstanding();
+  });
+  // กดวนครบ 3 สถานะ: ปิด -> ล่าสุด→เก่าสุด -> เก่าสุด→ล่าสุด -> ปิด (กลับไปใช้การเรียงดีเลย์ปกติ) — ข้อความปุ่มอัปเดตเองใน
+  // renderOutstanding() ทุกครั้งที่เรนเดอร์อยู่แล้ว (กันเคสที่เปิด/ปิดโหมดรีเช็คแล้วปุ่มข้อความไม่ตรงกับสถานะจริง)
+  document.getElementById('outstandingDateSortToggle').addEventListener('click', async ()=>{
+    outstandingDateSortDir = outstandingDateSortDir===null ? 'desc' : outstandingDateSortDir==='desc' ? 'asc' : null;
     await renderOutstanding();
   });
   document.getElementById('recheckModeToggle').addEventListener('change', async (e)=>{

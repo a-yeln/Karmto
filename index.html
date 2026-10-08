@@ -239,8 +239,7 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orderticket-itemname{flex:1;font-size:22px;font-weight:700;color:#000;}
 .orderticket-qty{font-size:28px;font-weight:800;color:#000;flex:none;min-width:66px;text-align:right;}
 .orderticket-qty .oti-unit{font-size:13px;font-weight:600;margin-left:2px;}
-.orderticket-empty{padding:22px 6px;text-align:center;font-size:17px;font-weight:600;color:#555;}
-.orderticket-foot{margin-top:10px;padding-top:8px;border-top:1.5px dashed #999;font-size:11px;color:#777;text-align:center;letter-spacing:.5px;}
+.orderticket-row-unordered{opacity:.35;}
 .msgblock{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:12px;margin-bottom:10px;}
 .msgblock .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:8px;font-weight:600;}
 .tag.mahkard{background:var(--mahkard-soft);color:var(--mahkard);}
@@ -1943,18 +1942,22 @@ async function saveRow(){
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
 function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); }
-// ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — มีแค่ชื่อสาขา/วันที่/รายการสินค้าที่สั่งจริง (qty>0) เท่านั้น ไม่มีราคา
-// เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จเก็บเงิน (อันนั้นมี buildReceiptCardHTML อยู่แล้ว คนละการ์ดกัน)
+// ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — ไม่มีราคา เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จ
+// เก็บเงิน (อันนั้นมี buildReceiptCardHTML อยู่แล้ว คนละการ์ดกัน) — โชว์สินค้าหลักครบทั้ง 7 ตัวเสมอ (ไม่กรองเฉพาะที่สั่งวันนี้)
+// ตัวที่ไม่ได้สั่ง (qty=0) ให้ช่องจำนวนว่างไว้ + แถวจางลง เอาไว้ให้เห็นครบทุกสินค้าในป้ายเดียวเทียบง่ายว่าตัวไหนไม่ได้สั่งบ้าง
 function buildOrderTicketHTML(code, iso, row, cardId){
-  const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>({emoji:p.emoji, name:p.name, qty:row[p.id], unit:p.unit}));
-  (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:it.qty, unit:''}); });
-  const rowsHtml = items.length ? items.map(it=>`
-    <div class="orderticket-row">
+  const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
+  (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
+  const rowsHtml = items.map(it=>{
+    const ordered = it.qty > 0;
+    return `
+    <div class="orderticket-row${ordered?'':' orderticket-row-unordered'}">
       <div class="orderticket-check"></div>
       <div class="orderticket-emoji">${it.emoji}</div>
       <div class="orderticket-itemname">${escapeHtml(it.name)}</div>
-      <div class="orderticket-qty">${it.qty}${it.unit?`<span class="oti-unit">${escapeHtml(it.unit)}</span>`:''}</div>
-    </div>`).join('') : `<div class="orderticket-empty">ไม่มีรายการสั่งวันนี้</div>`;
+      <div class="orderticket-qty">${ordered?`${it.qty}${it.unit?`<span class="oti-unit">${escapeHtml(it.unit)}</span>`:''}`:''}</div>
+    </div>`;
+  }).join('');
   return `
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
       <div class="orderticket-kicker"><div class="ok-brand">🦀 KARMTO</div><div>ป้ายแพ็คออเดอร์</div></div>
@@ -1963,7 +1966,6 @@ function buildOrderTicketHTML(code, iso, row, cardId){
         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
       </div>
       <div class="orderticket-rows">${rowsHtml}</div>
-      <div class="orderticket-foot">ติ๊ก ✓ ให้ครบทุกช่อง ก่อนปิดกล่อง</div>
     </div>`;
 }
 // ความกว้างล็อกตายตัวไว้ (ไม่ตามความกว้างจอเหมือน renderOffscreenReceipt) เพราะป้ายนี้จะไปพิมพ์ลงกระดาษสติ๊กเกอร์จริงที่ขนาด

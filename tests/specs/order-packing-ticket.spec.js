@@ -1,0 +1,125 @@
+const { chromium } = require('playwright');
+
+async function stripBanner(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('*').forEach(el => {
+      if (el.textContent && el.textContent.includes('เชื่อมต่อฐานข้อมูลไม่ได้') && el.children.length === 0) {
+        el.closest('div')?.remove();
+      }
+    });
+  });
+}
+
+async function installMockStorage(page) {
+  await page.evaluate(() => {
+    window.__store = {};
+    window.storage = {
+      async get(key){ if(!(key in window.__store)){ throw new Error('Key not found: '+key); } return {key, value: JSON.stringify(window.__store[key]), shared:false}; },
+      async set(key, value){ window.__store[key]=JSON.parse(value); return {key, value: JSON.stringify(window.__store[key]), shared:false}; },
+      async delete(key){ delete window.__store[key]; return {key, deleted:true, shared:false}; },
+      async list(prefix){ return {keys: Object.keys(window.__store).filter(k=>k.startsWith(prefix||'')), prefix, shared:false}; },
+      async patchField(key, path, value){
+        let root = window.__store[key]; if(root === undefined) root = {}; root = JSON.parse(JSON.stringify(root));
+        let target = root; for(let i=0;i<path.length-1;i++){ const seg=path[i]; if(target[seg]===undefined) target[seg]={}; target=target[seg]; }
+        if(path.length>0) target[path[path.length-1]] = value;
+        window.__store[key] = root; return {key, value: JSON.stringify(root), shared:false};
+      },
+      async patchOps(key, ops, rootIsArray){ return {key, value: JSON.stringify(window.__store[key]||(rootIsArray?[]:{})), shared:false}; },
+    };
+    window.bulkGetStorageImpl = async (keys) => { const out={}; keys.forEach(k=>{ out[k]=window.__store[k]!==undefined?JSON.stringify(window.__store[k]):null; }); return out; };
+  });
+}
+
+function check(label, cond, extra) {
+  const pass = !!cond;
+  console.log((pass?'PASS':'FAIL') + ' — ' + label + (extra!==undefined ? ' | ' + JSON.stringify(extra) : ''));
+  return pass;
+}
+
+(async () => {
+  const browser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {});
+  const page = await browser.newPage({ viewport: { width: 420, height: 1200 } });
+  page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
+  await page.goto((process.env.BASE_URL || 'http://localhost:8765') + '/index.html', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  await stripBanner(page);
+  await installMockStorage(page);
+
+  let allPass = true;
+
+  await page.evaluate(async () => {
+    window.__store['day:2026-10-08'] = { orders: { '11': { p1:1, p2:1, p3:6, p4:1, p5:1, p7:20 } }, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:'' };
+    currentDate = '2026-10-08'; dayData = window.__store['day:2026-10-08']; dayCache_['2026-10-08'] = dayData;
+    await switchTab('order'); // ทำให้ panel-order โชว์ (switchTab ไม่ได้เรียก renderOrderList() เอง — อันนั้นถูกเรียกตอนโหลดแอปครั้งแรกเท่านั้น)
+    renderOrderList();
+  });
+  await page.waitForTimeout(500);
+  await stripBanner(page);
+
+  // ===== Test 1: per-row 🏷️ button exists on the order row =====
+  const rowBtn = await page.evaluate(() => !!document.querySelector('#orderList [data-printticket="11"]'));
+  allPass &= check('🏷️ icon button exists on the order row', rowBtn);
+
+  // ===== Test 2: "save all" button exists in the card header =====
+  const allBtnExists = await page.evaluate(() => !!document.getElementById('saveAllOrderTicketsBtn'));
+  allPass &= check('"บันทึกออเดอร์ทุกสาขาเป็นภาพ" button exists', allBtnExists);
+
+  // ===== Test 3: clicking the per-row button generates a non-empty image with no JS errors =====
+  // html2canvas โหลดจาก cdnjs.cloudflare.com จริงๆ ไม่ได้ในแซนด์บ็อกซ์นี้ (proxy บล็อก) — stub เป็น canvas เปล่าแทน (เหมือน
+  // mock window.storage) เพื่อทดสอบแค่ว่าโค้ดเราเรียกมันถูกจังหวะ ได้ blob ออกมาจริง ไม่ใช่ทดสอบไลบรารีภายนอก
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.evaluate(() => {
+    window.html2canvas = async () => { const c = document.createElement('canvas'); c.width = 10; c.height = 10; return c; };
+    window.__origCreateObjectURL = URL.createObjectURL;
+    URL.createObjectURL = (b) => { window.__lastBlobSize = b.size; return 'blob:stub'; };
+    // บังคับให้ไหลไปทางดาวน์โหลด/zip เสมอ (ไม่ใช่ navigator.share) กันผลเทสต์ไม่แน่นอนตามว่า headless Chromium รุ่นนั้นมี Web Share API หรือเปล่า
+    navigator.canShare = undefined;
+    navigator.share = undefined;
+  });
+  await page.click('#orderList [data-printticket="11"]');
+  await page.waitForTimeout(2500);
+  const blobSize = await page.evaluate(() => window.__lastBlobSize);
+  allPass &= check('Clicking 🏷️ generated a non-empty image blob', typeof blobSize === 'number' && blobSize > 0, blobSize);
+  allPass &= check('No JS exceptions while generating the ticket image', errors.length === 0, errors);
+
+  // ===== Test 4: clicking "save all" also produces an image =====
+  // headless Chromium ไม่มี navigator.canShare -> ไหลไปทาง fallback zip ซึ่งต้องใช้ JSZip (โหลดจาก cdnjs เหมือนกัน บล็อกเหมือนกัน) stub ด้วย
+  await page.evaluate(() => {
+    window.__lastBlobSize = null;
+    window.JSZip = class { file(){} async generateAsync(){ return new Blob(['stub']); } };
+  });
+  await page.click('#saveAllOrderTicketsBtn');
+  await page.waitForTimeout(3000);
+  const blobSize2 = await page.evaluate(() => window.__lastBlobSize);
+  allPass &= check('Clicking "save all" also produced an image', typeof blobSize2 === 'number' && blobSize2 > 0, blobSize2);
+
+  // ===== Test 5: ticket always lists all 7 products (not just the ones ordered), with unordered ones dimmed and blank qty =====
+  const ticket = await page.evaluate(() => {
+    const html = buildOrderTicketHTML('11', '2026-10-08', {p1:1,p2:1,p3:6,p4:1,p5:1,p7:20});
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const rows = Array.from(wrap.querySelectorAll('.orderticket-row'));
+    const info = rows.map(r => ({
+      name: r.querySelector('.orderticket-itemname').textContent.trim(),
+      qtyText: r.querySelector('.orderticket-qty').textContent.trim(),
+      unordered: r.classList.contains('orderticket-row-unordered'),
+    }));
+    wrap.remove();
+    return { html, info };
+  });
+  console.log('Ticket rows:', JSON.stringify(ticket.info, null, 2));
+  allPass &= check('Ticket lists all 7 products, not just ordered ones', ticket.info.length === 7, ticket.info.length);
+  const cherry = ticket.info.find(r => r.name === 'เนื้อหอยเชอรี่');
+  allPass &= check('Unordered item (เนื้อหอยเชอรี่) is present with blank qty and dimmed', !!cherry && cherry.qtyText === '' && cherry.unordered === true, cherry);
+  const oyster = ticket.info.find(r => r.name === 'เนื้อหอยนางรม');
+  allPass &= check('Ordered item (เนื้อหอยนางรม) shows qty 20 กระปุก and is NOT dimmed', !!oyster && oyster.qtyText.includes('20') && oyster.qtyText.includes('กระปุก') && oyster.unordered === false, oyster);
+  allPass &= check('Ticket includes branch label "สาขา 11"', ticket.html.includes('สาขา 11'), 'ok');
+  allPass &= check('Ticket has no leftover "check every box" footer text', !ticket.html.includes('ติ๊ก'), 'ok');
+
+  console.log('\n=== SUMMARY ===');
+  console.log(allPass ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED');
+  await browser.close();
+  process.exit(allPass ? 0 : 1);
+})();

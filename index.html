@@ -6673,8 +6673,9 @@ async function renderLotList(preloadedLots){
     if(lotDrawConfirmInFlight) return; // กันบันทึกการเบิกซ้ำถ้ากดรัวๆ/เน็ตช้า
     lotDrawConfirmInFlight = true;
     btn.disabled = true;
-    try{
     const id = btn.getAttribute('data-lotdrawconfirm');
+    let drawId = null; // ประกาศไว้นอก try ให้ catch ด้านล่างอ่านได้ ไว้เช็คว่าจริงๆบันทึกสำเร็จไปแล้วหรือเปล่า
+    try{
     const qtyUsed = Number(document.getElementById(`lotDrawQty-${id}`).value||0);
     let sellableQty = Number(document.getElementById(`lotDrawSellable-${id}`).value||0);
     const note = document.getElementById(`lotDrawNote-${id}`).value.trim();
@@ -6697,7 +6698,7 @@ async function renderLotList(preloadedLots){
       }
     }
     if(warnEl){ warnEl.style.display='none'; }
-    const drawId = uid('drw');
+    drawId = uid('drw');
     const costPerKg = lotCostPerKg(lot);
     const totalCost = Math.round(qtyUsed*costPerKg*100)/100;
     // สำคัญ: เบิกมา = ทำเป็นสต็อกไว้เฉยๆ ก่อน "ยังไม่ตัดต้นทุนซื้อทันที" (costedQty:0) เพราะของที่ทำได้วันนี้
@@ -6712,8 +6713,29 @@ async function renderLotList(preloadedLots){
     renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
     renderLotList(updated);
     } catch(e){
-      showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
-      await refreshLotListAfterWriteFailure_();
+      // withApiTimeout ไม่ได้ยกเลิก request จริง — ก่อนบอกว่าพัง เช็คกับเซิร์ฟเวอร์ตรงๆ ก่อนว่ารอบเบิก (drawId ที่สร้างไว้ก่อนยิง
+      // คำขอ) จริงๆ ถูกบันทึกไปแล้วหรือเปล่า แค่ตอบกลับช้า — ถ้าปล่อยบอกว่า "ยังไม่บันทึก" ทั้งที่จริงบันทึกไปแล้ว ผู้ใช้กดซ้ำ
+      // จะได้รอบเบิกซ้ำสองรอบจริงๆ (ของจริง ไม่ใช่แค่ทฤษฎี — เคยมีรายงานเบิกซ้ำแบบนี้)
+      let alreadySaved = false;
+      if(drawId){
+        try{
+          rawLotsCache_ = null;
+          const freshLots = await loadRawLots();
+          const freshLot = freshLots.find(l=>l.id===id);
+          alreadySaved = !!(freshLot && (freshLot.draws||[]).some(d=>d.id===drawId));
+          if(alreadySaved){
+            await autoFillLeftoverIfNeeded(freshLot.productId);
+            lotDrawOpenId = null;
+            showToast('บันทึกการเบิกใช้สำเร็จจริง (แค่ตอบกลับช้า) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยัน "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน');
+            renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
+            renderLotList(freshLots);
+          }
+        }catch(checkErr){ /* เช็คไม่ได้ก็ถือว่าไม่ชัวร์ ปล่อยไปโชว์ข้อความด้านล่างเหมือนเดิม ดีกว่าหลอกว่าสำเร็จ */ }
+      }
+      if(!alreadySaved){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
+        await refreshLotListAfterWriteFailure_();
+      }
     } finally { lotDrawConfirmInFlight = false; btn.disabled = false; }
   }));
   const multiLotToggleEl = document.getElementById('multiLotDrawToggle');
@@ -6752,8 +6774,9 @@ async function renderLotList(preloadedLots){
       if(multiLotDrawInFlight) return; // กันบันทึกซ้ำถ้ากดรัวๆ/เน็ตช้า
       multiLotDrawInFlight = true;
       multiLotConfirmBtn.disabled = true;
+      let productId = null, pendingDraws = null; // ประกาศไว้นอก try ให้ catch ด้านล่างอ่านได้ ไว้เช็คว่าจริงๆบันทึกสำเร็จไปแล้วหรือเปล่า
       try{
-        const productId = document.getElementById('multiLotProduct').value;
+        productId = document.getElementById('multiLotProduct').value;
         const qtyUsedTotal = Number(document.getElementById('multiLotQty').value||0);
         let sellableTotal = Number(document.getElementById('multiLotSellable').value||0);
         if(sellableUnitIsWhole_(productId)) sellableTotal = Math.round(sellableTotal);
@@ -6803,8 +6826,10 @@ async function renderLotList(preloadedLots){
         const rawLotsOps = allocations.map(a=>{
           const costPerKg = lotCostPerKg(a.lot);
           const totalCost = Math.round(a.qty*costPerKg*100)/100;
-          return {matchField:'id', matchValue:a.lot.id, nested:{field:'draws', push:{id:uid('drw'), date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note: note ? `${note} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต` : 'แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต', totalCost, costedQty:0}}};
+          a.drawId = uid('drw');
+          return {matchField:'id', matchValue:a.lot.id, nested:{field:'draws', push:{id:a.drawId, date:currentDate, qtyUsed:a.qty, sellableQty:a.sellable, note: note ? `${note} • แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต` : 'แบ่งอัตโนมัติจากการเบิกรวมหลายล็อต', totalCost, costedQty:0}}};
         });
+        pendingDraws = allocations.map(a=>({lotId:a.lot.id, drawId:a.drawId}));
         const updated = await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
         await autoFillLeftoverIfNeeded(productId);
         multiLotDrawOpen = false;
@@ -6812,8 +6837,31 @@ async function renderLotList(preloadedLots){
         renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
         renderLotList(updated);
       }catch(e){
-        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
-        await refreshLotListAfterWriteFailure_();
+        // withApiTimeout ไม่ได้ยกเลิก request จริง — ก่อนบอกว่าพัง เช็คกับเซิร์ฟเวอร์ตรงๆ ก่อนว่ารอบเบิกทุกล็อต (pendingDraws ที่
+        // สร้าง drawId ไว้ก่อนยิงคำขอ) จริงๆ ถูกบันทึกไปแล้วหรือเปล่า แค่ตอบกลับช้า — เหมือนกับที่แก้ไว้ในเบิกทีละล็อตด้านบน
+        // กันผู้ใช้กดซ้ำแล้วได้รอบเบิกซ้ำสองชุดจริงๆ (ของจริง ไม่ใช่แค่ทฤษฎี — เคยมีรายงานเบิกซ้ำแบบนี้)
+        let alreadySaved = false;
+        if(pendingDraws && pendingDraws.length){
+          try{
+            rawLotsCache_ = null;
+            const freshLots = await loadRawLots();
+            alreadySaved = pendingDraws.every(pd=>{
+              const fl = freshLots.find(l=>l.id===pd.lotId);
+              return fl && (fl.draws||[]).some(d=>d.id===pd.drawId);
+            });
+            if(alreadySaved){
+              await autoFillLeftoverIfNeeded(productId);
+              multiLotDrawOpen = false;
+              showToast('บันทึกการเบิกรวมสำเร็จจริง (แค่ตอบกลับช้า) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยันตัดต้นทุนตามที่ใช้จริงแต่ละวันแทน');
+              renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
+              renderLotList(freshLots);
+            }
+          }catch(checkErr){ /* เช็คไม่ได้ก็ถือว่าไม่ชัวร์ ปล่อยไปโชว์ข้อความด้านล่างเหมือนเดิม ดีกว่าหลอกว่าสำเร็จ */ }
+        }
+        if(!alreadySaved){
+          showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — การเบิกยังไม่ถูกบันทึก');
+          await refreshLotListAfterWriteFailure_();
+        }
       } finally {
         multiLotDrawInFlight = false;
         if(multiLotConfirmBtn) multiLotConfirmBtn.disabled = false;
@@ -9640,9 +9688,11 @@ function updateOrderFormAutoFold(){
   setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
 }
 // หาสาขาถัดไปที่ยังไม่มีออเดอร์วันนี้ ไล่ต่อจากสาขาที่เพิ่งบันทึกเสร็จ (วนกลับไปต้นรายชื่อถ้าไล่จนสุด) เพื่อบันทึกต่อเนื่องได้เลยไม่ต้องเลือกเอง
+// วิ่งเฉพาะสาขาประจำ (ไม่ติ๊ก "นานๆ สั่งที") — ข้ามสาขาที่สั่งนานๆ ทีไปเลยอัตโนมัติ ไม่ต้องกดข้ามเอง เหมือนที่ดรอปดาวน์เลือกสาขา
+// (renderBranchSelect) แยกกลุ่มสาขาพวกนี้ไว้ท้ายสุดอยู่แล้ว
 function findNextUnrecordedBranch(afterCode){
   const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
-  const branches = settings.branches;
+  const branches = settings.branches.filter(b=>!b.rare);
   const idx = branches.findIndex(b=>b.code===afterCode);
   for(let i=1;i<=branches.length;i++){
     const b = branches[(idx+i+branches.length)%branches.length];

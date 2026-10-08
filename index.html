@@ -8694,6 +8694,43 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const editor = wrap.querySelector(`[data-quickpayeditor="${CSS.escape(btn.getAttribute('data-quickpaycancel'))}"]`);
       if(editor) editor.style.display = 'none';
     }));
+    // ยืนยันบิลเดียวว่าโอนแล้ว (data-quickpayconfirm ด้านล่าง) เดิมเรียก renderOutstanding()/renderBranchDetail() ใหม่ทั้งก้อนหลังบันทึกสำเร็จ
+    // ซึ่งโหลด computeBranchAggregates() ใหม่ทั้งหมด (ยิง storage.list ทั้งร้าน) แล้วรื้อสร้างการ์ดทั้งใบ (KPI/แท็บ/กราฟแนวโน้ม/ลิสต์)
+    // ใหม่หมด — จอกระพริบเหมือนรีโหลดทั้งหน้าทุกครั้งที่ยืนยันแค่บิลเดียว (เหมือนบั๊กที่เคยแก้ไปแล้วของลิสต์รวมทุกสาขา — คนละจุดกัน
+    // แต่ต้นเหตุเดียวกัน) ตอนนี้แพตช์เฉพาะแถวที่เพิ่งยืนยัน + ตัวเลขสรุป 2 ช่องบนสุด ในที่แทน ไม่ต้องโหลด/เรนเดอร์ใหม่ทั้งการ์ด
+    function markBranchBillPaidInPlace_(iso, payValue){
+      const bill = rows.find(x=>x.iso===iso) || sortedBills.find(x=>x.iso===iso);
+      if(!bill) return;
+      bill.paid = true; bill.payInfo = payValue;
+      a.unpaidCount = Math.max(0, a.unpaidCount - 1);
+      a.unpaidTotal = Math.max(0, Math.round((a.unpaidTotal - bill.amt)*100)/100);
+      const kpiValues = detailEl.querySelectorAll('.dash-grid .dash-metric .dm-value');
+      if(kpiValues[0]) kpiValues[0].textContent = `${a.unpaidCount} บิล`;
+      if(kpiValues[1]) kpiValues[1].textContent = money(a.unpaidTotal);
+      const filterUnpaidBtn = detailEl.querySelector('[data-branchbillfilter="unpaid"]');
+      const filterPaidBtn = detailEl.querySelector('[data-branchbillfilter="paid"]');
+      if(filterUnpaidBtn) filterUnpaidBtn.textContent = `ค้างโอน (${a.unpaidCount})`;
+      if(filterPaidBtn) filterPaidBtn.textContent = `โอนแล้ว (${sortedBills.length - a.unpaidCount})`;
+      const payBtn = wrap.querySelector(`[data-quickpay="${CSS.escape(iso)}"]`);
+      const cardEl = payBtn ? payBtn.closest('.branchbill') : null;
+      if(!cardEl) return;
+      if(filter==='unpaid'){
+        // มุมมองนี้กรองแค่บิลค้างโอน — บิลนี้จ่ายแล้วตอนนี้ ไม่อยู่ในมุมมองนี้อีกต่อไป เอาการ์ดออกจากจอไปเลย
+        cardEl.remove();
+        if(!wrap.querySelector('.branchbill')) wrap.innerHTML = '<div class="hint" style="margin-top:8px;">ไม่มีบิลค้างโอน 🎉</div>';
+        return;
+      }
+      // filter==='all' หรือ 'paid' — บิลนี้ยังอยู่ในมุมมองนี้ต่อ แค่สถานะเปลี่ยน แพตช์การ์ดในที่
+      payBtn.textContent = 'โอนแล้ว'; payBtn.classList.remove('unpaid'); payBtn.classList.add('paid'); payBtn.title = '';
+      const nEl = cardEl.querySelector('.n');
+      if(nEl && !cardEl.querySelector('.paidtag')) nEl.insertAdjacentHTML('afterend', paidTagHtml(true, payValue.paidDate));
+      const dEl = cardEl.querySelector('.d');
+      if(dEl) dEl.innerHTML = billPaidDiffHtml(payValue, bill.amt).replace(/^ /,'');
+      const checkbox = cardEl.querySelector('[data-billselect]');
+      if(checkbox){ checkbox.remove(); branchPaySelection.delete(iso); updateBranchPayBar(); }
+      const editor = cardEl.querySelector('[data-quickpayeditor]');
+      if(editor) editor.remove();
+    }
     wrap.querySelectorAll('[data-quickpayconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const iso = btn.getAttribute('data-quickpayconfirm');
       const bill = rows.find(x=>x.iso===iso);
@@ -8711,7 +8748,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
         showToast('บันทึกว่าโอนแล้ว');
         const dashSelectEl = document.getElementById('dashBranchSelect');
         if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
-        if(outstandingBranchFilterValue===code) await renderOutstanding();
+        if(outstandingBranchFilterValue===code) markBranchBillPaidInPlace_(iso, payValue);
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
         btn.disabled = false; btn.textContent = 'ยืนยัน';

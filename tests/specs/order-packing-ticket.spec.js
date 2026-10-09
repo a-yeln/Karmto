@@ -121,32 +121,43 @@ function check(label, cond, extra) {
   allPass &= check('Kicker no longer shows "ป้ายแพ็คออเดอร์" text', !ticket.html.includes('ป้ายแพ็คออเดอร์'), 'ok');
   allPass &= check('Kicker still shows the KARMTO brand mark', ticket.html.includes('🦀 KARMTO'), 'ok');
 
-  // ===== Test 5c: branch code (big) and branch name (separate line below, can wrap) are two distinct elements now,
-  // instead of one single-line "สาขา {code} {area}" string that could get cut off =====
+  // ===== Test 5c: "สาขา" prefix + big branch code on one line, plain area name on its own separate line below (no
+  // redundant repeat of the code number within the name line) =====
   const headParts = await page.evaluate((html) => {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
-    const r = { code: wrap.querySelector('.orderticket-code')?.textContent, name: wrap.querySelector('.orderticket-name')?.textContent };
+    const r = {
+      saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
+      code: wrap.querySelector('.orderticket-code')?.textContent,
+      name: wrap.querySelector('.orderticket-name')?.textContent,
+    };
     wrap.remove();
     return r;
   }, ticket.html);
   console.log('Branch 11 head parts:', JSON.stringify(headParts));
+  allPass &= check('"สาขา" prefix shown next to the big code number', headParts.saxa === 'สาขา', headParts.saxa);
   allPass &= check('Big branch-code element shows just "11"', headParts.code === '11', headParts.code);
-  allPass &= check('Branch name is a separate element (can wrap to its own line)', headParts.name && headParts.name.includes('11') && headParts.name.includes('ลำลูกกาคลอง4'), headParts.name);
+  allPass &= check('Name line shows ONLY the area name on its own line (no redundant "11" repeated)', headParts.name === 'ลำลูกกาคลอง4', headParts.name);
 
   // ===== Test 6: branch 00 (flagship store) shows the short label "ธงหมูกระทะ" on the ticket specifically (not a literal
-  // "สาขา 00", and not the full branchName() area text used everywhere else in the app) =====
+  // "สาขา 00", and not the full branchName() area text used everywhere else in the app) — and has no "สาขา" prefix,
+  // matching how the rest of the app never shows "สาขา 00" for the flagship store =====
   const ticket00 = await page.evaluate(() => buildOrderTicketHTML('00', '2026-10-08', {p1:1}));
   const codeName00 = await page.evaluate((html) => {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
-    const r = { code: wrap.querySelector('.orderticket-code')?.textContent, name: wrap.querySelector('.orderticket-name')?.textContent };
+    const r = {
+      saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
+      code: wrap.querySelector('.orderticket-code')?.textContent,
+      name: wrap.querySelector('.orderticket-name')?.textContent,
+    };
     wrap.remove();
     return r;
   }, ticket00);
   console.log('Branch 00 head parts:', JSON.stringify(codeName00));
+  allPass &= check('Branch 00 has no "สาขา" prefix', codeName00.saxa === undefined, codeName00.saxa);
   allPass &= check('Branch 00 big-code element shows "00"', codeName00.code === '00', codeName00.code);
   allPass &= check('Branch 00 name line shows "ธงหมูกระทะ"', codeName00.name === 'ธงหมูกระทะ', codeName00.name);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));

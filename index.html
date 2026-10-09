@@ -226,11 +226,13 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
    ธรรมดา เพราะของจริงคนแพ็คต้องกาเช็คทีละรายการระหว่างใส่กล่อง ไม่ใช่แค่อ่านอย่างเดียว — ต่างจาก .receipt (บิลเก็บเงิน)
    ที่เน้นอ่านละเอียด มีราคา/ที่อยู่ ป้ายนี้มีแค่ชื่อสินค้า+จำนวนเท่านั้น ไม่มีราคาเลย */
 .orderticket{background:#fff;color:#000;border:3px solid #000;border-radius:10px;padding:16px;font-family:'IBM Plex Sans Thai',sans-serif;width:380px;flex:none;box-sizing:border-box;}
-.orderticket-kicker{text-align:center;font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;margin-bottom:8px;}
+.orderticket-kicker{text-align:right;font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;margin-bottom:8px;}
 .orderticket-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
 .orderticket-branchwrap{flex:1;min-width:0;}
+.orderticket-codeline{display:flex;align-items:baseline;gap:6px;}
+.orderticket-saxa{font-size:16px;font-weight:700;color:#000;}
 .orderticket-code{font-size:48px;font-weight:800;line-height:1;color:#000;}
-.orderticket-name{font-size:15px;font-weight:700;line-height:1.25;color:#000;margin-top:2px;}
+.orderticket-name{font-size:16px;font-weight:700;line-height:1.25;color:#000;margin-top:2px;}
 .orderticket-date{background:#000;color:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap;flex:none;}
 .orderticket-rows{display:flex;flex-direction:column;}
 .orderticket-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px dashed #999;}
@@ -1948,8 +1950,11 @@ function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrder
 // ตัวที่ไม่ได้สั่ง (qty=0) ให้ช่องจำนวนว่างไว้ + แถวจางลง เอาไว้ให้เห็นครบทุกสินค้าในป้ายเดียวเทียบง่ายว่าตัวไหนไม่ได้สั่งบ้าง
 // ป้ายนี้ใช้ชื่อย่อ "ธงหมูกระทะ" สำหรับสาขา 00 โดยเฉพาะ (ตามที่ขอ) แทนชื่อเต็มจาก branchName() ("ธงหมูกะทะ หลักสี่")
 // ซึ่งยังใช้แสดงผลทุกที่อื่นในแอปตามเดิม — เปลี่ยนแค่ป้ายใบนี้ใบเดียว ไม่แตะข้อมูลชื่อสาขาจริงในหน้าตั้งค่าเลย
+// บรรทัดชื่อ (บรรทัด 2) ใช้แค่ชื่อพื้นที่ล้วนๆ (b.area/b.label) ไม่เอา "สาขา {code}" นำหน้าแบบ branchName() เพราะตัวเลข
+// รหัสสาขาโชว์ใหญ่อยู่แล้วบรรทัดบน — ถ้าเอาทั้งก้อนมาด้วยจะซ้ำเลข (เช่น "11" ใหญ่ ตามด้วย "สาขา 11 ลำลูกกาคลอง4")
 function buildOrderTicketHTML(code, iso, row, cardId){
-  const branchLabel = code==='00' ? 'ธงหมูกระทะ' : branchName(code);
+  const branchObj = branchByCode(code);
+  const branchAreaLabel = code==='00' ? 'ธงหมูกระทะ' : (branchObj ? (branchObj.label || branchObj.area) : branchName(code));
   const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
   const rowsHtml = items.map(it=>{
@@ -1967,8 +1972,8 @@ function buildOrderTicketHTML(code, iso, row, cardId){
       <div class="orderticket-kicker">🦀 KARMTO</div>
       <div class="orderticket-head">
         <div class="orderticket-branchwrap">
-          <div class="orderticket-code">${escapeHtml(code)}</div>
-          <div class="orderticket-name">${escapeHtml(branchLabel)}</div>
+          <div class="orderticket-codeline">${code!=='00' ? `<span class="orderticket-saxa">สาขา</span>` : ''}<span class="orderticket-code">${escapeHtml(code)}</span></div>
+          <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
         </div>
         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
       </div>

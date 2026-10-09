@@ -163,29 +163,32 @@ function check(label, cond, extra) {
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 
-  // ===== Test 6b: compact layout — "สาขา {code}" + area name + date pill all share ONE single row (orderticket-head),
-  // per feedback ("ให้กระชับขึ้น สาขายกไปบรรทัดเดียวกับชื่อร้านก็ได้") =====
-  const compactCheck = await page.evaluate((html) => {
+  // ===== Test 6b: two-line header layout per latest feedback ("ให้สาขา บรรทัดเดียวกับ 🦀 , ให้ลำลูกกา บรรทัดเดียวกับวันที่")
+  // Line 1 (orderticket-topline): "สาขา {code}" + the KARMTO kicker, same row.
+  // Line 2 (orderticket-subrow): area name + date pill, same row — separate from line 1. =====
+  const lineCheck = await page.evaluate((html) => {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
     const saxa = wrap.querySelector('.orderticket-saxa');
     const codeEl = wrap.querySelector('.orderticket-code');
+    const kicker = wrap.querySelector('.orderticket-kicker');
     const name = wrap.querySelector('.orderticket-name');
     const date = wrap.querySelector('.orderticket-date');
-    const titletext = wrap.querySelector('.orderticket-titletext');
+    const topline = wrap.querySelector('.orderticket-topline');
+    const subrow = wrap.querySelector('.orderticket-subrow');
     const r = {
-      saxaAndNameSameLine: saxa && name && saxa.parentElement === name.parentElement && saxa.parentElement === titletext,
-      codeAndNameSameLine: codeEl && name && codeEl.parentElement === name.parentElement,
-      dateIsSiblingOfTitletext: date && titletext && date.parentElement === titletext.parentElement,
+      codeAndKickerSameLine: codeEl && kicker && codeEl.closest('.orderticket-topline') === topline && kicker.parentElement === topline,
+      nameAndDateSameLine: name && date && name.parentElement === subrow && date.parentElement === subrow,
+      codeAndNameOnDifferentLines: codeEl && name && codeEl.closest('.orderticket-topline') !== name.closest('.orderticket-subrow') && !topline.contains(name),
     };
     wrap.remove();
     return r;
   }, ticket.html);
-  console.log('Compact layout check:', JSON.stringify(compactCheck));
-  allPass &= check('"สาขา" and the area name share the same line (orderticket-titletext)', compactCheck.saxaAndNameSameLine, compactCheck);
-  allPass &= check('Big code number and area name share the same line too', compactCheck.codeAndNameSameLine, compactCheck);
-  allPass &= check('Date pill sits alongside the title text, same head row', compactCheck.dateIsSiblingOfTitletext, compactCheck);
+  console.log('Line layout check:', JSON.stringify(lineCheck));
+  allPass &= check('"สาขา {code}" and the 🦀 KARMTO kicker share the same line (topline)', lineCheck.codeAndKickerSameLine, lineCheck);
+  allPass &= check('Area name and date pill share the same line (subrow)', lineCheck.nameAndDateSameLine, lineCheck);
+  allPass &= check('Code line and name line are separate rows (not merged into one)', lineCheck.codeAndNameOnDifferentLines, lineCheck);
 
   // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
   // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====

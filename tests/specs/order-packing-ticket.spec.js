@@ -115,15 +115,40 @@ function check(label, cond, extra) {
   allPass &= check('Unordered item (เนื้อหอยเชอรี่) is present with blank qty and dimmed', !!cherry && cherry.qtyText === '' && cherry.unordered === true, cherry);
   const oyster = ticket.info.find(r => r.name === 'เนื้อหอยนางรม');
   allPass &= check('Ordered item (เนื้อหอยนางรม) shows qty 20 กระปุก and is NOT dimmed', !!oyster && oyster.qtyText.includes('20') && oyster.qtyText.includes('กระปุก') && oyster.unordered === false, oyster);
-  allPass &= check('Ticket includes branch label "สาขา 11"', ticket.html.includes('สาขา 11'), 'ok');
   allPass &= check('Ticket has no leftover "check every box" footer text', !ticket.html.includes('ติ๊ก'), 'ok');
+
+  // ===== Test 5b: kicker is just the KARMTO brand mark now (the "ป้ายแพ็คออเดอร์" label text was cut, per feedback) =====
+  allPass &= check('Kicker no longer shows "ป้ายแพ็คออเดอร์" text', !ticket.html.includes('ป้ายแพ็คออเดอร์'), 'ok');
+  allPass &= check('Kicker still shows the KARMTO brand mark', ticket.html.includes('🦀 KARMTO'), 'ok');
+
+  // ===== Test 5c: branch code (big) and branch name (separate line below, can wrap) are two distinct elements now,
+  // instead of one single-line "สาขา {code} {area}" string that could get cut off =====
+  const headParts = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const r = { code: wrap.querySelector('.orderticket-code')?.textContent, name: wrap.querySelector('.orderticket-name')?.textContent };
+    wrap.remove();
+    return r;
+  }, ticket.html);
+  console.log('Branch 11 head parts:', JSON.stringify(headParts));
+  allPass &= check('Big branch-code element shows just "11"', headParts.code === '11', headParts.code);
+  allPass &= check('Branch name is a separate element (can wrap to its own line)', headParts.name && headParts.name.includes('11') && headParts.name.includes('ลำลูกกาคลอง4'), headParts.name);
 
   // ===== Test 6: branch 00 (flagship store) shows the short label "ธงหมูกระทะ" on the ticket specifically (not a literal
   // "สาขา 00", and not the full branchName() area text used everywhere else in the app) =====
   const ticket00 = await page.evaluate(() => buildOrderTicketHTML('00', '2026-10-08', {p1:1}));
-  const header00 = ticket00.match(/orderticket-branch">([^<]*)</)[1];
-  console.log('Branch 00 header:', header00);
-  allPass &= check('Branch 00 shows "ธงหมูกระทะ" on the ticket', header00 === 'ธงหมูกระทะ', header00);
+  const codeName00 = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const r = { code: wrap.querySelector('.orderticket-code')?.textContent, name: wrap.querySelector('.orderticket-name')?.textContent };
+    wrap.remove();
+    return r;
+  }, ticket00);
+  console.log('Branch 00 head parts:', JSON.stringify(codeName00));
+  allPass &= check('Branch 00 big-code element shows "00"', codeName00.code === '00', codeName00.code);
+  allPass &= check('Branch 00 name line shows "ธงหมูกระทะ"', codeName00.name === 'ธงหมูกระทะ', codeName00.name);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 

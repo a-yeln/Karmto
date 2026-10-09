@@ -229,7 +229,7 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orderticket-kicker{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#000;margin-bottom:8px;}
 .orderticket-kicker .ok-brand{display:flex;align-items:center;gap:4px;}
 .orderticket-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
-.orderticket-branch{font-size:40px;font-weight:800;line-height:1;color:#000;}
+.orderticket-branch{font-size:28px;font-weight:800;line-height:1.15;color:#000;flex:1;min-width:0;}
 .orderticket-date{background:#000;color:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap;flex:none;}
 .orderticket-rows{display:flex;flex-direction:column;}
 .orderticket-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px dashed #999;}
@@ -1945,7 +1945,10 @@ function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrder
 // ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — ไม่มีราคา เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จ
 // เก็บเงิน (อันนั้นมี buildReceiptCardHTML อยู่แล้ว คนละการ์ดกัน) — โชว์สินค้าหลักครบทั้ง 7 ตัวเสมอ (ไม่กรองเฉพาะที่สั่งวันนี้)
 // ตัวที่ไม่ได้สั่ง (qty=0) ให้ช่องจำนวนว่างไว้ + แถวจางลง เอาไว้ให้เห็นครบทุกสินค้าในป้ายเดียวเทียบง่ายว่าตัวไหนไม่ได้สั่งบ้าง
+// ป้ายนี้ใช้ชื่อย่อ "ธงหมูกระทะ" สำหรับสาขา 00 โดยเฉพาะ (ตามที่ขอ) แทนชื่อเต็มจาก branchName() ("ธงหมูกะทะ หลักสี่")
+// ซึ่งยังใช้แสดงผลทุกที่อื่นในแอปตามเดิม — เปลี่ยนแค่ป้ายใบนี้ใบเดียว ไม่แตะข้อมูลชื่อสาขาจริงในหน้าตั้งค่าเลย
 function buildOrderTicketHTML(code, iso, row, cardId){
+  const branchLabel = code==='00' ? 'ธงหมูกระทะ' : branchName(code);
   const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
   const rowsHtml = items.map(it=>{
@@ -1962,7 +1965,7 @@ function buildOrderTicketHTML(code, iso, row, cardId){
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
       <div class="orderticket-kicker"><div class="ok-brand">🦀 KARMTO</div><div>ป้ายแพ็คออเดอร์</div></div>
       <div class="orderticket-head">
-        <div class="orderticket-branch">สาขา ${escapeHtml(code)}</div>
+        <div class="orderticket-branch">${escapeHtml(branchLabel)}</div>
         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
       </div>
       <div class="orderticket-rows">${rowsHtml}</div>
@@ -1990,10 +1993,12 @@ async function saveOrderTicketAsImage(code){
   try{
     wrapper = await renderOffscreenOrderTicket(code, row, currentDate, 380);
     const node = wrapper.querySelector('.orderticket');
-    // backgroundColor ขาวทึบตรงๆ (ไม่ใช่ null/โปร่งใสแบบ .receipt) เพราะป้ายนี้เอาไปพิมพ์ผ่านแอพ PeriPage — บางแอพตีความพื้น
-    // โปร่งใสเป็นสีดำ ล็อกเป็นขาวชัดๆ กันพิมพ์ออกมาผิดเพี้ยน — scale สูงกว่าใบเสร็จปกติด้วย (ตัวหนังสือใหญ่/หนา พิมพ์ความ
-    // ละเอียดสูงจะคมชัดกว่าตอนย่อลงกระดาษสติ๊กเกอร์จริง)
-    const canvas = await html2canvas(node, {backgroundColor:'#ffffff', scale:3});
+    // backgroundColor:null (โปร่งใส) เหมือน .receipt — ตัวการ์ดเองมี background:#fff อยู่แล้วจากซีเอสเอสของมันเอง (ขาวแน่นอน
+    // ไม่ต้องพึ่ง backgroundColor ของ html2canvas) แต่ถ้าตั้ง backgroundColor เป็นสีขาวทึบตรงนี้แทน จะกลายเป็นระบายพื้นหลัง
+    // สี่เหลี่ยมทึบทั้งผืนทับมุมโค้งของการ์ด (border-radius) ด้วย ทำให้เห็น "มุมขาว" เป็นเหลี่ยมโผล่พ้นเส้นขอบโค้งออกมาตอน
+    // เปิดดูบนพื้นหลังที่ไม่ใช่สีขาว (เช่น แกลเลอรี/แอปแชร์โหมดมืด) — scale สูงกว่าใบเสร็จปกติด้วย (ตัวหนังสือใหญ่/หนา พิมพ์
+    // ความละเอียดสูงจะคมชัดกว่าตอนย่อลงกระดาษสติ๊กเกอร์จริง)
+    const canvas = await html2canvas(node, {backgroundColor:null, scale:3});
     const blob = await canvasToBlobAsync(canvas);
     if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
     const fileName = `order-${code}-${currentDate}.png`;
@@ -2029,7 +2034,7 @@ async function saveAllOrderTicketsAsImages(){
     try{
       wrapper = await renderOffscreenOrderTicket(code, row, currentDate, 380);
       const node = wrapper.querySelector('.orderticket');
-      const canvas = await html2canvas(node, {backgroundColor:'#ffffff', scale:3});
+      const canvas = await html2canvas(node, {backgroundColor:null, scale:3}); // ดูคอมเมนต์ที่ saveOrderTicketAsImage เรื่องมุมขาว
       const blob = await canvasToBlobAsync(canvas);
       if(blob) files.push({code, fileName:`order-${code}-${currentDate}.png`, blob});
     }catch(e){ /* ข้ามสาขานี้ไป ทำใบที่เหลือต่อ */ }

@@ -118,6 +118,23 @@ function check(label, cond, extra) {
   allPass &= check('Ticket includes branch label "สาขา 11"', ticket.html.includes('สาขา 11'), 'ok');
   allPass &= check('Ticket has no leftover "check every box" footer text', !ticket.html.includes('ติ๊ก'), 'ok');
 
+  // ===== Test 6: branch 00 (flagship store) shows the short label "ธงหมูกระทะ" on the ticket specifically (not a literal
+  // "สาขา 00", and not the full branchName() area text used everywhere else in the app) =====
+  const ticket00 = await page.evaluate(() => buildOrderTicketHTML('00', '2026-10-08', {p1:1}));
+  const header00 = ticket00.match(/orderticket-branch">([^<]*)</)[1];
+  console.log('Branch 00 header:', header00);
+  allPass &= check('Branch 00 shows "ธงหมูกระทะ" on the ticket', header00 === 'ธงหมูกระทะ', header00);
+  const branchNameUnchanged = await page.evaluate(() => branchName('00'));
+  allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
+
+  // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
+  // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====
+  const bgColorUsage = await page.evaluate(() => {
+    const src = saveOrderTicketAsImage.toString() + saveAllOrderTicketsAsImages.toString();
+    return { hasNull: src.includes('backgroundColor:null'), hasOpaqueWhite: src.includes("backgroundColor:'#ffffff'") };
+  });
+  allPass &= check('Order ticket capture uses backgroundColor:null (no opaque-white corner artifact)', bgColorUsage.hasNull && !bgColorUsage.hasOpaqueWhite, bgColorUsage);
+
   console.log('\n=== SUMMARY ===');
   console.log(allPass ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED');
   await browser.close();

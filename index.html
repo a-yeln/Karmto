@@ -227,12 +227,11 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
    ที่เน้นอ่านละเอียด มีราคา/ที่อยู่ ป้ายนี้มีแค่ชื่อสินค้า+จำนวนเท่านั้น ไม่มีราคาเลย */
 .orderticket{background:#fff;color:#000;border:3px solid #000;border-radius:10px;padding:16px;font-family:'IBM Plex Sans Thai',sans-serif;width:380px;flex:none;box-sizing:border-box;}
 .orderticket-kicker{text-align:right;font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;margin-bottom:8px;}
-.orderticket-head{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
-.orderticket-codeline{display:flex;align-items:baseline;gap:6px;}
-.orderticket-saxa{font-size:20px;font-weight:700;color:#000;}
-.orderticket-code{font-size:48px;font-weight:800;line-height:1;color:#000;}
-.orderticket-subrow{display:flex;justify-content:space-between;align-items:center;gap:10px;}
-.orderticket-name{font-size:16px;font-weight:700;color:#000;min-width:0;overflow-wrap:break-word;}
+.orderticket-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 10px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-titletext{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;flex:1;min-width:150px;}
+.orderticket-saxa{font-size:16px;font-weight:700;color:#000;}
+.orderticket-code{font-size:34px;font-weight:800;line-height:1;color:#000;}
+.orderticket-name{font-size:16px;font-weight:700;color:#000;}
 .orderticket-date{background:#000;color:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap;flex:none;}
 .orderticket-rows{display:flex;flex-direction:column;}
 .orderticket-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px dashed #999;}
@@ -1971,11 +1970,11 @@ function buildOrderTicketHTML(code, iso, row, cardId){
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
       <div class="orderticket-kicker">🦀 KARMTO</div>
       <div class="orderticket-head">
-        ${code!=='00' ? `<div class="orderticket-codeline"><span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span></div>` : ''}
-        <div class="orderticket-subrow">
-          <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
-          <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+        <div class="orderticket-titletext">
+          ${code!=='00' ? `<span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span>` : ''}
+          <span class="orderticket-name">${escapeHtml(branchAreaLabel)}</span>
         </div>
+        <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
       </div>
       <div class="orderticket-rows">${rowsHtml}</div>
     </div>`;

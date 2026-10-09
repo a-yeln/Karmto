@@ -163,18 +163,29 @@ function check(label, cond, extra) {
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 
-  // ===== Test 6b: area name and the date pill are on the same line (same flex row), per feedback =====
-  const subrowCheck = await page.evaluate((html) => {
+  // ===== Test 6b: compact layout — "สาขา {code}" + area name + date pill all share ONE single row (orderticket-head),
+  // per feedback ("ให้กระชับขึ้น สาขายกไปบรรทัดเดียวกับชื่อร้านก็ได้") =====
+  const compactCheck = await page.evaluate((html) => {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
+    const saxa = wrap.querySelector('.orderticket-saxa');
+    const codeEl = wrap.querySelector('.orderticket-code');
     const name = wrap.querySelector('.orderticket-name');
     const date = wrap.querySelector('.orderticket-date');
-    const sameParent = name && date && name.parentElement === date.parentElement && name.parentElement.classList.contains('orderticket-subrow');
+    const titletext = wrap.querySelector('.orderticket-titletext');
+    const r = {
+      saxaAndNameSameLine: saxa && name && saxa.parentElement === name.parentElement && saxa.parentElement === titletext,
+      codeAndNameSameLine: codeEl && name && codeEl.parentElement === name.parentElement,
+      dateIsSiblingOfTitletext: date && titletext && date.parentElement === titletext.parentElement,
+    };
     wrap.remove();
-    return sameParent;
+    return r;
   }, ticket.html);
-  allPass &= check('Area name and date pill share the same row (orderticket-subrow)', subrowCheck, subrowCheck);
+  console.log('Compact layout check:', JSON.stringify(compactCheck));
+  allPass &= check('"สาขา" and the area name share the same line (orderticket-titletext)', compactCheck.saxaAndNameSameLine, compactCheck);
+  allPass &= check('Big code number and area name share the same line too', compactCheck.codeAndNameSameLine, compactCheck);
+  allPass &= check('Date pill sits alongside the title text, same head row', compactCheck.dateIsSiblingOfTitletext, compactCheck);
 
   // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
   // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====

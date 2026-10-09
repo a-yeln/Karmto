@@ -148,10 +148,16 @@ function check(label, cond, extra) {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
+    const bigname = wrap.querySelector('.orderticket-bigname');
+    const date = wrap.querySelector('.orderticket-date');
+    const block = wrap.querySelector('.orderticket-00block');
     const r = {
       saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
       code: wrap.querySelector('.orderticket-code')?.textContent,
-      name: wrap.querySelector('.orderticket-name')?.textContent,
+      subrowName: wrap.querySelector('.orderticket-name')?.textContent,
+      bigname: bigname?.textContent,
+      // "บาลานซ์" ตามที่ขอ — ชื่อใหญ่ + วันที่ ต้องอยู่ในกล่องกึ่งกลางเดียวกัน (ไม่ใช่แยกฝั่งซ้าย-ขวาแบบสาขาที่มีเลขโค้ด)
+      bignameAndDateCentered: block && bigname && date && bigname.parentElement === block && date.parentElement === block,
     };
     wrap.remove();
     return r;
@@ -159,7 +165,9 @@ function check(label, cond, extra) {
   console.log('Branch 00 head parts:', JSON.stringify(codeName00));
   allPass &= check('Branch 00 has no "สาขา" prefix', codeName00.saxa === undefined, codeName00.saxa);
   allPass &= check('Branch 00 shows NO code number at all (per feedback: "ไม่ต้องใส่ 00")', codeName00.code === undefined, codeName00.code);
-  allPass &= check('Branch 00 name line shows "ธงหมูกระทะ"', codeName00.name === 'ธงหมูกระทะ', codeName00.name);
+  allPass &= check('Branch 00 has no separate subrow name element (uses the centered big-name block instead)', codeName00.subrowName === undefined, codeName00.subrowName);
+  allPass &= check('Branch 00 shows "ธงหมูกระทะ" big and full (per feedback: "ให้ตัวใหญ่เต็มคำ")', codeName00.bigname === 'ธงหมูกระทะ', codeName00.bigname);
+  allPass &= check('Branch 00 big name + date are centered together in one balanced block (per feedback: "บาลานซ์ด้วย")', codeName00.bignameAndDateCentered, codeName00.bignameAndDateCentered);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 

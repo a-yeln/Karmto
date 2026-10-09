@@ -158,10 +158,23 @@ function check(label, cond, extra) {
   }, ticket00);
   console.log('Branch 00 head parts:', JSON.stringify(codeName00));
   allPass &= check('Branch 00 has no "สาขา" prefix', codeName00.saxa === undefined, codeName00.saxa);
-  allPass &= check('Branch 00 big-code element shows "00"', codeName00.code === '00', codeName00.code);
+  allPass &= check('Branch 00 shows NO code number at all (per feedback: "ไม่ต้องใส่ 00")', codeName00.code === undefined, codeName00.code);
   allPass &= check('Branch 00 name line shows "ธงหมูกระทะ"', codeName00.name === 'ธงหมูกระทะ', codeName00.name);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
+
+  // ===== Test 6b: area name and the date pill are on the same line (same flex row), per feedback =====
+  const subrowCheck = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const name = wrap.querySelector('.orderticket-name');
+    const date = wrap.querySelector('.orderticket-date');
+    const sameParent = name && date && name.parentElement === date.parentElement && name.parentElement.classList.contains('orderticket-subrow');
+    wrap.remove();
+    return sameParent;
+  }, ticket.html);
+  allPass &= check('Area name and date pill share the same row (orderticket-subrow)', subrowCheck, subrowCheck);
 
   // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
   // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====

@@ -2380,8 +2380,13 @@ async function renderMessages(){
   const phatNet = Math.max(totals.p6 - Number(leftIn.p6||0), 0);
   // ถ้าวันนี้ไม่มีออเดอร์เชอรี่เลย (totals.p6===0) ไม่ต้องขึ้นบรรทัดนี้ — ไม่มีออเดอร์จะบอกจำนวนที่ต้องส่งทำไม
   const phatLines = [`🚩พี่พัฒน์`, '', ...(Number(totals.p6||0)>0 ? [`• เชอรี่ ${phatNet}${Number(leftIn.p6||0)>0?` (สั่ง ${totals.p6} − เหลือจากเมื่อวาน ${leftIn.p6})`:''}`] : []), `• เหลือออก ${leftoverOutList || '-'}`];
-  const debtRows = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0])).map(([code,row])=>`${branchShortLabel(code)} : ${Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0))}`);
-  const debtLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...debtRows];
+  // ข้อความแจ้งหนี้แยกเป็นทีละสาขา (1 สาขา = 1 ก้อนข้อความ คัดลอก/แก้ไข/ส่งแยกกันได้) แทนที่จะรวมทุกสาขาไว้ในก้อนเดียว —
+  // แต่ละสาขามีคนรับผิดชอบ/ช่องทางส่งของตัวเอง รวมเป็นลิสต์เดียวก้อนเดียวส่งต่อให้ใครไม่ได้จริง ต้องแยกคัดลอกทีละสาขาอยู่ดี
+  const debtBranchEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0]));
+  const debtBlocks = debtBranchEntries.map(([code,row])=>{
+    const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
+    return {tag:`debt-${code}`, cat:'debt', label:`ข้อความแจ้งหนี้ — ${branchName(code)}`, autoText:[`💢${dateStr}💢`, '', `${branchShortLabel(code)} : ${amount}`].join('\n')};
+  });
   const overrides = dayData.messageOverrides || {};
   // ถ้าเคยกดแก้ไข/เพิ่มเติมข้อความส่วนไหนไว้ของวันนี้แล้ว ให้โชว์ข้อความที่แก้ไว้แทนข้อความที่ระบบสร้างอัตโนมัติ
   // (เผื่อกรณีสั่งเองไม่ต้องสั่งมนต์/พี่พัฒน์ หรืออยากเพิ่มข้อความอื่นเข้าไปในข้อความที่จะส่ง)
@@ -2390,7 +2395,7 @@ async function renderMessages(){
     {tag:'mahkard', label:'ข้อความสั่งม๊ะก๊าด', autoText:mahkardLines.join('\n')},
     {tag:'monk', label:'ข้อความสั่งมนต์', autoText:monkLines.join('\n')},
     {tag:'phat', label:'ข้อความถึงพี่พัฒน์', autoText:phatLines.join('\n')},
-    {tag:'debt', label:'ข้อความแจ้งหนี้', autoText:debtLines.join('\n')},
+    ...debtBlocks,
   ].map(b=>({...b, text: Object.prototype.hasOwnProperty.call(overrides,b.tag) ? overrides[b.tag] : b.autoText, edited: Object.prototype.hasOwnProperty.call(overrides,b.tag)}));
   const area = document.getElementById('messagesArea');
   const MSG_SEP = '\n\n————————————————————\n\n'; // คั่นระหว่างส่วนตอน "คัดลอกทั้งหมด" — เอาเฉพาะเนื้อหา ไม่รวมหัวข้อ/แท็ก
@@ -2400,7 +2405,7 @@ async function renderMessages(){
       const open = !!msgBlockOpen[b.tag];
       return `<div class="msgblock">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-msgblocktoggle="${i}">
-        <span class="tag ${b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
+        <span class="tag ${b.cat || b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
         <div style="display:flex;align-items:center;gap:6px;flex:none;">
           <button class="iconbtn" data-copy="${i}" aria-label="คัดลอกข้อความส่วนนี้" title="คัดลอกข้อความ">📋</button>
           <button class="iconbtn" data-msgedit="${i}" aria-label="แก้ไขข้อความนี้" title="แก้ไขข้อความ">✎</button>

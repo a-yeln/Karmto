@@ -151,13 +151,16 @@ function check(label, cond, extra) {
     const bigname = wrap.querySelector('.orderticket-bigname');
     const date = wrap.querySelector('.orderticket-date');
     const block = wrap.querySelector('.orderticket-00block');
+    const topline = wrap.querySelector('.orderticket-topline');
+    const kicker = wrap.querySelector('.orderticket-kicker');
     const r = {
       saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
       code: wrap.querySelector('.orderticket-code')?.textContent,
       subrowName: wrap.querySelector('.orderticket-name')?.textContent,
       bigname: bigname?.textContent,
-      // "บาลานซ์" ตามที่ขอ — ชื่อใหญ่ + วันที่ ต้องอยู่ในกล่องกึ่งกลางเดียวกัน (ไม่ใช่แยกฝั่งซ้าย-ขวาแบบสาขาที่มีเลขโค้ด)
-      bignameAndDateCentered: block && bigname && date && bigname.parentElement === block && date.parentElement === block,
+      bignameAlone: block && bigname && bigname.parentElement === block && block.children.length === 1,
+      // วันที่ขึ้นไปอยู่บรรทัดเดียวกับ 🦀 KARMTO ชิดขวา (ย้ายออกจากบล็อกชื่อใหญ่ด้านล่างแล้ว)
+      dateSharesTopWithKicker: topline && date && kicker && date.parentElement === topline && kicker.parentElement === topline,
     };
     wrap.remove();
     return r;
@@ -167,7 +170,8 @@ function check(label, cond, extra) {
   allPass &= check('Branch 00 shows NO code number at all (per feedback: "ไม่ต้องใส่ 00")', codeName00.code === undefined, codeName00.code);
   allPass &= check('Branch 00 has no separate subrow name element (uses the centered big-name block instead)', codeName00.subrowName === undefined, codeName00.subrowName);
   allPass &= check('Branch 00 shows "ธงหมูกระทะ" big and full (per feedback: "ให้ตัวใหญ่เต็มคำ")', codeName00.bigname === 'ธงหมูกระทะ', codeName00.bigname);
-  allPass &= check('Branch 00 big name + date are centered together in one balanced block (per feedback: "บาลานซ์ด้วย")', codeName00.bignameAndDateCentered, codeName00.bignameAndDateCentered);
+  allPass &= check('Branch 00 big-name block holds only the name (date moved up to the top line)', codeName00.bignameAlone, codeName00.bignameAlone);
+  allPass &= check('Branch 00 date now shares the top line with 🦀 KARMTO, on the right (per feedback: "เอาวันที่ขึ้นไปอยู่บรรทัดเดียวกันทางขวา")', codeName00.dateSharesTopWithKicker, codeName00.dateSharesTopWithKicker);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 

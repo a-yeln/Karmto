@@ -1974,12 +1974,15 @@ function buildOrderTicketHTML(code, iso, row, cardId){
     </div>`;
   }).join('');
   // สาขา 00 ไม่มีเลขรหัสให้โชว์ใหญ่แบบสาขาอื่น เลยใช้เลย์เอาต์คนละแบบ: ชื่อเต็มคำใหญ่จัดกึ่งกลางทั้งแถว (ไม่ใช่ชิดซ้ายเหมือนสาขา
-  // มีเลข) กันดูเอียง/มีที่ว่างด้านใดด้านหนึ่งเยอะผิดสังเกตุ — KARMTO ยังอยู่แถวบนสุดชิดขวาเหมือนเดิมทั้งสองแบบ
+  // มีเลข) กันดูเอียง/มีที่ว่างด้านใดด้านหนึ่งเยอะผิดสังเกตุ — วันที่ขึ้นไปอยู่บรรทัดเดียวกับ KARMTO ชิดขวา (ใช้
+  // orderticket-topline เดิมร่วมกับสาขาอื่น) ส่วนบล็อกชื่อใหญ่เหลือแค่ชื่อร้านอย่างเดียว
   const headHtml = code==='00'
-    ? `<div class="orderticket-kicker orderticket-kicker-top">🦀 KARMTO</div>
+    ? `<div class="orderticket-topline">
+         <div class="orderticket-kicker">🦀 KARMTO</div>
+         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+       </div>
        <div class="orderticket-00block">
          <div class="orderticket-bigname">${escapeHtml(branchAreaLabel)}</div>
-         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
        </div>`
     : `<div class="orderticket-topline">
          <div class="orderticket-codeline"><span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span></div>

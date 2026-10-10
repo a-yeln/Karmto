@@ -1727,7 +1727,15 @@ function renderActivityFeed_(){
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
-function branchCount(orders){ return Object.values(orders).filter(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).length; }
+// นับจำนวนสาขาที่สั่งวันนี้ แยกเป็น "สาขาปกติ" + "สาขาแยกส่ง" (ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ในตั้งค่า) ชัดเจน
+// แทนที่จะรวมเป็นตัวเลขก้อนเดียวเงียบๆ — คืนเป็น label เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย หรือแค่ "15" เฉยๆ ถ้าไม่มี
+// สาขาแยกส่งเลย (ไม่ขึ้น "+0" ให้รก) ใช้ร่วมกันทั้งเฮดบาร์/แดชบอร์ด/ข้อความแจ้งหนี้-สรุปยอดรวม กันตัวเลขแต่ละจุดไม่ตรงกัน
+function branchCountLabel(orders){
+  const entries = Object.entries(orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const normal = entries.filter(([c])=>!isFeeExempt(c)).length;
+  const separate = entries.filter(([c])=>isFeeExempt(c)).length;
+  return `${normal}${separate?('+'+separate):''}`;
+}
 function computeFee(totals){ const kg = KG_FEE_IDS.reduce((s,id)=>s+totals[id],0); const oyster = totals.p7; return {kg, oyster, kgAmt:kg*5, oysterAmt:oyster*3, total:kg*5+oyster*3}; }
 // รวมยอดสินค้าอื่นๆ (นอกแคตตาล็อก) เข้ายอดบิลของสาขาด้วยเสมอ ไม่ว่าจะเป็นสาขาปกติหรือสาขา "แยกส่ง" — เพราะ "แยกส่ง" มีผลแค่กับ
 // Brand Fee เท่านั้น (ดู isFeeExempt/computeFeeTotals) ไม่เกี่ยวกับยอดบิล/รายได้ที่เรียกเก็บจากสาขาซึ่งนับทุกสาขาอยู่แล้ว
@@ -1739,7 +1747,7 @@ let statsRenderSeq_ = 0;
 async function renderStats(){
   const mySeq = ++statsRenderSeq_;
   const dateAtStart = currentDate;
-  const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders);
+  const totals = computeTotals(dayData.orders); const n = branchCountLabel(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders); const fee = computeFee(feeTotals);
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
   const unpaidCount = entries.filter(([c])=>!dayData.billingPaid[c]).length;
@@ -2395,9 +2403,7 @@ async function renderMessages(){
   // ส่งจริงคนละที่) — เลยแยกนับ แล้วโชว์เป็น "ปกติ+แยกส่ง" ชัดเจน เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย ถ้าไม่มีเลยก็
   // โชว์แค่ตัวเลขเดียวเหมือนเดิม ไม่ต้องขึ้น "+0" ให้รก
   const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
-  const normalBranchCount = orderEntries.filter(([c])=>!isFeeExempt(c)).length;
-  const separateBranchCount = orderEntries.filter(([c])=>isFeeExempt(c)).length;
-  const orderCountLabel = `${normalBranchCount}${separateBranchCount?('+'+separateBranchCount):''}`;
+  const orderCountLabel = branchCountLabel(dayData.orders);
   const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const leftIn = prevDay.leftoverOut || {};
@@ -9659,7 +9665,7 @@ async function renderDashboard(){
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
   const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
   const profitToday = revenue - totalCostToday - fee.total;
-  setDashDual_('dashBranches', entries.length);
+  setDashDual_('dashBranches', branchCountLabel(dayData.orders));
   setDashDual_('dashRevenue', money(revenue));
   setDashDual_('dashFee', money(fee.total));
   setDashDual_('dashCogsToday', money(totalCostToday));

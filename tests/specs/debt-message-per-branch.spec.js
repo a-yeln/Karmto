@@ -105,6 +105,21 @@ function check(label, cond, extra) {
   });
   allPass &= check('Summary-total block "ORDER" header also splits normal+separate as "2+1"', summaryText && summaryText.includes('ORDER 2+1 สาขา'), summaryText);
 
+  // ===== Test 3b: เฮดบาร์ (#statBarBranchChip) กับการ์ด "สาขาที่สั่ง" หน้าแดชบอร์ด ก็ต้องแยกนับ "2+1" เหมือนกัน =====
+  const headerAndDashboard = await page.evaluate(async () => {
+    await renderStats();
+    await switchTab('dashboard');
+    await renderDashboard();
+    await switchTab('order');
+    return {
+      statBar: document.getElementById('statBarBranchChip')?.textContent,
+      dashBranchesWide: document.getElementById('dashBranchesWide')?.textContent,
+    };
+  });
+  console.log('Header bar + Dashboard tile:', JSON.stringify(headerAndDashboard));
+  allPass &= check('Header bar "สาขา" chip splits normal+separate as "2+1"', headerAndDashboard.statBar === 'สาขา2+1', headerAndDashboard.statBar);
+  allPass &= check('Dashboard "สาขาที่สั่ง" tile splits normal+separate as "2+1"', headerAndDashboard.dashBranchesWide === '2+1', headerAndDashboard.dashBranchesWide);
+
   // ===== Test 4: วันที่ไม่มีสาขาแยกส่งสั่งเลย -> ไม่โชว์หัวข้อ "แยกส่ง" และ "ORDER N" ไม่มี "+0" ต่อท้าย =====
   await page.evaluate(async () => {
     window.__store['day:2026-10-10'] = { orders: { '01': { p1: 5 }, '02': { p1: 3 } }, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:'' };

@@ -226,10 +226,19 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
    ธรรมดา เพราะของจริงคนแพ็คต้องกาเช็คทีละรายการระหว่างใส่กล่อง ไม่ใช่แค่อ่านอย่างเดียว — ต่างจาก .receipt (บิลเก็บเงิน)
    ที่เน้นอ่านละเอียด มีราคา/ที่อยู่ ป้ายนี้มีแค่ชื่อสินค้า+จำนวนเท่านั้น ไม่มีราคาเลย */
 .orderticket{background:#fff;color:#000;border:3px solid #000;border-radius:10px;padding:16px;font-family:'IBM Plex Sans Thai',sans-serif;width:380px;flex:none;box-sizing:border-box;}
-.orderticket-kicker{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#000;margin-bottom:8px;}
-.orderticket-kicker .ok-brand{display:flex;align-items:center;gap:4px;}
-.orderticket-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:3px solid #000;}
-.orderticket-branch{font-size:28px;font-weight:800;line-height:1.15;color:#000;flex:1;min-width:0;}
+.orderticket-head{margin-bottom:10px;}
+.orderticket-topline{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 10px;margin-bottom:6px;}
+.orderticket-codeline{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.orderticket-saxa{font-size:22px;font-weight:700;color:#000;}
+.orderticket-code{font-size:46px;font-weight:800;line-height:1;color:#000;}
+.orderticket-kicker{font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;text-align:right;flex:none;}
+.orderticket-subrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-name{font-size:16px;font-weight:700;color:#000;}
+/* เลย์เอาต์พิเศษเฉพาะสาขา 00 (ธงหมูกระทะ) — ไม่มีเลขรหัสให้โชว์ใหญ่แบบสาขาอื่น เลยให้ชื่อเต็มคำใหญ่แทน จัดกึ่งกลางทั้งแถว
+   กันดูเอียงว่างด้านใดด้านหนึ่ง (ต่างจากแพทเทิร์น topline/subrow ของสาขาที่มีเลขโค้ด ซึ่งจัดซ้าย-ขวาสองฝั่ง) */
+.orderticket-kicker-top{margin-bottom:8px;}
+.orderticket-00block{display:flex;flex-direction:column;align-items:center;gap:8px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-bigname{font-size:46px;font-weight:800;line-height:1.1;color:#000;text-align:center;width:100%;}
 .orderticket-date{background:#000;color:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;white-space:nowrap;flex:none;}
 .orderticket-rows{display:flex;flex-direction:column;}
 .orderticket-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px dashed #999;}
@@ -1718,7 +1727,15 @@ function renderActivityFeed_(){
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
-function branchCount(orders){ return Object.values(orders).filter(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).length; }
+// นับจำนวนสาขาที่สั่งวันนี้ แยกเป็น "สาขาปกติ" + "สาขาแยกส่ง" (ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ในตั้งค่า) ชัดเจน
+// แทนที่จะรวมเป็นตัวเลขก้อนเดียวเงียบๆ — คืนเป็น label เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย หรือแค่ "15" เฉยๆ ถ้าไม่มี
+// สาขาแยกส่งเลย (ไม่ขึ้น "+0" ให้รก) ใช้ร่วมกันทั้งเฮดบาร์/แดชบอร์ด/ข้อความแจ้งหนี้-สรุปยอดรวม กันตัวเลขแต่ละจุดไม่ตรงกัน
+function branchCountLabel(orders){
+  const entries = Object.entries(orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const normal = entries.filter(([c])=>!isFeeExempt(c)).length;
+  const separate = entries.filter(([c])=>isFeeExempt(c)).length;
+  return `${normal}${separate?('+'+separate):''}`;
+}
 function computeFee(totals){ const kg = KG_FEE_IDS.reduce((s,id)=>s+totals[id],0); const oyster = totals.p7; return {kg, oyster, kgAmt:kg*5, oysterAmt:oyster*3, total:kg*5+oyster*3}; }
 // รวมยอดสินค้าอื่นๆ (นอกแคตตาล็อก) เข้ายอดบิลของสาขาด้วยเสมอ ไม่ว่าจะเป็นสาขาปกติหรือสาขา "แยกส่ง" — เพราะ "แยกส่ง" มีผลแค่กับ
 // Brand Fee เท่านั้น (ดู isFeeExempt/computeFeeTotals) ไม่เกี่ยวกับยอดบิล/รายได้ที่เรียกเก็บจากสาขาซึ่งนับทุกสาขาอยู่แล้ว
@@ -1730,7 +1747,7 @@ let statsRenderSeq_ = 0;
 async function renderStats(){
   const mySeq = ++statsRenderSeq_;
   const dateAtStart = currentDate;
-  const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders);
+  const totals = computeTotals(dayData.orders); const n = branchCountLabel(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders); const fee = computeFee(feeTotals);
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
   const unpaidCount = entries.filter(([c])=>!dayData.billingPaid[c]).length;
@@ -1947,8 +1964,11 @@ function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrder
 // ตัวที่ไม่ได้สั่ง (qty=0) ให้ช่องจำนวนว่างไว้ + แถวจางลง เอาไว้ให้เห็นครบทุกสินค้าในป้ายเดียวเทียบง่ายว่าตัวไหนไม่ได้สั่งบ้าง
 // ป้ายนี้ใช้ชื่อย่อ "ธงหมูกระทะ" สำหรับสาขา 00 โดยเฉพาะ (ตามที่ขอ) แทนชื่อเต็มจาก branchName() ("ธงหมูกะทะ หลักสี่")
 // ซึ่งยังใช้แสดงผลทุกที่อื่นในแอปตามเดิม — เปลี่ยนแค่ป้ายใบนี้ใบเดียว ไม่แตะข้อมูลชื่อสาขาจริงในหน้าตั้งค่าเลย
+// บรรทัดชื่อ (บรรทัด 2) ใช้แค่ชื่อพื้นที่ล้วนๆ (b.area/b.label) ไม่เอา "สาขา {code}" นำหน้าแบบ branchName() เพราะตัวเลข
+// รหัสสาขาโชว์ใหญ่อยู่แล้วบรรทัดบน — ถ้าเอาทั้งก้อนมาด้วยจะซ้ำเลข (เช่น "11" ใหญ่ ตามด้วย "สาขา 11 ลำลูกกาคลอง4")
 function buildOrderTicketHTML(code, iso, row, cardId){
-  const branchLabel = code==='00' ? 'ธงหมูกระทะ' : branchName(code);
+  const branchObj = branchByCode(code);
+  const branchAreaLabel = code==='00' ? 'ธงหมูกระทะ' : (branchObj ? (branchObj.label || branchObj.area) : branchName(code));
   const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
   const rowsHtml = items.map(it=>{
@@ -1961,13 +1981,28 @@ function buildOrderTicketHTML(code, iso, row, cardId){
       <div class="orderticket-qty">${ordered?`${it.qty}${it.unit?`<span class="oti-unit">${escapeHtml(it.unit)}</span>`:''}`:''}</div>
     </div>`;
   }).join('');
+  // สาขา 00 ไม่มีเลขรหัสให้โชว์ใหญ่แบบสาขาอื่น เลยใช้เลย์เอาต์คนละแบบ: ชื่อเต็มคำใหญ่จัดกึ่งกลางทั้งแถว (ไม่ใช่ชิดซ้ายเหมือนสาขา
+  // มีเลข) กันดูเอียง/มีที่ว่างด้านใดด้านหนึ่งเยอะผิดสังเกตุ — วันที่ขึ้นไปอยู่บรรทัดเดียวกับ KARMTO ชิดขวา (ใช้
+  // orderticket-topline เดิมร่วมกับสาขาอื่น) ส่วนบล็อกชื่อใหญ่เหลือแค่ชื่อร้านอย่างเดียว
+  const headHtml = code==='00'
+    ? `<div class="orderticket-topline">
+         <div class="orderticket-kicker">🦀 KARMTO</div>
+         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+       </div>
+       <div class="orderticket-00block">
+         <div class="orderticket-bigname">${escapeHtml(branchAreaLabel)}</div>
+       </div>`
+    : `<div class="orderticket-topline">
+         <div class="orderticket-codeline"><span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span></div>
+         <div class="orderticket-kicker">🦀 KARMTO</div>
+       </div>
+       <div class="orderticket-subrow">
+         <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
+         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+       </div>`;
   return `
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
-      <div class="orderticket-kicker"><div class="ok-brand">🦀 KARMTO</div><div>ป้ายแพ็คออเดอร์</div></div>
-      <div class="orderticket-head">
-        <div class="orderticket-branch">${escapeHtml(branchLabel)}</div>
-        <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
-      </div>
+      <div class="orderticket-head">${headHtml}</div>
       <div class="orderticket-rows">${rowsHtml}</div>
     </div>`;
 }
@@ -2363,8 +2398,13 @@ async function readOrderImages(fileList){
 let msgCardOpen = false; // การ์ด "ข้อความส่ง" ใหญ่ พับไว้เป็นค่าเริ่มต้น (ย้ายมาอยู่ท้ายแท็บออเดอร์วันนี้ที่มีการ์ดอื่นเยอะอยู่แล้ว)
 let msgBlockOpen = {all:false, mahkard:false, monk:false, phat:false, debt:false}; // แต่ละ 5 ส่วนย่อยพับไว้เป็นค่าเริ่มต้นเหมือนกัน กดดูทีละส่วนที่ต้องการ
 async function renderMessages(){
-  const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
-  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
+  const totals = computeTotals(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
+  // "ORDER N สาขา" ต้องไม่เอาสาขาที่ติ๊ก "แยกส่ง" ไปนับรวมกับสาขาปกติเงียบๆ (จะทำให้ตัวเลขดูเหมือนรวมเป็นก้อนเดียวกันทั้งที่
+  // ส่งจริงคนละที่) — เลยแยกนับ แล้วโชว์เป็น "ปกติ+แยกส่ง" ชัดเจน เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย ถ้าไม่มีเลยก็
+  // โชว์แค่ตัวเลขเดียวเหมือนเดิม ไม่ต้องขึ้น "+0" ให้รก
+  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const orderCountLabel = branchCountLabel(dayData.orders);
+  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const leftIn = prevDay.leftoverOut || {};
   // กุ้งตัดปากตอนนี้อยู่ในระบบ "ของเหลือ" แล้วด้วย (เดิมไม่ได้หัก) — หักของเหลือจากเมื่อวานออกจากยอดที่ต้องสั่งม๊ะก๊าดจริงเหมือนที่ทำกับมนต์
@@ -2380,13 +2420,22 @@ async function renderMessages(){
   const phatNet = Math.max(totals.p6 - Number(leftIn.p6||0), 0);
   // ถ้าวันนี้ไม่มีออเดอร์เชอรี่เลย (totals.p6===0) ไม่ต้องขึ้นบรรทัดนี้ — ไม่มีออเดอร์จะบอกจำนวนที่ต้องส่งทำไม
   const phatLines = [`🚩พี่พัฒน์`, '', ...(Number(totals.p6||0)>0 ? [`• เชอรี่ ${phatNet}${Number(leftIn.p6||0)>0?` (สั่ง ${totals.p6} − เหลือจากเมื่อวาน ${leftIn.p6})`:''}`] : []), `• เหลือออก ${leftoverOutList || '-'}`];
-  // ข้อความแจ้งหนี้แยกเป็นทีละสาขา (1 สาขา = 1 ก้อนข้อความ คัดลอก/แก้ไข/ส่งแยกกันได้) แทนที่จะรวมทุกสาขาไว้ในก้อนเดียว —
-  // แต่ละสาขามีคนรับผิดชอบ/ช่องทางส่งของตัวเอง รวมเป็นลิสต์เดียวก้อนเดียวส่งต่อให้ใครไม่ได้จริง ต้องแยกคัดลอกทีละสาขาอยู่ดี
-  const debtBranchEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0]));
-  const debtBlocks = debtBranchEntries.map(([code,row])=>{
+  // ข้อความแจ้งหนี้กลับมาเป็นก้อนเดียวเหมือนเดิม (ไม่แยกทีละสาขาแบบที่เคยลองแล้ว) แต่แบ่งรายชื่อภายในก้อนเดียวกันเป็น 2 ส่วน:
+  // สาขาปกติ (รวมส่งบริษัท) ก่อน แล้วค่อยมีหัวข้อแยกต่อท้ายสำหรับสาขาที่ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ไว้แล้วใน
+  // ตั้งค่าสาขา (b.separate) เพราะยอดของสาขากลุ่มนี้ส่งแยกไปคนละที่ ไม่ได้รวมอยู่ในก้อนของบริษัท — ใช้ติ๊กเดิมที่มีอยู่แล้ว
+  // (เดิมใช้ยกเว้นค่าธรรมเนียมแบรนด์ใน isFeeExempt) ไม่ใช่ตรวจจากรหัสสาขาเจาะจงเอง กันพลาดถ้ามีการเพิ่ม/ติ๊กสาขาใหม่ทีหลัง
+  const debtBranchEntries = orderEntries.slice().sort((a,b)=>a[0].localeCompare(b[0]));
+  const debtRowText = ([code,row])=>{
     const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
-    return {tag:`debt-${code}`, cat:'debt', label:`ข้อความแจ้งหนี้ — ${branchName(code)}`, autoText:[`💢${dateStr}💢`, '', `${branchShortLabel(code)} : ${amount}`].join('\n')};
-  });
+    return `${branchShortLabel(code)} : ${amount}`;
+  };
+  const debtNormalRows = debtBranchEntries.filter(([code])=>!isFeeExempt(code)).map(debtRowText);
+  const debtSeparateRows = debtBranchEntries.filter(([code])=>isFeeExempt(code)).map(debtRowText);
+  const debtLines = [
+    `💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '',
+    ...debtNormalRows,
+    ...(debtSeparateRows.length ? ['', 'แยกส่ง', ...debtSeparateRows] : []),
+  ];
   const overrides = dayData.messageOverrides || {};
   // ถ้าเคยกดแก้ไข/เพิ่มเติมข้อความส่วนไหนไว้ของวันนี้แล้ว ให้โชว์ข้อความที่แก้ไว้แทนข้อความที่ระบบสร้างอัตโนมัติ
   // (เผื่อกรณีสั่งเองไม่ต้องสั่งมนต์/พี่พัฒน์ หรืออยากเพิ่มข้อความอื่นเข้าไปในข้อความที่จะส่ง)
@@ -2395,7 +2444,7 @@ async function renderMessages(){
     {tag:'mahkard', label:'ข้อความสั่งม๊ะก๊าด', autoText:mahkardLines.join('\n')},
     {tag:'monk', label:'ข้อความสั่งมนต์', autoText:monkLines.join('\n')},
     {tag:'phat', label:'ข้อความถึงพี่พัฒน์', autoText:phatLines.join('\n')},
-    ...debtBlocks,
+    {tag:'debt', label:'ข้อความแจ้งหนี้', autoText:debtLines.join('\n')},
   ].map(b=>({...b, text: Object.prototype.hasOwnProperty.call(overrides,b.tag) ? overrides[b.tag] : b.autoText, edited: Object.prototype.hasOwnProperty.call(overrides,b.tag)}));
   const area = document.getElementById('messagesArea');
   const MSG_SEP = '\n\n————————————————————\n\n'; // คั่นระหว่างส่วนตอน "คัดลอกทั้งหมด" — เอาเฉพาะเนื้อหา ไม่รวมหัวข้อ/แท็ก
@@ -9616,7 +9665,7 @@ async function renderDashboard(){
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
   const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
   const profitToday = revenue - totalCostToday - fee.total;
-  setDashDual_('dashBranches', entries.length);
+  setDashDual_('dashBranches', branchCountLabel(dayData.orders));
   setDashDual_('dashRevenue', money(revenue));
   setDashDual_('dashFee', money(fee.total));
   setDashDual_('dashCogsToday', money(totalCostToday));

@@ -115,17 +115,92 @@ function check(label, cond, extra) {
   allPass &= check('Unordered item (เนื้อหอยเชอรี่) is present with blank qty and dimmed', !!cherry && cherry.qtyText === '' && cherry.unordered === true, cherry);
   const oyster = ticket.info.find(r => r.name === 'เนื้อหอยนางรม');
   allPass &= check('Ordered item (เนื้อหอยนางรม) shows qty 20 กระปุก and is NOT dimmed', !!oyster && oyster.qtyText.includes('20') && oyster.qtyText.includes('กระปุก') && oyster.unordered === false, oyster);
-  allPass &= check('Ticket includes branch label "สาขา 11"', ticket.html.includes('สาขา 11'), 'ok');
   allPass &= check('Ticket has no leftover "check every box" footer text', !ticket.html.includes('ติ๊ก'), 'ok');
 
+  // ===== Test 5b: kicker is just the KARMTO brand mark now (the "ป้ายแพ็คออเดอร์" label text was cut, per feedback) =====
+  allPass &= check('Kicker no longer shows "ป้ายแพ็คออเดอร์" text', !ticket.html.includes('ป้ายแพ็คออเดอร์'), 'ok');
+  allPass &= check('Kicker still shows the KARMTO brand mark', ticket.html.includes('🦀 KARMTO'), 'ok');
+
+  // ===== Test 5c: "สาขา" prefix + big branch code on one line, plain area name on its own separate line below (no
+  // redundant repeat of the code number within the name line) =====
+  const headParts = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const r = {
+      saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
+      code: wrap.querySelector('.orderticket-code')?.textContent,
+      name: wrap.querySelector('.orderticket-name')?.textContent,
+    };
+    wrap.remove();
+    return r;
+  }, ticket.html);
+  console.log('Branch 11 head parts:', JSON.stringify(headParts));
+  allPass &= check('"สาขา" prefix shown next to the big code number', headParts.saxa === 'สาขา', headParts.saxa);
+  allPass &= check('Big branch-code element shows just "11"', headParts.code === '11', headParts.code);
+  allPass &= check('Name line shows ONLY the area name on its own line (no redundant "11" repeated)', headParts.name === 'ลำลูกกาคลอง4', headParts.name);
+
   // ===== Test 6: branch 00 (flagship store) shows the short label "ธงหมูกระทะ" on the ticket specifically (not a literal
-  // "สาขา 00", and not the full branchName() area text used everywhere else in the app) =====
+  // "สาขา 00", and not the full branchName() area text used everywhere else in the app) — and has no "สาขา" prefix,
+  // matching how the rest of the app never shows "สาขา 00" for the flagship store =====
   const ticket00 = await page.evaluate(() => buildOrderTicketHTML('00', '2026-10-08', {p1:1}));
-  const header00 = ticket00.match(/orderticket-branch">([^<]*)</)[1];
-  console.log('Branch 00 header:', header00);
-  allPass &= check('Branch 00 shows "ธงหมูกระทะ" on the ticket', header00 === 'ธงหมูกระทะ', header00);
+  const codeName00 = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const bigname = wrap.querySelector('.orderticket-bigname');
+    const date = wrap.querySelector('.orderticket-date');
+    const block = wrap.querySelector('.orderticket-00block');
+    const topline = wrap.querySelector('.orderticket-topline');
+    const kicker = wrap.querySelector('.orderticket-kicker');
+    const r = {
+      saxa: wrap.querySelector('.orderticket-saxa')?.textContent,
+      code: wrap.querySelector('.orderticket-code')?.textContent,
+      subrowName: wrap.querySelector('.orderticket-name')?.textContent,
+      bigname: bigname?.textContent,
+      bignameAlone: block && bigname && bigname.parentElement === block && block.children.length === 1,
+      // วันที่ขึ้นไปอยู่บรรทัดเดียวกับ 🦀 KARMTO ชิดขวา (ย้ายออกจากบล็อกชื่อใหญ่ด้านล่างแล้ว)
+      dateSharesTopWithKicker: topline && date && kicker && date.parentElement === topline && kicker.parentElement === topline,
+    };
+    wrap.remove();
+    return r;
+  }, ticket00);
+  console.log('Branch 00 head parts:', JSON.stringify(codeName00));
+  allPass &= check('Branch 00 has no "สาขา" prefix', codeName00.saxa === undefined, codeName00.saxa);
+  allPass &= check('Branch 00 shows NO code number at all (per feedback: "ไม่ต้องใส่ 00")', codeName00.code === undefined, codeName00.code);
+  allPass &= check('Branch 00 has no separate subrow name element (uses the centered big-name block instead)', codeName00.subrowName === undefined, codeName00.subrowName);
+  allPass &= check('Branch 00 shows "ธงหมูกระทะ" big and full (per feedback: "ให้ตัวใหญ่เต็มคำ")', codeName00.bigname === 'ธงหมูกระทะ', codeName00.bigname);
+  allPass &= check('Branch 00 big-name block holds only the name (date moved up to the top line)', codeName00.bignameAlone, codeName00.bignameAlone);
+  allPass &= check('Branch 00 date now shares the top line with 🦀 KARMTO, on the right (per feedback: "เอาวันที่ขึ้นไปอยู่บรรทัดเดียวกันทางขวา")', codeName00.dateSharesTopWithKicker, codeName00.dateSharesTopWithKicker);
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
+
+  // ===== Test 6b: two-line header layout per latest feedback ("ให้สาขา บรรทัดเดียวกับ 🦀 , ให้ลำลูกกา บรรทัดเดียวกับวันที่")
+  // Line 1 (orderticket-topline): "สาขา {code}" + the KARMTO kicker, same row.
+  // Line 2 (orderticket-subrow): area name + date pill, same row — separate from line 1. =====
+  const lineCheck = await page.evaluate((html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    const saxa = wrap.querySelector('.orderticket-saxa');
+    const codeEl = wrap.querySelector('.orderticket-code');
+    const kicker = wrap.querySelector('.orderticket-kicker');
+    const name = wrap.querySelector('.orderticket-name');
+    const date = wrap.querySelector('.orderticket-date');
+    const topline = wrap.querySelector('.orderticket-topline');
+    const subrow = wrap.querySelector('.orderticket-subrow');
+    const r = {
+      codeAndKickerSameLine: codeEl && kicker && codeEl.closest('.orderticket-topline') === topline && kicker.parentElement === topline,
+      nameAndDateSameLine: name && date && name.parentElement === subrow && date.parentElement === subrow,
+      codeAndNameOnDifferentLines: codeEl && name && codeEl.closest('.orderticket-topline') !== name.closest('.orderticket-subrow') && !topline.contains(name),
+    };
+    wrap.remove();
+    return r;
+  }, ticket.html);
+  console.log('Line layout check:', JSON.stringify(lineCheck));
+  allPass &= check('"สาขา {code}" and the 🦀 KARMTO kicker share the same line (topline)', lineCheck.codeAndKickerSameLine, lineCheck);
+  allPass &= check('Area name and date pill share the same line (subrow)', lineCheck.nameAndDateSameLine, lineCheck);
+  allPass &= check('Code line and name line are separate rows (not merged into one)', lineCheck.codeAndNameOnDifferentLines, lineCheck);
 
   // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
   // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====

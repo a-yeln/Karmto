@@ -2390,8 +2390,15 @@ async function readOrderImages(fileList){
 let msgCardOpen = false; // การ์ด "ข้อความส่ง" ใหญ่ พับไว้เป็นค่าเริ่มต้น (ย้ายมาอยู่ท้ายแท็บออเดอร์วันนี้ที่มีการ์ดอื่นเยอะอยู่แล้ว)
 let msgBlockOpen = {all:false, mahkard:false, monk:false, phat:false, debt:false}; // แต่ละ 5 ส่วนย่อยพับไว้เป็นค่าเริ่มต้นเหมือนกัน กดดูทีละส่วนที่ต้องการ
 async function renderMessages(){
-  const totals = computeTotals(dayData.orders); const n = branchCount(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
-  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
+  const totals = computeTotals(dayData.orders); const dateStr = formatDDMMYYYY(currentDate);
+  // "ORDER N สาขา" ต้องไม่เอาสาขาที่ติ๊ก "แยกส่ง" ไปนับรวมกับสาขาปกติเงียบๆ (จะทำให้ตัวเลขดูเหมือนรวมเป็นก้อนเดียวกันทั้งที่
+  // ส่งจริงคนละที่) — เลยแยกนับ แล้วโชว์เป็น "ปกติ+แยกส่ง" ชัดเจน เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย ถ้าไม่มีเลยก็
+  // โชว์แค่ตัวเลขเดียวเหมือนเดิม ไม่ต้องขึ้น "+0" ให้รก
+  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const normalBranchCount = orderEntries.filter(([c])=>!isFeeExempt(c)).length;
+  const separateBranchCount = orderEntries.filter(([c])=>isFeeExempt(c)).length;
+  const orderCountLabel = `${normalBranchCount}${separateBranchCount?('+'+separateBranchCount):''}`;
+  const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
   const leftIn = prevDay.leftoverOut || {};
   // กุ้งตัดปากตอนนี้อยู่ในระบบ "ของเหลือ" แล้วด้วย (เดิมไม่ได้หัก) — หักของเหลือจากเมื่อวานออกจากยอดที่ต้องสั่งม๊ะก๊าดจริงเหมือนที่ทำกับมนต์
@@ -2411,7 +2418,7 @@ async function renderMessages(){
   // สาขาปกติ (รวมส่งบริษัท) ก่อน แล้วค่อยมีหัวข้อแยกต่อท้ายสำหรับสาขาที่ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ไว้แล้วใน
   // ตั้งค่าสาขา (b.separate) เพราะยอดของสาขากลุ่มนี้ส่งแยกไปคนละที่ ไม่ได้รวมอยู่ในก้อนของบริษัท — ใช้ติ๊กเดิมที่มีอยู่แล้ว
   // (เดิมใช้ยกเว้นค่าธรรมเนียมแบรนด์ใน isFeeExempt) ไม่ใช่ตรวจจากรหัสสาขาเจาะจงเอง กันพลาดถ้ามีการเพิ่ม/ติ๊กสาขาใหม่ทีหลัง
-  const debtBranchEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0]));
+  const debtBranchEntries = orderEntries.slice().sort((a,b)=>a[0].localeCompare(b[0]));
   const debtRowText = ([code,row])=>{
     const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
     return `${branchShortLabel(code)} : ${amount}`;
@@ -2419,7 +2426,7 @@ async function renderMessages(){
   const debtNormalRows = debtBranchEntries.filter(([code])=>!isFeeExempt(code)).map(debtRowText);
   const debtSeparateRows = debtBranchEntries.filter(([code])=>isFeeExempt(code)).map(debtRowText);
   const debtLines = [
-    `💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '',
+    `💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '',
     ...debtNormalRows,
     ...(debtSeparateRows.length ? ['', 'แยกส่ง', ...debtSeparateRows] : []),
   ];

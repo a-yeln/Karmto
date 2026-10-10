@@ -96,7 +96,32 @@ function check(label, cond, extra) {
   allPass &= check('Separate-flagged branch 13S row is present', text.includes('13S : 550'), text);
   allPass &= check('Normal rows come before the "แยกส่ง" heading, which comes before the separate row', idxNormal01 !== -1 && idxNormal01 < idxSeparateHeading && idxSeparateHeading < idx13S, {idxNormal01, idxSeparateHeading, idx13S});
 
-  // ===== Test 3: แก้ไขก้อนข้อความแจ้งหนี้ได้ตามปกติ (ก้อนเดียว ไม่ใช่ทีละสาขา) =====
+  // ===== Test 3: "ORDER N สาขา" ต้องแยกนับสาขาปกติ+สาขาแยกส่ง ชัดเจน (2 ปกติ + 1 แยกส่ง -> "2+1") ทั้งในข้อความแจ้งหนี้
+  // และหัวข้อสรุปยอดรวมทั้งหมด — ไม่เอาไปนับรวมกันเป็นก้อนเดียวเงียบๆ =====
+  allPass &= check('Debt message "ORDER" header splits normal+separate as "2+1"', text.includes('ORDER 2+1 สาขา'), text);
+  const summaryText = await page.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.msgblock')).find(el => el.querySelector('.tag.all'));
+    return el?.querySelector('.msgtext')?.textContent;
+  });
+  allPass &= check('Summary-total block "ORDER" header also splits normal+separate as "2+1"', summaryText && summaryText.includes('ORDER 2+1 สาขา'), summaryText);
+
+  // ===== Test 4: วันที่ไม่มีสาขาแยกส่งสั่งเลย -> ไม่โชว์หัวข้อ "แยกส่ง" และ "ORDER N" ไม่มี "+0" ต่อท้าย =====
+  await page.evaluate(async () => {
+    window.__store['day:2026-10-10'] = { orders: { '01': { p1: 5 }, '02': { p1: 3 } }, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:'' };
+    currentDate = '2026-10-10'; dayData = window.__store['day:2026-10-10']; dayCache_['2026-10-10'] = dayData;
+    await renderMessages();
+  });
+  await page.waitForTimeout(400);
+  await stripBanner(page);
+  const noSeparateText = await page.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.msgblock')).find(el => el.querySelector('.tag.debt'));
+    return el?.querySelector('.msgtext')?.textContent;
+  });
+  console.log('No-separate-branch day debt text:', noSeparateText);
+  allPass &= check('No "แยกส่ง" heading shown when no separate-flagged branch ordered today', noSeparateText && !noSeparateText.includes('แยกส่ง'), noSeparateText);
+  allPass &= check('"ORDER N" header has no "+0" when there are no separate branches', noSeparateText && noSeparateText.includes('ORDER 2 สาขา') && !noSeparateText.includes('+0'), noSeparateText);
+
+  // ===== Test 5: แก้ไขก้อนข้อความแจ้งหนี้ได้ตามปกติ (ก้อนเดียว ไม่ใช่ทีละสาขา) =====
   // การ์ด "ข้อความส่ง" ใหญ่พับไว้เป็นค่าเริ่มต้น (msgCardOpen=false) ต้องกางก่อนถึงจะ interact กับ textarea ข้างในได้จริง
   await page.click('#msgCardToggle');
   await page.waitForTimeout(200);

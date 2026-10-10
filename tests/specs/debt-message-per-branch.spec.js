@@ -62,8 +62,9 @@ function check(label, cond, extra) {
 
   let allPass = true;
 
+  // สาขา 01, 02 เป็นสาขาปกติ, 13S เป็นสาขาที่ติ๊ก "แยกส่ง" ไว้แล้ว (มากับ DEFAULT_BRANCHES, separate:true)
   await page.evaluate(async () => {
-    window.__store['day:2026-10-09'] = { orders: { '01': { p1: 5 }, '02': { p1: 3 }, '10': { p1: 2 } }, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:'' };
+    window.__store['day:2026-10-09'] = { orders: { '01': { p1: 5 }, '02': { p1: 3 }, '13S': { p1: 2 } }, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:'' };
     currentDate = '2026-10-09'; dayData = window.__store['day:2026-10-09']; dayCache_['2026-10-09'] = dayData;
     await switchTab('order');
     await renderMessages();
@@ -71,7 +72,7 @@ function check(label, cond, extra) {
   await page.waitForTimeout(500);
   await stripBanner(page);
 
-  // ===== Test 1: one debt block per branch, not one combined block =====
+  // ===== Test 1: กลับไปเป็นก้อนข้อความแจ้งหนี้ก้อนเดียวเหมือนเดิม (ไม่แยกทีละสาขา) =====
   const debtBlocks = await page.evaluate(() => {
     return Array.from(document.querySelectorAll('.msgblock')).filter(el => el.querySelector('.tag.debt')).map(el => ({
       label: el.querySelector('.tag').childNodes[0].textContent.trim(),
@@ -79,49 +80,47 @@ function check(label, cond, extra) {
     }));
   });
   console.log('Debt blocks:', JSON.stringify(debtBlocks, null, 2));
-  allPass &= check('3 separate debt message blocks (one per branch with an order)', debtBlocks.length === 3, debtBlocks.length);
-  allPass &= check('Each debt block label names its own branch', debtBlocks.every(b => b.label.includes('ข้อความแจ้งหนี้ —')), debtBlocks.map(b=>b.label));
-  const branch01Block = debtBlocks.find(b => b.label.includes('01'));
-  allPass &= check('Branch 01 debt text does NOT mention other branches (02, 10)', !!branch01Block && !branch01Block.text.includes('02 :') && !branch01Block.text.includes('10 :'), branch01Block);
+  allPass &= check('Only ONE combined debt message block (reverted from per-branch split)', debtBlocks.length === 1, debtBlocks.length);
+  const debtBlock = debtBlocks[0];
+  allPass &= check('Debt block label is the plain original label (not per-branch)', debtBlock && debtBlock.label === 'ข้อความแจ้งหนี้', debtBlock && debtBlock.label);
 
-  // ===== Test 2: each debt block is independently copyable =====
-  const copyBtnCount = await page.evaluate(() => {
-    const debtMsgBlocks = Array.from(document.querySelectorAll('.msgblock')).filter(el => el.querySelector('.tag.debt'));
-    return debtMsgBlocks.filter(el => el.querySelector('[data-copy]')).length;
-  });
-  allPass &= check('Each of the 3 debt blocks has its own copy button', copyBtnCount === 3, copyBtnCount);
+  // ===== Test 2: ภายในก้อนเดียวกัน สาขาปกติ (01, 02) อยู่ก่อน แล้วค่อยมีหัวข้อ "แยกส่ง" ตามด้วยสาขาที่ติ๊กแยกส่งไว้ (13S) =====
+  // ราคา p1 เริ่มต้น = 275/กก. (PRODUCTS[0].price) — orders สั่ง p1 5/3/2 กก. ตามลำดับ (01, 02, 13S) → 1375/825/550
+  const text = debtBlock ? debtBlock.text : '';
+  const idxNormal01 = text.indexOf('1 : ');
+  const idxSeparateHeading = text.indexOf('แยกส่ง');
+  const idx13S = text.indexOf('13S : ');
+  allPass &= check('Normal branch 01 row is present', text.includes('1 : 1375'), text);
+  allPass &= check('Normal branch 02 row is present', text.includes('2 : 825'), text);
+  allPass &= check('"แยกส่ง" section heading is present', idxSeparateHeading !== -1, idxSeparateHeading);
+  allPass &= check('Separate-flagged branch 13S row is present', text.includes('13S : 550'), text);
+  allPass &= check('Normal rows come before the "แยกส่ง" heading, which comes before the separate row', idxNormal01 !== -1 && idxNormal01 < idxSeparateHeading && idxSeparateHeading < idx13S, {idxNormal01, idxSeparateHeading, idx13S});
 
-  // ===== Test 3: editing one branch's debt message only overrides that branch, not the others =====
+  // ===== Test 3: แก้ไขก้อนข้อความแจ้งหนี้ได้ตามปกติ (ก้อนเดียว ไม่ใช่ทีละสาขา) =====
   // การ์ด "ข้อความส่ง" ใหญ่พับไว้เป็นค่าเริ่มต้น (msgCardOpen=false) ต้องกางก่อนถึงจะ interact กับ textarea ข้างในได้จริง
   await page.click('#msgCardToggle');
   await page.waitForTimeout(200);
   const editDebug = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('[data-msgedit]')).find(b => b.closest('.msgblock').querySelector('.tag').textContent.includes('01'));
+    const btn = Array.from(document.querySelectorAll('[data-msgedit]')).find(b => b.closest('.msgblock').querySelector('.tag').classList.contains('debt'));
     const idx = btn.getAttribute('data-msgedit');
     btn.click();
     const wrap = document.getElementById(`msgeditwrap-${idx}`);
-    return { idx, wrapDisplay: wrap ? wrap.style.display : 'MISSING', bodyDisplay: document.getElementById(`msgblockbody-${idx}`)?.style.display };
+    return { idx, wrapDisplay: wrap ? wrap.style.display : 'MISSING' };
   });
   console.log('Edit click debug:', JSON.stringify(editDebug));
   await page.waitForTimeout(200);
   const editIdx = editDebug.idx;
-  await page.fill(`#msgeditarea-${editIdx}`, 'ข้อความทดสอบเฉพาะสาขา 01');
+  await page.fill(`#msgeditarea-${editIdx}`, 'ข้อความแจ้งหนี้ทดสอบ');
   await page.click(`[data-msgsave="${editIdx}"]`);
   await page.waitForTimeout(500);
   await stripBanner(page);
 
   const afterEdit = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('.msgblock')).filter(el => el.querySelector('.tag.debt')).map(el => ({
-      label: el.querySelector('.tag').childNodes[0].textContent.trim(),
-      text: el.querySelector('.msgtext').textContent,
-      edited: el.querySelector('.tag').textContent.includes('แก้ไขแล้ว'),
-    }));
+    const el = Array.from(document.querySelectorAll('.msgblock')).find(el => el.querySelector('.tag.debt'));
+    return { text: el?.querySelector('.msgtext')?.textContent, edited: el?.querySelector('.tag')?.textContent.includes('แก้ไขแล้ว') };
   });
-  console.log('After editing branch 01:', JSON.stringify(afterEdit, null, 2));
-  const b01After = afterEdit.find(b => b.label.includes('01'));
-  const others = afterEdit.filter(b => !b.label.includes('01'));
-  allPass &= check('Branch 01 block shows the edited text and is marked edited', !!b01After && b01After.text === 'ข้อความทดสอบเฉพาะสาขา 01' && b01After.edited, b01After);
-  allPass &= check('Other branches are untouched by editing branch 01', others.every(b => !b.edited && !b.text.includes('ทดสอบ')), others);
+  console.log('After editing debt block:', JSON.stringify(afterEdit));
+  allPass &= check('Debt block shows the edited text and is marked edited', afterEdit.text === 'ข้อความแจ้งหนี้ทดสอบ' && afterEdit.edited, afterEdit);
 
   console.log('\n=== SUMMARY ===');
   console.log(allPass ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED');

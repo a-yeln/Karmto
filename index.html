@@ -2407,13 +2407,22 @@ async function renderMessages(){
   const phatNet = Math.max(totals.p6 - Number(leftIn.p6||0), 0);
   // ถ้าวันนี้ไม่มีออเดอร์เชอรี่เลย (totals.p6===0) ไม่ต้องขึ้นบรรทัดนี้ — ไม่มีออเดอร์จะบอกจำนวนที่ต้องส่งทำไม
   const phatLines = [`🚩พี่พัฒน์`, '', ...(Number(totals.p6||0)>0 ? [`• เชอรี่ ${phatNet}${Number(leftIn.p6||0)>0?` (สั่ง ${totals.p6} − เหลือจากเมื่อวาน ${leftIn.p6})`:''}`] : []), `• เหลือออก ${leftoverOutList || '-'}`];
-  // ข้อความแจ้งหนี้แยกเป็นทีละสาขา (1 สาขา = 1 ก้อนข้อความ คัดลอก/แก้ไข/ส่งแยกกันได้) แทนที่จะรวมทุกสาขาไว้ในก้อนเดียว —
-  // แต่ละสาขามีคนรับผิดชอบ/ช่องทางส่งของตัวเอง รวมเป็นลิสต์เดียวก้อนเดียวส่งต่อให้ใครไม่ได้จริง ต้องแยกคัดลอกทีละสาขาอยู่ดี
+  // ข้อความแจ้งหนี้กลับมาเป็นก้อนเดียวเหมือนเดิม (ไม่แยกทีละสาขาแบบที่เคยลองแล้ว) แต่แบ่งรายชื่อภายในก้อนเดียวกันเป็น 2 ส่วน:
+  // สาขาปกติ (รวมส่งบริษัท) ก่อน แล้วค่อยมีหัวข้อแยกต่อท้ายสำหรับสาขาที่ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ไว้แล้วใน
+  // ตั้งค่าสาขา (b.separate) เพราะยอดของสาขากลุ่มนี้ส่งแยกไปคนละที่ ไม่ได้รวมอยู่ในก้อนของบริษัท — ใช้ติ๊กเดิมที่มีอยู่แล้ว
+  // (เดิมใช้ยกเว้นค่าธรรมเนียมแบรนด์ใน isFeeExempt) ไม่ใช่ตรวจจากรหัสสาขาเจาะจงเอง กันพลาดถ้ามีการเพิ่ม/ติ๊กสาขาใหม่ทีหลัง
   const debtBranchEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).sort((a,b)=>a[0].localeCompare(b[0]));
-  const debtBlocks = debtBranchEntries.map(([code,row])=>{
+  const debtRowText = ([code,row])=>{
     const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
-    return {tag:`debt-${code}`, cat:'debt', label:`ข้อความแจ้งหนี้ — ${branchName(code)}`, autoText:[`💢${dateStr}💢`, '', `${branchShortLabel(code)} : ${amount}`].join('\n')};
-  });
+    return `${branchShortLabel(code)} : ${amount}`;
+  };
+  const debtNormalRows = debtBranchEntries.filter(([code])=>!isFeeExempt(code)).map(debtRowText);
+  const debtSeparateRows = debtBranchEntries.filter(([code])=>isFeeExempt(code)).map(debtRowText);
+  const debtLines = [
+    `💢${dateStr}💢`, '', `ORDER ${n} สาขา`, '',
+    ...debtNormalRows,
+    ...(debtSeparateRows.length ? ['', 'แยกส่ง', ...debtSeparateRows] : []),
+  ];
   const overrides = dayData.messageOverrides || {};
   // ถ้าเคยกดแก้ไข/เพิ่มเติมข้อความส่วนไหนไว้ของวันนี้แล้ว ให้โชว์ข้อความที่แก้ไว้แทนข้อความที่ระบบสร้างอัตโนมัติ
   // (เผื่อกรณีสั่งเองไม่ต้องสั่งมนต์/พี่พัฒน์ หรืออยากเพิ่มข้อความอื่นเข้าไปในข้อความที่จะส่ง)
@@ -2422,7 +2431,7 @@ async function renderMessages(){
     {tag:'mahkard', label:'ข้อความสั่งม๊ะก๊าด', autoText:mahkardLines.join('\n')},
     {tag:'monk', label:'ข้อความสั่งมนต์', autoText:monkLines.join('\n')},
     {tag:'phat', label:'ข้อความถึงพี่พัฒน์', autoText:phatLines.join('\n')},
-    ...debtBlocks,
+    {tag:'debt', label:'ข้อความแจ้งหนี้', autoText:debtLines.join('\n')},
   ].map(b=>({...b, text: Object.prototype.hasOwnProperty.call(overrides,b.tag) ? overrides[b.tag] : b.autoText, edited: Object.prototype.hasOwnProperty.call(overrides,b.tag)}));
   const area = document.getElementById('messagesArea');
   const MSG_SEP = '\n\n————————————————————\n\n'; // คั่นระหว่างส่วนตอน "คัดลอกทั้งหมด" — เอาเฉพาะเนื้อหา ไม่รวมหัวข้อ/แท็ก

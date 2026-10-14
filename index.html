@@ -5135,6 +5135,13 @@ async function renderOutstanding(){
       const dateInput = document.getElementById(`outpaydate-${iso}-${code}`);
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
+      // แถวอื่นๆ ที่ยังไม่ยืนยัน ถูกเรนเดอร์ไว้ตั้งแต่แรกเริ่มของลิสต์ด้วย lastUsedPayDate ตอนนั้น (กันจอกระตุก ไม่เรนเดอร์
+      // ทั้งลิสต์ใหม่ทุกครั้งที่กด — ดูคอมเมนต์ตอนสร้าง container.innerHTML ด้านบน) พอยืนยันแถวนี้ไป lastUsedPayDate เปลี่ยน
+      // แล้วแต่ input ของแถวอื่นที่ยังค้างอยู่ใน DOM ไม่ได้อัปเดตตามไปด้วย ต้องซิงก์ค่าด้วยมือตรงนี้ ไม่งั้นแถวถัดไปจะยังโชว์
+      // ค่าเดิมเก่าที่เรนเดอร์ไว้ตั้งแต่แรก (ดูเหมือนไม่ล็อกตามอัตโนมัติตั้งแต่แถวที่ 2 เป็นต้นไป)
+      container.querySelectorAll('input[type="date"][id^="outpaydate-"]').forEach(inp=>{
+        if(inp !== dateInput) inp.value = paidDate;
+      });
       try{
         const d = await loadDay(iso);
         const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
@@ -9136,6 +9143,12 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const dateInput = document.getElementById(`quickpaydate-${code}-${iso}`);
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
+      // แถวบิลอื่นๆ ของสาขานี้ที่ยังไม่ยืนยัน เรนเดอร์ไว้ตั้งแต่แรกเริ่มด้วย lastUsedPayDate ตอนนั้น (ไม่เรนเดอร์ลิสต์ใหม่
+      // ทั้งก้อนตอนยืนยันแต่ละบิล กันจอกระพริบ — ดูคอมเมนต์ markBranchBillPaidInPlace_ ด้านบน) ต้องซิงก์ค่า input วันที่ของ
+      // แถวอื่นด้วยมือ ไม่งั้นบิลถัดไปจะยังโชว์วันที่เดิมที่เรนเดอร์ไว้ตั้งแต่แรก ดูเหมือนไม่ล็อกตามตั้งแต่บิลที่ 2 เป็นต้นไป
+      wrap.querySelectorAll('input[type="date"][id^="quickpaydate-"]').forEach(inp=>{
+        if(inp !== dateInput) inp.value = paidDate;
+      });
       const amtInput = document.getElementById(`quickpayamt-${code}-${iso}`);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : bill.amt;
       try{

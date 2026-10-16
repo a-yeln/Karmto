@@ -8969,6 +8969,8 @@ function renderBranchAnalysisHtml(sortedBills){
 const branchDetailRenderSeq_ = {};
 // จำแท็บ (ทั้งหมด/ค้างโอน/โอนแล้ว) ที่เลือกไว้ล่าสุดต่อ container ไว้ เพื่อไม่ให้รีเซ็ตกลับ "ทั้งหมด" ทุกครั้งที่เรนเดอร์ซ้ำ (เช่น หลังกดยืนยันชำระ)
 const branchDetailActiveFilter_ = {};
+// จำทิศทางเรียงวันที่ของลิสต์บิลรายสาขาไว้ต่อ container เหมือนกัน — null/ไม่มีค่า = ล่าสุดก่อน (ค่าเริ่มต้นเดิม), 'asc' = เก่าสุดก่อน
+const branchDetailSortDir_ = {};
 async function renderBranchDetail(code, precomputedAgg, containerId){
   const cId = containerId || 'dashBranchDetail';
   const mySeq = (branchDetailRenderSeq_[cId] = (branchDetailRenderSeq_[cId]||0) + 1);
@@ -8980,7 +8982,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
   const agg = precomputedAgg || await computeBranchAggregates();
   if(mySeq !== branchDetailRenderSeq_[cId]) return; // มีการเรียกเรนเดอร์รอบใหม่ของ container นี้มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
   const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
-  const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=>y.iso.localeCompare(x.iso));
+  const sortDir = branchDetailSortDir_[cId] || 'desc';
+  const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=> sortDir==='asc' ? x.iso.localeCompare(y.iso) : y.iso.localeCompare(x.iso));
   // สรุปยอดขายรายเดือนของสาขานี้ (ไม่ต้องดึงข้อมูลเพิ่ม ใช้ข้อมูลที่โหลดมาแล้วจาก allBillsList)
   const byMonth = {};
   sortedBills.forEach(u=>{ const mv = u.iso.slice(0,7); byMonth[mv] = (byMonth[mv]||0) + u.amt; });
@@ -9005,6 +9008,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       <button class="tab" data-branchbillfilter="all">ทั้งหมด (${sortedBills.length})</button>
       <button class="tab" data-branchbillfilter="unpaid">ค้างโอน (${a.unpaidCount})</button>
       <button class="tab" data-branchbillfilter="paid">โอนแล้ว (${sortedBills.length-a.unpaidCount})</button>
+      <button class="btn small secondary" id="branchDetailDateSortBtn" style="width:auto;">📅 ${sortDir==='asc' ? 'เก่าสุด→ล่าสุด' : 'ล่าสุด→เก่าสุด'}</button>
     </div>
     <div id="branchBillListInner"></div>
     ${trendHtml}
@@ -9224,6 +9228,11 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       detailEl.querySelectorAll('[data-branchbillfilter]').forEach(b=>b.classList.toggle('active', b===btn));
       renderBranchBillList(btn.getAttribute('data-branchbillfilter'));
     });
+  });
+  const dateSortBtn = detailEl.querySelector('#branchDetailDateSortBtn');
+  if(dateSortBtn) dateSortBtn.addEventListener('click', ()=>{
+    branchDetailSortDir_[cId] = sortDir==='asc' ? 'desc' : 'asc';
+    renderBranchDetail(code, agg, cId); // ใช้ agg ที่โหลดมาแล้ว ไม่ต้องยิงเน็ตโหลดใหม่แค่สลับทิศทางเรียง
   });
   renderBranchBillList(activeFilter);
 }

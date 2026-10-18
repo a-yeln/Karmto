@@ -1361,6 +1361,14 @@ function branchAutoAddr(b){
   return `ทวีโชคหมูกะทะสาขา ${b.code}(สาขา${b.area})`;
 }
 function isFeeExempt(code){ const b = branchByCode(code); return !!(b && b.separate); }
+// เรียงรายการที่มี branch code (entry[0]) ให้สาขาปกติขึ้นก่อนเสมอ (เรียงตามโค้ดตามปกติ) แล้วค่อยตามด้วยสาขาที่ติ๊ก
+// "แยกส่ง" ไว้ท้ายสุดเป็นกลุ่มแยกต่างหาก (ไม่ปนเรียงรวมอยู่กลางๆ ลิสต์สาขาปกติ) — เป็นสาขาเดียวกันจริงๆ แค่แยกบิล/คนรับ
+// คนละทาง เลยอยากดูติดกันเป็นกลุ่มท้ายสุดแทนที่จะกระจายปนไปตามลำดับโค้ด ใช้ร่วมกันได้ทุกจุดที่มีลิสต์เป็น [code, ...]
+function branchEntrySortSeparateLast_(a, b){
+  const aSep = isFeeExempt(a[0]), bSep = isFeeExempt(b[0]);
+  if(aSep !== bSep) return aSep ? 1 : -1;
+  return a[0].localeCompare(b[0]);
+}
 function buyerInfoFor(b){
   const auto = branchAutoAddr(b);
   return {
@@ -1886,7 +1894,7 @@ function renderOrderList(){
       <div class="dash-metric ${remaining>0?'danger':'success'}"><div class="dm-label">ยังไม่ได้บันทึก</div><div class="dm-value num">${remaining} สาขา</div></div>`;
   }
   if(entries.length===0){ list.innerHTML = '<div class="empty">ยังไม่มีสาขาที่บันทึกวันนี้</div>'; return; }
-  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  entries.sort(branchEntrySortSeparateLast_);
   list.innerHTML = entries.map(([code,row])=>{
     const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>`${p.emoji}${row[p.id]}`).join(' ')
       + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
@@ -2061,7 +2069,7 @@ async function saveAllOrderTicketsAsImages(){
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
-  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  entries.sort(branchEntrySortSeparateLast_);
   showToast(`กำลังสร้างรูปภาพ ${entries.length} ใบ…`);
   const files = [];
   for(const [code,row] of entries){
@@ -2409,7 +2417,13 @@ async function renderMessages(){
   const leftIn = prevDay.leftoverOut || {};
   // กุ้งตัดปากตอนนี้อยู่ในระบบ "ของเหลือ" แล้วด้วย (เดิมไม่ได้หัก) — หักของเหลือจากเมื่อวานออกจากยอดที่ต้องสั่งม๊ะก๊าดจริงเหมือนที่ทำกับมนต์
   const mahkardNet = Math.max(totals.p3 - Number(leftIn.p3||0), 0);
-  const mahkardRows = Object.entries(dayData.orders).filter(([c,row])=>Number(row.p3||0)>0).sort((a,b)=>a[0].localeCompare(b[0])).map(([c,row])=>`${c} : ${row.p3}`);
+  // สาขาปกติขึ้นก่อนเสมอ ส่วนสาขา "แยกส่ง" (เป็นสาขาเดียวกันแค่แยกบิล/คนรับคนละทาง) แยกไว้ใต้หัวข้อ "แยกส่ง" ท้ายสุด
+  // เหมือนข้อความแจ้งหนี้ — ไม่ปนเรียงรวมกับสาขาปกติกลางลิสต์
+  const mahkardEntries = Object.entries(dayData.orders).filter(([c,row])=>Number(row.p3||0)>0).sort(branchEntrySortSeparateLast_);
+  const mahkardRowText = ([c,row])=>`${c} : ${row.p3}`;
+  const mahkardNormalRows = mahkardEntries.filter(([c])=>!isFeeExempt(c)).map(mahkardRowText);
+  const mahkardSeparateRows = mahkardEntries.filter(([c])=>isFeeExempt(c)).map(mahkardRowText);
+  const mahkardRows = [...mahkardNormalRows, ...(mahkardSeparateRows.length ? ['', 'แยกส่ง', ...mahkardSeparateRows] : [])];
   const mahkardLines = [`🚩ออเดอร์ม๊ะก๊าด ${dateStr}`, '', ...mahkardRows, '', `รวมทั้งหมด ${mahkardNet} กก.${Number(leftIn.p3||0)>0?` (สั่ง ${totals.p3} − เหลือจากเมื่อวาน ${leftIn.p3})`:''}`];
   const MONK_EMOJI_OVERRIDE = {p1:'✅', p2:'❎'};
   // สินค้าที่ไม่มีออเดอร์ของมนต์เลยวันนี้ (totals[id]===0) ไม่ต้องขึ้นบรรทัด "0 กิโลกรัม" ให้เลย — ตัดบรรทัดนั้นทิ้งไปเลย ไม่ใช่แค่โชว์ 0
@@ -2424,7 +2438,7 @@ async function renderMessages(){
   // สาขาปกติ (รวมส่งบริษัท) ก่อน แล้วค่อยมีหัวข้อแยกต่อท้ายสำหรับสาขาที่ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ไว้แล้วใน
   // ตั้งค่าสาขา (b.separate) เพราะยอดของสาขากลุ่มนี้ส่งแยกไปคนละที่ ไม่ได้รวมอยู่ในก้อนของบริษัท — ใช้ติ๊กเดิมที่มีอยู่แล้ว
   // (เดิมใช้ยกเว้นค่าธรรมเนียมแบรนด์ใน isFeeExempt) ไม่ใช่ตรวจจากรหัสสาขาเจาะจงเอง กันพลาดถ้ามีการเพิ่ม/ติ๊กสาขาใหม่ทีหลัง
-  const debtBranchEntries = orderEntries.slice().sort((a,b)=>a[0].localeCompare(b[0]));
+  const debtBranchEntries = orderEntries.slice().sort(branchEntrySortSeparateLast_);
   const debtRowText = ([code,row])=>{
     const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
     return `${branchShortLabel(code)} : ${amount}`;
@@ -3148,7 +3162,7 @@ function renderBillingList(){
   const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
   renderBillingTodayStats_(entries);
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
-  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  entries.sort(branchEntrySortSeparateLast_);
   wrap.innerHTML = entries.map(([code,row])=>{
     const amt = branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0);
     const payInfo = dayData.billingPaid[code];
@@ -3300,7 +3314,7 @@ async function saveAllReceiptsAsImages(){
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
-  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  entries.sort(branchEntrySortSeparateLast_);
   showToast(`กำลังสร้างรูปภาพ ${entries.length} ใบ…`);
   // ใช้ความกว้างเดียวกับที่บิลจริงแสดงอยู่บนจอตอนนี้ (วัดจากการ์ดจริงในหน้า แล้วหักระยะขอบในของการ์ดออก) แทนความกว้าง
   // 420px คงที่แบบเดิม — กันภาพบิลออกมาแคบ/ยาวผิดปกติตอนเปิดจากจอกว้าง (เช่น เดสก์ท็อป) ทั้งที่บันทึกทีละใบได้ภาพกว้างปกติ

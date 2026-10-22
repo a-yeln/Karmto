@@ -1735,11 +1735,19 @@ function renderActivityFeed_(){
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
+// เช็คว่าแถวออเดอร์นี้ "มีออเดอร์จริง" วันนั้นไหม ต้องนับทั้งสินค้าหลัก 7 รายการและสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอ — เดิมหลาย
+// จุดในแอปเช็คแค่ 7 รายการหลักอย่างเดียว ทำให้สาขาที่สั่งแต่ของนอกแคตตาล็อกล้วนๆ (ไม่มีจำนวนใน 7 รายการหลักเลย แต่มี
+// รายการใน row.custom) ถูกมองว่า "ไม่มีออเดอร์วันนี้" ไปเงียบๆ ทั้งที่มีออเดอร์จริงและมีมูลค่าจริง (เข้า branchBillAmount
+// ตามปกติ) — หายไปจากแทบทุกจุดที่นับ/รวมยอด/แสดงรายชื่อสาขา (ลิสต์ออเดอร์วันนี้, ยอดขายแดชบอร์ด, สรุปรายเดือน/ช่วงวันที่,
+// ข้อความแจ้งหนี้, นับจำนวนสาขา ฯลฯ) ใช้ร่วมกันแทนการเช็ค PRODUCTS.some(...) เปล่าๆ ทุกจุดที่ความหมายคือ "มีออเดอร์ไหม"
+function orderRowHasOrder_(row){
+  return !!row && (PRODUCTS.some(p=>Number(row[p.id]||0)>0) || (row.custom||[]).length>0);
+}
 // นับจำนวนสาขาที่สั่งวันนี้ แยกเป็น "สาขาปกติ" + "สาขาแยกส่ง" (ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ในตั้งค่า) ชัดเจน
 // แทนที่จะรวมเป็นตัวเลขก้อนเดียวเงียบๆ — คืนเป็น label เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย หรือแค่ "15" เฉยๆ ถ้าไม่มี
 // สาขาแยกส่งเลย (ไม่ขึ้น "+0" ให้รก) ใช้ร่วมกันทั้งเฮดบาร์/แดชบอร์ด/ข้อความแจ้งหนี้-สรุปยอดรวม กันตัวเลขแต่ละจุดไม่ตรงกัน
 function branchCountLabel(orders){
-  const entries = Object.entries(orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(orders).filter(([c,row])=>orderRowHasOrder_(row));
   const normal = entries.filter(([c])=>!isFeeExempt(c)).length;
   const separate = entries.filter(([c])=>isFeeExempt(c)).length;
   return `${normal}${separate?('+'+separate):''}`;
@@ -1757,7 +1765,7 @@ async function renderStats(){
   const dateAtStart = currentDate;
   const totals = computeTotals(dayData.orders); const n = branchCountLabel(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders); const fee = computeFee(feeTotals);
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const unpaidCount = entries.filter(([c])=>!dayData.billingPaid[c]).length;
 
   const expensePayable = (dayData.expenses||[]).filter(e=>!e.paid).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -1884,7 +1892,7 @@ function renderCustomItemsSection_(){
 }
 function renderOrderList(){
   const list = document.getElementById('orderList');
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const summaryGrid = document.getElementById('orderSummaryGrid');
   if(summaryGrid){
     const totalBranches = settings.branches.length;
@@ -2065,7 +2073,7 @@ async function saveOrderTicketAsImage(code){
   }
 }
 async function saveAllOrderTicketsAsImages(){
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
@@ -2281,8 +2289,9 @@ function parseOcrText(text){
   return {branchCode, branchArea, items, unmatched};
 }
 // เช็คว่าแถวออเดอร์นี้มีของจริงอยู่ไหม (ไม่ใช่แค่ {} เปล่าๆ หรือทุกช่องเป็น 0) — ใช้กันเขียนทับของจริงที่มีอยู่แล้วโดยไม่รู้ตัว
+// ต้องนับสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอเหมือน orderRowHasOrder_ ไม่งั้นสาขาที่มีแต่ของนอกแคตตาล็อกจะไม่โดนเตือนก่อนเขียนทับ
 function hasNonEmptyOrder_(row){
-  return !!row && PRODUCTS.some(p=>Number(row[p.id]||0)>0);
+  return orderRowHasOrder_(row);
 }
 // สรุปรายการที่ "เจอชื่อสินค้าในภาพแล้ว แต่หาจำนวนไม่เจอ" ให้อ่านง่ายๆ พร้อมโชว์บรรทัดดิบที่ OCR อ่านได้จริงๆ
 // กันปัญหาแบบที่เจอมาแล้ว: สินค้าหายไปจากผลลัพธ์เงียบๆ โดยไม่มีร่องรอยอะไรให้ตรวจสอบว่า OCR อ่านว่าอะไรกันแน่
@@ -2314,7 +2323,10 @@ async function readOrderImage(file){
     // (เกิดจากเปิดรูปออเดอร์วันอื่นค้างไว้ แต่แอปกำลังเปิดดูวันปัจจุบันอยู่ — รูปไม่มีข้อมูลวันที่ให้เทียบเองได้)
     const existing = dayData.orders[branch.code];
     if(hasNonEmptyOrder_(existing)){
-      const existingText = PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`).join(', ');
+      const existingText = [
+        ...PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`),
+        ...(existing.custom||[]).map(it=>`📦${it.name} ${it.qty}`),
+      ].join(', ');
       statusEl.innerHTML = `⚠️ <b style="color:var(--danger);">สาขา ${escapeHtml(branchDisplayName(branch))} มีออเดอร์บันทึกไว้แล้วในวันที่ ${formatDDMMYYYY(currentDate)} (${existingText}) — ถ้ากด "บันทึกสาขานี้" ตอนนี้จะเขียนทับของเดิมทันที เช็คให้ชัวร์ก่อนว่ารูปที่อ่านนี้เป็นของวันที่ ${formatDDMMYYYY(currentDate)} จริงๆ (ไม่ใช่วันอื่น) ก่อนบันทึก</b>${escapeHtml(unmatchedMsg)}`;
     }else{
       statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง (กำลังจะบันทึกเข้าวันที่ ${formatDDMMYYYY(currentDate)})${unmatchedMsg}`;
@@ -2410,7 +2422,7 @@ async function renderMessages(){
   // "ORDER N สาขา" ต้องไม่เอาสาขาที่ติ๊ก "แยกส่ง" ไปนับรวมกับสาขาปกติเงียบๆ (จะทำให้ตัวเลขดูเหมือนรวมเป็นก้อนเดียวกันทั้งที่
   // ส่งจริงคนละที่) — เลยแยกนับ แล้วโชว์เป็น "ปกติ+แยกส่ง" ชัดเจน เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย ถ้าไม่มีเลยก็
   // โชว์แค่ตัวเลขเดียวเหมือนเดิม ไม่ต้องขึ้น "+0" ให้รก
-  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const orderCountLabel = branchCountLabel(dayData.orders);
   const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
@@ -3113,7 +3125,9 @@ function billPaidDiffHtml(payInfo, billedAmt){
   let diffHtml = '';
   if(diff>0) diffHtml = ` <span style="color:var(--success);font-weight:600;">🔺โอนเกิน ${money(diff)}</span>`;
   else if(diff<0) diffHtml = ` <span style="color:var(--danger);font-weight:600;">🔻โอนขาด ${money(Math.abs(diff))}</span>`;
-  const batchHtml = payInfo.batchId ? ` <span style="color:var(--accent);">(โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริง ${money(tAmt)})</span>` : '';
+  // batchTotal คือยอดโอนจริงรวมทั้งชุดที่กรอกตอนยืนยันโอนหลายบิลพร้อมกัน (ดู branchPayConfirmBtn) ต่างจาก tAmt ซึ่งตอนนี้
+  // คือส่วนแบ่งเฉพาะบิลนี้ใบเดียวตามสัดส่วน — ถ้าไม่มี batchTotal (บันทึกไว้ก่อนแก้บั๊กนี้) ใช้ tAmt แทนเหมือนเดิม
+  const batchHtml = payInfo.batchId ? ` <span style="color:var(--accent);">(โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริงรวม ${money(payInfo.batchTotal!=null?payInfo.batchTotal:tAmt)})</span>` : '';
   return diffHtml + batchHtml;
 }
 async function renderBillingSummaryTiles(){
@@ -3159,7 +3173,7 @@ function renderBillingTodayStats_(entries){
 }
 function renderBillingList(){
   const wrap = document.getElementById('billingList');
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -3216,8 +3230,10 @@ function renderBillingList(){
         if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
         btn.disabled = true;
         try{
-          await writeBillingPaid_(currentDate, code, false);
-          dayData.billingPaid[code] = false;
+          // ใช้เอกสารที่ merge สดจากเซิร์ฟเวอร์แทนแค่แพตช์ billingPaid.code บน dayData เดิมเฉยๆ — ถ้าระหว่างนี้มีการแก้ไข
+          // ฟิลด์อื่นของวันเดียวกันจากเครื่อง/แท็บอื่น (เช่น billExtra) dayData เดิมที่ค้างอยู่จะยังเป็นค่าเก่า ทำให้คำนวณ
+          // ยอดบิลผิดถ้าไปอ่านต่อจากตรงนี้ (เหมือนที่ saveRow() ทำไว้แล้วตอน patchField สำเร็จ)
+          dayData = await writeBillingPaid_(currentDate, code, false);
           renderBillingList();
           renderStats();
         }catch(e){
@@ -3242,8 +3258,7 @@ function renderBillingList(){
       const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
       try{
-        await writeBillingPaid_(currentDate, code, payValue);
-        dayData.billingPaid[code] = payValue;
+        dayData = await writeBillingPaid_(currentDate, code, payValue);
         payDateEditingCode = null;
         renderBillingList();
         renderStats();
@@ -3310,7 +3325,7 @@ async function renderOffscreenReceipt(code, width){
   return wrapper;
 }
 async function saveAllReceiptsAsImages(){
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
@@ -4004,7 +4019,7 @@ function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal){
     const d = dayMap[iso];
     let dayRevenue = 0;
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
       dayRevenue += amt;
       if(d.billingPaid[code]) revenuePaid += amt; else revenueUnpaid += amt;
@@ -4080,6 +4095,13 @@ function computeDebtsByOwnerForRangeFromDebts_(debts, startIso, endIso){
   });
   return result;
 }
+// เหมือน branchCountLabel แต่รับ Set ของรหัสสาขาที่เก็บสะสมมาจากหลายวันแล้ว (ใช้กับช่วงวันที่) แทนที่จะรับ orders ของวัน
+// เดียว — คืนรูปแบบ "ปกติ+แยกส่ง" เดียวกันทุกประการ กันตัวเลขสาขาในการ์ดสรุปช่วงวันที่ไม่ตรงกับจุดอื่นๆ ในแอป
+function branchSetCountLabel_(codeSet){
+  let normal=0, separate=0;
+  codeSet.forEach(code=>{ if(isFeeExempt(code)) separate++; else normal++; });
+  return `${normal}${separate?('+'+separate):''}`;
+}
 async function computeRangeFinancials(startIso, endIso, branchCodes){
   const isoList = [];
   for(let iso=startIso; iso<=endIso; iso=addDaysISO(iso,1)) isoList.push(iso);
@@ -4097,7 +4119,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
   isoList.forEach(iso=>{
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       branchSet.add(code);
       if(hasBranchFilter && !branchCodes.has(code)) return;
       filteredBranchSet.add(code);
@@ -4110,7 +4132,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
   return {
     ...core,
     productTotals,
-    branchCount: hasBranchFilter ? filteredBranchSet.size : branchSet.size,
+    branchCount: branchSetCountLabel_(hasBranchFilter ? filteredBranchSet : branchSet),
     days: isoList.length,
     branchFiltered: hasBranchFilter,
     filteredRevenue: hasBranchFilter ? branchRevenue : core.revenue,
@@ -4896,13 +4918,13 @@ function wireOutstandingRecheckArea_(container, key, rows){
       if(statusChanged){
         if(resultMeansPaid){
           const payValue = {paid:true, paidDate: todayISO(), transferAmount: r.amt, billedAmount: r.amt};
-          await writeBillingPaid_(r.iso, r.code, payValue);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = payValue; renderBillingList(); }
+          const fresh1 = await writeBillingPaid_(r.iso, r.code, payValue);
+          if(r.iso===currentDate){ dayData = fresh1; renderBillingList(); }
           r.paid = true; r.payInfo = payValue;
           showToast('บันทึกว่าเช็คแล้ว — และแก้สถานะเป็นโอนแล้วให้ด้วย');
         }else{
-          await writeBillingPaid_(r.iso, r.code, false);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
+          const fresh2 = await writeBillingPaid_(r.iso, r.code, false);
+          if(r.iso===currentDate){ dayData = fresh2; renderBillingList(); }
           r.paid = false; r.payInfo = null;
           showToast('บันทึกว่าเช็คแล้ว — พบว่าจริงๆ ยังไม่ได้จ่าย แก้สถานะกลับเป็นรอโอนให้ด้วย');
         }
@@ -5122,8 +5144,8 @@ async function renderOutstanding(){
         if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
         btn.disabled = true;
         try{
-          await writeBillingPaid_(r.iso, r.code, false);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
+          const fresh = await writeBillingPaid_(r.iso, r.code, false);
+          if(r.iso===currentDate){ dayData = fresh; renderBillingList(); }
           showToast('เปลี่ยนกลับเป็นรอโอนแล้ว');
           renderStats();
           await renderOutstanding();
@@ -5162,8 +5184,8 @@ async function renderOutstanding(){
         const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
         const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
         const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
-        await writeBillingPaid_(iso, code, payValue);
-        if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
+        const fresh = await writeBillingPaid_(iso, code, payValue);
+        if(iso===currentDate){ dayData = fresh; renderBillingList(); }
         showToast('บันทึกว่าโอนแล้ว');
         // บันทึกสำเร็จแล้ว แค่เอาแถวนี้ออกจากลิสต์ค้างโอนไปเลย ไม่ต้องโหลด/คำนวณทั้งลิสต์ใหม่ทั้งหมด
         const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
@@ -5427,7 +5449,26 @@ async function importAllData(file){
   try{
     const text = await file.text();
     const payload = JSON.parse(text);
-    if(payload.settings){ settings = payload.settings; if(!settings.priceHistory) settings.priceHistory={}; if(!settings.billInfo) settings.billInfo={...DEFAULT_BILL_INFO}; if(!settings.expenseCategories) settings.expenseCategories=[...DEFAULT_EXPENSE_CATEGORIES]; if(!settings.debtOwners) settings.debtOwners=[...DEFAULT_DEBT_OWNERS]; if(!settings.debtTypes) settings.debtTypes=[...DEFAULT_DEBT_TYPES]; if(!settings.personalIncomeCategories) settings.personalIncomeCategories=[...DEFAULT_PERSONAL_INCOME_CATEGORIES]; if(!settings.personalExpenseCategories) settings.personalExpenseCategories=[...DEFAULT_PERSONAL_EXPENSE_CATEGORIES]; await saveSettings(); }
+    // ต้อง backfill ฟิลด์ให้ครบเหมือน loadSettings() ตอนโหลดแอปปกติทุกประการ (ดู ~1415-1461) — เดิมจุดนี้ backfill แค่บางส่วน
+    // (ขาด purchaseSellers/calendarDotsEnabled/shelfLifeDays) ถ้านำเข้าไฟล์สำรองเก่าที่ settings ไม่มีฟิลด์พวกนี้ จะได้
+    // settings ที่ไม่ครบ แล้ว saveSettings() เขียนทับฉบับไม่ครบนี้ลงเซิร์ฟเวอร์ทันที ทำให้แท็บต้นทุนซื้อ/เหลือ&Claim พังกลาง
+    // เซสชัน (อ่าน settings.purchaseSellers/shelfLifeDays[id] ไม่ได้) จนกว่าจะโหลดหน้าใหม่
+    if(payload.settings){
+      settings = payload.settings;
+      if(!settings.priceHistory) settings.priceHistory={};
+      if(!settings.billInfo) settings.billInfo={...DEFAULT_BILL_INFO};
+      if(!settings.expenseCategories) settings.expenseCategories=[...DEFAULT_EXPENSE_CATEGORIES];
+      if(!settings.debtOwners) settings.debtOwners=[...DEFAULT_DEBT_OWNERS];
+      if(!settings.debtTypes) settings.debtTypes=[...DEFAULT_DEBT_TYPES];
+      if(!settings.personalIncomeCategories) settings.personalIncomeCategories=[...DEFAULT_PERSONAL_INCOME_CATEGORIES];
+      if(!settings.personalExpenseCategories) settings.personalExpenseCategories=[...DEFAULT_PERSONAL_EXPENSE_CATEGORIES];
+      if(!settings.purchaseSellers) settings.purchaseSellers=[...DEFAULT_PURCHASE_SELLERS];
+      if(!settings.purchaseSellers.includes('อื่นๆ')) settings.purchaseSellers.push('อื่นๆ');
+      if(settings.calendarDotsEnabled===undefined) settings.calendarDotsEnabled = true;
+      if(!settings.shelfLifeDays) settings.shelfLifeDays = {};
+      PRODUCTS.forEach(p=>{ if(!settings.shelfLifeDays[p.id]) settings.shelfLifeDays[p.id] = DEFAULT_SHELF_LIFE_DAYS[p.id] || 2; });
+      await saveSettings();
+    }
     let importedCount = 0;
     if(payload.days){
       const items = Object.entries(payload.days).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
@@ -8646,7 +8687,13 @@ async function addDebt(){
   // saveDebts() ทับทั้งอาเรย์ — ยังต้องโหลดมาดูรายการจ่ายเดิมก่อนถ้าเป็นการแก้ไข (ใช้กับ applyInitialAdjustment เท่านั้น
   // ไม่ได้เอาไปเขียนทับทั้งก้อน)
   if(editingDebtId){
-    const all = await loadDebts();
+    // ต้องโหลดสดจากเซิร์ฟเวอร์ตรงนี้ ไม่ใช้ loadDebts() ซึ่งคืนค่าที่แคชไว้ในหน่วยความจำเฉยๆ ถ้าเคยโหลดไปแล้ว — ถ้าระหว่างที่
+    // ฟอร์มแก้ไขเปิดค้างอยู่ มีการบันทึกจ่ายหนี้นี้เข้ามาจากอีกเครื่อง/แท็บ (data-addpayment เขียนตรงเข้าเซิร์ฟเวอร์ได้เลย
+    // ไม่ต้องรอหน้านี้) payments ที่แคชไว้ในเครื่องนี้จะเก่ากว่าจริง แล้วตอนกดบันทึกแก้ไขจะเอา payments เก่าไปเขียนทับ
+    // ของจริงบนเซิร์ฟเวอร์ ทำให้รายการจ่ายที่เพิ่งบันทึกไปหายเงียบๆ — โหลดสดลดช่วงเวลาที่อาจชนให้แคบที่สุดเท่าที่ทำได้
+    let all;
+    try{ const r = await window.storage.get('debts'); all = JSON.parse(r.value); debtsCache_ = all; }
+    catch(e){ all = await loadDebts(); }
     const existing = all.find(x=>x.id===editingDebtId);
     if(!existing){ showToast('ไม่พบรายการหนี้นี้แล้ว (อาจถูกลบไปแล้ว)'); cancelDebtEdit(); renderDebts(); return; }
     const tmp = {payments: existing.payments};
@@ -8731,7 +8778,7 @@ async function computeBranchAggregates(){
   for(const iso of isoList){
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
       if(!agg[code]) agg[code] = {paidTotal:0, unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:iso, delays:[]};
       const a = agg[code];
@@ -9171,8 +9218,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : bill.amt;
       try{
         const payValue = {paid:true, paidDate, transferAmount, billedAmount: bill.amt};
-        await writeBillingPaid_(iso, code, payValue);
-        if(iso===currentDate) dayData.billingPaid[code] = payValue;
+        const fresh = await writeBillingPaid_(iso, code, payValue);
+        if(iso===currentDate) dayData = fresh;
         showToast('บันทึกว่าโอนแล้ว');
         const dashSelectEl = document.getElementById('dashBranchSelect');
         if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
@@ -9206,12 +9253,26 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       // ไปเลย ไม่มี toast ไม่มีอะไรบอกว่าบิลไหนสำเร็จ/ไม่สำเร็จ (ตรงกับปัญหาจริงที่เจอ: บางวันบางสาขาตกหล่นการโอนแบบไม่รู้ตัว)
       // ตอนนี้ไล่ทีละบิล บันทึกอันไหนสำเร็จก็สำเร็จไปเลย อันไหนพังก็รู้ชัดๆ ว่าพังอันไหน ไม่ต้องรอทั้งชุดเสร็จหรือพังหมดทีเดียว
       const succeeded = []; const failed = [];
-      for(const iso of isos){
+      // เดิมแปะ transferAmount/billedAmount เป็นยอดรวมทั้งชุด (billedSum/transferAmount) ซ้ำเหมือนกันทุกบิลในชุดที่เลือก —
+      // ทำให้ตัวเลข "โอนเข้าแล้ววันนี้" ของแต่ละวันในชุด (renderBillingTodayStats_ บวก payInfo.transferAmount ตรงๆ) บวม
+      // เกินจริงเท่ากับยอดรวมทั้งชุดทุกครั้งที่เปิดดูวันใดวันหนึ่งในชุดนั้น และ "ส่วนต่างโอน" (billPaidDiffHtml) ก็ผิดไปด้วย
+      // เพราะเทียบยอดรวมทั้งชุดกับยอดบิลแค่ใบเดียว — ตอนนี้แบ่ง transferAmount ตามสัดส่วนยอดบิลจริงของแต่ละใบแทน ให้บิล
+      // สุดท้ายรับเศษที่เหลือจากการปัดไปเลย กันผลรวมหลังปัดไม่เท่ากับยอดโอนจริงที่กรอกมาทั้งก้อน ส่วน billedAmount ก็ใช้
+      // ยอดบิลจริงของใบนั้นๆ ไม่ใช่ผลรวม — batchTotal เก็บยอดรวมทั้งชุดไว้แยกต่างหากสำหรับโชว์ป้าย "โอนรวม X บิล" ต่อ
+      let allocatedSoFar = 0;
+      for(let i=0;i<isos.length;i++){
+        const iso = isos[i];
         confirmBtn.textContent = `กำลังบันทึก… (${succeeded.length+failed.length+1}/${isos.length})`;
+        const bill = sortedBills.find(x=>x.iso===iso);
+        const billedAmount = bill ? bill.amt : 0;
+        const isLast = i === isos.length - 1;
+        const share = isLast ? Math.round((transferAmount - allocatedSoFar)*100)/100
+          : Math.round((billedSum>0 ? transferAmount*(billedAmount/billedSum) : transferAmount/isos.length)*100)/100;
+        allocatedSoFar += share;
         try{
-          const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};
-          await writeBillingPaid_(iso, code, payValue);
-          if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
+          const payValue = {paid:true, paidDate, transferAmount: share, billedAmount, batchId, batchCount: isos.length, batchTotal: transferAmount, note};
+          const fresh = await writeBillingPaid_(iso, code, payValue);
+          if(iso===currentDate){ dayData = fresh; renderBillingList(); }
           succeeded.push(iso);
         }catch(e){
           failed.push({iso});
@@ -9633,8 +9694,8 @@ async function toggleBranchBillPaidQuick(iso, code, btn){
   if(btn) btn.disabled = true;
   const nextValue = wasPaid ? false : {paid:true, paidDate: todayISO()};
   try{
-    await writeBillingPaid_(iso, code, nextValue);
-    if(iso===currentDate) dayData.billingPaid[code] = nextValue;
+    const fresh = await writeBillingPaid_(iso, code, nextValue);
+    if(iso===currentDate) dayData = fresh;
     showToast(nextValue ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
     const dashSelectEl = document.getElementById('dashBranchSelect');
     if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
@@ -9695,7 +9756,7 @@ async function renderDashboard(){
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
   const fee = computeFee(feeTotals);
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,currentDate) + Number(dayData.billExtra[code]||0), 0);
   const cogsToday = (dayData.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -9920,7 +9981,7 @@ async function renderCalPopup(){
       isoList.forEach(iso=>{
         const d = dayMap[iso];
         const hasBuy = (d.purchases||[]).length>0;
-        const hasSell = Object.values(d.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+        const hasSell = Object.values(d.orders||{}).some(row=>orderRowHasOrder_(row));
         if(hasBuy || hasSell) dotMap[iso] = {hasBuy, hasSell};
       });
       grid.innerHTML = buildGridHtml(dotMap);
@@ -10160,7 +10221,7 @@ function applyDailyExpenseRoutine_(){
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){
-  const hasData = Object.values(dayData.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const hasData = Object.values(dayData.orders||{}).some(row=>orderRowHasOrder_(row));
   setCardFoldByH3('อ่านออเดอร์จากรูปภาพ', hasData);
   setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
 }
@@ -10168,7 +10229,7 @@ function updateOrderFormAutoFold(){
 // วิ่งเฉพาะสาขาประจำ (ไม่ติ๊ก "นานๆ สั่งที") — ข้ามสาขาที่สั่งนานๆ ทีไปเลยอัตโนมัติ ไม่ต้องกดข้ามเอง เหมือนที่ดรอปดาวน์เลือกสาขา
 // (renderBranchSelect) แยกกลุ่มสาขาพวกนี้ไว้ท้ายสุดอยู่แล้ว
 function findNextUnrecordedBranch(afterCode){
-  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
+  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row)).map(([c])=>c));
   const branches = settings.branches.filter(b=>!b.rare);
   const idx = branches.findIndex(b=>b.code===afterCode);
   for(let i=1;i<=branches.length;i++){

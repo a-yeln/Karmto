@@ -1878,7 +1878,7 @@ async function renderStats(){
 function renderBranchSelect(){
   const sel = document.getElementById('branchSelect');
   const optionHtml = b=>{
-    const has = dayData.orders[b.code] && PRODUCTS.some(p=>Number(dayData.orders[b.code][p.id]||0)>0);
+    const has = orderRowHasOrder_(dayData.orders[b.code]);
     return `<option value="${b.code}">${escapeHtml(branchDisplayName(b))}${has?' ✓':''}</option>`;
   };
   // สาขาที่ติ๊ก "นานๆ สั่งที" ไว้ (ตั้งค่า → รายชื่อสาขา) แยกไว้เป็นกลุ่มท้ายดรอปดาวน์เสมอ (optgroup) กันต้องเลื่อนผ่าน
@@ -3102,7 +3102,7 @@ async function getMonthDays(monthVal){
     const d = dayMap[iso];
     const totals = computeFeeTotals(d.orders);
     const fee = computeFee(totals);
-    const hasOrders = Object.keys(d.orders||{}).some(c=>PRODUCTS.some(p=>Number(d.orders[c][p.id]||0)>0));
+    const hasOrders = Object.keys(d.orders||{}).some(c=>orderRowHasOrder_(d.orders[c]));
     return {iso, totals, fee, hasOrders, note: d.feeNote||''};
   });
 }
@@ -5386,6 +5386,7 @@ async function renderOutstanding(){
 // สาขาเลขเดียวกันกับสาขาแยกส่ง (เช่น 16 กับ 16T) รวมอยู่ข้อความเดียว แต่แบ่งเป็น 2 ส่วน: บิลปกติก่อน > บิลแยกส่ง
 let outstandingLineIncludeToday_ = false;
 function branchBaseNumber_(code){
+  if(!isFeeExempt(code)) return /^\d+$/.test(String(code)) ? String(Number(code)) : String(code);
   const base = String(code).replace(/[^0-9]+$/,'');
   if(!base) return String(code);
   return /^\d+$/.test(base) ? String(Number(base)) : base;

@@ -506,19 +506,26 @@ table.plain td.num{text-align:right;}
   body.dash-nav-collapsed .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
   body.dash-nav-collapsed .dash-wide-nav button{justify-content:center;padding:11px 0;}
 }
+/* จอขนาดแท็บเล็ต (768–1023px): เมนูข้างแคบเหลือแต่ไอคอนเป็นค่าเริ่มต้น แต่กดปุ่ม ▸ ที่มุมแบรนด์เพื่อกางเต็ม (มีชื่อเมนู)
+   ได้ — เดิมบังคับแคบตายตัว ปุ่มยังโผล่ให้กด (กฎซ่อนปุ่มแพ้ specificity ของ #id.class + all:unset) แต่กดแล้วไม่เกิดอะไร
+   เพราะคลาส dash-nav-collapsed มีผลเฉพาะ ≥1024px เท่านั้น ช่วงนี้เลยใช้คลาส dash-nav-expanded แยกต่างหากแทน */
+@media (min-width:768px) and (max-width:1023px){
+  body:not(.dash-nav-expanded) .dash-wide-nav{width:64px;}
+  body:not(.dash-nav-expanded) .dash-wide-brand .dwb-textwrap,
+  body:not(.dash-nav-expanded) .dash-wide-nav .dwn-lbl{display:none;}
+  body:not(.dash-nav-expanded) .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
+  body:not(.dash-nav-expanded) .dash-wide-nav button{justify-content:center;padding:11px 0;}
+}
 @media (max-width:1023px){
   .dash-wide-outer{padding:16px 16px 32px;}
-  .dash-wide-nav{width:64px;}
-  .dash-wide-brand .dwb-textwrap,.dash-wide-nav .dwn-lbl{display:none;}
-  .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
-  .dash-wide-nav button{justify-content:center;padding:11px 0;}
-  #dwNavCollapseBtn{display:none;}
   .dash-wide-bento{grid-template-columns:repeat(2,1fr);}
   .dwtile.hero,.dwtile.feed{grid-column:span 2;}
   .dwtile.chart{grid-column:span 2;grid-row:span 1;}
   .dash-grid{grid-template-columns:repeat(2,1fr);}
 }
 @media (max-width:767px){
+  /* มือถือ: เมนูเป็น drawer เปิดด้วยปุ่ม ☰ อยู่แล้ว ไม่ต้องมีปุ่มย่อ/ขยาย (ต้องใช้ #id.class ให้ชนะ all:unset ของปุ่ม) */
+  #dwNavCollapseBtn.dwn-brand-collapse-btn{display:none;}
   .dash-wide-outer{width:auto;position:static;left:auto;margin-left:0;padding:0;}
   .dash-wide-shell{max-width:none;margin:0;}
   .dash-wide-nav{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:40;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.35);border-radius:0;}
@@ -10107,11 +10114,21 @@ function toggleTopbarCollapse(){
 // ย่อ/ขยายเมนูด้านข้าง (เหลือแต่ไอคอน) — เฉพาะจอกว้าง (เดสก์ท็อป) เท่านั้น กันพื้นที่ให้เนื้อหาฝั่งขวากว้างขึ้นตามที่ขอ
 // จอแคบกว่านั้นถูกบังคับให้แคบ/เป็น drawer อยู่แล้วโดย media query จึงไม่มีปุ่มนี้ให้กด (ซ่อนไว้)
 let sidebarCollapsed = false;
+const tabletNavMq_ = window.matchMedia('(min-width:768px) and (max-width:1023px)');
 function updateSidebarCollapseIcon_(){
   const icon = document.querySelector('#dwNavCollapseBtn .dwn-ic');
-  if(icon) icon.textContent = sidebarCollapsed ? '▸' : '◂';
+  if(!icon) return;
+  // ช่วงแท็บเล็ตแคบเป็นค่าเริ่มต้น (ดู CSS dash-nav-expanded) — ลูกศรชี้ทางที่จะ "เปลี่ยนไป" เมื่อกด เหมือนจอกว้าง
+  const narrow = tabletNavMq_.matches ? !document.body.classList.contains('dash-nav-expanded') : sidebarCollapsed;
+  icon.textContent = narrow ? '▸' : '◂';
 }
 function toggleSidebarCollapse(){
+  if(tabletNavMq_.matches){
+    document.body.classList.toggle('dash-nav-expanded');
+    document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', String(!document.body.classList.contains('dash-nav-expanded')));
+    updateSidebarCollapseIcon_();
+    return;
+  }
   sidebarCollapsed = !sidebarCollapsed;
   document.body.classList.toggle('dash-nav-collapsed', sidebarCollapsed);
   document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', String(sidebarCollapsed));
@@ -10364,6 +10381,8 @@ async function init(){
     }
   }catch(e){}
   document.getElementById('dwNavCollapseBtn').addEventListener('click', toggleSidebarCollapse);
+  try{ tabletNavMq_.addEventListener('change', updateSidebarCollapseIcon_); }catch(e){}
+  updateSidebarCollapseIcon_();
   try{
     if(localStorage.getItem('karmto.sidebarCollapsed')==='1'){
       sidebarCollapsed = true;

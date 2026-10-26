@@ -128,5 +128,8 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   const m01 = msgs.find(t => t.includes('จำนวน 275 บาทค่ะ'));
   check('Single-bill branch gets the one-sentence form (01, 05/10, ฿275 — just set back to รอโอน)', !!m01 && m01.includes('วันที่ 05/10/2026'), msgs);
 
+  const bases = await page.evaluate(() => [branchBaseNumber_('13S'), branchBaseNumber_('13'), branchBaseNumber_('1A'), branchBaseNumber_('1B')]);
+  check('Only separate-send codes fold into their number; 1A/1B stay distinct branches', JSON.stringify(bases) === JSON.stringify(['13', '13', '1A', '1B']), bases);
+
   await finish(browser);
 })();

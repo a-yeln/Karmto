@@ -3,7 +3,7 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
 (async () => {
   const browser = await launch();
   const { check, finish } = makeChecker();
-  const today = await (async () => { const p = await browser.newPage(); await p.goto('about:blank'); const t = await p.evaluate(()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }); await p.close(); return t; })();
+  const today = await (async () => { const p = await browser.newPage(); await p.goto('about:blank'); const t = await p.evaluate(()=> new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())); await p.close(); return t; })();
 
   const page = await openApp(browser, { date: today, store: { ['day:'+today]: mkDay({ orders: { '01': { p1: 5 } } }) } });
   const phat = await page.evaluate(() => settings.purchaseSellers.find(s=>s.includes('พี่พัฒน์')));

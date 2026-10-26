@@ -56,7 +56,7 @@ function seed(){
 }
 
 (async () => {
-  const browser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {});
+  const browser = await require('../sandbox').launch(chromium);
   const page = await browser.newPage({ viewport: { width: 1335, height: 1200 } });
   page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
   page.on('dialog', async d => { await d.accept(); });

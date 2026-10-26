@@ -231,6 +231,15 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orderticket-codeline{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
 .orderticket-saxa{font-size:22px;font-weight:700;color:#000;}
 .orderticket-code{font-size:46px;font-weight:800;line-height:1;color:#000;}
+/* หัวป้ายสาขาที่มีเลขโค้ด: ซ้าย = "สาขา" (ใหญ่) ทับ ชื่อสาขา (เล็กลงมาหน่อย), กลาง = เลขสาขาตัวใหญ่สูงคร่อมสองบรรทัดนั้น
+   (แต่ไม่เต็มความสูงทั้งสองบรรทัด ให้ดูสมส่วน), ขวา = KARMTO ทับ วันที่ — สามคอลัมน์บรรทัดคู่ ไม่เพิ่มความสูงหัวบิล
+   เลขสาขากิน flex:1 จัดกึ่งกลางในพื้นที่ระหว่างคอลัมน์ซ้าย/ขวา (เลยอยู่ "เกือบกลาง" ตามความยาวชื่อสาขา) */
+.orderticket-numhead{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-numhead .orderticket-left{display:flex;flex-direction:column;gap:2px;min-width:0;flex:none;max-width:46%;}
+.orderticket-numhead .orderticket-saxa{font-size:28px;font-weight:800;line-height:1.05;}
+.orderticket-numhead .orderticket-name{font-size:19px;font-weight:700;line-height:1.2;word-break:break-word;}
+.orderticket-numhead .orderticket-code{flex:1;text-align:center;font-size:52px;line-height:.9;}
+.orderticket-numhead .orderticket-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none;}
 .orderticket-kicker{font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;text-align:right;flex:none;}
 .orderticket-subrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:3px solid #000;}
 .orderticket-name{font-size:16px;font-weight:700;color:#000;}
@@ -716,7 +725,7 @@ table.plain td.num{text-align:right;}
     <div class="card dash-wide-card">
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="dash-grid" id="orderSummaryGrid" style="margin-bottom:10px;"></div>
-      <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกออเดอร์ทุกสาขาเป็นภาพสำหรับพิมพ์ (PeriPage)</button>
+      <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกทุกภาพ PeriPage</button>
       <div class="rowlist" id="orderList"></div>
     </div>
     <div class="card dash-wide-card" data-no-collapse="1">
@@ -1908,7 +1917,7 @@ function renderOrderList(){
       + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
     const exemptTag = isFeeExempt(code) ? ` <span style="color:var(--text-faint);font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:1px 6px;">แยกส่ง ไม่คิดค่าธรรมเนียม</span>` : '';
     return `<div class="orow"><div><div class="name"><span class="code">${code}</span>${branchName(code)}${exemptTag}</div><div class="items">${items}</div></div>
-      <div class="acts"><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
+      <div class="acts"><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
   }).join('');
   list.querySelectorAll('[data-printticket]').forEach(b=>b.addEventListener('click', ()=>saveOrderTicketAsImage(b.getAttribute('data-printticket'))));
   list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
@@ -2008,13 +2017,16 @@ function buildOrderTicketHTML(code, iso, row, cardId){
        <div class="orderticket-00block">
          <div class="orderticket-bigname">${escapeHtml(branchAreaLabel)}</div>
        </div>`
-    : `<div class="orderticket-topline">
-         <div class="orderticket-codeline"><span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span></div>
-         <div class="orderticket-kicker">🦀 KARMTO</div>
-       </div>
-       <div class="orderticket-subrow">
-         <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
-         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+    : `<div class="orderticket-numhead">
+         <div class="orderticket-left">
+           <div class="orderticket-saxa">สาขา</div>
+           <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
+         </div>
+         <div class="orderticket-code">${escapeHtml(code)}</div>
+         <div class="orderticket-right">
+           <div class="orderticket-kicker">🦀 KARMTO</div>
+           <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+         </div>
        </div>`;
   return `
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">

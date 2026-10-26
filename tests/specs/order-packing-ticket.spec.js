@@ -37,7 +37,7 @@ function check(label, cond, extra) {
 }
 
 (async () => {
-  const browser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {});
+  const browser = await require('../sandbox').launch(chromium);
   const page = await browser.newPage({ viewport: { width: 420, height: 1200 } });
   page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
   await page.goto((process.env.BASE_URL || 'http://localhost:8765') + '/index.html', { waitUntil: 'domcontentloaded' });
@@ -175,32 +175,30 @@ function check(label, cond, extra) {
   const branchNameUnchanged = await page.evaluate(() => branchName('00'));
   allPass &= check('branchName("00") itself is untouched elsewhere in the app', branchNameUnchanged !== 'ธงหมูกระทะ' && branchNameUnchanged.length > 0, branchNameUnchanged);
 
-  // ===== Test 6b: two-line header layout per latest feedback ("ให้สาขา บรรทัดเดียวกับ 🦀 , ให้ลำลูกกา บรรทัดเดียวกับวันที่")
-  // Line 1 (orderticket-topline): "สาขา {code}" + the KARMTO kicker, same row.
-  // Line 2 (orderticket-subrow): area name + date pill, same row — separate from line 1. =====
+  // ===== Test 6b: 3-column header — left: "สาขา" over area name, center: big code, right: KARMTO over date =====
   const lineCheck = await page.evaluate((html) => {
     const wrap = document.createElement('div');
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
-    const saxa = wrap.querySelector('.orderticket-saxa');
-    const codeEl = wrap.querySelector('.orderticket-code');
-    const kicker = wrap.querySelector('.orderticket-kicker');
-    const name = wrap.querySelector('.orderticket-name');
-    const date = wrap.querySelector('.orderticket-date');
-    const topline = wrap.querySelector('.orderticket-topline');
-    const subrow = wrap.querySelector('.orderticket-subrow');
+    const head = wrap.querySelector('.orderticket-numhead');
+    const left = head && head.querySelector('.orderticket-left');
+    const right = head && head.querySelector('.orderticket-right');
+    const codeEl = head && head.querySelector('.orderticket-code');
     const r = {
-      codeAndKickerSameLine: codeEl && kicker && codeEl.closest('.orderticket-topline') === topline && kicker.parentElement === topline,
-      nameAndDateSameLine: name && date && name.parentElement === subrow && date.parentElement === subrow,
-      codeAndNameOnDifferentLines: codeEl && name && codeEl.closest('.orderticket-topline') !== name.closest('.orderticket-subrow') && !topline.contains(name),
+      hasHead: !!head,
+      saxaAndNameStackedLeft: !!left && !!left.querySelector('.orderticket-saxa') && !!left.querySelector('.orderticket-name'),
+      kickerAndDateStackedRight: !!right && !!right.querySelector('.orderticket-kicker') && !!right.querySelector('.orderticket-date'),
+      codeInCenter: !!codeEl && codeEl.parentElement === head && codeEl.previousElementSibling === left && codeEl.nextElementSibling === right,
+      saxaBiggerThanName: left ? parseFloat(getComputedStyle(left.querySelector('.orderticket-saxa')).fontSize) > parseFloat(getComputedStyle(left.querySelector('.orderticket-name')).fontSize) : false,
     };
     wrap.remove();
     return r;
   }, ticket.html);
-  console.log('Line layout check:', JSON.stringify(lineCheck));
-  allPass &= check('"สาขา {code}" and the 🦀 KARMTO kicker share the same line (topline)', lineCheck.codeAndKickerSameLine, lineCheck);
-  allPass &= check('Area name and date pill share the same line (subrow)', lineCheck.nameAndDateSameLine, lineCheck);
-  allPass &= check('Code line and name line are separate rows (not merged into one)', lineCheck.codeAndNameOnDifferentLines, lineCheck);
+  console.log('Header layout check:', JSON.stringify(lineCheck));
+  allPass &= check('"สาขา" stacked above the area name on the left', lineCheck.saxaAndNameStackedLeft, lineCheck);
+  allPass &= check('KARMTO stacked above the date on the right', lineCheck.kickerAndDateStackedRight, lineCheck);
+  allPass &= check('Big branch code sits in the middle column', lineCheck.codeInCenter, lineCheck);
+  allPass &= check('"สาขา" is larger than the area name below it', lineCheck.saxaBiggerThanName, lineCheck);
 
   // ===== Test 7: html2canvas capture uses backgroundColor:null (not opaque white), avoiding square "white corner" artifacts
   // around the card's rounded border when viewed on a non-white background — see comment at saveOrderTicketAsImage =====

@@ -347,7 +347,7 @@ table.plain td.num{text-align:right;}
    บางๆ คั่นแถว แบบใบเสร็จ/invoice หรูๆ ที่ไม่มีพื้นหลังสีปะทะกันเป็นแถบๆ เส้นคาดบนบางลง (จาก 5px เหลือ 3px) ให้ดู
    เรียบร้อยขึ้นไม่หนาเทอะทะ ยอดรวมใช้พื้นเข้มทึบแทน gradient 2 สี (สงบตา เป็นทางการกว่า) ยังคงพื้นขาวนวลสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFDF9;color:var(--text);border:1px solid var(--border-soft);border-top:3px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:22px 20px 20px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
+.receipt{text-align:left;background:#FFFDF9;color:var(--text);border:1px solid var(--border-soft);border-top:3px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:22px 20px 20px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:12px;}
 .receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:1.5px solid rgba(185,139,84,.4);background:#FFF9EF;padding:3px;box-sizing:border-box;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -995,7 +995,7 @@ table.plain td.num{text-align:right;}
       </div>
       <div id="recheckRoundSummary" style="display:none;margin-top:8px;"></div>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
-      <div id="outstandingList" class="loading">กำลังโหลด…</div>
+      <div id="outstandingList"><div class="loading">กำลังโหลด…</div></div>
     </div>
     <div class="card dash-wide-card">
       <h3>📋 ประวัติการรีเช็ค <span class="subhint">(สรุปแต่ละรอบที่เคลียร์ไปแล้ว)</span></h3>

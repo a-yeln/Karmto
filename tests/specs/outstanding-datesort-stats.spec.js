@@ -164,7 +164,7 @@ function check(label, cond, extra) {
     sortBtnDisplay: getComputedStyle(document.getElementById('outstandingSortToggle')).display,
   }));
   console.log('Recheck mode view:', JSON.stringify(recheckView));
-  allPass &= check('Date-sort button hidden during recheck mode', recheckView.dateSortBtnDisplay==='none', recheckView);
+  allPass &= check('Date-sort button stays visible during recheck mode (toggles oldest/newest first)', recheckView.dateSortBtnDisplay!=='none', recheckView);
   allPass &= check('Delay-sort button also hidden during recheck mode', recheckView.sortBtnDisplay==='none', recheckView);
 
   console.log('\n=== SUMMARY ===');

@@ -356,6 +356,8 @@ table.plain td.num{text-align:right;}
 .receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;}
 .receipt .rheadmeta .rbillno{font-size:11px;color:#FFFCF6;background:#B98B54;padding:4px 11px;border-radius:3px;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
 .receipt .rheadmeta .rdate{font-size:10px;color:#A39A8D;}
+/* ป้ายเล็กๆ บอกว่าบิลนี้เป็นของสาขา "แยกส่ง" (คนละบิลกับบิลหลักของสาขาเลขเดียวกัน) กันคนรับบิลงงว่าทำไมได้ 2 ใบ */
+.receipt .rheadmeta .rsepnote{font-size:9.5px;color:#8C6A3E;border:1px solid #D9C4A4;border-radius:3px;padding:1px 6px;white-space:nowrap;}
 .receipt hr{border:none;height:1px;background:#E4DACB;margin:16px 0;}
 .receipt .idblock{display:flex;flex-direction:column;gap:6px;background:#FBF7F0;border:1px solid #EDE4D5;border-radius:8px;padding:10px 12px;}
 .receipt .idrow .idlabel{font-size:9.5px;color:#A39A8D;text-transform:uppercase;letter-spacing:.6px;margin-bottom:1px;}
@@ -3434,6 +3436,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
         <div class="rheadmeta">
           <div class="rbillno">#${billNo}</div>
           <div class="rdate">${formatDDMMYYYY(iso)}</div>
+          ${isFeeExempt(code) ? '<div class="rsepnote">ส่งแยกบิล</div>' : ''}
         </div>
       </div>
       <hr>
@@ -3504,7 +3507,7 @@ async function toggleReceipt(code){
     const curTotal = subtotal + curExtra;
     const txt = [
       bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
-      `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
+      `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
       ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
@@ -3563,7 +3566,7 @@ async function toggleBranchDetailReceipt(iso, code){
     const curTotal = subtotal + curExtra;
     const txt = [
       bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
-      `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
+      `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
       ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),

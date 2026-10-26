@@ -3825,11 +3825,43 @@ async function addExpenseFromDashboard(){
   setPayeeOtherValue_('dashExpPayee', 'dashExpPayeeOther', '');
   closeDashExpenseModal_();
 }
+// เติมฟอร์มเพิ่มรายจ่ายด่วนให้ตามขั้นตอนประจำวันเดียวกับฟอร์มในแท็บต้นทุนซื้อ (applyDailyExpenseRoutine_): ถ้าวันนั้นยังไม่ได้
+// บันทึกค่าแรงพี่พัฒน์ → เติมค่าแรง 700 ให้ ถ้าบันทึกค่าแรงแล้วแต่ยังไม่มีน้ำแข็ง → เติมหมวดน้ำแข็ง (กรอกจำนวนถุงในช่อง
+// รายละเอียดแล้ว ×40 ลงจำนวนเงินให้อัตโนมัติผ่าน wireIceAutoCalc_) — แค่เติมค่าในฟอร์มให้ ไม่บันทึกอะไรจนกว่าจะกด
+// "+ เพิ่มรายจ่าย" เอง แก้ทับได้ทุกช่อง ถ้าครบทั้งสองอย่างแล้วไม่เติมอะไร (ปล่อยฟอร์มว่างไว้กรอกรายจ่ายอื่นเอง)
+async function prefillDashExpenseRoutine_(iso){
+  const catEl = document.getElementById('dashExpCategory');
+  const payEl = document.getElementById('dashExpPayee');
+  const amtEl = document.getElementById('dashExpAmount');
+  const noteEl = document.getElementById('dashExpNote');
+  const phatOption = (settings.purchaseSellers||[]).find(s=>s.includes('พี่พัฒน์'));
+  let list = [];
+  try{ list = (iso===currentDate ? dayData : await loadDay(iso)).expenses || []; }catch(e){ list = []; }
+  if(document.getElementById('dashExpDate').value !== iso) return; // เปลี่ยนวันที่ไปแล้วระหว่างรอโหลด ทิ้งผลรอบนี้
+  const hasWage = !!(phatOption && list.some(e=>e.category==='ค่าแรง' && e.seller===phatOption));
+  const hasIce = !!(phatOption && list.some(e=>e.category==='น้ำแข็ง' && e.seller===phatOption));
+  if(!phatOption || (hasWage && hasIce)){
+    if(amtEl) amtEl.value = ''; if(noteEl) noteEl.value = '';
+  }else if(!hasWage){
+    if(catEl) catEl.value = 'ค่าแรง';
+    if(payEl) payEl.value = phatOption;
+    if(amtEl) amtEl.value = 700;
+    if(noteEl) noteEl.value = '';
+  }else{
+    if(catEl) catEl.value = 'น้ำแข็ง';
+    if(payEl) payEl.value = phatOption;
+    if(amtEl) amtEl.value = '';
+    if(noteEl) noteEl.value = '';
+  }
+  togglePayeeOther_('dashExpPayee', 'dashExpPayeeOther');
+}
 function openDashExpenseModal_(){
   renderExpenseCategorySelect(); // เติม/รีเฟรชตัวเลือกหมวด/ผู้รับเงินให้ตรงกับ settings ล่าสุดทุกครั้งที่เปิด
-  document.getElementById('dashExpDate').value = todayISO(); // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
+  const iso = todayISO();
+  document.getElementById('dashExpDate').value = iso; // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
   document.getElementById('dashExpenseModalOverlay').style.display = 'flex';
   document.getElementById('dashExpCategory').focus();
+  prefillDashExpenseRoutine_(iso);
 }
 function closeDashExpenseModal_(){
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
@@ -10381,6 +10413,7 @@ async function init(){
   guardedClick('addExpenseBtn', addExpense);
   wireIceAutoCalc_('expCategory','expNote','expAmount');
   wireIceAutoCalc_('dashExpCategory','dashExpNote','dashExpAmount');
+  document.getElementById('dashExpDate').addEventListener('change', e=>{ if(e.target.value) prefillDashExpenseRoutine_(e.target.value); });
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));

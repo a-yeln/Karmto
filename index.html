@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Karmto — ระบบสั่งของรายวัน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=Mitr:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script type="module">
   // ==================================================================
   // KARMTO — การเชื่อมต่อ Google Sheets ผ่าน Apps Script
@@ -116,19 +116,29 @@
 :root{
   /* โทนสีพาสเทลฟ้าน้ำทะเล-ส้ม แบบสว่าง (ตามเดโมที่อนุมัติแล้ว) — ปรับที่ token ตรงนี้จุดเดียว
      ทุกจุดในแอพที่อ้างอิง var(--bg)/var(--accent)/ฯลฯ จะเปลี่ยนตามอัตโนมัติ ไม่ต้องไล่แก้ทีละจุด */
-  --bg:#F4F8F9; --surface:#FFFFFF; --surface-2:#E9F2F4; --surface-3:#DAEAEE;
-  --border:#D3E4E8; --border-soft:#E1EEF0;
-  --text:#0F262B; --text-dim:#4E6B72; --text-faint:#87A2A8;
-  --accent:#0E7C93; --accent-text:#FFFFFF; --accent-soft:rgba(14,124,147,0.10);
-  --danger:#F2ADAD; --danger-soft:rgba(242,173,173,0.10);
-  --success:#8DE2C5; --success-soft:rgba(141,226,197,0.10);
-  --mahkard:#3E7CB1; --mahkard-soft:#C0E4F6;
-  --monk:#2E9A9A; --monk-soft:#D0F4DE;
-  --phat:#9757B8; --phat-soft:#E8CFF8;
-  --ocean:#0E7C93; --ocean-soft:rgba(14,124,147,0.10);
-  --sunset:#E2711D; --sunset-soft:rgba(226,113,29,0.12);
+  --bg:#F3F9FC; --surface:#FFFFFF; --surface-2:#FFFFFF; --surface-3:#EAF3F9;
+  --border:#CFE2EE; --border-soft:#DDEBF4;
+  --text:#22343B; --text-dim:#566C76; --text-faint:#7B919B;
+  --accent:#0E7C93; --accent-text:#FFFFFF; --accent-soft:#D6EFF5;
+  --danger:#E26C80; --danger-soft:#FFE0E6;
+  --success:#27A77B; --success-soft:#D5F4E7;
+  --mahkard:#3E7CB1; --mahkard-soft:#C9E6F8;
+  --monk:#2E9A9A; --monk-soft:#D3F4E1;
+  --phat:#9757B8; --phat-soft:#EBD6F8;
+  --ocean:#0E7C93; --ocean-soft:#D6EFF5;
+  --sunset:#F08A3E; --sunset-soft:#FFE5CF;
   --dash-wide-shadow:0 1px 2px rgba(15,38,43,0.04), 0 8px 24px rgba(15,38,43,0.07);
-  --radius:10px;
+  --radius:22px;
+  /* ชุดสีแคนดี้มาการอง: พื้นการ์ด (c-*) กับเส้นขอบเข้มขึ้นหนึ่งขั้น (b-*) ใช้คู่กันเสมอ */
+  --c-sky:#E1F1FB;   --b-sky:#B9DBF1;
+  --c-mint:#DFF6EC;  --b-mint:#B7E6D0;
+  --c-peach:#FFEBDC; --b-peach:#FFD0B3;
+  --c-lav:#EEE7FB;   --b-lav:#D5C8F1;
+  --c-lemon:#FFF5D2; --b-lemon:#F5E1A0;
+  --c-pink:#FFE3EA;  --b-pink:#F8C1D1;
+  --field-bd:#CBE0EE;
+  --pill:999px; --r-md:16px; --r-sm:12px;
+  --candy-shadow:0 3px 0 rgba(120,160,190,.28), 0 10px 22px rgba(70,110,140,.08);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;overscroll-behavior-y:contain;}
@@ -607,6 +617,117 @@ table.plain td.num{text-align:right;}
 .tbar{width:100%;max-width:20px;background:var(--surface-3);border-radius:3px 3px 0 0;transition:height .25s ease;}
 .tbar.today{background:var(--accent);}
 .tbar-label{font-size:9.5px;color:var(--text-faint);}
+
+/* ===================== ธีมแคนดี้มาการอง (ชั้นสไตล์กลาง) =====================
+   ทุกหน้า/ทุกฟอร์มใช้ชุดเดียวกัน: พื้นสีพาสเทลหลายสี ขอบมนใหญ่ ขอบหนา 2px เส้นล่างนูนเหมือนลูกอม ช่องกรอก/แถวรายการเป็นสีขาว
+   ลอยบนพื้นสี เพื่อแยกส่วนชัดเจน — เขียนต่อท้ายสุดของ <style> เพื่อทับกฎเดิมตามลำดับ (specificity เท่ากัน) บิลใบเสร็จ
+   (.receipt) กับป้าย PeriPage (.orderticket) ไม่ใช้ธีมนี้ ตรึงค่าสีเดิมไว้ด้านล่าง ภาพที่ส่งในแชทจึงหน้าตาเหมือนเดิมทุกอย่าง */
+.receipt,.orderticket{
+  --surface-2:#E9F2F4; --surface-3:#DAEAEE; --border:#D3E4E8; --border-soft:#E1EEF0;
+  --text:#0F262B; --text-dim:#4E6B72; --text-faint:#87A2A8; --accent:#0E7C93; --accent-soft:rgba(14,124,147,0.10);
+  --danger:#F2ADAD; --success:#8DE2C5; --radius:10px;
+}
+h1,h2,h3,.dwb-name{font-family:'Mitr','IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight:500;}
+.dash-wide-brand .dwb-name{font-family:'Chonburi',cursive;font-weight:400;}
+body{background:var(--bg);}
+
+/* การ์ดแต่ละใบ: หมุนสี 6 สีตามลำดับในหน้านั้น (ฟ้า > มิ้นต์ > พีช > ม่วงลาเวนเดอร์ > เหลืองเลมอน > ชมพู) */
+.card{--card-bg:var(--c-sky);--card-bd:var(--b-sky);background:var(--card-bg);border:2px solid var(--card-bd);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--candy-shadow);}
+.card:nth-of-type(6n+2){--card-bg:var(--c-mint);--card-bd:var(--b-mint);}
+.card:nth-of-type(6n+3){--card-bg:var(--c-peach);--card-bd:var(--b-peach);}
+.card:nth-of-type(6n+4){--card-bg:var(--c-lav);--card-bd:var(--b-lav);}
+.card:nth-of-type(6n+5){--card-bg:var(--c-lemon);--card-bd:var(--b-lemon);}
+.card:nth-of-type(6n+6){--card-bg:var(--c-pink);--card-bd:var(--b-pink);}
+.card .card{background:#fff;border-color:var(--card-bd);box-shadow:none;border-radius:var(--r-md);}
+.dash-wide-main .card.dash-wide-card{border:2px solid var(--card-bd);box-shadow:var(--candy-shadow);border-radius:var(--radius);}
+.card h3{font-size:16px;color:var(--text);margin-bottom:12px;}
+.card .hint{color:var(--text-dim);}
+.card h3.collapsible .chev{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--card-bd);display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-dim);}
+
+/* ช่องกรอก: ขาวสะอาด ขอบสีฟ้าพาสเทล มน เวลาโฟกัสมีวงเรืองสี */
+select,input[type=number],input[type=text],input[type=date],input[type=month],input[type=time],input[type=password],input[type=search],textarea{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-md);padding:10px 13px;color:var(--text);}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+input[type=file]{font-family:inherit;font-size:13px;color:var(--text-dim);}
+input[type=file]::file-selector-button{font-family:inherit;font-size:13px;font-weight:600;border:2px solid var(--field-bd);background:#fff;color:var(--text);border-radius:var(--pill);padding:6px 14px;margin-right:10px;cursor:pointer;}
+label{color:var(--text-dim);font-size:12.5px;font-weight:500;margin-bottom:5px;}
+
+/* ปุ่ม: อ้วนกลม มีเงาเส้นล่างเหมือนลูกอม กดแล้วยุบลง */
+.btn{border-radius:var(--r-md);padding:11px 16px;box-shadow:0 3px 0 #0A5C6E;transition:transform .08s ease,box-shadow .08s ease,filter .15s;}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #0A5C6E;}
+.btn:hover{filter:brightness(1.04);}
+.btn.secondary{background:#fff;color:var(--text);border:2px solid var(--field-bd);box-shadow:0 3px 0 var(--field-bd);font-weight:600;}
+.btn.secondary:active{box-shadow:0 1px 0 var(--field-bd);}
+.btn.secondary.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);box-shadow:0 3px 0 rgba(14,124,147,.4);}
+.btn.danger{background:var(--danger-soft);color:#B8465A;border:2px solid var(--danger);box-shadow:0 3px 0 rgba(226,108,128,.45);font-weight:600;}
+.btn.small{border-radius:var(--r-sm);padding:6px 12px;box-shadow:0 2px 0 #0A5C6E;}
+.btn.secondary.small{box-shadow:0 2px 0 var(--field-bd);}
+.btn:disabled{opacity:.5;box-shadow:none;transform:none;}
+.iconbtn{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-sm);width:32px;height:32px;}
+.iconbtn.danger{background:var(--danger-soft);border-color:var(--danger);}
+.copybtn{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-sm);padding:7px 13px;font-weight:600;}
+
+/* แท็บ/ชิปตัวกรอง: เม็ดยาขาว ตัวที่เลือกเป็นสีฟ้าพาสเทลขอบเข้ม */
+.tab,.qr-type{background:#fff;border:2px solid var(--field-bd);color:var(--text-dim);border-radius:var(--pill);font-weight:600;}
+.tab.active,.qr-type.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.dash-outstanding-filter{background:#fff;border:2px solid var(--field-bd);padding:3px;}
+.dash-outstanding-filter button.active{background:var(--accent-soft);}
+.statchip{background:#fff;border:2px solid var(--b-sky);border-radius:var(--pill);padding:5px 12px;}
+
+/* แถวรายการ/กล่องย่อยในการ์ด: ขาว ขอบบาง มนกลาง */
+.orow,.branchbill,.msgblock,.linemsg{background:#fff;border:2px solid var(--border-soft);border-radius:var(--r-md);padding:10px 12px;}
+.linemsg,.msgblock{border-color:var(--card-bd,var(--border-soft));}
+.olist{background:#fff;border:2px solid var(--border-soft);border-radius:var(--r-md);}
+.olist .branchbill.otrow{background:#fff;}
+.olist .otrow.checked{background:var(--c-lemon);}
+.rchk-btn{border-radius:var(--r-sm);border-width:2px;}
+.otrow .osep,.msgblock .tag,.tag{border-radius:var(--pill);}
+.lrow .lin{background:var(--surface-3);border-radius:var(--r-sm);}
+.empty{background:rgba(255,255,255,.7);border:2px dashed var(--field-bd);border-radius:var(--r-md);padding:20px 12px;}
+table.plain th{background:rgba(255,255,255,.7);border-bottom:2px solid var(--field-bd);}
+table.plain td{border-bottom:1px dashed var(--field-bd);}
+.delayrow{border-bottom:1px dashed var(--field-bd);}
+
+/* ทายล์แดชบอร์ด: มนใหญ่ ขอบหนา สีตามชนิด */
+.dwtile,.dash-metric{background:#fff;border:2px solid var(--b-sky);border-radius:var(--radius);box-shadow:var(--candy-shadow);}
+.dwtile.ocean,.dwtile.accent,.dash-metric.accent{background:var(--c-sky);border-color:var(--b-sky);}
+.dwtile.sunset{background:var(--c-peach);border-color:var(--b-peach);}
+.dwtile.danger,.dash-metric.danger{background:var(--c-pink);border-color:var(--b-pink);}
+.dwtile.success,.dash-metric.success{background:var(--c-mint);border-color:var(--b-mint);}
+.dash-metric.info{background:var(--c-lav);border-color:var(--b-lav);}
+.dwtile .dm-label,.dash-metric .dm-label{color:var(--text-dim);font-weight:500;}
+.dwtile .dm-value,.dash-metric .dm-value{font-weight:700;}
+.dwtile.danger .dm-value,.dash-metric.danger .dm-value{color:#C2475D;}
+.dwtile.success .dm-value,.dash-metric.success .dm-value{color:#1B8A64;}
+.dwtile-note-btn{border-radius:10px;border-width:2px;}
+.dash-cost-bar{height:8px;background:#fff;border:2px solid var(--field-bd);}
+
+/* แถบเมนูข้าง + แถบหัว */
+.dash-wide-nav{background:#fff;border:2px solid var(--b-sky);border-radius:26px;box-shadow:var(--candy-shadow);padding:12px;}
+.dash-wide-nav button{border-radius:var(--r-md);font-weight:500;}
+.dash-wide-nav button:hover{background:var(--c-sky);}
+.dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 2px var(--b-sky);}
+.dash-wide-brand{border-bottom:2px dashed var(--b-sky);}
+.dwh-datenav,.dwh-idchip,.dwh-menu-btn{background:#fff;border:2px solid var(--field-bd);}
+.dwh-datenav button:hover{background:var(--c-sky);}
+.dwh-addexp-btn{border-radius:var(--pill);padding:10px 16px;box-shadow:0 3px 0 rgba(200,110,40,.45);}
+.dwh-sticky-wrap{border-bottom:2px solid var(--b-sky);}
+.dwh-titles h2{font-size:20px;}
+.cal-popup{background:#fff;border:2px solid var(--b-sky);border-radius:22px;box-shadow:var(--candy-shadow);}
+.cal-day{border-radius:var(--r-sm);}
+.cal-switch .track{border-width:2px;}
+
+/* หน้าต่างป๊อปอัป/ทูสต์ */
+.modalOverlay{background:rgba(52,78,100,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
+.modalBox{background:#fff;border:2px solid var(--b-sky);border-radius:28px;padding:20px;box-shadow:0 18px 50px rgba(50,80,110,.25);}
+.modalBox textarea{background:var(--c-sky);border:2px solid var(--b-sky);border-radius:var(--r-md);}
+.toast{background:#fff;border:2px solid var(--b-mint);color:var(--text);box-shadow:var(--candy-shadow);font-weight:600;}
+
+/* มือถือ: เมนูข้างเป็นลิ้นชัก เงาต้องโผล่เฉพาะตอนเปิด ไม่ให้ลอดเข้าขอบจอตอนซ่อนอยู่ */
+@media (max-width:767px){
+  .dash-wide-nav{box-shadow:none;border-radius:0 26px 26px 0;}
+  body.dash-nav-open .dash-wide-nav{box-shadow:0 0 40px rgba(50,80,110,.3);}
+  .card{padding:14px;border-radius:20px;}
+}
 </style>
 </head>
 <body>

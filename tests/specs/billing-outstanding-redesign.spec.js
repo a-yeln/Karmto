@@ -49,7 +49,7 @@ function check(label, cond, extra) {
 }
 
 (async () => {
-  const browser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {});
+  const browser = await require('../sandbox').launch(chromium);
   const page = await browser.newPage({ viewport: { width: 420, height: 1400 } });
   page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
   await page.goto((process.env.BASE_URL || 'http://localhost:8765') + '/index.html', { waitUntil: 'domcontentloaded' });
@@ -138,7 +138,7 @@ function check(label, cond, extra) {
   const paidRow = outstandingRowsAll.find(r => r.key === '2026-10-02|01');
   allPass &= check('Paid row found', !!paidRow);
   if(paidRow){
-    allPass &= check('Paid row: date appears first in .left (one line, date-first)', /^\d\d\/\d\d\/\d\d\d\d/.test(paidRow.leftText), paidRow.leftText);
+    allPass &= check('Paid row: date appears first in .left (one line, date-first)', /^\d\d\/\d\d(\/\d\d)?\s/.test(paidRow.leftText), paidRow.leftText);
     allPass &= check('Paid row: no more .amtcol (one-line layout)', !paidRow.hasAmtCol);
     allPass &= check('Paid row: amount has big/bold class', paidRow.amtHasBig);
     allPass &= check('Paid row: amount sits outside .left (right-aligned column)', paidRow.amtIsOutsideLeft);
@@ -161,7 +161,7 @@ function check(label, cond, extra) {
   const unpaidRow = outstandingRowsUnpaid.find(r => r.key === '2026-09-20|02');
   allPass &= check('Unpaid (September) row found under ค้างโอน filter', !!unpaidRow, outstandingRowsUnpaid);
   if(unpaidRow){
-    allPass &= check('Unpaid row: date appears first', /^\d\d\/\d\d\/\d\d\d\d/.test(unpaidRow.leftText), unpaidRow.leftText);
+    allPass &= check('Unpaid row: date appears first', /^\d\d\/\d\d(\/\d\d)?\s/.test(unpaidRow.leftText), unpaidRow.leftText);
     // Still unpaid -> delay must track the REAL current date (todayISO()), not a hardcoded day count (the actual
     // wall-clock date can tick forward mid-session), and must NOT be pinned to the order date (that would always read 0).
     const expectedDelay = await page.evaluate(() => Math.round((new Date(todayISO())-new Date('2026-09-20'))/86400000));

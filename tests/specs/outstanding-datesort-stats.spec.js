@@ -49,7 +49,7 @@ function check(label, cond, extra) {
 }
 
 (async () => {
-  const browser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {});
+  const browser = await require('../sandbox').launch(chromium);
   const page = await browser.newPage({ viewport: { width: 420, height: 1600 } });
   page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
   await page.goto((process.env.BASE_URL || 'http://localhost:8765') + '/index.html', { waitUntil: 'domcontentloaded' });
@@ -164,7 +164,7 @@ function check(label, cond, extra) {
     sortBtnDisplay: getComputedStyle(document.getElementById('outstandingSortToggle')).display,
   }));
   console.log('Recheck mode view:', JSON.stringify(recheckView));
-  allPass &= check('Date-sort button hidden during recheck mode', recheckView.dateSortBtnDisplay==='none', recheckView);
+  allPass &= check('Date-sort button stays visible during recheck mode (toggles oldest/newest first)', recheckView.dateSortBtnDisplay!=='none', recheckView);
   allPass &= check('Delay-sort button also hidden during recheck mode', recheckView.sortBtnDisplay==='none', recheckView);
 
   console.log('\n=== SUMMARY ===');

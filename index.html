@@ -231,6 +231,15 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orderticket-codeline{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
 .orderticket-saxa{font-size:22px;font-weight:700;color:#000;}
 .orderticket-code{font-size:46px;font-weight:800;line-height:1;color:#000;}
+/* หัวป้ายสาขาที่มีเลขโค้ด: ซ้าย = "สาขา" (ใหญ่) ทับ ชื่อสาขา (เล็กลงมาหน่อย), กลาง = เลขสาขาตัวใหญ่สูงคร่อมสองบรรทัดนั้น
+   (แต่ไม่เต็มความสูงทั้งสองบรรทัด ให้ดูสมส่วน), ขวา = KARMTO ทับ วันที่ — สามคอลัมน์บรรทัดคู่ ไม่เพิ่มความสูงหัวบิล
+   เลขสาขากิน flex:1 จัดกึ่งกลางในพื้นที่ระหว่างคอลัมน์ซ้าย/ขวา (เลยอยู่ "เกือบกลาง" ตามความยาวชื่อสาขา) */
+.orderticket-numhead{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:3px solid #000;}
+.orderticket-numhead .orderticket-left{display:flex;flex-direction:column;gap:2px;min-width:0;flex:none;max-width:46%;}
+.orderticket-numhead .orderticket-saxa{font-size:28px;font-weight:800;line-height:1.05;}
+.orderticket-numhead .orderticket-name{font-size:19px;font-weight:700;line-height:1.2;word-break:break-word;}
+.orderticket-numhead .orderticket-code{flex:1;text-align:center;font-size:52px;line-height:.9;}
+.orderticket-numhead .orderticket-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none;}
 .orderticket-kicker{font-size:15px;font-weight:800;letter-spacing:1.5px;color:#000;text-align:right;flex:none;}
 .orderticket-subrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:3px solid #000;}
 .orderticket-name{font-size:16px;font-weight:700;color:#000;}
@@ -314,6 +323,46 @@ table.plain td.num{text-align:right;}
   .allexp-fields .paytoggle{grid-area:status;align-self:center;}
 }
 .badge-delay{background:var(--danger-soft);color:var(--danger);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;}
+.olist{border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;}
+/* แถวรายการตามโอน: การ์ดติดกันเป็นก้อนเดียว คั่นด้วยเส้นบางๆ ทุกอย่างอยู่บรรทัดเดียว (วันที่ • สาขา • วันที่ชำระ | ยอด | ดีเลย์ 🧾 สถานะ) */
+.olist .branchbill.otrow{border:0;border-radius:0;margin:0;padding:5px 8px;border-bottom:1px solid var(--border-soft);}
+.olist .branchbill.otrow:last-child{border-bottom:0;}
+.otrow .toprow{gap:6px;}
+.otrow .toprow .left{flex-wrap:nowrap;overflow:hidden;align-items:center;gap:5px;}
+.otrow .odate{color:var(--text-faint);font-size:11px;flex:none;font-variant-numeric:tabular-nums;}
+.otrow .left .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.otrow .osep{flex:none;font-size:10px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;line-height:1.45;}
+.otrow .opaid{flex:none;font-size:11px;font-weight:600;color:var(--success);white-space:nowrap;}
+.otrow .odiff{flex:none;font-size:10.5px;font-weight:700;white-space:nowrap;}
+.otrow .badge-delay{min-width:38px;text-align:center;padding:2px 5px;}
+.otrow .acts2{gap:4px;}
+.otrow .iconbtn{width:30px;height:30px;}
+.otrow .paytoggle{padding:5px 10px;min-width:64px;}
+/* ปุ่มรีเช็คเหลี่ยมหน้าสุด: 🔎 + คำว่า CHECK ตัวเล็กใต้อิโมจิ */
+.rchk-btn{flex:none;width:40px;height:38px;border-radius:6px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;font-family:inherit;padding:0;line-height:1;}
+.rchk-btn .e{font-size:16px;}
+.rchk-btn small{font-size:8px;font-weight:800;letter-spacing:.06em;}
+.rchk-btn.open{background:var(--accent);color:#fff;}
+.rchk-btn.done{border-color:var(--success);background:var(--success);color:#fff;width:40px;height:24px;}
+.rchk-btn.done.bad{border-color:var(--danger);background:var(--danger);}
+/* การ์ดที่เช็คแล้ว: พับแคบลง พื้นต่างสี ตัวหนังสือซีด — แตะที่การ์ดเพื่อกางดูรายละเอียดผลเช็ค/ยกเลิก */
+.olist .otrow.checked{background:var(--surface);padding:2px 8px;cursor:pointer;}
+.otrow.checked .toprow > :not(.rchk-btn){opacity:.5;}
+.otrow.checked .amt.big{font-size:13.5px;}
+.otrow.checked .badge-delay,.otrow.checked [data-outstandingbill]{display:none;}
+.otrow.checked .paytoggle{padding:2px 8px;font-size:11px;}
+.otrow.checked .ochkdetail{display:none;}
+.otrow.checked.expanded{padding:5px 8px;}
+.otrow.checked.expanded .toprow > :not(.rchk-btn){opacity:1;}
+.otrow.checked.expanded .ochkdetail{display:flex;}
+.otrow.checked.expanded .badge-delay,.otrow.checked.expanded [data-outstandingbill]{display:inline-flex;}
+.oday-sep{border-top:2px solid var(--border);}
+.ofilters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.ofilters .lbl{font-size:12px;color:var(--text-dim);flex:none;}
+.omonthrange{display:flex;gap:6px;align-items:center;}
+.omonthrange input{flex:1;min-width:0;}
+.linemsg{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:8px 10px;margin-top:8px;}
+.linemsg pre{white-space:pre-wrap;font-family:inherit;font-size:12.5px;margin:6px 0 0;line-height:1.5;}
 .settings-branch{display:flex;gap:6px;align-items:center;margin-bottom:7px;}
 .settings-branch input:first-child{width:52px;flex:none;text-align:center;}
 .empty{color:var(--text-faint);font-size:13px;text-align:center;padding:18px 0;}
@@ -338,7 +387,7 @@ table.plain td.num{text-align:right;}
    บางๆ คั่นแถว แบบใบเสร็จ/invoice หรูๆ ที่ไม่มีพื้นหลังสีปะทะกันเป็นแถบๆ เส้นคาดบนบางลง (จาก 5px เหลือ 3px) ให้ดู
    เรียบร้อยขึ้นไม่หนาเทอะทะ ยอดรวมใช้พื้นเข้มทึบแทน gradient 2 สี (สงบตา เป็นทางการกว่า) ยังคงพื้นขาวนวลสะอาด
    อ่านง่ายเวลาพิมพ์ออกกระดาษจริง (ไม่ใช้สีอ่อนเกินไปจนจางตอนพิมพ์ขาวดำ) */
-.receipt{background:#FFFDF9;color:var(--text);border:1px solid var(--border-soft);border-top:3px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:22px 20px 20px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
+.receipt{text-align:left;background:#FFFDF9;color:var(--text);border:1px solid var(--border-soft);border-top:3px solid #B98B54;box-shadow:var(--dash-wide-shadow);border-radius:14px;padding:22px 20px 20px;font-family:'IBM Plex Sans Thai',sans-serif;width:480px;flex:none;margin:0 auto;}
 .receipt .rheadtop{display:flex;align-items:flex-start;gap:12px;}
 .receipt .receiptlogo{width:44px;height:44px;object-fit:contain;flex:none;margin-top:1px;border-radius:50%;border:1.5px solid rgba(185,139,84,.4);background:#FFF9EF;padding:3px;box-sizing:border-box;}
 .receipt .rheadinfo{flex:1;min-width:0;}
@@ -347,6 +396,8 @@ table.plain td.num{text-align:right;}
 .receipt .rheadmeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;}
 .receipt .rheadmeta .rbillno{font-size:11px;color:#FFFCF6;background:#B98B54;padding:4px 11px;border-radius:3px;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
 .receipt .rheadmeta .rdate{font-size:10px;color:#A39A8D;}
+/* ป้ายเล็กๆ บอกว่าบิลนี้เป็นของสาขา "แยกส่ง" (คนละบิลกับบิลหลักของสาขาเลขเดียวกัน) กันคนรับบิลงงว่าทำไมได้ 2 ใบ */
+.receipt .rheadmeta .rsepnote{font-size:9.5px;color:#8C6A3E;border:1px solid #D9C4A4;border-radius:3px;padding:1px 6px;white-space:nowrap;}
 .receipt hr{border:none;height:1px;background:#E4DACB;margin:16px 0;}
 .receipt .idblock{display:flex;flex-direction:column;gap:6px;background:#FBF7F0;border:1px solid #EDE4D5;border-radius:8px;padding:10px 12px;}
 .receipt .idrow .idlabel{font-size:9.5px;color:#A39A8D;text-transform:uppercase;letter-spacing:.6px;margin-bottom:1px;}
@@ -495,19 +546,26 @@ table.plain td.num{text-align:right;}
   body.dash-nav-collapsed .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
   body.dash-nav-collapsed .dash-wide-nav button{justify-content:center;padding:11px 0;}
 }
+/* จอขนาดแท็บเล็ต (768–1023px): เมนูข้างแคบเหลือแต่ไอคอนเป็นค่าเริ่มต้น แต่กดปุ่ม ▸ ที่มุมแบรนด์เพื่อกางเต็ม (มีชื่อเมนู)
+   ได้ — เดิมบังคับแคบตายตัว ปุ่มยังโผล่ให้กด (กฎซ่อนปุ่มแพ้ specificity ของ #id.class + all:unset) แต่กดแล้วไม่เกิดอะไร
+   เพราะคลาส dash-nav-collapsed มีผลเฉพาะ ≥1024px เท่านั้น ช่วงนี้เลยใช้คลาส dash-nav-expanded แยกต่างหากแทน */
+@media (min-width:768px) and (max-width:1023px){
+  body:not(.dash-nav-expanded) .dash-wide-nav{width:64px;}
+  body:not(.dash-nav-expanded) .dash-wide-brand .dwb-textwrap,
+  body:not(.dash-nav-expanded) .dash-wide-nav .dwn-lbl{display:none;}
+  body:not(.dash-nav-expanded) .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
+  body:not(.dash-nav-expanded) .dash-wide-nav button{justify-content:center;padding:11px 0;}
+}
 @media (max-width:1023px){
   .dash-wide-outer{padding:16px 16px 32px;}
-  .dash-wide-nav{width:64px;}
-  .dash-wide-brand .dwb-textwrap,.dash-wide-nav .dwn-lbl{display:none;}
-  .dash-wide-brand{justify-content:center;padding:8px 0 14px;}
-  .dash-wide-nav button{justify-content:center;padding:11px 0;}
-  #dwNavCollapseBtn{display:none;}
   .dash-wide-bento{grid-template-columns:repeat(2,1fr);}
   .dwtile.hero,.dwtile.feed{grid-column:span 2;}
   .dwtile.chart{grid-column:span 2;grid-row:span 1;}
   .dash-grid{grid-template-columns:repeat(2,1fr);}
 }
 @media (max-width:767px){
+  /* มือถือ: เมนูเป็น drawer เปิดด้วยปุ่ม ☰ อยู่แล้ว ไม่ต้องมีปุ่มย่อ/ขยาย (ต้องใช้ #id.class ให้ชนะ all:unset ของปุ่ม) */
+  #dwNavCollapseBtn.dwn-brand-collapse-btn{display:none;}
   .dash-wide-outer{width:auto;position:static;left:auto;margin-left:0;padding:0;}
   .dash-wide-shell{max-width:none;margin:0;}
   .dash-wide-nav{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:40;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.35);border-radius:0;}
@@ -716,7 +774,7 @@ table.plain td.num{text-align:right;}
     <div class="card dash-wide-card">
       <h3>✅ สาขาที่บันทึกแล้ววันนี้</h3>
       <div class="dash-grid" id="orderSummaryGrid" style="margin-bottom:10px;"></div>
-      <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกออเดอร์ทุกสาขาเป็นภาพสำหรับพิมพ์ (PeriPage)</button>
+      <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกทุกภาพ PeriPage</button>
       <div class="rowlist" id="orderList"></div>
     </div>
     <div class="card dash-wide-card" data-no-collapse="1">
@@ -957,14 +1015,24 @@ table.plain td.num{text-align:right;}
     <div class="card dash-wide-card">
       <h3>⏳ รายการที่ต้องตามโอน <span class="subhint">(ทุกวันที่ยังไม่ปิด)</span></h3>
       <div class="statrow" id="outstandingStats" style="margin-bottom:10px;"></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <div class="ofilters">
         <button type="button" class="tab active" data-outstatusfilter="unpaid">ค้างโอน</button>
         <button type="button" class="tab" data-outstatusfilter="paid">โอนแล้ว</button>
         <button type="button" class="tab" data-outstatusfilter="all">ทุกบิล</button>
       </div>
+      <div class="ofilters" style="margin-top:6px;">
+        <span class="lbl">ประเภทบิล</span>
+        <button type="button" class="tab active" data-outtypefilter="all">ทั้งหมด</button>
+        <button type="button" class="tab" data-outtypefilter="main">บิลหลัก</button>
+        <button type="button" class="tab" data-outtypefilter="sep">แยกส่งเท่านั้น</button>
+      </div>
       <div id="outstandingMonthPickerWrap" style="display:none;margin-top:8px;">
-        <label style="font-size:12.5px;color:var(--text-dim);">เดือนที่จะดู (สำหรับ "โอนแล้ว"/"ทุกบิล" — บิลที่ยังค้างโอนจะโชว์ทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน)</label>
-        <input type="month" id="outstandingMonthInput" style="width:100%;">
+        <label style="font-size:12.5px;color:var(--text-dim);">ช่วงเดือนที่จะดู (สำหรับ "โอนแล้ว"/"ทุกบิล" — เลือกเดือนเริ่ม-ถึงเดือนได้หลายเดือน บิลที่ยังค้างโอนจะโชว์ทุกวันที่ค้างอยู่เสมอไม่จำกัดเดือน)</label>
+        <div class="omonthrange">
+          <input type="month" id="outstandingMonthInput" aria-label="ตั้งแต่เดือน">
+          <span style="flex:none;color:var(--text-dim);font-size:12px;">ถึง</span>
+          <input type="month" id="outstandingMonthToInput" aria-label="ถึงเดือน">
+        </div>
       </div>
       <div class="field" style="margin-top:12px;"><label>กรองเฉพาะสาขา</label><select id="outstandingBranchFilter"><option value="">— ทุกสาขา —</option></select></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
@@ -976,8 +1044,12 @@ table.plain td.num{text-align:right;}
         <span id="recheckModeLabel" style="font-size:13px;color:var(--text-dim);">🔍 โหมดรีเช็ค — ปิดอยู่ เปิดเพื่อไล่เช็คทีละบิลก่อนไปทวง (กันโดนสลิปเก่ามาตบหน้า)</span>
       </div>
       <div id="recheckRoundSummary" style="display:none;margin-top:8px;"></div>
+      <div style="margin-top:8px;">
+        <button class="btn small secondary" id="outstandingLineMsgBtn" style="width:auto;">💬 ข้อความทวงยอดส่ง Line (แยกสาขา)</button>
+      </div>
+      <div id="outstandingLineMsgs" style="display:none;"></div>
       <div id="outstandingBranchDetail" style="display:none;margin-top:8px;"></div>
-      <div id="outstandingList" class="loading">กำลังโหลด…</div>
+      <div id="outstandingList" style="margin-top:8px;"><div class="loading">กำลังโหลด…</div></div>
     </div>
     <div class="card dash-wide-card">
       <h3>📋 ประวัติการรีเช็ค <span class="subhint">(สรุปแต่ละรอบที่เคลียร์ไปแล้ว)</span></h3>
@@ -1735,11 +1807,19 @@ function renderActivityFeed_(){
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
+// เช็คว่าแถวออเดอร์นี้ "มีออเดอร์จริง" วันนั้นไหม ต้องนับทั้งสินค้าหลัก 7 รายการและสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอ — เดิมหลาย
+// จุดในแอปเช็คแค่ 7 รายการหลักอย่างเดียว ทำให้สาขาที่สั่งแต่ของนอกแคตตาล็อกล้วนๆ (ไม่มีจำนวนใน 7 รายการหลักเลย แต่มี
+// รายการใน row.custom) ถูกมองว่า "ไม่มีออเดอร์วันนี้" ไปเงียบๆ ทั้งที่มีออเดอร์จริงและมีมูลค่าจริง (เข้า branchBillAmount
+// ตามปกติ) — หายไปจากแทบทุกจุดที่นับ/รวมยอด/แสดงรายชื่อสาขา (ลิสต์ออเดอร์วันนี้, ยอดขายแดชบอร์ด, สรุปรายเดือน/ช่วงวันที่,
+// ข้อความแจ้งหนี้, นับจำนวนสาขา ฯลฯ) ใช้ร่วมกันแทนการเช็ค PRODUCTS.some(...) เปล่าๆ ทุกจุดที่ความหมายคือ "มีออเดอร์ไหม"
+function orderRowHasOrder_(row){
+  return !!row && (PRODUCTS.some(p=>Number(row[p.id]||0)>0) || (row.custom||[]).length>0);
+}
 // นับจำนวนสาขาที่สั่งวันนี้ แยกเป็น "สาขาปกติ" + "สาขาแยกส่ง" (ติ๊ก "แยกส่ง (ไม่รวมค่าธรรมเนียมบริษัท)" ในตั้งค่า) ชัดเจน
 // แทนที่จะรวมเป็นตัวเลขก้อนเดียวเงียบๆ — คืนเป็น label เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย หรือแค่ "15" เฉยๆ ถ้าไม่มี
 // สาขาแยกส่งเลย (ไม่ขึ้น "+0" ให้รก) ใช้ร่วมกันทั้งเฮดบาร์/แดชบอร์ด/ข้อความแจ้งหนี้-สรุปยอดรวม กันตัวเลขแต่ละจุดไม่ตรงกัน
 function branchCountLabel(orders){
-  const entries = Object.entries(orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(orders).filter(([c,row])=>orderRowHasOrder_(row));
   const normal = entries.filter(([c])=>!isFeeExempt(c)).length;
   const separate = entries.filter(([c])=>isFeeExempt(c)).length;
   return `${normal}${separate?('+'+separate):''}`;
@@ -1757,7 +1837,7 @@ async function renderStats(){
   const dateAtStart = currentDate;
   const totals = computeTotals(dayData.orders); const n = branchCountLabel(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders); const fee = computeFee(feeTotals);
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const unpaidCount = entries.filter(([c])=>!dayData.billingPaid[c]).length;
 
   const expensePayable = (dayData.expenses||[]).filter(e=>!e.paid).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -1884,7 +1964,7 @@ function renderCustomItemsSection_(){
 }
 function renderOrderList(){
   const list = document.getElementById('orderList');
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const summaryGrid = document.getElementById('orderSummaryGrid');
   if(summaryGrid){
     const totalBranches = settings.branches.length;
@@ -1900,7 +1980,7 @@ function renderOrderList(){
       + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
     const exemptTag = isFeeExempt(code) ? ` <span style="color:var(--text-faint);font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:1px 6px;">แยกส่ง ไม่คิดค่าธรรมเนียม</span>` : '';
     return `<div class="orow"><div><div class="name"><span class="code">${code}</span>${branchName(code)}${exemptTag}</div><div class="items">${items}</div></div>
-      <div class="acts"><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
+      <div class="acts"><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
   }).join('');
   list.querySelectorAll('[data-printticket]').forEach(b=>b.addEventListener('click', ()=>saveOrderTicketAsImage(b.getAttribute('data-printticket'))));
   list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
@@ -2000,13 +2080,16 @@ function buildOrderTicketHTML(code, iso, row, cardId){
        <div class="orderticket-00block">
          <div class="orderticket-bigname">${escapeHtml(branchAreaLabel)}</div>
        </div>`
-    : `<div class="orderticket-topline">
-         <div class="orderticket-codeline"><span class="orderticket-saxa">สาขา</span><span class="orderticket-code">${escapeHtml(code)}</span></div>
-         <div class="orderticket-kicker">🦀 KARMTO</div>
-       </div>
-       <div class="orderticket-subrow">
-         <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
-         <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+    : `<div class="orderticket-numhead">
+         <div class="orderticket-left">
+           <div class="orderticket-saxa">สาขา</div>
+           <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
+         </div>
+         <div class="orderticket-code">${escapeHtml(code)}</div>
+         <div class="orderticket-right">
+           <div class="orderticket-kicker">🦀 KARMTO</div>
+           <div class="orderticket-date">${formatDDMMYYYY(iso)}</div>
+         </div>
        </div>`;
   return `
     <div class="orderticket" id="${cardId || ('orderticket-'+code)}">
@@ -2065,7 +2148,7 @@ async function saveOrderTicketAsImage(code){
   }
 }
 async function saveAllOrderTicketsAsImages(){
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
@@ -2281,8 +2364,9 @@ function parseOcrText(text){
   return {branchCode, branchArea, items, unmatched};
 }
 // เช็คว่าแถวออเดอร์นี้มีของจริงอยู่ไหม (ไม่ใช่แค่ {} เปล่าๆ หรือทุกช่องเป็น 0) — ใช้กันเขียนทับของจริงที่มีอยู่แล้วโดยไม่รู้ตัว
+// ต้องนับสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอเหมือน orderRowHasOrder_ ไม่งั้นสาขาที่มีแต่ของนอกแคตตาล็อกจะไม่โดนเตือนก่อนเขียนทับ
 function hasNonEmptyOrder_(row){
-  return !!row && PRODUCTS.some(p=>Number(row[p.id]||0)>0);
+  return orderRowHasOrder_(row);
 }
 // สรุปรายการที่ "เจอชื่อสินค้าในภาพแล้ว แต่หาจำนวนไม่เจอ" ให้อ่านง่ายๆ พร้อมโชว์บรรทัดดิบที่ OCR อ่านได้จริงๆ
 // กันปัญหาแบบที่เจอมาแล้ว: สินค้าหายไปจากผลลัพธ์เงียบๆ โดยไม่มีร่องรอยอะไรให้ตรวจสอบว่า OCR อ่านว่าอะไรกันแน่
@@ -2314,7 +2398,10 @@ async function readOrderImage(file){
     // (เกิดจากเปิดรูปออเดอร์วันอื่นค้างไว้ แต่แอปกำลังเปิดดูวันปัจจุบันอยู่ — รูปไม่มีข้อมูลวันที่ให้เทียบเองได้)
     const existing = dayData.orders[branch.code];
     if(hasNonEmptyOrder_(existing)){
-      const existingText = PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`).join(', ');
+      const existingText = [
+        ...PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`),
+        ...(existing.custom||[]).map(it=>`📦${it.name} ${it.qty}`),
+      ].join(', ');
       statusEl.innerHTML = `⚠️ <b style="color:var(--danger);">สาขา ${escapeHtml(branchDisplayName(branch))} มีออเดอร์บันทึกไว้แล้วในวันที่ ${formatDDMMYYYY(currentDate)} (${existingText}) — ถ้ากด "บันทึกสาขานี้" ตอนนี้จะเขียนทับของเดิมทันที เช็คให้ชัวร์ก่อนว่ารูปที่อ่านนี้เป็นของวันที่ ${formatDDMMYYYY(currentDate)} จริงๆ (ไม่ใช่วันอื่น) ก่อนบันทึก</b>${escapeHtml(unmatchedMsg)}`;
     }else{
       statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง (กำลังจะบันทึกเข้าวันที่ ${formatDDMMYYYY(currentDate)})${unmatchedMsg}`;
@@ -2410,7 +2497,7 @@ async function renderMessages(){
   // "ORDER N สาขา" ต้องไม่เอาสาขาที่ติ๊ก "แยกส่ง" ไปนับรวมกับสาขาปกติเงียบๆ (จะทำให้ตัวเลขดูเหมือนรวมเป็นก้อนเดียวกันทั้งที่
   // ส่งจริงคนละที่) — เลยแยกนับ แล้วโชว์เป็น "ปกติ+แยกส่ง" ชัดเจน เช่น "15+1" ถ้าวันนั้นมีสาขาแยกส่งสั่งด้วย ถ้าไม่มีเลยก็
   // โชว์แค่ตัวเลขเดียวเหมือนเดิม ไม่ต้องขึ้น "+0" ให้รก
-  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const orderEntries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const orderCountLabel = branchCountLabel(dayData.orders);
   const summaryLines = [`💢${dateStr}💢`, '', `ORDER ${orderCountLabel} สาขา`, '', ...PRODUCTS.map(p=>`${p.emoji}${p.name} ${totals[p.id]} ${p.id==='p7'?'กระปุก':p.unit}`)];
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
@@ -3113,7 +3200,9 @@ function billPaidDiffHtml(payInfo, billedAmt){
   let diffHtml = '';
   if(diff>0) diffHtml = ` <span style="color:var(--success);font-weight:600;">🔺โอนเกิน ${money(diff)}</span>`;
   else if(diff<0) diffHtml = ` <span style="color:var(--danger);font-weight:600;">🔻โอนขาด ${money(Math.abs(diff))}</span>`;
-  const batchHtml = payInfo.batchId ? ` <span style="color:var(--accent);">(โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริง ${money(tAmt)})</span>` : '';
+  // batchTotal คือยอดโอนจริงรวมทั้งชุดที่กรอกตอนยืนยันโอนหลายบิลพร้อมกัน (ดู branchPayConfirmBtn) ต่างจาก tAmt ซึ่งตอนนี้
+  // คือส่วนแบ่งเฉพาะบิลนี้ใบเดียวตามสัดส่วน — ถ้าไม่มี batchTotal (บันทึกไว้ก่อนแก้บั๊กนี้) ใช้ tAmt แทนเหมือนเดิม
+  const batchHtml = payInfo.batchId ? ` <span style="color:var(--accent);">(โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริงรวม ${money(payInfo.batchTotal!=null?payInfo.batchTotal:tAmt)})</span>` : '';
   return diffHtml + batchHtml;
 }
 async function renderBillingSummaryTiles(){
@@ -3159,7 +3248,7 @@ function renderBillingTodayStats_(entries){
 }
 function renderBillingList(){
   const wrap = document.getElementById('billingList');
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -3216,8 +3305,10 @@ function renderBillingList(){
         if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
         btn.disabled = true;
         try{
-          await writeBillingPaid_(currentDate, code, false);
-          dayData.billingPaid[code] = false;
+          // ใช้เอกสารที่ merge สดจากเซิร์ฟเวอร์แทนแค่แพตช์ billingPaid.code บน dayData เดิมเฉยๆ — ถ้าระหว่างนี้มีการแก้ไข
+          // ฟิลด์อื่นของวันเดียวกันจากเครื่อง/แท็บอื่น (เช่น billExtra) dayData เดิมที่ค้างอยู่จะยังเป็นค่าเก่า ทำให้คำนวณ
+          // ยอดบิลผิดถ้าไปอ่านต่อจากตรงนี้ (เหมือนที่ saveRow() ทำไว้แล้วตอน patchField สำเร็จ)
+          dayData = await writeBillingPaid_(currentDate, code, false);
           renderBillingList();
           renderStats();
         }catch(e){
@@ -3242,8 +3333,7 @@ function renderBillingList(){
       const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
       try{
-        await writeBillingPaid_(currentDate, code, payValue);
-        dayData.billingPaid[code] = payValue;
+        dayData = await writeBillingPaid_(currentDate, code, payValue);
         payDateEditingCode = null;
         renderBillingList();
         renderStats();
@@ -3310,7 +3400,7 @@ async function renderOffscreenReceipt(code, width){
   return wrapper;
 }
 async function saveAllReceiptsAsImages(){
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
@@ -3407,6 +3497,7 @@ function buildReceiptCardHTML(code, iso, d, cardId){
         <div class="rheadmeta">
           <div class="rbillno">#${billNo}</div>
           <div class="rdate">${formatDDMMYYYY(iso)}</div>
+          ${isFeeExempt(code) ? '<div class="rsepnote">ส่งแยกบิล</div>' : ''}
         </div>
       </div>
       <hr>
@@ -3477,7 +3568,7 @@ async function toggleReceipt(code){
     const curTotal = subtotal + curExtra;
     const txt = [
       bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
-      `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
+      `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
       ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
@@ -3536,7 +3627,7 @@ async function toggleBranchDetailReceipt(iso, code){
     const curTotal = subtotal + curExtra;
     const txt = [
       bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
-      `บิลเงินสด #${billNo}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
+      `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
       ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
@@ -3798,11 +3889,43 @@ async function addExpenseFromDashboard(){
   setPayeeOtherValue_('dashExpPayee', 'dashExpPayeeOther', '');
   closeDashExpenseModal_();
 }
+// เติมฟอร์มเพิ่มรายจ่ายด่วนให้ตามขั้นตอนประจำวันเดียวกับฟอร์มในแท็บต้นทุนซื้อ (applyDailyExpenseRoutine_): ถ้าวันนั้นยังไม่ได้
+// บันทึกค่าแรงพี่พัฒน์ → เติมค่าแรง 700 ให้ ถ้าบันทึกค่าแรงแล้วแต่ยังไม่มีน้ำแข็ง → เติมหมวดน้ำแข็ง (กรอกจำนวนถุงในช่อง
+// รายละเอียดแล้ว ×40 ลงจำนวนเงินให้อัตโนมัติผ่าน wireIceAutoCalc_) — แค่เติมค่าในฟอร์มให้ ไม่บันทึกอะไรจนกว่าจะกด
+// "+ เพิ่มรายจ่าย" เอง แก้ทับได้ทุกช่อง ถ้าครบทั้งสองอย่างแล้วไม่เติมอะไร (ปล่อยฟอร์มว่างไว้กรอกรายจ่ายอื่นเอง)
+async function prefillDashExpenseRoutine_(iso){
+  const catEl = document.getElementById('dashExpCategory');
+  const payEl = document.getElementById('dashExpPayee');
+  const amtEl = document.getElementById('dashExpAmount');
+  const noteEl = document.getElementById('dashExpNote');
+  const phatOption = (settings.purchaseSellers||[]).find(s=>s.includes('พี่พัฒน์'));
+  let list = [];
+  try{ list = (iso===currentDate ? dayData : await loadDay(iso)).expenses || []; }catch(e){ list = []; }
+  if(document.getElementById('dashExpDate').value !== iso) return; // เปลี่ยนวันที่ไปแล้วระหว่างรอโหลด ทิ้งผลรอบนี้
+  const hasWage = !!(phatOption && list.some(e=>e.category==='ค่าแรง' && e.seller===phatOption));
+  const hasIce = !!(phatOption && list.some(e=>e.category==='น้ำแข็ง' && e.seller===phatOption));
+  if(!phatOption || (hasWage && hasIce)){
+    if(amtEl) amtEl.value = ''; if(noteEl) noteEl.value = '';
+  }else if(!hasWage){
+    if(catEl) catEl.value = 'ค่าแรง';
+    if(payEl) payEl.value = phatOption;
+    if(amtEl) amtEl.value = 700;
+    if(noteEl) noteEl.value = '';
+  }else{
+    if(catEl) catEl.value = 'น้ำแข็ง';
+    if(payEl) payEl.value = phatOption;
+    if(amtEl) amtEl.value = '';
+    if(noteEl) noteEl.value = '';
+  }
+  togglePayeeOther_('dashExpPayee', 'dashExpPayeeOther');
+}
 function openDashExpenseModal_(){
   renderExpenseCategorySelect(); // เติม/รีเฟรชตัวเลือกหมวด/ผู้รับเงินให้ตรงกับ settings ล่าสุดทุกครั้งที่เปิด
-  document.getElementById('dashExpDate').value = todayISO(); // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
+  const iso = todayISO();
+  document.getElementById('dashExpDate').value = iso; // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
   document.getElementById('dashExpenseModalOverlay').style.display = 'flex';
   document.getElementById('dashExpCategory').focus();
+  prefillDashExpenseRoutine_(iso);
 }
 function closeDashExpenseModal_(){
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
@@ -4004,7 +4127,7 @@ function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal){
     const d = dayMap[iso];
     let dayRevenue = 0;
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
       dayRevenue += amt;
       if(d.billingPaid[code]) revenuePaid += amt; else revenueUnpaid += amt;
@@ -4080,6 +4203,13 @@ function computeDebtsByOwnerForRangeFromDebts_(debts, startIso, endIso){
   });
   return result;
 }
+// เหมือน branchCountLabel แต่รับ Set ของรหัสสาขาที่เก็บสะสมมาจากหลายวันแล้ว (ใช้กับช่วงวันที่) แทนที่จะรับ orders ของวัน
+// เดียว — คืนรูปแบบ "ปกติ+แยกส่ง" เดียวกันทุกประการ กันตัวเลขสาขาในการ์ดสรุปช่วงวันที่ไม่ตรงกับจุดอื่นๆ ในแอป
+function branchSetCountLabel_(codeSet){
+  let normal=0, separate=0;
+  codeSet.forEach(code=>{ if(isFeeExempt(code)) separate++; else normal++; });
+  return `${normal}${separate?('+'+separate):''}`;
+}
 async function computeRangeFinancials(startIso, endIso, branchCodes){
   const isoList = [];
   for(let iso=startIso; iso<=endIso; iso=addDaysISO(iso,1)) isoList.push(iso);
@@ -4097,7 +4227,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
   isoList.forEach(iso=>{
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       branchSet.add(code);
       if(hasBranchFilter && !branchCodes.has(code)) return;
       filteredBranchSet.add(code);
@@ -4110,7 +4240,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
   return {
     ...core,
     productTotals,
-    branchCount: hasBranchFilter ? filteredBranchSet.size : branchSet.size,
+    branchCount: branchSetCountLabel_(hasBranchFilter ? filteredBranchSet : branchSet),
     days: isoList.length,
     branchFiltered: hasBranchFilter,
     filteredRevenue: hasBranchFilter ? branchRevenue : core.revenue,
@@ -4670,6 +4800,12 @@ function formatRecheckTimestamp_(iso){
   try{ const d = new Date(iso); return d.toLocaleString('th-TH', {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'}); }
   catch(e){ return iso; }
 }
+function recheckRoundSummaryText_(round){
+  const items = round.items.slice().sort((a,b)=>a.iso.localeCompare(b.iso) || branchEntrySortSeparateLast_([a.code],[b.code]));
+  const lines = [`🔍 สรุปรอบรีเช็ค ${formatRecheckTimestamp_(round.startedAt)} → ${formatRecheckTimestamp_(round.clearedAt)}`, `เช็คไป ${items.length} บิล`];
+  items.forEach(it=>lines.push(`• ${formatDDMMYYYY(it.iso)} ${branchName(it.code)} ${money(it.amt)} — ${it.result==='found_paid'?'โอนแล้วจริง':'ยังไม่โอนจริง'}${it.note?` (${it.note})`:''}`));
+  return lines.join('\n');
+}
 async function renderRecheckHistory_(){
   const el = document.getElementById('recheckHistoryList');
   if(!el) return;
@@ -4691,6 +4827,10 @@ async function renderRecheckHistory_(){
           <span style="color:var(--accent);flex:none;">▾</span>
         </div>
         <div class="billrow-body" id="billrowbody-${rowKey}" style="display:none;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <button class="btn small secondary" data-recheckroundcopy="${round.id}" style="width:auto;">📋 คัดลอกสรุปรอบนี้</button>
+            <button class="btn small secondary" data-recheckroundimg="${round.id}" style="width:auto;">🖼️ บันทึกเป็นรูป</button>
+          </div>
           ${round.items.map(it=>`<div class="delayrow" style="font-size:12.5px;">
             <div style="text-align:left;">
               <div>${formatDDMMYYYY(it.iso)} • ${escapeHtml(branchName(it.code))} • ${money(it.amt)}</div>
@@ -4702,6 +4842,30 @@ async function renderRecheckHistory_(){
       </div>`;
     }).join('');
     wireBillRowToggles(el);
+    el.querySelectorAll('[data-recheckroundcopy]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const round = history.find(x=>x.id===btn.getAttribute('data-recheckroundcopy'));
+      if(!round) return;
+      const txt = recheckRoundSummaryText_(round);
+      try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+      showToast('คัดลอกสรุปรอบรีเช็คแล้ว');
+    }));
+    el.querySelectorAll('[data-recheckroundimg]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const card = btn.closest('.card');
+      if(!card) return;
+      showToast('กำลังสร้างรูปภาพ…');
+      if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
+      try{
+        const canvas = await html2canvas(card, {backgroundColor: getComputedStyle(document.body).backgroundColor, scale:2, ignoreElements: n=>n.hasAttribute && (n.hasAttribute('data-recheckroundcopy') || n.hasAttribute('data-recheckroundimg'))});
+        canvas.toBlob(blob=>{
+          if(!blob){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = `รีเช็ค-${(btn.getAttribute('data-recheckroundimg')||'').slice(-6)}.png`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('บันทึกรูปแล้ว');
+        });
+      }catch(e){ showToast('สร้างรูปภาพไม่สำเร็จ'); }
+    }));
   }catch(e){ el.innerHTML = '<div class="empty">โหลดประวัติไม่สำเร็จ</div>'; }
 }
 // จำนวนบิลที่ตรงเงื่อนไขสถานะ (paid/unpaid) เดียวกับที่ renderOutstanding() ใช้อยู่ แต่สแกนทั้งปี (ไม่จำกัดแค่เดือนที่เลือก) —
@@ -4762,20 +4926,29 @@ async function renderRecheckRoundSummary_(){
     el.innerHTML = `
       <div class="hint" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
         <span>${current.startedAt ? `🔍 รอบนี้เริ่ม ${formatRecheckTimestamp_(current.startedAt)}` : 'ยังไม่เริ่มเช็คบิลไหนในรอบนี้เลย'}</span>
-        <button class="btn small secondary" id="recheckClearBtn" style="width:auto;flex:none;" ${checked===0?'disabled':''}>🧹 เคลียร์รอบนี้</button>
+        <button class="btn small secondary" id="recheckClearBtn" style="width:auto;flex:none;" ${checked===0?'disabled':''}>💾 บันทึก & เคลียร์รอบนี้</button>
       </div>
       <div class="statrow" style="margin-top:6px;">
         <div class="statchip" title="${useMonthScope?'บิลของเดือนที่เลือก / บิลทั้งหมดของปีนี้':''}">📋 ทั้งหมด<b class="num">${totalDisplay}</b></div>
         <div class="statchip">🔍 เช็คแล้ว<b class="num">${checked} บิล</b></div>
-        <button type="button" class="statchip" id="recheckRemainingChip" style="cursor:pointer;border:1px solid ${outstandingRecheckOnlyUnchecked_?'var(--accent)':'transparent'};background:${outstandingRecheckOnlyUnchecked_?'var(--accent-soft)':'var(--surface-2)'};font-family:inherit;" title="กดเพื่อ${outstandingRecheckOnlyUnchecked_?'เลิกกรอง แสดงทุกบิลเหมือนเดิม':'กรองดูเฉพาะบิลที่ยังไม่เช็ค'}">⏳ เหลือ<b class="num">${remaining} บิล</b></button>
+        <button type="button" class="statchip" id="recheckRemainingChip" style="cursor:pointer;border:1px solid ${outstandingRecheckView_==='unchecked'?'var(--accent)':'transparent'};background:${outstandingRecheckView_==='unchecked'?'var(--accent-soft)':'var(--surface-2)'};font-family:inherit;" title="กดเพื่อ${outstandingRecheckView_==='unchecked'?'เลิกกรอง แสดงทุกบิลเหมือนเดิม':'กรองดูเฉพาะบิลที่ยังไม่เช็ค'}">⏳ เหลือ<b class="num">${remaining} บิล</b></button>
         <div class="statchip">📊 คิดเป็น<b class="num">${pct}%</b></div>
         ${foundPaid?`<div class="statchip">✅ เจอว่าโอนแล้ว<b class="num">${foundPaid}</b></div>`:''}
         ${stillUnpaid?`<div class="statchip">❌ ยังไม่โอนจริง<b class="num">${stillUnpaid}</b></div>`:''}
       </div>
+      <div class="ofilters" style="margin-top:6px;">
+        <span class="lbl">แสดง</span>
+        ${[['all','ทุกบิล'],['unchecked','ยังไม่เช็ค'],['checked','เช็คแล้ว']].map(([v,l])=>`<button type="button" class="tab${outstandingRecheckView_===v?' active':''}" data-recheckview="${v}">${l}</button>`).join('')}
+      </div>
     `;
+    el.querySelectorAll('[data-recheckview]').forEach(b=>b.addEventListener('click', async ()=>{
+      outstandingRecheckView_ = b.getAttribute('data-recheckview');
+      await renderRecheckRoundSummary_();
+      await renderOutstanding();
+    }));
     const remainingChip = document.getElementById('recheckRemainingChip');
     if(remainingChip) remainingChip.addEventListener('click', async ()=>{
-      outstandingRecheckOnlyUnchecked_ = !outstandingRecheckOnlyUnchecked_;
+      outstandingRecheckView_ = outstandingRecheckView_==='unchecked' ? 'all' : 'unchecked';
       await renderRecheckRoundSummary_();
       await renderOutstanding();
     });
@@ -4791,7 +4964,7 @@ async function renderRecheckRoundSummary_(){
         await renderOutstanding();
       }catch(e){
         showToast('เคลียร์ไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
-        clearBtn.disabled = false; clearBtn.textContent = '🧹 เคลียร์รอบนี้';
+        clearBtn.disabled = false; clearBtn.textContent = '💾 บันทึก & เคลียร์รอบนี้';
       }
     });
   }catch(e){ el.innerHTML = '<div class="empty">โหลดสรุปรอบไม่สำเร็จ</div>'; }
@@ -4817,138 +4990,285 @@ let outstandingMonthValue = todayISO().slice(0,7);
 let outstandingLastRowsCount_ = 0;
 // กดกล่อง "เหลือ" ในสรุปรอบรีเช็ค -> true = กรองลิสต์ให้เห็นแค่บิลที่ยังไม่เคยเช็คในรอบนี้เท่านั้น — รีเซ็ตกลับ false เองเมื่อ
 // ปิดโหมดรีเช็ค (กันค้างเปิดกรองไว้ข้ามรอบโดยไม่รู้ตัว) ไม่งั้นเปิดโหมดรีเช็ครอบใหม่มาจะงงว่าทำไมบิลหายไปบางส่วน
-let outstandingRecheckOnlyUnchecked_ = false;
 // แคชจำนวนบิลรวมทั้งปี (ใช้โชว์ "ทั้งหมด X/Y" ในสรุปรอบรีเช็คตอนดูแบบจำกัดเดือน) คีย์ด้วย "ปี|ฟิลเตอร์สถานะ|รหัสสาขา" —
 // ไม่รีเฟรชอัตโนมัติระหว่าง session (ต้นทุนสแกนทั้งปีสูง และตัวเลขนี้ไม่ใช่ตัวเลขที่ต้อง real-time เป๊ะขนาดนั้น)
 let outstandingYearTotalCache_ = {};
-// สร้าง HTML ของพื้นที่ "เช็คแล้ว" ของ 1 แถว (ฟอร์มให้กดผลเช็ค หรือข้อความสรุปผลเช็คที่เคยมาร์คไว้แล้ว) — แยกออกมาเป็น
-// ฟังก์ชันล้วนๆ (ไม่แตะ DOM เอง) ใช้ได้ทั้งตอนเรนเดอร์ทั้งลิสต์ และตอนแพตช์แถวเดียวหลังยืนยัน/ยกเลิกผลเช็ค
-function buildOutstandingRecheckAreaHtml_(key, mark, paid){
-  if(!billingRecheckMode) return '';
-  // ป้ายปุ่มปรับตามสถานะปัจจุบันของบิลนี้ — บิลที่ "จ่ายแล้ว" อยู่ก่อน กำลังรีเช็คว่าที่มาร์คไว้ถูกไหม (ไม่ใช่เช็คก่อนไปทวง)
-  const notPaidLabel = paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
-  const paidLabel = paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
-  if(mark){
-    return `<div class="lrow-hint" style="margin-top:4px;padding-left:0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
-      <span style="color:${mark.result==='found_paid'?'var(--accent)':'var(--success)'};">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
-      <button class="iconbtn" data-recheckundo="${key}" aria-label="ยกเลิกการเช็ค" style="flex:none;">↺</button>
-    </div>`;
-  }
-  return `<div style="margin-top:4px;">
-    <button class="btn small secondary" data-recheckstart="${key}" style="width:auto;">🔍 เช็คแล้ว</button>
-    <div style="display:none;margin-top:6px;" data-recheckform="${key}">
-      <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
-        <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
-      </div>
-    </div>
-  </div>`;
+// ---- รายการที่ต้องตามโอน: แถวบรรทัดเดียว + event delegation (แพตช์ทีละแถว ไม่เรนเดอร์ทั้งลิสต์ใหม่) ----
+// ฟิลเตอร์ประเภทบิล: 'all' ทั้งหมด | 'main' เฉพาะบิลหลัก | 'sep' เฉพาะสาขาที่ติ๊ก "แยกส่ง"
+let outstandingTypeFilter_ = 'all';
+// เดือนสิ้นสุดของช่วงที่จะดู (คู่กับ outstandingMonthValue = เดือนเริ่ม) — เลือกได้หลายเดือนในครั้งเดียว
+let outstandingMonthToValue = outstandingMonthValue;
+// มุมมองในโหมดรีเช็ค: 'all' ทุกบิล | 'unchecked' ยังไม่เช็ค | 'checked' เช็คแล้ว
+let outstandingRecheckView_ = 'all';
+let outstandingRows_ = [];      // แถวที่กำลังแสดงอยู่ (หลังกรองแล้ว) — object เดียวกับใน outstandingScopeRows_
+let outstandingScopeRows_ = []; // ทุกบิลในสโคปวันที่/สาขา/ประเภทเดียวกัน (ไม่ขึ้นกับสถานะ) ใช้คำนวณกล่องสรุปตัวเลข
+let outstandingMarks_ = {};
+function outstandingMonthRange_(){
+  let a = outstandingMonthValue, b = outstandingMonthToValue || a;
+  if(b < a) [a, b] = [b, a];
+  return [a, b];
 }
-// สถานะปัจจุบัน (จ่ายแล้ว/ไม่) ยังควรอยู่ในมุมมองฟิลเตอร์ที่กำลังดูอยู่ไหม — ใช้ตัดสินใจตอนแพตช์แถวเดียวหลังยืนยันผลเช็คว่า
-// ควรลบแถวออกจากจอ (เปลี่ยนสถานะจนไม่ตรงฟิลเตอร์แล้ว) หรือแค่แก้ตัวเลข/ป้ายในแถวเดิมพอ
+async function listDayIsosInMonthRange_(from, to){
+  if(from === to){
+    const res = await window.storage.list('day:'+from);
+    return ((res && res.keys) || []).map(k=>k.slice(4));
+  }
+  const years = [];
+  for(let y = Number(from.slice(0,4)); y <= Number(to.slice(0,4)); y++) years.push(String(y));
+  const lists = await Promise.all(years.map(y=>window.storage.list('day:'+y)));
+  const out = [];
+  lists.forEach(res=>((res && res.keys) || []).forEach(k=>{
+    const iso = k.slice(4), m = iso.slice(0,7);
+    if(m >= from && m <= to) out.push(iso);
+  }));
+  return out;
+}
+function outstandingTypeMatches_(code){
+  if(outstandingTypeFilter_ === 'main') return !isFeeExempt(code);
+  if(outstandingTypeFilter_ === 'sep') return isFeeExempt(code);
+  return true;
+}
+// วันที่แบบย่อ dd/mm (ใส่ปีย่อ /yy เฉพาะบิลที่ไม่ใช่ปีนี้) ให้ทั้งแถวอยู่บรรทัดเดียวได้บนมือถือ
+function shortDDMMYY_(iso){ const [y,m,d] = iso.split('-'); return y===todayISO().slice(0,4) ? `${d}/${m}` : `${d}/${m}/${y.slice(2)}`; }
+// สาขาปกติก่อน แล้วค่อยสาขาแยกส่งไว้ท้ายสุดของวันเดียวกันเสมอ
+function outstandingCodeCmp_(a, b){ return branchEntrySortSeparateLast_([a.code], [b.code]); }
+function outstandingDelayOf_(iso, payInfo){
+  const ref = (payInfo && payInfo.paidDate) ? payInfo.paidDate : todayISO();
+  return Math.round((new Date(ref)-new Date(iso))/86400000);
+}
+// ส่วนต่างยอดโอนแบบย่อให้อยู่บรรทัดเดียวกับยอดเงิน (รายละเอียดเต็มอยู่ใน title)
+function outstandingDiffHtml_(payInfo, billedAmt){
+  if(!payInfo || typeof payInfo!=='object') return '';
+  const tAmt = payInfo.transferAmount;
+  let html = '';
+  if(tAmt!==undefined && tAmt!==null && tAmt!==''){
+    const base = (payInfo.billedAmount!=null) ? payInfo.billedAmount : billedAmt;
+    const diff = Math.round(Number(tAmt) - Number(base||0));
+    if(diff>0) html += `<span class="odiff" style="color:var(--success);" title="โอนเกิน ${money(diff)}">🔺${money(diff)}</span>`;
+    else if(diff<0) html += `<span class="odiff" style="color:var(--danger);" title="โอนขาด ${money(Math.abs(diff))}">🔻${money(Math.abs(diff))}</span>`;
+  }
+  if(payInfo.batchId) html += `<span class="odiff" style="color:var(--accent);" title="โอนรวม ${payInfo.batchCount||''} บิล ยอดโอนจริงรวม ${money(payInfo.batchTotal!=null?payInfo.batchTotal:tAmt)}">รวม${payInfo.batchCount||''}บิล</span>`;
+  return html;
+}
 function shouldStayInOutstandingView_(paid){
   if(outstandingFilterMode==='all') return true;
   return outstandingFilterMode==='paid' ? paid : !paid;
 }
-// ผูก event ของพื้นที่ "เช็คแล้ว" ของแถวเดียว (key) — เรียกได้ทั้งตอนเรนเดอร์ทั้งลิสต์ครั้งแรก และตอนแพตช์แถวเดียวหลัง
-// ยืนยัน/ยกเลิกผลเช็ค (ซึ่ง innerHTML ของพื้นที่นี้ถูกสร้างใหม่ ทำให้ event เดิมหลุดไปด้วย ต้องผูกใหม่เฉพาะจุดนี้)
-function wireOutstandingRecheckArea_(container, key, rows){
-  const area = container.querySelector(`[data-recheckarea="${CSS.escape(key)}"]`);
-  if(!area) return;
-  const startBtn = area.querySelector('[data-recheckstart]');
-  if(startBtn) startBtn.addEventListener('click', ()=>{
-    const form = area.querySelector(`[data-recheckform="${CSS.escape(key)}"]`);
-    if(form) form.style.display = form.style.display==='none' ? '' : 'none';
-  });
-  const undoBtn = area.querySelector('[data-recheckundo]');
-  if(undoBtn) undoBtn.addEventListener('click', async ()=>{
-    undoBtn.disabled = true;
-    try{
-      await unmarkBillingRecheck_(key);
-      await renderRecheckRoundSummary_();
-      // แพตช์เฉพาะพื้นที่นี้กลับเป็นฟอร์มเช็คเปล่าๆ แทนการเรียก renderOutstanding() ทั้งก้อน (เดิมทำให้จอกระพริบ/โหลดใหม่
-      // ทั้งลิสต์ทุกครั้งที่กดยกเลิกการเช็คแค่บิลเดียว)
-      const r = rows.find(x=>`${x.iso}|${x.code}`===key);
-      area.innerHTML = buildOutstandingRecheckAreaHtml_(key, null, r?r.paid:false);
-      wireOutstandingRecheckArea_(container, key, rows);
-    }catch(e){
-      showToast('ยกเลิกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
-      undoBtn.disabled = false;
+function buildOutstandingRowHtml_(r, mark, daySep){
+  const key = `${r.iso}|${r.code}`;
+  const recheck = billingRecheckMode;
+  const fullName = branchName(r.code);
+  const name = fullName.replace(/^สาขา\s*/, ''); // ตัดคำว่า "สาขา" ออกในแถว ให้เหลือที่โชว์เลข+ชื่อพื้นที่
+  const sepTag = isFeeExempt(r.code) && !/แยก/.test(name) ? '<span class="osep">แยกส่ง</span>' : '';
+  const paidTag = r.paid ? `<span class="opaid" data-outstandingpaidinfo="${key}" title="โอนเมื่อ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}">✅ ${r.payInfo&&r.payInfo.paidDate?shortDDMMYY_(r.payInfo.paidDate):'-'}</span>` : '';
+  const chkBtn = !recheck ? ''
+    : mark ? `<button type="button" class="rchk-btn done${mark.result==='still_unpaid'?' bad':''}" data-recheckexpand="${key}" aria-label="เช็คแล้ว — แตะเพื่อดูรายละเอียด"><small>✓ เช็ค</small></button>`
+    : `<button type="button" class="rchk-btn" data-recheckstart="${key}" aria-label="เช็คบิลนี้"><span class="e">🔎</span><small>CHECK</small></button>`;
+  const notPaidLabel = r.paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
+  const paidLabel = r.paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
+  const recheckHtml = !recheck ? '' : mark
+    ? `<div class="lrow-hint ochkdetail" style="margin-top:4px;padding-left:0;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="color:${mark.result==='found_paid'?'var(--success)':'var(--danger)'};font-size:11.5px;">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
+        <button class="btn small secondary" data-recheckundo="${key}" style="width:auto;flex:none;">↺ ยกเลิกเช็ค</button>
+      </div>`
+    : `<div style="display:none;margin-top:6px;" data-recheckform="${key}">
+        <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
+          <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
+        </div>
+      </div>`;
+  return `<div class="branchbill otrow${recheck&&mark?' checked':''}${daySep?' oday-sep':''}" data-outstandingrow="${key}">
+    <div class="toprow">
+      ${chkBtn}
+      <div class="left">
+        <span class="odate">${shortDDMMYY_(r.iso)}</span>
+        <span class="n" title="${escapeHtml(fullName)}">${escapeHtml(name)}</span>${sepTag}${paidTag}${r.payInfo?outstandingDiffHtml_(r.payInfo, r.amt):''}
+      </div>
+      <span class="amt num big">${money(r.amt)}</span>
+      <div class="acts2">
+        <span class="badge-delay">${r.delay} วัน</span>
+        <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
+        <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
+      </div>
+    </div>
+    <div style="margin-top:6px;display:none;" data-outstandingeditor="${key}">
+      <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+        <label style="flex:none;">โอนจริง</label>
+        <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
+        <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
+      </div>
+    </div>
+    ${recheckHtml}
+    <div id="bdreceipt-${r.code}-${r.iso}"></div>
+  </div>`;
+}
+function renderOutstandingStats_(){
+  const statsEl = document.getElementById('outstandingStats');
+  if(!statsEl) return;
+  let total=0, paid=0, unpaid=0, totalAmt=0, unpaidAmt=0;
+  outstandingScopeRows_.forEach(r=>{ total++; totalAmt += r.amt; if(r.paid) paid++; else { unpaid++; unpaidAmt += r.amt; } });
+  statsEl.innerHTML = total===0 ? '' : `
+    <div class="statchip">📋 ทั้งหมด<b class="num">${total} บิล</b></div>
+    <div class="statchip">⏳ ค้างโอน<b class="num">${unpaid} บิล</b></div>
+    <div class="statchip">✅ โอนแล้ว<b class="num">${paid} บิล</b></div>
+    <div class="statchip">💰 ยอดค้างโอน<b class="num">${money(unpaidAmt)}</b></div>
+    <div class="statchip">💵 ยอดรวมทั้งหมด<b class="num">${money(totalAmt)}</b></div>
+  `;
+}
+function outstandingEmptyHtml_(){
+  const includePaid = outstandingFilterMode!=='unpaid', includeUnpaid = outstandingFilterMode!=='paid';
+  return includePaid && includeUnpaid ? '<div class="empty">ไม่มีบิลในช่วงที่เลือก</div>'
+    : includePaid ? '<div class="empty">ไม่มีบิลที่โอนแล้วในช่วงที่เลือก</div>'
+    : '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
+}
+// สร้างแถวเดียวใหม่แทนที่ของเดิมในจุดเดิม (ไม่แตะแถวอื่น) — ถ้าสถานะใหม่ไม่ตรงฟิลเตอร์ที่ดูอยู่แล้วก็เอาแถวออกไปเลย
+function rerenderOutstandingRow_(key){
+  const container = document.getElementById('outstandingList');
+  const el = container && container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
+  const r = outstandingRows_.find(x=>`${x.iso}|${x.code}`===key);
+  if(!el || !r) return;
+  if(!shouldStayInOutstandingView_(r.paid)){
+    const next = el.nextElementSibling;
+    if(el.classList.contains('oday-sep') && next && next.matches('[data-outstandingrow]') && next.getAttribute('data-outstandingrow').split('|')[0]===r.iso) next.classList.add('oday-sep');
+    el.remove();
+    outstandingRows_ = outstandingRows_.filter(x=>x!==r);
+    if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = outstandingEmptyHtml_();
+    return;
+  }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildOutstandingRowHtml_(r, outstandingMarks_[key], el.classList.contains('oday-sep'));
+  const fresh = tmp.firstElementChild;
+  if(el.classList.contains('expanded')) fresh.classList.add('expanded');
+  el.replaceWith(fresh);
+}
+async function onOutstandingListClick_(e){
+  const container = document.getElementById('outstandingList');
+  if(e.target.closest('[id^="bdreceipt-"]')) return; // ปุ่มในบิลที่กางอยู่ มี handler ของตัวเอง
+  const t = e.target.closest('button');
+  if(t && t.hasAttribute('data-recheckclearbottom')){ const b = document.getElementById('recheckClearBtn'); if(b && !b.disabled) b.click(); return; }
+  const rowEl = e.target.closest('[data-outstandingrow]');
+  if(!rowEl) return;
+  const key = rowEl.getAttribute('data-outstandingrow');
+  const r = outstandingRows_.find(x=>`${x.iso}|${x.code}`===key);
+  if(!t){
+    // แตะที่ตัวการ์ดที่เช็คแล้ว (ไม่ใช่ปุ่ม/ช่องกรอก) = กาง/พับรายละเอียด
+    if(rowEl.classList.contains('checked') && !e.target.closest('input,textarea,select,label')) rowEl.classList.toggle('expanded');
+    return;
+  }
+  if(t.hasAttribute('data-recheckexpand')){ rowEl.classList.toggle('expanded'); return; }
+  if(t.hasAttribute('data-outstandingbill')){ await toggleBranchDetailReceipt(r.iso, r.code); return; }
+  if(t.hasAttribute('data-recheckstart')){
+    const form = rowEl.querySelector('[data-recheckform]');
+    if(form){ const show = form.style.display==='none'; form.style.display = show ? '' : 'none'; t.classList.toggle('open', show); if(show){ const inp = form.querySelector('input'); if(inp) inp.focus(); } }
+    return;
+  }
+  if(t.hasAttribute('data-outstandingcancel')){ const ed = rowEl.querySelector('[data-outstandingeditor]'); if(ed) ed.style.display = 'none'; return; }
+  if(!r) return;
+  if(t.hasAttribute('data-outstandingpay')){
+    if(r.paid){
+      // บิลที่โอนแล้ว (ดูอยู่ในฟิลเตอร์ "โอนแล้ว"/"ทุกบิล") — กดเปลี่ยนกลับเป็น "รอโอน" แล้วแพตช์แค่แถวนี้ ไม่โหลดทั้งลิสต์ใหม่
+      if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
+      t.disabled = true;
+      try{
+        const fresh = await writeBillingPaid_(r.iso, r.code, false);
+        if(r.iso===currentDate){ dayData = fresh; renderBillingList(); }
+        r.paid = false; r.payInfo = null; r.delay = outstandingDelayOf_(r.iso, null);
+        showToast('เปลี่ยนกลับเป็นรอโอนแล้ว');
+        renderStats();
+        renderOutstandingStats_();
+        rerenderOutstandingRow_(key);
+      }catch(err){
+        showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+        t.disabled = false;
+      }
+      return;
     }
-  });
-  area.querySelectorAll('[data-recheckresult]').forEach(btn=>btn.addEventListener('click', async ()=>{
-    const result = btn.getAttribute('data-recheckresult');
-    const r = rows.find(x=>`${x.iso}|${x.code}`===key);
-    if(!r) return;
-    const noteInput = area.querySelector(`[data-recheckinput="${CSS.escape(key)}"]`);
+    const ed = rowEl.querySelector('[data-outstandingeditor]');
+    if(ed) ed.style.display = ed.style.display==='none' ? '' : 'none';
+    return;
+  }
+  if(t.hasAttribute('data-outstandingconfirm')){
+    t.disabled = true; t.textContent = 'กำลังบันทึก…';
+    const dateInput = document.getElementById(`outpaydate-${r.iso}-${r.code}`);
+    const paidDate = dateInput.value || todayISO();
+    lastUsedPayDate = paidDate;
+    // ช่องวันที่ของแถวอื่นที่ยังเปิดค้าง/ยังไม่ยืนยัน ต้องล็อกตามวันที่ล่าสุดที่เพิ่งใช้ด้วย
+    container.querySelectorAll('input[type="date"][id^="outpaydate-"]').forEach(inp=>{ if(inp !== dateInput) inp.value = paidDate; });
+    try{
+      const d = await loadDay(r.iso);
+      const billedAmt = branchBillAmount(d.orders[r.code], r.iso) + Number((d.billExtra||{})[r.code]||0);
+      const amtInput = document.getElementById(`outpayamt-${r.iso}-${r.code}`);
+      const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
+      const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
+      const fresh = await writeBillingPaid_(r.iso, r.code, payValue);
+      if(r.iso===currentDate){ dayData = fresh; renderBillingList(); }
+      r.paid = true; r.payInfo = payValue; r.delay = outstandingDelayOf_(r.iso, payValue);
+      showToast('บันทึกว่าโอนแล้ว');
+      renderStats();
+      renderOutstandingStats_();
+      rerenderOutstandingRow_(key);
+    }catch(err){
+      showToast('บันทึกไม่สำเร็จ เช็คอินเทอร์เน็ตแล้วลองใหม่');
+      t.disabled = false; t.textContent = 'ยืนยัน';
+    }
+    return;
+  }
+  if(t.hasAttribute('data-recheckundo')){
+    t.disabled = true;
+    try{
+      const cur = await unmarkBillingRecheck_(key);
+      outstandingMarks_ = cur.marks || {};
+      await renderRecheckRoundSummary_();
+      rerenderOutstandingRow_(key);
+    }catch(err){
+      showToast('ยกเลิกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      t.disabled = false;
+    }
+    return;
+  }
+  if(t.hasAttribute('data-recheckresult')){
+    const result = t.getAttribute('data-recheckresult');
+    const noteInput = rowEl.querySelector('[data-recheckinput]');
     const note = (noteInput && noteInput.value.trim()) || '';
-    const formButtons = area.querySelectorAll(`[data-recheckkey="${CSS.escape(key)}"]`);
+    const formButtons = rowEl.querySelectorAll('[data-recheckkey]');
     formButtons.forEach(b=>b.disabled = true);
     const mark = {key, iso:r.iso, code:r.code, amt:r.amt, checkedAt:new Date().toISOString(), note, result};
     try{
-      await writeBillingRecheckMark_(key, mark);
-      // ถ้าผลเช็คไม่ตรงกับสถานะปัจจุบันของบิลนี้ (เดิมรองรับแค่กรณีบิล "รอจ่าย" แต่เจอว่าจริงๆ โอนแล้ว — ตอนนี้รองรับ
-      // กรณีกลับกันด้วย: บิลที่มาร์คว่า "จ่ายแล้ว" อยู่ก่อน แต่รีเช็คแล้วพบว่าจริงๆ ยังไม่ได้จ่าย ก็แก้สถานะกลับให้อัตโนมัติ
-      // เหมือนกัน) แก้สถานะให้ตรงในจุดเดียวกันนี้เลย ไม่ต้องสลับไปหน้าอื่นแยก
+      const cur = await writeBillingRecheckMark_(key, mark);
+      outstandingMarks_ = cur.marks || {};
+      // ผลเช็คไม่ตรงกับสถานะจ่ายปัจจุบัน -> แก้สถานะให้ตรงในจุดเดียวกันนี้เลย (ทั้งสองทิศทาง)
       const resultMeansPaid = result==='found_paid';
-      const statusChanged = resultMeansPaid !== r.paid;
-      if(statusChanged){
+      if(resultMeansPaid !== r.paid){
         if(resultMeansPaid){
           const payValue = {paid:true, paidDate: todayISO(), transferAmount: r.amt, billedAmount: r.amt};
-          await writeBillingPaid_(r.iso, r.code, payValue);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = payValue; renderBillingList(); }
+          const fresh1 = await writeBillingPaid_(r.iso, r.code, payValue);
+          if(r.iso===currentDate){ dayData = fresh1; renderBillingList(); }
           r.paid = true; r.payInfo = payValue;
           showToast('บันทึกว่าเช็คแล้ว — และแก้สถานะเป็นโอนแล้วให้ด้วย');
         }else{
-          await writeBillingPaid_(r.iso, r.code, false);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
+          const fresh2 = await writeBillingPaid_(r.iso, r.code, false);
+          if(r.iso===currentDate){ dayData = fresh2; renderBillingList(); }
           r.paid = false; r.payInfo = null;
           showToast('บันทึกว่าเช็คแล้ว — พบว่าจริงๆ ยังไม่ได้จ่าย แก้สถานะกลับเป็นรอโอนให้ด้วย');
         }
+        r.delay = outstandingDelayOf_(r.iso, r.payInfo);
         renderStats();
+        renderOutstandingStats_();
       }else{
         showToast('บันทึกว่าเช็คแล้ว');
       }
       await renderRecheckRoundSummary_();
-      // แพตช์เฉพาะแถวนี้แทนการเรียก renderOutstanding() ทั้งก้อน (เดิมทำให้จอกระพริบ/โหลด "กำลังโหลด…" ใหม่ทั้งลิสต์ทุกครั้ง
-      // ที่ยืนยันผลเช็คแค่บิลเดียว รู้สึกเหมือนรีโหลดทั้งหน้า) — ถ้าสถานะจ่าย/ไม่จ่ายเปลี่ยนจนไม่ตรงฟิลเตอร์ที่กำลังดูอยู่แล้ว
-      // (เช่น ดู "ค้างโอน" อยู่แต่บิลนี้เพิ่งกลายเป็นโอนแล้ว) ก็เอาแถวนี้ออกจากจอไปเลย เหมือนพฤติกรรมปุ่มยืนยันจ่ายปกติ
-      const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
-      if(statusChanged && !shouldStayInOutstandingView_(r.paid)){
-        if(rowEl) rowEl.remove();
-        if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
-        return;
-      }
-      if(rowEl){
-        const amtEl = rowEl.querySelector('.toprow .amt');
-        if(amtEl) amtEl.textContent = money(r.amt);
-        // บรรทัดป้ายจ่ายแล้ว/ส่วนต่างโอน (data-outstandingpaidinfo) ไม่ได้มีอยู่ทุกแถวตั้งแต่แรก (เดิมไม่มีเลยถ้ายังไม่จ่าย) —
-        // ต้องสร้าง/ลบ element เองตามสถานะใหม่ ไม่ใช่แค่แก้ innerHTML ของที่มีอยู่แล้วเหมือนตอนเป็น .amtcol คอลัมน์เดียว
-        let paidInfoEl = rowEl.querySelector(`[data-outstandingpaidinfo="${CSS.escape(key)}"]`);
-        const paidInfoHtml = (r.paid || r.payInfo) ? `${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate).replace(/^ /,''):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}` : '';
-        if(paidInfoHtml){
-          if(!paidInfoEl){
-            paidInfoEl = document.createElement('div');
-            paidInfoEl.className = 'd';
-            paidInfoEl.setAttribute('data-outstandingpaidinfo', key);
-            paidInfoEl.style.cssText = 'margin-top:2px;color:var(--text-faint);font-size:11.5px;';
-            rowEl.querySelector('.toprow').insertAdjacentElement('afterend', paidInfoEl);
-          }
-          paidInfoEl.innerHTML = paidInfoHtml;
-        } else if(paidInfoEl){
-          paidInfoEl.remove();
-        }
-        const payBtn = rowEl.querySelector('[data-outstandingpay]');
-        if(payBtn){ payBtn.textContent = r.paid?'โอนแล้ว':'รอโอน'; payBtn.classList.toggle('paid', r.paid); payBtn.classList.toggle('unpaid', !r.paid); }
-      }
-      area.innerHTML = buildOutstandingRecheckAreaHtml_(key, mark, r.paid);
-      wireOutstandingRecheckArea_(container, key, rows);
-    }catch(e){
+      rerenderOutstandingRow_(key);
+    }catch(err){
       showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
       formButtons.forEach(b=>b.disabled = false);
     }
-  }));
+  }
 }
 async function renderOutstanding(){
   const mySeq = ++outstandingRenderSeq_;
@@ -4958,17 +5278,23 @@ async function renderOutstanding(){
   const sortBtn = document.getElementById('outstandingSortToggle');
   const dateSortBtn = document.getElementById('outstandingDateSortToggle');
   const statsEl = document.getElementById('outstandingStats');
-  if(dateSortBtn) dateSortBtn.textContent = outstandingDateSortDir==='desc' ? '📅 ล่าสุด→เก่าสุด' : outstandingDateSortDir==='asc' ? '📅 เก่าสุด→ล่าสุด' : '📅 เรียงตามวันที่';
+  if(!container.__outWired){ container.__outWired = true; container.addEventListener('click', onOutstandingListClick_); }
+  if(dateSortBtn) dateSortBtn.textContent = billingRecheckMode
+    ? (outstandingDateSortDir==='desc' ? '📅 ล่าสุด→เก่าสุด' : '📅 เก่าสุด→ล่าสุด')
+    : outstandingDateSortDir==='desc' ? '📅 ล่าสุด→เก่าสุด' : outstandingDateSortDir==='asc' ? '📅 เก่าสุด→ล่าสุด' : '📅 เรียงตามวันที่';
   document.querySelectorAll('[data-outstatusfilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-outstatusfilter')===outstandingFilterMode));
+  document.querySelectorAll('[data-outtypefilter]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-outtypefilter')===outstandingTypeFilter_));
   const monthWrap = document.getElementById('outstandingMonthPickerWrap');
   if(monthWrap) monthWrap.style.display = outstandingFilterMode==='unpaid' ? 'none' : '';
   const monthInput = document.getElementById('outstandingMonthInput');
   if(monthInput && !monthInput.value) monthInput.value = outstandingMonthValue;
+  const monthToInput = document.getElementById('outstandingMonthToInput');
+  if(monthToInput && !monthToInput.value) monthToInput.value = outstandingMonthToValue;
   if(branchSel && branchSel.options.length<=1){
     branchSel.innerHTML = `<option value="">— ทุกสาขา —</option>` + settings.branches.map(b=>`<option value="${b.code}">${escapeHtml(branchDisplayName(b))}</option>`).join('');
     branchSel.value = outstandingBranchFilterValue;
   }
-  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ด (แท็บบิลรวมทั้งหมด/บิลค้าง/โอนแล้ว + ยอดค้าง/ยอดชำระ) แทนรายการรวมทุกสาขา — ปุ่มเรียง/กล่องสรุปตัวเลขรวมทุกสาขาใช้ไม่ได้ในมุมมองนี้เลยซ่อนไว้ (branchDetail มีสรุปของตัวเองอยู่แล้ว)
+  // เลือกสาขาเดียวแล้ว → โชว์มุมมองละเอียดแบบเดียวกับหน้าแดชบอร์ดแทนรายการรวมทุกสาขา
   if(outstandingBranchFilterValue){
     container.style.display = 'none';
     branchDetailEl.style.display = '';
@@ -4980,202 +5306,172 @@ async function renderOutstanding(){
   }
   branchDetailEl.style.display = 'none';
   container.style.display = '';
-  if(dateSortBtn) dateSortBtn.style.display = billingRecheckMode ? 'none' : '';
-  // โหมดรีเช็คเรียงตามวันที่/สาขาตายตัวเสมอ (ดูคอมเมนต์ตรง rows.sort ด้านล่าง) หรือเปิดปุ่มเรียงตามวันที่ไว้อยู่ ปุ่มเรียงดีเลย์เลยใช้ไม่ได้ผล ซ่อนไว้กันงง
+  // โหมดรีเช็คเรียงตามวันที่เสมอ (เลือกได้ว่าเก่า→ใหม่ หรือ ใหม่→เก่า) ปุ่มเรียงดีเลย์เลยซ่อนไว้
+  if(dateSortBtn) dateSortBtn.style.display = '';
   if(sortBtn) sortBtn.style.display = (billingRecheckMode || outstandingDateSortDir) ? 'none' : '';
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
-  // "ค้างโอน" (ค่าเริ่มต้น) ยังคงดูทุกวันที่ค้างอยู่เหมือนเดิมทุกประการ — "โอนแล้ว"/"ทุกบิล" จำกัดแค่เดือนที่เลือกเท่านั้น
-  // (ผ่าน prefix ของคีย์ day:YYYY-MM) กันโหลดประวัติทั้งร้านทุกครั้งซึ่งจะช้าลงเรื่อยๆ ตามอายุร้าน
+  // "ค้างโอน" ดูทุกวันที่ค้างอยู่เสมอ — "โอนแล้ว"/"ทุกบิล" จำกัดตามช่วงเดือนที่เลือก (หลายเดือนได้)
   const includePaid = outstandingFilterMode==='paid' || outstandingFilterMode==='all';
   const includeUnpaid = outstandingFilterMode==='unpaid' || outstandingFilterMode==='all';
   const useMonthScope = outstandingFilterMode!=='unpaid';
   try{
-    const listRes = await window.storage.list(useMonthScope ? 'day:'+outstandingMonthValue : 'day:');
-    if(mySeq !== outstandingRenderSeq_) return; // มีการเรียกเรนเดอร์รอบใหม่มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
-    const keys = (listRes && listRes.keys) ? listRes.keys : [];
-    const isoList = keys.map(k=>k.slice(4));
+    let isoList;
+    if(useMonthScope){
+      const [from, to] = outstandingMonthRange_();
+      isoList = await listDayIsosInMonthRange_(from, to);
+    }else{
+      const listRes = await window.storage.list('day:');
+      isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+    }
+    if(mySeq !== outstandingRenderSeq_) return;
     const dayMap = await loadDaysBulk(isoList);
     if(mySeq !== outstandingRenderSeq_) return;
-    const today = todayISO();
-    let rows = [];
-    // สรุปตัวเลขรวม (ทั้งหมด/ค้างโอน/โอนแล้ว/ยอดเงิน) ของกล่อง #outstandingStats — นับจากข้อมูลทุกบิลที่โหลดมาในสโคปนี้เสมอ
-    // (ไม่ขึ้นกับฟิลเตอร์ค้างโอน/โอนแล้ว/ทุกบิลที่กำลังเลือกดูอยู่) เพื่อให้เห็นภาพรวมจริงไม่ว่ากำลังกรองดูอะไรอยู่ก็ตาม — สโคป
-    // เดือน/ทั้งหมดเป็นไปตาม useMonthScope ด้านบน (ฟิลเตอร์ "ค้างโอน" ดูทุกวันที่ค้างอยู่เสมอ ส่วน "โอนแล้ว"/"ทุกบิล" จำกัดแค่เดือนที่เลือก)
-    let statTotal=0, statPaid=0, statUnpaid=0, statTotalAmt=0, statPaidAmt=0, statUnpaidAmt=0;
+    const scope = [];
     for(const iso of isoList){
       const d = dayMap[iso];
       Object.entries(d.orders).forEach(([code,row])=>{
-        if(outstandingBranchFilterValue && code!==outstandingBranchFilterValue) return;
+        if(!outstandingTypeMatches_(code)) return;
         const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
         if(amt<=0) return;
         const payInfo = d.billingPaid[code];
         const paid = !!payInfo;
-        statTotal++; statTotalAmt += amt;
-        if(paid){ statPaid++; statPaidAmt += amt; } else { statUnpaid++; statUnpaidAmt += amt; }
-        if(paid && !includePaid) return;
-        if(!paid && !includeUnpaid) return;
         const normalizedPayInfo = (paid && typeof payInfo==='object') ? payInfo : null;
-        // ดีเลย์ของบิลที่โอนแล้ว ต้องนับถึง "วันที่ชำระจริง" (เสร็จสิ้นแล้ว ไม่ขยับอีก) ไม่ใช่วันปัจจุบัน — เดิมใช้วันปัจจุบัน
-        // เสมอไม่ว่าจะจ่ายไปแล้วกี่วันก่อนหน้าก็ตาม ทำให้บิลที่จ่ายไปนานแล้วยังโชว์ดีเลย์เพิ่มขึ้นเรื่อยๆ ทุกวันที่เข้ามาดูหน้านี้
-        // ทั้งที่จริงๆ ปิดจบไปแล้ว ส่วนบิลที่ยังไม่จ่ายยังต้องนับถึงวันนี้เหมือนเดิม (ยังไม่มีวันที่ชำระให้อ้างอิง)
-        const delayRefDate = (normalizedPayInfo && normalizedPayInfo.paidDate) ? normalizedPayInfo.paidDate : today;
-        const delay = Math.round((new Date(delayRefDate)-new Date(iso))/86400000);
-        rows.push({iso, code, amt, delay, paid, payInfo: normalizedPayInfo});
+        // ดีเลย์ของบิลที่โอนแล้วนับถึงวันที่ชำระจริง ส่วนบิลที่ยังไม่จ่ายนับถึงวันนี้
+        scope.push({iso, code, amt, delay: outstandingDelayOf_(iso, normalizedPayInfo), paid, payInfo: normalizedPayInfo});
       });
     }
-    // เรียงรองด้วยรหัสสาขาเมื่อดีเลย์เท่ากัน (บิลวันเดียวกันหลายสาขา) — ถ้าไม่ใส่ไว้ ลำดับจะขึ้นกับลำดับที่ JS คืนค่า
-    // Object.entries(d.orders) ให้มา ซึ่งมีพฤติกรรมแปลกคือเอารหัสสาขาที่เป็นตัวเลขล้วนไม่มีเลข 0 นำหน้า (เช่น "10","25")
-    // ขึ้นก่อนเสมอตามลำดับตัวเลข ไม่ว่าจะแทรกไว้ตรงไหน ส่วนรหัสที่มีเลข 0 นำหน้า ("01") หรือไม่ใช่ตัวเลขล้วน ("00" ธงฯ)
-    // จะตามมาทีหลังตามลำดับที่แทรกเข้าไป ทำให้สาขาโผล่ไม่เรียงกันเลยเวลาดูวันเดียวกันหลายสาขา (เจอจริง: 10, 25, 01, ธงฯ)
-    // โหมดรีเช็ค: เรียงตามวันที่ออเดอร์ (เก่าสุดก่อน) แล้วตามด้วยรหัสสาขา เสมอ — ไล่เช็คทีละบิลเป็นระบบได้ง่ายกว่าเรียงตาม
-    // ดีเลย์ (ซึ่งตอนนี้บิลที่จ่ายแล้วคำนวณจากวันที่ชำระจริง ไม่ใช่วันที่ออเดอร์แล้ว อาจทำให้บิลคนละวันมาดีเลย์เท่ากันแล้ว
-    // เรียงปนกันไม่เป็นลำดับวันที่ ดูยากเวลาจะไล่เช็คทีละวันจริงๆ) นอกโหมดรีเช็คยังเรียงตามดีเลย์แบบเดิมทุกประการ
-    // ปุ่ม "เรียงตามวันที่" (outstandingDateSortDir) คนละตัวจากปุ่มเรียงดีเลย์ — กดวนครบ 3 สถานะ เปิดอยู่ตอนไหนจะแทนที่การ
-    // เรียงดีเลย์ไปเลย (แต่ยังเป็นรองโหมดรีเช็คซึ่งเรียงตามวันที่/สาขาตายตัวอยู่แล้วเหมือนกัน เลยให้โหมดรีเช็คเช็คก่อนเสมอ)
-    if(statsEl){
-      statsEl.innerHTML = statTotal===0 ? '' : `
-        <div class="statchip">📋 ทั้งหมด<b class="num">${statTotal} บิล</b></div>
-        <div class="statchip">⏳ ค้างโอน<b class="num">${statUnpaid} บิล</b></div>
-        <div class="statchip">✅ โอนแล้ว<b class="num">${statPaid} บิล</b></div>
-        <div class="statchip">💰 ยอดค้างโอน<b class="num">${money(statUnpaidAmt)}</b></div>
-        <div class="statchip">💵 ยอดรวมทั้งหมด<b class="num">${money(statTotalAmt)}</b></div>
-      `;
-    }
-    rows.sort((a,b)=> {
-      if(billingRecheckMode) return a.iso.localeCompare(b.iso) || a.code.localeCompare(b.code);
+    outstandingScopeRows_ = scope;
+    renderOutstandingStats_();
+    let rows = scope.filter(r=>r.paid ? includePaid : includeUnpaid);
+    // บิลวันเดียวกัน: สาขาปกติเรียงตามรหัสก่อน แล้วสาขาแยกส่งอยู่ท้ายสุดของวันนั้นเสมอ
+    rows.sort((a,b)=>{
+      if(billingRecheckMode){
+        const dd = outstandingDateSortDir==='desc' ? b.iso.localeCompare(a.iso) : a.iso.localeCompare(b.iso);
+        return dd || outstandingCodeCmp_(a,b);
+      }
       if(outstandingDateSortDir){
         const dd = outstandingDateSortDir==='desc' ? b.iso.localeCompare(a.iso) : a.iso.localeCompare(b.iso);
-        return dd!==0 ? dd : a.code.localeCompare(b.code);
+        return dd || outstandingCodeCmp_(a,b);
       }
       const d = outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay;
-      return d!==0 ? d : a.code.localeCompare(b.code);
+      return d || a.iso.localeCompare(b.iso) || outstandingCodeCmp_(a,b);
     });
-    outstandingLastRowsCount_ = rows.length; // ของเต็มพูลเสมอ ก่อนกรองเหลือเฉพาะยังไม่เช็ค (เอาไว้โชว์ "ทั้งหมด" ให้ตรงของจริง
-    if(billingRecheckMode) await renderRecheckRoundSummary_();
-    if(rows.length===0){
-      container.innerHTML = includePaid && includeUnpaid
-        ? '<div class="empty">ไม่มีบิลในเดือนนี้</div>'
-        : includePaid
-        ? '<div class="empty">ไม่มีบิลที่โอนแล้วในเดือนนี้</div>'
-        : '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
-      return;
+    outstandingLastRowsCount_ = rows.length; // พูลเต็มก่อนกรองมุมมองรีเช็ค (ใช้โชว์ "ทั้งหมด")
+    outstandingMarks_ = {};
+    if(billingRecheckMode){
+      const cur = await loadBillingRecheckCurrent();
+      if(mySeq !== outstandingRenderSeq_) return;
+      outstandingMarks_ = cur.marks || {};
+      await renderRecheckRoundSummary_();
     }
-    // โหลดสถานะรีเช็คของรอบปัจจุบันมาด้วยถ้าเปิดโหมดรีเช็คอยู่ — ใช้โชว์ว่าบิลไหนเช็คไปแล้วบ้างในรอบนี้
-    const recheckCurrent = billingRecheckMode ? await loadBillingRecheckCurrent() : null;
-    if(mySeq !== outstandingRenderSeq_) return;
-    // กดกล่อง "เหลือ" ในสรุปรอบรีเช็ค -> กรองลิสต์ให้เห็นแค่บิลที่ยังไม่เคยเช็คในรอบนี้ (ไล่เช็คทีละบิลจนครบง่ายขึ้น ไม่ต้องมองหา
-    // เองว่าอันไหนเช็คไปแล้ว) ไม่กระทบ outstandingLastRowsCount_/"ทั้งหมด" ด้านบนซึ่งนับจากพูลเต็มเสมอ (เซ็ตไปแล้วก่อนบรรทัดนี้)
-    if(billingRecheckMode && outstandingRecheckOnlyUnchecked_ && recheckCurrent){
-      rows = rows.filter(r=>!recheckCurrent.marks[`${r.iso}|${r.code}`]);
-      if(rows.length===0){ container.innerHTML = '<div class="empty">เช็คครบทุกบิลแล้วในรอบนี้ 🎉</div>'; return; }
-    }
-    // ช่องกรอกวันที่/ยอดโอนจริง ทำเป็นซ่อนไว้ในทุกแถวตั้งแต่แรก (ไม่ใช่สร้างใหม่ตอนกด) แล้วกดโชว์/ซ่อนด้วย JS ตรงๆ
-    // แทนที่จะเรนเดอร์ใหม่ทั้งลิสต์ทุกครั้งที่กด — กันจอกระตุก/เด้งไปเด้งมาเวลากดสถานะถี่ๆ
-    container.innerHTML = rows.map(r=>{
-      const key = `${r.iso}|${r.code}`;
-      const mark = recheckCurrent ? recheckCurrent.marks[key] : null;
-      const recheckHtml = `<div data-recheckarea="${key}">${buildOutstandingRecheckAreaHtml_(key, mark, r.paid)}</div>`;
-      const paidInfoLine = (r.paid || r.payInfo) ? `<div class="d" data-outstandingpaidinfo="${key}" style="margin-top:1px;color:var(--text-faint);font-size:11px;">${r.paid?paidTagHtml(true, r.payInfo&&r.payInfo.paidDate).replace(/^ /,''):''}${r.payInfo?billPaidDiffHtml(r.payInfo, r.amt):''}</div>` : '';
-      return `<div class="branchbill" style="padding:6px 9px;margin-bottom:5px;" data-outstandingrow="${key}">
-        <div class="toprow">
-          <div class="left" style="flex-wrap:nowrap;overflow:hidden;">
-            <span style="color:var(--text-faint);font-size:11px;flex:none;">${formatDDMMYYYY(r.iso)}</span>
-            <span class="n" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(branchName(r.code))}</span>
-          </div>
-          <span class="amt num big">${money(r.amt)}</span>
-          <div class="acts2">
-            <span class="badge-delay" style="display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:40px;">${r.delay} วัน</span>
-            <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
-            <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
-          </div>
-        </div>
-        ${paidInfoLine}
-        <div style="margin-top:6px;display:none;" data-outstandingeditor="${key}">
-          <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
-          <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
-            <label style="flex:none;">โอนจริง</label>
-            <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
-          </div>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
-            <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
-          </div>
-        </div>
-        ${recheckHtml}
-        <div id="bdreceipt-${r.code}-${r.iso}"></div>
-      </div>`;
-    }).join('');
-    const findEditor = (key)=> container.querySelector(`[data-outstandingeditor="${CSS.escape(key)}"]`);
-    // ผูก event ของพื้นที่ "เช็คแล้ว" ของทุกแถว — แยกเป็นฟังก์ชันกลาง (wireOutstandingRecheckArea_) เพื่อให้เรียกซ้ำได้
-    // ตอนแพตช์แถวเดียวหลังยืนยัน/ยกเลิกผลเช็ค โดยไม่ต้องเรนเดอร์ทั้งลิสต์ใหม่ (ดูคอมเมนต์ที่ data-recheckresult ด้านล่าง)
-    rows.forEach(r=>wireOutstandingRecheckArea_(container, `${r.iso}|${r.code}`, rows));
-    container.querySelectorAll('[data-outstandingbill]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const [iso, code] = btn.getAttribute('data-outstandingbill').split('|');
-      await toggleBranchDetailReceipt(iso, code); // เปิดดู/ทำรายการบิลฝังอยู่ตรงนี้เลย ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป
-    }));
-    container.querySelectorAll('[data-outstandingpay]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const key = btn.getAttribute('data-outstandingpay');
-      const r = rows.find(x=>`${x.iso}|${x.code}`===key);
-      // บิลนี้มาร์คว่า "จ่ายแล้ว" อยู่ก่อน (โผล่มาได้เพราะเปิดฟิลเตอร์ "โอนแล้ว"/"ทั้งหมด" ในโหมดรีเช็ค) — กดปุ่มสถานะ
-      // ตรงนี้คือเปลี่ยนกลับเป็น "รอโอน" เลย เหมือนปุ่มสถานะที่หน้า "บิลรายสาขา" ทุกประการ ไม่ใช่กดเพื่อกางฟอร์มยืนยันจ่าย
-      if(r && r.paid){
-        if(!confirm('เปลี่ยนสถานะกลับเป็น "รอโอน"? (ข้อมูลวันที่โอนที่เคยบันทึกไว้จะถูกล้าง)')) return;
-        btn.disabled = true;
-        try{
-          await writeBillingPaid_(r.iso, r.code, false);
-          if(r.iso===currentDate){ dayData.billingPaid[r.code] = false; renderBillingList(); }
-          showToast('เปลี่ยนกลับเป็นรอโอนแล้ว');
-          renderStats();
-          await renderOutstanding();
-        }catch(e){
-          showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
-          btn.disabled = false;
-        }
+    if(rows.length===0){ outstandingRows_ = []; container.innerHTML = outstandingEmptyHtml_(); return; }
+    if(billingRecheckMode && outstandingRecheckView_!=='all'){
+      const wantChecked = outstandingRecheckView_==='checked';
+      rows = rows.filter(r=>!!outstandingMarks_[`${r.iso}|${r.code}`] === wantChecked);
+      if(rows.length===0){
+        outstandingRows_ = [];
+        container.innerHTML = wantChecked ? '<div class="empty">ยังไม่ได้เช็คบิลไหนในรอบนี้</div>' : '<div class="empty">เช็คครบทุกบิลแล้วในรอบนี้ 🎉</div>';
         return;
       }
-      // แค่โชว์/ซ่อนช่องกรอกของแถวนี้เฉยๆ ไม่ต้องโหลดข้อมูลใหม่ ทำทันทีไม่มีหน่วง
-      const editor = findEditor(key);
-      if(editor) editor.style.display = editor.style.display==='none' ? '' : 'none';
-    }));
-    container.querySelectorAll('[data-outstandingcancel]').forEach(btn=>btn.addEventListener('click', ()=>{
-      const editor = findEditor(btn.getAttribute('data-outstandingcancel'));
-      if(editor) editor.style.display = 'none';
-    }));
-    container.querySelectorAll('[data-outstandingconfirm]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      const key = btn.getAttribute('data-outstandingconfirm');
-      const [iso, code] = key.split('|');
-      // ตอบสนองทันทีก่อนรอบันทึกเสร็จ กันรู้สึกว่ากดแล้วไม่ขยับ/ต้องกดซ้ำ
-      btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
-      const dateInput = document.getElementById(`outpaydate-${iso}-${code}`);
-      const paidDate = dateInput.value || todayISO();
-      lastUsedPayDate = paidDate;
-      // แถวอื่นๆ ที่ยังไม่ยืนยัน ถูกเรนเดอร์ไว้ตั้งแต่แรกเริ่มของลิสต์ด้วย lastUsedPayDate ตอนนั้น (กันจอกระตุก ไม่เรนเดอร์
-      // ทั้งลิสต์ใหม่ทุกครั้งที่กด — ดูคอมเมนต์ตอนสร้าง container.innerHTML ด้านบน) พอยืนยันแถวนี้ไป lastUsedPayDate เปลี่ยน
-      // แล้วแต่ input ของแถวอื่นที่ยังค้างอยู่ใน DOM ไม่ได้อัปเดตตามไปด้วย ต้องซิงก์ค่าด้วยมือตรงนี้ ไม่งั้นแถวถัดไปจะยังโชว์
-      // ค่าเดิมเก่าที่เรนเดอร์ไว้ตั้งแต่แรก (ดูเหมือนไม่ล็อกตามอัตโนมัติตั้งแต่แถวที่ 2 เป็นต้นไป)
-      container.querySelectorAll('input[type="date"][id^="outpaydate-"]').forEach(inp=>{
-        if(inp !== dateInput) inp.value = paidDate;
-      });
-      try{
-        const d = await loadDay(iso);
-        const billedAmt = branchBillAmount(d.orders[code], iso) + Number((d.billExtra||{})[code]||0);
-        const amtInput = document.getElementById(`outpayamt-${iso}-${code}`);
-        const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
-        const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
-        await writeBillingPaid_(iso, code, payValue);
-        if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
-        showToast('บันทึกว่าโอนแล้ว');
-        // บันทึกสำเร็จแล้ว แค่เอาแถวนี้ออกจากลิสต์ค้างโอนไปเลย ไม่ต้องโหลด/คำนวณทั้งลิสต์ใหม่ทั้งหมด
-        const rowEl = container.querySelector(`[data-outstandingrow="${CSS.escape(key)}"]`);
-        if(rowEl) rowEl.remove();
-        if(!container.querySelector('[data-outstandingrow]')) container.innerHTML = '<div class="empty">ไม่มีรายการค้างโอน 🎉</div>';
-        renderStats();
-      }catch(e){
-        showToast('บันทึกไม่สำเร็จ เช็คอินเทอร์เน็ตแล้วลองใหม่');
-        btn.disabled = false; btn.textContent = 'ยืนยัน';
-      }
-    }));
+    }
+    outstandingRows_ = rows;
+    // เส้นคั่นหนาขึ้นระหว่างวันที่ (เฉพาะตอนเรียงตามวันที่ ซึ่งบิลวันเดียวกันอยู่ติดกัน)
+    const byDate = billingRecheckMode || !!outstandingDateSortDir;
+    container.innerHTML = `<div class="olist">${rows.map((r,i)=>
+      buildOutstandingRowHtml_(r, outstandingMarks_[`${r.iso}|${r.code}`], byDate && i>0 && rows[i-1].iso!==r.iso)
+    ).join('')}</div>${billingRecheckMode ? `<button class="btn secondary" data-recheckclearbottom="1" style="margin-top:10px;">💾 บันทึก & เคลียร์รอบรีเช็คนี้</button>` : ''}`;
   }catch(e){ if(mySeq === outstandingRenderSeq_) container.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
+}
+// ---- ข้อความทวงยอดส่ง Line แยกสาขา ----
+// สาขาเลขเดียวกันกับสาขาแยกส่ง (เช่น 16 กับ 16T) รวมอยู่ข้อความเดียว แต่แบ่งเป็น 2 ส่วน: บิลปกติก่อน > บิลแยกส่ง
+let outstandingLineIncludeToday_ = false;
+function branchBaseNumber_(code){
+  const base = String(code).replace(/[^0-9]+$/,'');
+  if(!base) return String(code);
+  return /^\d+$/.test(base) ? String(Number(base)) : base;
+}
+function lineBaht_(n){ return Math.round(n).toLocaleString('th-TH'); }
+function buildFollowupMessage_(mainBills, sepBills){
+  const lines = ['สวัสดีค่ะ จากบัญชีก้ามโตนะคะ'];
+  const item = b=>`• วันที่ ${formatDDMMYYYY(b.iso)} จำนวน ${lineBaht_(b.amt)} บาท`;
+  const sum = arr=>arr.reduce((s,b)=>s+b.amt,0);
+  const sections = [['บิลปกติ', mainBills], ['บิลแยกส่ง', sepBills]].filter(x=>x[1].length);
+  if(sections.length===1 && sections[0][1].length===1){
+    const b = sections[0][1][0];
+    lines.push(`รบกวนเช็คสลิปยอดโอน${sections[0][0]==='บิลแยกส่ง'?'บิลแยกส่ง ':'บิล'}วันที่ ${formatDDMMYYYY(b.iso)} จำนวน ${lineBaht_(b.amt)} บาทค่ะ`);
+  }else if(sections.length===1){
+    const [label, bills] = sections[0];
+    lines.push(`รบกวนเช็คสลิปยอดโอน${label==='บิลแยกส่ง'?'บิลแยกส่ง':'บิล'}ตามนี้ค่ะ`);
+    bills.forEach(b=>lines.push(item(b)));
+    lines.push(`รวม ${lineBaht_(sum(bills))} บาท`);
+  }else{
+    lines.push('รบกวนเช็คสลิปยอดโอนบิลตามนี้ค่ะ');
+    sections.forEach(([label, bills])=>{
+      lines.push('', `📌 ${label}`);
+      bills.forEach(b=>lines.push(item(b)));
+      lines.push(`รวม${label} ${lineBaht_(sum(bills))} บาท`);
+    });
+    lines.push('', `รวมทั้งหมด ${lineBaht_(sum(mainBills)+sum(sepBills))} บาท`);
+  }
+  lines.push('พอดีเช็คในไลน์กลุ่มไม่มีสลิปส่งมาค่ะ รบกวนด้วยนะคะ 🙏🏻🥹');
+  return lines.join('\n');
+}
+async function renderOutstandingLineMsgs_(){
+  const el = document.getElementById('outstandingLineMsgs');
+  if(!el) return;
+  el.innerHTML = '<div class="loading">กำลังโหลด…</div>';
+  try{
+    const listRes = await window.storage.list('day:');
+    const isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+    const dayMap = await loadDaysBulk(isoList);
+    const today = todayISO();
+    const groups = {};
+    isoList.forEach(iso=>{
+      if(!outstandingLineIncludeToday_ && iso>=today) return;
+      const d = dayMap[iso];
+      Object.entries(d.orders).forEach(([code,row])=>{
+        if(d.billingPaid[code]) return;
+        const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+        if(amt<=0) return;
+        const base = branchBaseNumber_(code);
+        const g = groups[base] || (groups[base] = {base, main:[], sep:[], codes:new Set()});
+        g.codes.add(code);
+        (isFeeExempt(code) ? g.sep : g.main).push({iso, code, amt});
+      });
+    });
+    const list = Object.values(groups).sort((a,b)=>{
+      const na = Number(a.base), nb = Number(b.base);
+      return (isNaN(na)||isNaN(nb)) ? a.base.localeCompare(b.base) : na-nb;
+    });
+    const head = `<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-dim);margin-top:8px;">
+      <input type="checkbox" id="lineMsgIncludeToday" style="width:auto;" ${outstandingLineIncludeToday_?'checked':''}> รวมบิลของวันนี้ด้วย (ปกติไม่รวม เพราะยังไม่ถึงเวลาทวง)
+    </label>`;
+    if(list.length===0){ el.innerHTML = head + '<div class="empty">ไม่มีสาขาที่ต้องทวงยอด 🎉</div>'; }
+    else{
+      el.innerHTML = head + list.map((g,i)=>{
+        g.main.sort((a,b)=>a.iso.localeCompare(b.iso)); g.sep.sort((a,b)=>a.iso.localeCompare(b.iso));
+        const mainCode = [...g.codes].find(c=>!isFeeExempt(c));
+        const title = mainCode ? branchName(mainCode) : branchName([...g.codes][0]);
+        const total = [...g.main, ...g.sep].reduce((s,b)=>s+b.amt,0);
+        const n = g.main.length + g.sep.length;
+        return `<div class="linemsg">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <b style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(title)}${g.sep.length&&g.main.length?' <span class="osep">+แยกส่ง</span>':''}</b>
+            <span style="flex:none;display:flex;gap:6px;align-items:center;"><span class="num" style="font-size:12px;color:var(--text-dim);">${n} บิล ${money(total)}</span>
+            <button class="btn small secondary" data-linemsgcopy="${i}" style="width:auto;">📋 คัดลอก</button></span>
+          </div>
+          <pre data-linemsgtext="${i}">${escapeHtml(buildFollowupMessage_(g.main, g.sep))}</pre>
+        </div>`;
+      }).join('');
+    }
+    const cb = document.getElementById('lineMsgIncludeToday');
+    if(cb) cb.addEventListener('change', ()=>{ outstandingLineIncludeToday_ = cb.checked; renderOutstandingLineMsgs_(); });
+    el.querySelectorAll('[data-linemsgcopy]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const txt = el.querySelector(`[data-linemsgtext="${btn.getAttribute('data-linemsgcopy')}"]`).textContent;
+      try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+      showToast('คัดลอกข้อความแล้ว — วางใน Line ได้เลย');
+    }));
+  }catch(e){ el.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
 
 // ---- Settings tab ----
@@ -5427,7 +5723,26 @@ async function importAllData(file){
   try{
     const text = await file.text();
     const payload = JSON.parse(text);
-    if(payload.settings){ settings = payload.settings; if(!settings.priceHistory) settings.priceHistory={}; if(!settings.billInfo) settings.billInfo={...DEFAULT_BILL_INFO}; if(!settings.expenseCategories) settings.expenseCategories=[...DEFAULT_EXPENSE_CATEGORIES]; if(!settings.debtOwners) settings.debtOwners=[...DEFAULT_DEBT_OWNERS]; if(!settings.debtTypes) settings.debtTypes=[...DEFAULT_DEBT_TYPES]; if(!settings.personalIncomeCategories) settings.personalIncomeCategories=[...DEFAULT_PERSONAL_INCOME_CATEGORIES]; if(!settings.personalExpenseCategories) settings.personalExpenseCategories=[...DEFAULT_PERSONAL_EXPENSE_CATEGORIES]; await saveSettings(); }
+    // ต้อง backfill ฟิลด์ให้ครบเหมือน loadSettings() ตอนโหลดแอปปกติทุกประการ (ดู ~1415-1461) — เดิมจุดนี้ backfill แค่บางส่วน
+    // (ขาด purchaseSellers/calendarDotsEnabled/shelfLifeDays) ถ้านำเข้าไฟล์สำรองเก่าที่ settings ไม่มีฟิลด์พวกนี้ จะได้
+    // settings ที่ไม่ครบ แล้ว saveSettings() เขียนทับฉบับไม่ครบนี้ลงเซิร์ฟเวอร์ทันที ทำให้แท็บต้นทุนซื้อ/เหลือ&Claim พังกลาง
+    // เซสชัน (อ่าน settings.purchaseSellers/shelfLifeDays[id] ไม่ได้) จนกว่าจะโหลดหน้าใหม่
+    if(payload.settings){
+      settings = payload.settings;
+      if(!settings.priceHistory) settings.priceHistory={};
+      if(!settings.billInfo) settings.billInfo={...DEFAULT_BILL_INFO};
+      if(!settings.expenseCategories) settings.expenseCategories=[...DEFAULT_EXPENSE_CATEGORIES];
+      if(!settings.debtOwners) settings.debtOwners=[...DEFAULT_DEBT_OWNERS];
+      if(!settings.debtTypes) settings.debtTypes=[...DEFAULT_DEBT_TYPES];
+      if(!settings.personalIncomeCategories) settings.personalIncomeCategories=[...DEFAULT_PERSONAL_INCOME_CATEGORIES];
+      if(!settings.personalExpenseCategories) settings.personalExpenseCategories=[...DEFAULT_PERSONAL_EXPENSE_CATEGORIES];
+      if(!settings.purchaseSellers) settings.purchaseSellers=[...DEFAULT_PURCHASE_SELLERS];
+      if(!settings.purchaseSellers.includes('อื่นๆ')) settings.purchaseSellers.push('อื่นๆ');
+      if(settings.calendarDotsEnabled===undefined) settings.calendarDotsEnabled = true;
+      if(!settings.shelfLifeDays) settings.shelfLifeDays = {};
+      PRODUCTS.forEach(p=>{ if(!settings.shelfLifeDays[p.id]) settings.shelfLifeDays[p.id] = DEFAULT_SHELF_LIFE_DAYS[p.id] || 2; });
+      await saveSettings();
+    }
     let importedCount = 0;
     if(payload.days){
       const items = Object.entries(payload.days).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
@@ -8646,7 +8961,13 @@ async function addDebt(){
   // saveDebts() ทับทั้งอาเรย์ — ยังต้องโหลดมาดูรายการจ่ายเดิมก่อนถ้าเป็นการแก้ไข (ใช้กับ applyInitialAdjustment เท่านั้น
   // ไม่ได้เอาไปเขียนทับทั้งก้อน)
   if(editingDebtId){
-    const all = await loadDebts();
+    // ต้องโหลดสดจากเซิร์ฟเวอร์ตรงนี้ ไม่ใช้ loadDebts() ซึ่งคืนค่าที่แคชไว้ในหน่วยความจำเฉยๆ ถ้าเคยโหลดไปแล้ว — ถ้าระหว่างที่
+    // ฟอร์มแก้ไขเปิดค้างอยู่ มีการบันทึกจ่ายหนี้นี้เข้ามาจากอีกเครื่อง/แท็บ (data-addpayment เขียนตรงเข้าเซิร์ฟเวอร์ได้เลย
+    // ไม่ต้องรอหน้านี้) payments ที่แคชไว้ในเครื่องนี้จะเก่ากว่าจริง แล้วตอนกดบันทึกแก้ไขจะเอา payments เก่าไปเขียนทับ
+    // ของจริงบนเซิร์ฟเวอร์ ทำให้รายการจ่ายที่เพิ่งบันทึกไปหายเงียบๆ — โหลดสดลดช่วงเวลาที่อาจชนให้แคบที่สุดเท่าที่ทำได้
+    let all;
+    try{ const r = await window.storage.get('debts'); all = JSON.parse(r.value); debtsCache_ = all; }
+    catch(e){ all = await loadDebts(); }
     const existing = all.find(x=>x.id===editingDebtId);
     if(!existing){ showToast('ไม่พบรายการหนี้นี้แล้ว (อาจถูกลบไปแล้ว)'); cancelDebtEdit(); renderDebts(); return; }
     const tmp = {payments: existing.payments};
@@ -8731,7 +9052,7 @@ async function computeBranchAggregates(){
   for(const iso of isoList){
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
-      if(!PRODUCTS.some(p=>Number(row[p.id]||0)>0)) return;
+      if(!orderRowHasOrder_(row)) return;
       const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
       if(!agg[code]) agg[code] = {paidTotal:0, unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:iso, delays:[]};
       const a = agg[code];
@@ -9171,8 +9492,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : bill.amt;
       try{
         const payValue = {paid:true, paidDate, transferAmount, billedAmount: bill.amt};
-        await writeBillingPaid_(iso, code, payValue);
-        if(iso===currentDate) dayData.billingPaid[code] = payValue;
+        const fresh = await writeBillingPaid_(iso, code, payValue);
+        if(iso===currentDate) dayData = fresh;
         showToast('บันทึกว่าโอนแล้ว');
         const dashSelectEl = document.getElementById('dashBranchSelect');
         if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
@@ -9206,12 +9527,26 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       // ไปเลย ไม่มี toast ไม่มีอะไรบอกว่าบิลไหนสำเร็จ/ไม่สำเร็จ (ตรงกับปัญหาจริงที่เจอ: บางวันบางสาขาตกหล่นการโอนแบบไม่รู้ตัว)
       // ตอนนี้ไล่ทีละบิล บันทึกอันไหนสำเร็จก็สำเร็จไปเลย อันไหนพังก็รู้ชัดๆ ว่าพังอันไหน ไม่ต้องรอทั้งชุดเสร็จหรือพังหมดทีเดียว
       const succeeded = []; const failed = [];
-      for(const iso of isos){
+      // เดิมแปะ transferAmount/billedAmount เป็นยอดรวมทั้งชุด (billedSum/transferAmount) ซ้ำเหมือนกันทุกบิลในชุดที่เลือก —
+      // ทำให้ตัวเลข "โอนเข้าแล้ววันนี้" ของแต่ละวันในชุด (renderBillingTodayStats_ บวก payInfo.transferAmount ตรงๆ) บวม
+      // เกินจริงเท่ากับยอดรวมทั้งชุดทุกครั้งที่เปิดดูวันใดวันหนึ่งในชุดนั้น และ "ส่วนต่างโอน" (billPaidDiffHtml) ก็ผิดไปด้วย
+      // เพราะเทียบยอดรวมทั้งชุดกับยอดบิลแค่ใบเดียว — ตอนนี้แบ่ง transferAmount ตามสัดส่วนยอดบิลจริงของแต่ละใบแทน ให้บิล
+      // สุดท้ายรับเศษที่เหลือจากการปัดไปเลย กันผลรวมหลังปัดไม่เท่ากับยอดโอนจริงที่กรอกมาทั้งก้อน ส่วน billedAmount ก็ใช้
+      // ยอดบิลจริงของใบนั้นๆ ไม่ใช่ผลรวม — batchTotal เก็บยอดรวมทั้งชุดไว้แยกต่างหากสำหรับโชว์ป้าย "โอนรวม X บิล" ต่อ
+      let allocatedSoFar = 0;
+      for(let i=0;i<isos.length;i++){
+        const iso = isos[i];
         confirmBtn.textContent = `กำลังบันทึก… (${succeeded.length+failed.length+1}/${isos.length})`;
+        const bill = sortedBills.find(x=>x.iso===iso);
+        const billedAmount = bill ? bill.amt : 0;
+        const isLast = i === isos.length - 1;
+        const share = isLast ? Math.round((transferAmount - allocatedSoFar)*100)/100
+          : Math.round((billedSum>0 ? transferAmount*(billedAmount/billedSum) : transferAmount/isos.length)*100)/100;
+        allocatedSoFar += share;
         try{
-          const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedSum, batchId, batchCount: isos.length, note};
-          await writeBillingPaid_(iso, code, payValue);
-          if(iso===currentDate){ dayData.billingPaid[code] = payValue; renderBillingList(); }
+          const payValue = {paid:true, paidDate, transferAmount: share, billedAmount, batchId, batchCount: isos.length, batchTotal: transferAmount, note};
+          const fresh = await writeBillingPaid_(iso, code, payValue);
+          if(iso===currentDate){ dayData = fresh; renderBillingList(); }
           succeeded.push(iso);
         }catch(e){
           failed.push({iso});
@@ -9633,8 +9968,8 @@ async function toggleBranchBillPaidQuick(iso, code, btn){
   if(btn) btn.disabled = true;
   const nextValue = wasPaid ? false : {paid:true, paidDate: todayISO()};
   try{
-    await writeBillingPaid_(iso, code, nextValue);
-    if(iso===currentDate) dayData.billingPaid[code] = nextValue;
+    const fresh = await writeBillingPaid_(iso, code, nextValue);
+    if(iso===currentDate) dayData = fresh;
     showToast(nextValue ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
     const dashSelectEl = document.getElementById('dashBranchSelect');
     if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
@@ -9695,7 +10030,7 @@ async function renderDashboard(){
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
   const fee = computeFee(feeTotals);
-  const entries = Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,currentDate) + Number(dayData.billExtra[code]||0), 0);
   const cogsToday = (dayData.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -9920,7 +10255,7 @@ async function renderCalPopup(){
       isoList.forEach(iso=>{
         const d = dayMap[iso];
         const hasBuy = (d.purchases||[]).length>0;
-        const hasSell = Object.values(d.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+        const hasSell = Object.values(d.orders||{}).some(row=>orderRowHasOrder_(row));
         if(hasBuy || hasSell) dotMap[iso] = {hasBuy, hasSell};
       });
       grid.innerHTML = buildGridHtml(dotMap);
@@ -9999,11 +10334,21 @@ function toggleTopbarCollapse(){
 // ย่อ/ขยายเมนูด้านข้าง (เหลือแต่ไอคอน) — เฉพาะจอกว้าง (เดสก์ท็อป) เท่านั้น กันพื้นที่ให้เนื้อหาฝั่งขวากว้างขึ้นตามที่ขอ
 // จอแคบกว่านั้นถูกบังคับให้แคบ/เป็น drawer อยู่แล้วโดย media query จึงไม่มีปุ่มนี้ให้กด (ซ่อนไว้)
 let sidebarCollapsed = false;
+const tabletNavMq_ = window.matchMedia('(min-width:768px) and (max-width:1023px)');
 function updateSidebarCollapseIcon_(){
   const icon = document.querySelector('#dwNavCollapseBtn .dwn-ic');
-  if(icon) icon.textContent = sidebarCollapsed ? '▸' : '◂';
+  if(!icon) return;
+  // ช่วงแท็บเล็ตแคบเป็นค่าเริ่มต้น (ดู CSS dash-nav-expanded) — ลูกศรชี้ทางที่จะ "เปลี่ยนไป" เมื่อกด เหมือนจอกว้าง
+  const narrow = tabletNavMq_.matches ? !document.body.classList.contains('dash-nav-expanded') : sidebarCollapsed;
+  icon.textContent = narrow ? '▸' : '◂';
 }
 function toggleSidebarCollapse(){
+  if(tabletNavMq_.matches){
+    document.body.classList.toggle('dash-nav-expanded');
+    document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', String(!document.body.classList.contains('dash-nav-expanded')));
+    updateSidebarCollapseIcon_();
+    return;
+  }
   sidebarCollapsed = !sidebarCollapsed;
   document.body.classList.toggle('dash-nav-collapsed', sidebarCollapsed);
   document.getElementById('dwNavCollapseBtn').setAttribute('aria-pressed', String(sidebarCollapsed));
@@ -10160,7 +10505,7 @@ function applyDailyExpenseRoutine_(){
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){
-  const hasData = Object.values(dayData.orders||{}).some(row=>PRODUCTS.some(p=>Number(row[p.id]||0)>0));
+  const hasData = Object.values(dayData.orders||{}).some(row=>orderRowHasOrder_(row));
   setCardFoldByH3('อ่านออเดอร์จากรูปภาพ', hasData);
   setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
 }
@@ -10168,7 +10513,7 @@ function updateOrderFormAutoFold(){
 // วิ่งเฉพาะสาขาประจำ (ไม่ติ๊ก "นานๆ สั่งที") — ข้ามสาขาที่สั่งนานๆ ทีไปเลยอัตโนมัติ ไม่ต้องกดข้ามเอง เหมือนที่ดรอปดาวน์เลือกสาขา
 // (renderBranchSelect) แยกกลุ่มสาขาพวกนี้ไว้ท้ายสุดอยู่แล้ว
 function findNextUnrecordedBranch(afterCode){
-  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>PRODUCTS.some(p=>Number(row[p.id]||0)>0)).map(([c])=>c));
+  const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row)).map(([c])=>c));
   const branches = settings.branches.filter(b=>!b.rare);
   const idx = branches.findIndex(b=>b.code===afterCode);
   for(let i=1;i<=branches.length;i++){
@@ -10256,6 +10601,8 @@ async function init(){
     }
   }catch(e){}
   document.getElementById('dwNavCollapseBtn').addEventListener('click', toggleSidebarCollapse);
+  try{ tabletNavMq_.addEventListener('change', updateSidebarCollapseIcon_); }catch(e){}
+  updateSidebarCollapseIcon_();
   try{
     if(localStorage.getItem('karmto.sidebarCollapsed')==='1'){
       sidebarCollapsed = true;
@@ -10308,6 +10655,7 @@ async function init(){
   guardedClick('addExpenseBtn', addExpense);
   wireIceAutoCalc_('expCategory','expNote','expAmount');
   wireIceAutoCalc_('dashExpCategory','dashExpNote','dashExpAmount');
+  document.getElementById('dashExpDate').addEventListener('change', e=>{ if(e.target.value) prefillDashExpenseRoutine_(e.target.value); });
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
     expenseFilterMode = btn.getAttribute('data-expfilter');
     document.querySelectorAll('[data-expfilter]').forEach(b=>b.classList.toggle('active', b===btn));
@@ -10330,12 +10678,14 @@ async function init(){
   // กดวนครบ 3 สถานะ: ปิด -> ล่าสุด→เก่าสุด -> เก่าสุด→ล่าสุด -> ปิด (กลับไปใช้การเรียงดีเลย์ปกติ) — ข้อความปุ่มอัปเดตเองใน
   // renderOutstanding() ทุกครั้งที่เรนเดอร์อยู่แล้ว (กันเคสที่เปิด/ปิดโหมดรีเช็คแล้วปุ่มข้อความไม่ตรงกับสถานะจริง)
   document.getElementById('outstandingDateSortToggle').addEventListener('click', async ()=>{
-    outstandingDateSortDir = outstandingDateSortDir===null ? 'desc' : outstandingDateSortDir==='desc' ? 'asc' : null;
+    // โหมดรีเช็คเรียงตามวันที่เสมอ — สลับแค่ เก่า→ใหม่ / ใหม่→เก่า
+    if(billingRecheckMode) outstandingDateSortDir = outstandingDateSortDir==='desc' ? 'asc' : 'desc';
+    else outstandingDateSortDir = outstandingDateSortDir===null ? 'desc' : outstandingDateSortDir==='desc' ? 'asc' : null;
     await renderOutstanding();
   });
   document.getElementById('recheckModeToggle').addEventListener('change', async (e)=>{
     billingRecheckMode = e.target.checked;
-    if(!billingRecheckMode) outstandingRecheckOnlyUnchecked_ = false; // ปิดโหมดรีเช็ค -> ล้างตัวกรอง "เหลือ" ไปด้วย กันค้างข้ามรอบ
+    if(!billingRecheckMode) outstandingRecheckView_ = 'all'; // ปิดโหมดรีเช็ค -> ล้างตัวกรอง "เหลือ" ไปด้วย กันค้างข้ามรอบ
     const label = document.getElementById('recheckModeLabel');
     if(label) label.textContent = billingRecheckMode
       ? '🔍 โหมดรีเช็ค — เปิดอยู่ กดปุ่ม "เช็คแล้ว" ทีละบิลด้านล่างได้เลย'
@@ -10351,7 +10701,26 @@ async function init(){
   });
   document.getElementById('outstandingMonthInput').addEventListener('change', async (e)=>{
     outstandingMonthValue = e.target.value || todayISO().slice(0,7);
+    // เดือนสิ้นสุดเดิมอยู่ก่อนเดือนเริ่มใหม่ -> ขยับตามให้เป็นเดือนเดียวกัน
+    const toInp = document.getElementById('outstandingMonthToInput');
+    if(!outstandingMonthToValue || outstandingMonthToValue < outstandingMonthValue){ outstandingMonthToValue = outstandingMonthValue; if(toInp) toInp.value = outstandingMonthToValue; }
     await renderOutstanding();
+  });
+  document.getElementById('outstandingMonthToInput').addEventListener('change', async (e)=>{
+    outstandingMonthToValue = e.target.value || outstandingMonthValue;
+    await renderOutstanding();
+  });
+  document.querySelectorAll('[data-outtypefilter]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      outstandingTypeFilter_ = btn.getAttribute('data-outtypefilter');
+      await renderOutstanding();
+    });
+  });
+  document.getElementById('outstandingLineMsgBtn').addEventListener('click', async ()=>{
+    const el = document.getElementById('outstandingLineMsgs');
+    const show = el.style.display==='none';
+    el.style.display = show ? '' : 'none';
+    if(show) await renderOutstandingLineMsgs_();
   });
   document.getElementById('saveAllBillsBtn').addEventListener('click', saveAllReceiptsAsImages);
   document.getElementById('saveAllOrderTicketsBtn').addEventListener('click', saveAllOrderTicketsAsImages);

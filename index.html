@@ -174,10 +174,20 @@ h1,h2,h3{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight
 .cal-day.cal-selected{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700;}
 .cal-day.cal-range-start,.cal-day.cal-range-end{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
 .cal-day.cal-in-range{background:var(--accent-soft);border-color:transparent;}
-.cal-dots{position:absolute;left:3px;bottom:2px;display:flex;gap:2px;}
-.cal-dots span{width:5px;height:5px;border-radius:50%;display:block;}
+.cal-dots{position:absolute;left:50%;transform:translateX(-50%);bottom:2px;display:flex;gap:2px;}
+.cal-dots span{width:3.5px;height:3.5px;border-radius:50%;display:block;}
 .cal-dots .dot-buy{background:var(--danger);}
 .cal-dots .dot-sell{background:var(--success);}
+.cal-dots .dot-exp{background:#F2B705;}
+.dwh-wd{flex:none;min-width:26px;padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;text-align:center;}
+.dwh-wd:empty{display:none;}
+.dwh-wd.sun{background:var(--danger-soft);color:#C2475D;}
+.cal-check{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:.38;pointer-events:none;}
+.cal-day .cal-num{position:relative;z-index:1;}
+.calicon{display:inline-flex;flex-direction:column;width:22px;height:23px;border-radius:5px;border:1.5px solid var(--danger);background:#fff;overflow:hidden;vertical-align:middle;}
+.calicon b{background:var(--danger);color:#fff;font-size:7px;line-height:8px;font-weight:700;letter-spacing:.4px;text-align:center;}
+.calicon i{font-style:normal;font-size:11px;font-weight:700;line-height:13px;text-align:center;color:var(--text);}
+#calBtn{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;padding:0;}
 .statrow{display:flex;gap:8px;margin:0;overflow-x:auto;padding-bottom:2px;flex:1 1 auto;min-width:0;}
 .statchip{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text-dim);white-space:nowrap;flex:none;}
 .statchip b{color:var(--text);font-size:13px;margin-left:4px;}
@@ -787,13 +797,14 @@ table.plain td{border-bottom:1px dashed var(--field-bd);}
           </div>
           <div class="dwh-datenav">
             <button id="dwhPrevDay" aria-label="วันก่อนหน้า">‹</button>
+            <span id="dwhWeekday" class="dwh-wd"></span>
             <input type="date" id="dwhDateInput">
             <button id="dwhNextDay" aria-label="วันถัดไป">›</button>
             <div class="dwh-calwrap">
-              <button id="calBtn" aria-label="เปิดปฏิทิน">📅</button>
+              <button id="calBtn" aria-label="เปิดปฏิทิน"><span class="calicon"><b id="calIconMon"></b><i id="calIconDay"></i></span></button>
               <div class="cal-popup" id="calPopup" style="display:none;">
                 <div class="cal-switchrow">
-                  <span>แสดงจุดสถานะข้อมูล (แดง=ซื้อ เขียว=ขาย)</span>
+                  <span>แสดงจุดสถานะข้อมูล (แดง=ซื้อ เขียว=ขาย เหลือง=รายจ่ายกิจการ ✅=ซื้อตรงออเดอร์+ลงรายจ่ายแล้ว)</span>
                   <label class="cal-switch"><input type="checkbox" id="calDotsToggle"><span class="track"></span><span class="knob"></span></label>
                 </div>
                 <div class="cal-switchrow">
@@ -1922,7 +1933,8 @@ function renderActivityFeed_(){
   el.innerHTML = latest.length ? latest.map(e=>{
     const d = new Date(e.ts);
     const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
-    return `<div class="dwtile-feed-item"><span class="dwtile-feed-time">${hh}:${mm}</span>${escapeHtml(e.text)}</div>`;
+    const dd = String(d.getDate()).padStart(2,'0'), mo = String(d.getMonth()+1).padStart(2,'0');
+    return `<div class="dwtile-feed-item"><span class="dwtile-feed-time">${dd}/${mo} ${hh}:${mm}</span>${escapeHtml(e.text)}</div>`;
   }).join('') : '<div class="hint">ยังไม่มีรายการ</div>';
 }
 
@@ -10287,6 +10299,27 @@ function formatMonthEnglish_(monthVal){
   if(!y || !m) return '';
   return `${ENGLISH_MONTHS[m-1]} ${y}`;
 }
+// อักษรย่อวันในแถบวันที่ (อา จ อ พ พฤ ศ ส) — คำนวณจาก UTC เพื่อไม่ให้ขึ้นกับเขตเวลาของเครื่อง
+const WEEKDAY_SHORT_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+function weekdayShortTH_(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return WEEKDAY_SHORT_TH[new Date(Date.UTC(y,m-1,d)).getUTCDay()];
+}
+function updateWeekdayBadge_(iso){
+  const wd = weekdayShortTH_(iso);
+  const badge = document.getElementById('dwhWeekday');
+  if(badge){ badge.textContent = wd; badge.classList.toggle('sun', wd==='อา'); }
+  const label = document.getElementById('dwhDateLabel');
+  if(label) label.textContent = `${formatDDMMYYYY(iso)} (${wd})`;
+}
+// ไอคอนปฏิทินบนปุ่ม: แถบบนบอกเดือนย่อ 3 ตัวอักษร ตัวเลขข้างล่างคือวันที่จริงวันนี้ (เวลากรุงเทพ) ไม่ใช่วันที่ที่กำลังเลือกดูอยู่
+function updateCalIcon_(){
+  const mon = document.getElementById('calIconMon'), day = document.getElementById('calIconDay');
+  if(!mon || !day) return;
+  const [, m, d] = todayISO().split('-').map(Number);
+  mon.textContent = ENGLISH_MONTHS[m-1].slice(0,3).toUpperCase();
+  day.textContent = d;
+}
 let calViewYear = null, calViewMonth = null; // เดือนเป็น 0-11 แบบ JS Date
 let calRangeMode = false, calRangeStart = null, calRangeEnd = null; // โหมดเลือกช่วงวันที่ (แตะ 2 ครั้ง = วันเริ่ม/วันจบ)
 const CAL_RANGE_MAX_DAYS = 62; // กันเลือกช่วงยาวเกินไปโดยไม่ตั้งใจ (โหลดข้อมูลทีเดียวหลายเดือน/ปีจะช้า)
@@ -10330,9 +10363,9 @@ async function renderCalPopup(){
     const isRangeEnd = calRangeMode && iso===calRangeEnd;
     const isInRange = calRangeMode && calRangeStart && calRangeEnd && iso>calRangeStart && iso<calRangeEnd;
     const dots = dotMap[iso];
-    const dotsHtml = dots ? `<div class="cal-dots">${dots.hasBuy?'<span class="dot-buy"></span>':''}${dots.hasSell?'<span class="dot-sell"></span>':''}</div>` : '';
+    const dotsHtml = dots ? `${dots.complete?'<span class="cal-check">✅</span>':''}<div class="cal-dots">${dots.hasBuy?'<span class="dot-buy"></span>':''}${dots.hasSell?'<span class="dot-sell"></span>':''}${dots.hasExpense?'<span class="dot-exp"></span>':''}</div>` : '';
     const cls = [isToday&&'cal-today', isSelected&&'cal-selected', isRangeStart&&'cal-range-start', isRangeEnd&&'cal-range-end', isInRange&&'cal-in-range'].filter(Boolean).join(' ');
-    return `<div class="cal-day ${cls}" data-caliso="${iso}">${c.day}${dotsHtml}</div>`;
+    return `<div class="cal-day ${cls}" data-caliso="${iso}"><span class="cal-num">${c.day}</span>${dotsHtml}</div>`;
   }).join('');
   const bindCellClicks = () => { grid.querySelectorAll('[data-caliso]').forEach(el=>el.addEventListener('click', async (e)=>{
     e.stopPropagation(); // กันไม่ให้ event ไปเข้า calOutsideClickHandler ที่ document — ตอนโหมดช่วงวันที่ re-render กริดใหม่ทันที เซลล์เดิมที่คลิกจะหลุดจาก DOM ก่อน event bubble ไปถึง document ทำให้ contains() เช็คพลาดและ popup ปิดเอง
@@ -10371,14 +10404,24 @@ async function renderCalPopup(){
     const isoList = [];
     for(let d=1; d<=daysInMonth; d++){ isoList.push(`${renderYear}-${calPad(renderMonth+1)}-${calPad(d)}`); }
     try{
-      const dayMap = await loadDaysBulk(isoList);
+      // ✅ กลางช่อง = วันนั้น "ต้นทุนซื้อตรงกับยอดออเดอร์" (ใช้ตรรกะเดียวกับการ์ดแจ้งเตือนข้อมูลไม่ครบ computeDayGaps_ ไม่มีประเภท
+      // ขาด/ไม่ตรง/ซื้อโดยไม่มีออเดอร์) และลงรายจ่ายกิจการแล้ว — ต้องโหลดวันก่อนหน้าของวันที่ 1 ด้วย เพราะของเหลือยกมาถูกหักจากยอดต้องซื้อ
+      const prevOfFirst = addDaysISO(isoList[0], -1);
+      const [dayMap, rawLots] = await Promise.all([loadDaysBulk([prevOfFirst, ...isoList]), loadRawLots()]);
       if(renderYear!==calViewYear || renderMonth!==calViewMonth) return; // ผู้ใช้เปลี่ยนเดือน/ปิดแล้วเปิดใหม่ระหว่างรอโหลด ไม่ต้องเขียนทับกริดเดือนอื่น
+      const lotProductIds = new Set(rawLots.map(l=>l.productId));
       const dotMap = {};
       isoList.forEach(iso=>{
         const d = dayMap[iso];
         const hasBuy = (d.purchases||[]).length>0;
         const hasSell = Object.values(d.orders||{}).some(row=>orderRowHasOrder_(row));
-        if(hasBuy || hasSell) dotMap[iso] = {hasBuy, hasSell};
+        const hasExpense = (d.expenses||[]).length>0;
+        let complete = false;
+        if(hasBuy && hasSell && hasExpense){
+          const gaps = computeDayGaps_(iso, d, dayMap[addDaysISO(iso,-1)] || {}, lotProductIds);
+          complete = !gaps.some(g=>g.type==='purchase' || g.type==='purchase-mismatch' || g.type==='purchase-unexpected');
+        }
+        if(hasBuy || hasSell || hasExpense) dotMap[iso] = {hasBuy, hasSell, hasExpense, complete};
       });
       grid.innerHTML = buildGridHtml(dotMap);
       bindCellClicks();
@@ -10428,6 +10471,7 @@ async function loadForDate(iso){
     if(dwhDateInput) dwhDateInput.value = iso;
     const dwhDateLabel = document.getElementById('dwhDateLabel');
     if(dwhDateLabel) dwhDateLabel.textContent = formatDDMMYYYY(iso);
+    updateWeekdayBadge_(iso);
     editingCode = null;
     renderStats(); refreshOrderTab();
     updateTopbarCollapsedDate();
@@ -10441,7 +10485,7 @@ async function loadForDate(iso){
 let topbarCollapsed = false;
 function updateTopbarCollapsedDate(){
   const dateLabel = document.getElementById('topbarCollapsedDate');
-  if(dateLabel && topbarCollapsed) dateLabel.textContent = formatDDMMYYYY(currentDate);
+  if(dateLabel && topbarCollapsed) dateLabel.textContent = `${formatDDMMYYYY(currentDate)} (${weekdayShortTH_(currentDate)})`;
 }
 function toggleTopbarCollapse(){
   topbarCollapsed = !topbarCollapsed;
@@ -10733,6 +10777,9 @@ async function init(){
       updateSidebarCollapseIcon_();
     }
   }catch(e){}
+  updateCalIcon_();
+  setInterval(updateCalIcon_, 60000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updateCalIcon_(); });
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');

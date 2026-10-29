@@ -764,9 +764,75 @@ body.motion-intro svg.km-donut{animation:kmSpin 1.1s cubic-bezier(.3,.8,.3,1) bo
 body.motion-intro .dash-cost-bar span{transform-origin:0 50%;animation:kmBarX 1s ease-out both;animation-delay:.45s}
 body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,.3,1.2) both;animation-delay:calc(var(--mi,0) * 70ms + .2s)}
 @media (prefers-reduced-motion:reduce){body.motion-intro *{animation:none!important}}
+
+/* ===================== หน้าเปิดแอป (splash) — ท่อนอินโทรของวิดีโอโชว์รีล ทำด้วย CSS ล้วน ===================== */
+#splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;
+  background:#F7FBFE;transition:opacity .45s ease,transform .45s cubic-bezier(.5,0,.75,0)}
+#splash.out{opacity:0;transform:scale(1.06)}
+.sp-blob{position:absolute;width:70vmax;height:70vmax;border-radius:50%;filter:blur(40px);opacity:.85;animation:spDrift 6s ease-in-out infinite alternate}
+.sp-blob.b1{background:radial-gradient(circle,#CFE8F8 0,transparent 65%);left:-20vmax;top:-25vmax}
+.sp-blob.b2{background:radial-gradient(circle,#FFD7E3 0,transparent 65%);right:-25vmax;top:-10vmax;animation-delay:-2s}
+.sp-blob.b3{background:radial-gradient(circle,#FFF0BA 0,transparent 65%);left:10vmax;bottom:-35vmax;animation-delay:-4s}
+@keyframes spDrift{to{transform:translate(4vmax,3vmax) scale(1.08)}}
+.sp-stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 16px;text-align:center}
+.sp-ring{position:absolute;left:50%;top:62px;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:5px solid #7CC7EC;opacity:0;animation:spRing 1.1s cubic-bezier(.2,.7,.3,1) both}
+.sp-ring.r2{border-color:#F28AAA;animation-delay:.14s}.sp-ring.r3{border-color:#E9C94A;animation-delay:.28s}
+@keyframes spRing{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(5)}}
+.sp-crab{width:124px;height:124px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:72px;line-height:1;
+  box-shadow:0 0 0 8px #FFD7E3,0 14px 34px rgba(40,80,110,.18);animation:spPop .9s cubic-bezier(.2,.9,.3,1.3) both,spWiggle 1.6s ease-in-out .9s infinite}
+@keyframes spPop{0%{transform:scale(0) rotate(-40deg)}55%{transform:scale(1.18) rotate(8deg)}75%{transform:scale(.94) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes spWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+.sp-word{display:flex;gap:.04em;font-family:'Chonburi',serif;font-size:clamp(56px,13vw,132px);line-height:1.1;margin-top:6px}
+.sp-word span{display:inline-block;background:linear-gradient(180deg,#F08A3E,#E26C80);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 6px 0 rgba(242,138,170,.35));animation:spDrop .95s cubic-bezier(.2,.9,.3,1) both}
+.sp-word span:nth-child(1){animation-delay:.35s}.sp-word span:nth-child(2){animation-delay:.41s}.sp-word span:nth-child(3){animation-delay:.47s}
+.sp-word span:nth-child(4){animation-delay:.53s}.sp-word span:nth-child(5){animation-delay:.59s}.sp-word span:nth-child(6){animation-delay:.65s}
+@keyframes spDrop{0%{opacity:0;transform:translateY(-120%) rotate(-18deg) scaleY(.7)}45%{opacity:1;transform:translateY(10%) rotate(4deg) scaleY(1.08)}
+  65%{transform:translateY(-6%) rotate(-2deg) scaleY(.96)}82%{transform:translateY(2%) rotate(1deg)}100%{opacity:1;transform:none}}
+.sp-tag{font-family:'Mitr','IBM Plex Sans Thai',sans-serif;font-size:clamp(16px,3.6vw,26px);color:#22343B;opacity:0;animation:spUp .6s ease-out 1.05s both}
+@keyframes spUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.sp-skip{position:absolute;bottom:calc(28px + env(safe-area-inset-bottom,0px));font-size:12.5px;color:#7B919B;opacity:0;animation:spUp .5s ease-out 1.3s both}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true">
+  <div class="sp-blob b1"></div><div class="sp-blob b2"></div><div class="sp-blob b3"></div>
+  <div class="sp-stage">
+    <span class="sp-ring r1"></span><span class="sp-ring r2"></span><span class="sp-ring r3"></span>
+    <div class="sp-crab">🦀</div>
+    <div class="sp-word"><span>K</span><span>A</span><span>R</span><span>M</span><span>T</span><span>O</span></div>
+    <div class="sp-tag">ออเดอร์ · ต้นทุน · บิล · ตามยอด ในแอปเดียว</div>
+  </div>
+  <div class="sp-skip">แตะเพื่อข้าม</div>
+</div>
+<script>
+// หน้าเปิดแอป: ตัดสินใจทันทีก่อนวาดหน้าแรก จะได้ไม่มีภาพแวบ — วันละครั้ง (ค่าเริ่มต้น) / ทุกครั้ง / ปิด ตามตั้งค่าในเครื่อง
+// ไม่โชว์ตอนรันเทสต์อัตโนมัติ และเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว"
+(function(){
+  var el = document.getElementById('splash'), mode = 'daily', last = '', preview = false;
+  try{
+    mode = localStorage.getItem('karmto.splash') || 'daily'; last = localStorage.getItem('karmto.splashDate') || '';
+    preview = localStorage.getItem('karmto.splashPreview') === '1'; localStorage.removeItem('karmto.splashPreview');
+  }catch(e){}
+  var today = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok'}).format(new Date());
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var show = preview || (!navigator.webdriver && !reduce && (mode === 'always' || (mode === 'daily' && last !== today)));
+  if(!show){ el.remove(); return; }
+  window.__splashActive = true;
+  try{ localStorage.setItem('karmto.splashDate', today); }catch(e){}
+  var done = false;
+  function finish(){
+    if(done) return; done = true;
+    el.classList.add('out');
+    setTimeout(function(){
+      el.remove(); window.__splashActive = false;
+      if(typeof playIntroMotion_ === 'function') playIntroMotion_({first:true});
+    }, 450);
+  }
+  el.addEventListener('click', finish);
+  setTimeout(finish, 2300);
+})();
+</script>
 <div class="app">
   <div class="topbar">
     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1291,6 +1357,15 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
         <input type="checkbox" id="motionToggle" style="width:auto;"> ภาพเคลื่อนไหวตอนเปิดแอป/สลับหน้า (การ์ดลอยขึ้น กราฟเด้งขึ้นลงก่อนหยุด)
       </label>
       <div class="hint">เก็บไว้ในเครื่องนี้ ถ้าเครื่องตั้งค่า "ลดการเคลื่อนไหว" ไว้ จะไม่เล่นอยู่แล้ว</div>
+      <div class="field" style="margin-top:10px;">
+        <label for="splashModeSelect">หน้าเปิดแอป (โลโก้ปูเด้ง + KARMTO)</label>
+        <select id="splashModeSelect">
+          <option value="daily">วันละครั้ง</option>
+          <option value="always">ทุกครั้งที่เปิด</option>
+          <option value="off">ปิด</option>
+        </select>
+      </div>
+      <button class="btn small secondary" id="splashPreviewBtn" style="width:auto;">▶ ดูตัวอย่างหน้าเปิดแอป</button>
     </div>
     <div class="card dash-wide-card">
       <h3>💲 ประวัติราคาขายสินค้า <span class="subhint">รองรับกรอกย้อนหลัง</span></h3>
@@ -10831,7 +10906,14 @@ async function init(){
   }catch(e){}
   updateCalIcon_();
   setInterval(updateCalIcon_, 60000);
-  playIntroMotion_({first:true});
+  if(!window.__splashActive) playIntroMotion_({first:true}); // ถ้ามีหน้าเปิดแอปอยู่ ให้เล่นหลังหน้าเปิดหายไปแทน
+  const splashSel = document.getElementById('splashModeSelect');
+  if(splashSel){
+    try{ splashSel.value = localStorage.getItem('karmto.splash') || 'daily'; }catch(e){}
+    splashSel.addEventListener('change', ()=>{ try{ localStorage.setItem('karmto.splash', splashSel.value); }catch(e){} });
+  }
+  const splashPrev = document.getElementById('splashPreviewBtn');
+  if(splashPrev) splashPrev.addEventListener('click', ()=>{ try{ localStorage.removeItem('karmto.splashDate'); localStorage.setItem('karmto.splashPreview','1'); }catch(e){} location.reload(); });
   const motionToggle = document.getElementById('motionToggle');
   if(motionToggle){
     motionToggle.checked = motionEnabled_();

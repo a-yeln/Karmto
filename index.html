@@ -1811,6 +1811,8 @@ function priceOnDate(pid, iso){
 }
 function billIdFor(iso, code){ const [y,m,d] = iso.split('-'); return `${d}${m}${y.slice(2)}${code}`; }
 function branchByCode(code){ return settings.branches.find(b=>b.code===code); }
+// ชื่อสาขาสำหรับบันทึกกิจกรรม — branchName() มีรหัสอยู่แล้ว ("สาขา 12 สวนหลวง") ยกเว้นสาขาที่ตั้งป้ายชื่อเอง/สาขา 00 เลยเติมรหัสให้เฉพาะกรณีนั้น
+function branchLogName_(code){ const b = branchByCode(code); return (!b || b.label || code==='00') ? `${code} ${branchName(code)}` : branchName(code); }
 function branchName(code){ const b = branchByCode(code); return b ? branchDisplayName(b) : code; }
 function branchShortLabel(code){ return code==='00' ? 'ธง' : code.replace(/^0+(?=\d)/,''); }
 
@@ -1927,6 +1929,12 @@ async function writeBillingPaid_(iso, code, value){
   const fresh = normalizeDay_(JSON.parse(res.value));
   dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์ เหมือนที่ saveDay() ทำ
   writeDayToLocalStorage_(iso, fresh);
+  if(value && value.paid){
+    const amt = value.transferAmount!=null ? value.transferAmount : value.billedAmount;
+    logActivity_(`รับชำระบิล ${branchLogName_(code)}${amt!=null?` ${money(amt)}`:''} — บิลวันที่ ${formatDDMMYYYY(iso)}${value.paidDate?` (โอนวันที่ ${formatDDMMYYYY(value.paidDate)})`:''}`);
+  }else{
+    logActivity_(`เปลี่ยนบิล ${branchLogName_(code)} กลับเป็นรอโอน — บิลวันที่ ${formatDDMMYYYY(iso)}`);
+  }
   return fresh;
 }
 // เขียนสถานะจ่าย/รอจ่ายของ "รายจ่ายกิจการ" 1 รายการ — ความเสี่ยงชนกันเดียวกับ writeBillingPaid_ (เดิม saveDay() เขียนทับ
@@ -2015,7 +2023,13 @@ async function writeRootArrayOp_(key, op, setCache){
 // เก็บเป็น root array key เดียวกับ debts/rawLots — แคชในหน่วยความจำแบบเดียวกับ loadRawLots() (โหลดครั้งแรกที่ใช้ค่อยยิงเน็ต)
 // จงใจบันทึกเฉพาะจุดที่มีนัยสำคัญ (ไม่ใช่ทุกการกระทำในแอพ) กันไม่ให้ activityLog บวมและกันความเสี่ยงจากการแตะจุดบันทึกข้อมูลจำนวนมาก
 let activityLogCache_ = null;
-async function loadActivityLog(){
+// fresh:true = โหลดใหม่จากเซิร์ฟเวอร์ทุกครั้ง (ใช้ตอนเปิดแดชบอร์ด) เดิมแคชไว้ตลอดจนรีเฟรชหน้า กิจกรรมจากเครื่อง/คนอื่นเลยไม่ขึ้น
+// ถ้าโหลดใหม่ไม่สำเร็จ ใช้แคชเดิมต่อไป ไม่ให้แดชบอร์ดพัง
+async function loadActivityLog(opts={}){
+  if(opts.fresh && activityLogCache_){
+    try{ const r = await window.storage.get('activityLog'); const v = JSON.parse(r.value); if(Array.isArray(v)) activityLogCache_ = v; }
+    catch(e){ /* keep cache */ }
+  }
   if(!activityLogCache_){
     try{ const r = await window.storage.get('activityLog'); const v = JSON.parse(r.value); activityLogCache_ = Array.isArray(v)?v:[]; }
     catch(e){
@@ -2026,7 +2040,13 @@ async function loadActivityLog(){
   }
   return activityLogCache_;
 }
-async function logActivity_(text){
+// ต่อคิวทีละรายการ (ไม่ยิงพร้อมกัน) — บางจุดเรียกโดยไม่ await (เช่น ตอนรับชำระหลายบิลติดกัน) กันคำขอซ้อนกันเกินลิมิต Apps Script
+let activityLogQueue_ = Promise.resolve();
+function logActivity_(text){
+  activityLogQueue_ = activityLogQueue_.then(()=>logActivityNow_(text));
+  return activityLogQueue_;
+}
+async function logActivityNow_(text){
   const entry = {id: uid('act'), ts: Date.now(), text};
   try{
     await writeRootArrayOp_('activityLog', {push: entry}, arr=>{activityLogCache_=arr;});
@@ -2248,6 +2268,7 @@ function renderOrderList(){
       writeDayToLocalStorage_(iso, fresh);
       if(iso===currentDate) dayData = fresh;
       refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
+      logActivity_(`ลบออเดอร์ ${branchLogName_(code)} — วันที่ ${formatDDMMYYYY(iso)}`);
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     }
@@ -2260,6 +2281,7 @@ async function saveRow(){
   document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
   if(customItemsStaged.length) row.custom = customItemsStaged.map(it=>({...it})); // สินค้าอื่นๆ ที่พิมพ์เอง (ดูคอมเมนต์ที่ renderCustomItemsSection_)
   const iso = currentDate;
+  const wasRecorded = !!(dayData.orders && dayData.orders[code]);
   // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน dayData.orders[code]=row; saveDay() ทั้งวัน — เดิมถ้าบันทึกสาขา
   // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
   // ทั้งก้อนที่ยิงออกไปพร้อมกันอาจถึงเซิร์ฟเวอร์สลับคิวกัน ใครมาถึงทีหลังจะเขียนทับของอีกฝั่งทั้งหมดแบบเงียบๆ (ตรงกับปัญหา
@@ -2286,6 +2308,7 @@ async function saveRow(){
     renderProductInputs();
   }
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
+  logActivity_(`${wasRecorded?'แก้ไขออเดอร์':'บันทึกออเดอร์'} ${branchLogName_(code)} ${money(branchBillAmount(row, iso))} — วันที่ ${formatDDMMYYYY(iso)}`);
 }
 function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); }
 // ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — ไม่มีราคา เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จ
@@ -2298,6 +2321,8 @@ function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrder
 function buildOrderTicketHTML(code, iso, row, cardId){
   const branchObj = branchByCode(code);
   const branchAreaLabel = code==='00' ? 'ธงหมูกระทะ' : (branchObj ? (branchObj.label || branchObj.area) : branchName(code));
+  // ตั้ง "ป้ายชื่อกำหนดเอง" ไว้ = ใช้ชื่อนั้นแทนชื่อสาขาทั้งก้อน (เช่น ลูกค้าทั่วไปรหัส KT ใส่ชื่อลูกค้า) เลยไม่ขึ้นคำว่า "สาขา" นำหน้า
+  const showSaxaKicker = !(branchObj && branchObj.label);
   const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
   const rowsHtml = items.map(it=>{
@@ -2323,7 +2348,7 @@ function buildOrderTicketHTML(code, iso, row, cardId){
        </div>`
     : `<div class="orderticket-numhead">
          <div class="orderticket-left">
-           <div class="orderticket-saxa">สาขา</div>
+           ${showSaxaKicker ? '<div class="orderticket-saxa">สาขา</div>' : ''}
            <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
          </div>
          <div class="orderticket-code">${escapeHtml(code)}</div>
@@ -5753,6 +5778,8 @@ async function addPriceHistory(){
   dateEl.value=''; priceEl.value='';
   renderPriceHistory();
   showToast('เพิ่มราคาแล้ว');
+  const prod = PRODUCTS.find(p=>p.id===pid);
+  logActivity_(`ตั้งราคา ${prod?prod.emoji+prod.name:pid} ${money(price)} — มีผลวันที่ ${formatDDMMYYYY(date)}`);
 }
 function renderShelfLifeSettings(){
   const wrap = document.getElementById('shelfLifeSettings');
@@ -5821,21 +5848,21 @@ function renderBranchSettings(){
     settings.branches.splice(Number(btn.getAttribute('data-brdel')),1); renderBranchSettings();
     await saveBranches({silent:true});
     showToast('ลบสาขาแล้ว');
-    if(removed) logActivity_(`ลบสาขา ${removed.code} ${removed.area||removed.label||''}`.trim());
+    if(removed) logActivity_(`ลบสาขา ${removed.code} ${removed.label||removed.area||''} — วันที่ ${formatDDMMYYYY(todayISO())}`.replace(/  +/g,' '));
   }));
   // อัปเดตสรุปด้านบนทันทีเวลามีคนติ๊ก/เลิกติ๊ก พร้อมบันทึกขึ้นเซิร์ฟเวอร์ทันทีในตัว — เดิมติ๊กแล้วแค่กางค่าในหน่วยความจำ
   // ดูเหมือนบันทึกแล้ว (มีผลกับหน้าจอทันที) แต่จริงๆ ยังไม่ถูกส่งขึ้นเซิร์ฟเวอร์จนกว่าจะกดปุ่ม "บันทึกรายชื่อสาขา" แยก
   // ต่างหากด้านล่าง ถ้าลืมกด/ปิดหน้าไปก่อน การแก้ไข (รวมถึงสาขาที่เพิ่งเพิ่มด้วย addBranch()) จะหายไปเงียบๆ — นี่คือ
   // สาเหตุที่น่าจะทำให้สาขาที่เพิ่มแล้วหายไปจริง (ผู้ใช้จำได้ว่าเพิ่ม+ติ๊ก "นานๆ สั่งที" แล้ว แต่ไม่ได้กดปุ่มบันทึกแยก)
   wrap.querySelectorAll('[data-bsep]').forEach((cb,i)=>cb.addEventListener('change', async ()=>{
-    settings.branches[i].separate = cb.checked;
-    renderBranchSettings();
+    // บันทึกก่อนแล้วค่อยเรนเดอร์ใหม่ — saveBranches() อ่านค่าจากหน้าจอเองอยู่แล้ว และต้องเทียบกับค่าเดิมใน settings เพื่อบันทึกกิจกรรม
     await saveBranches({silent:true});
+    renderBranchSettings();
   }));
   wrap.querySelectorAll('[data-brare]').forEach((cb,i)=>cb.addEventListener('change', async ()=>{
-    settings.branches[i].rare = cb.checked;
-    renderBranchSettings();
+    // บันทึกก่อนแล้วค่อยเรนเดอร์ใหม่ — saveBranches() อ่านค่าจากหน้าจอเองอยู่แล้ว และต้องเทียบกับค่าเดิมใน settings เพื่อบันทึกกิจกรรม
     await saveBranches({silent:true});
+    renderBranchSettings();
   }));
   // ช่องข้อความ (รหัส/ชื่อพื้นที่/ป้ายชื่อ/ชื่อผู้ซื้อ/ที่อยู่/เลขภาษี) บันทึกอัตโนมัติตอนออกจากช่อง (blur) ด้วยเหตุผล
   // เดียวกับเช็คบ็อกซ์ด้านบน — ไม่ต้องพึ่งปุ่มบันทึกแยกอีกต่อไป (ปุ่มยังอยู่ไว้เผื่ออยากกดบันทึกทุกช่องรวดเดียวเอง)
@@ -5863,14 +5890,36 @@ async function saveBranches(opts={}){
     billAddr: billAddrs[i].value.trim(),
     billTax: billTaxes[i].value.trim(),
   }));
+  const before = (settings.branches||[]).map(b=>({...b}));
   settings.branches = newBranches.filter(b=>b.code);
   try{
     await writeSettingsFieldPath_(['branches'], settings.branches);
+    branchEditLogLines_(before, settings.branches).forEach(t=>logActivity_(t));
     refreshOrderTab();
     if(!opts.silent) showToast('บันทึกรายชื่อสาขาแล้ว');
   }catch(e){
     showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
   }
+}
+// สรุปว่าแก้อะไรในรายชื่อสาขาบ้าง (เทียบตามลำดับในลิสต์ — เพิ่ม/ลบสาขาบันทึกกิจกรรมแยกไว้แล้วที่ addBranch/ปุ่มลบ เลยข้าม)
+function branchEditLogLines_(before, after){
+  if(before.length !== after.length) return [];
+  const fields = [['code','รหัส'],['area','ชื่อพื้นที่'],['label','ป้ายชื่อ'],['billName','ชื่อผู้ซื้อ'],['billTax','เลขภาษี']];
+  const flags = [['separate','แยกส่ง'],['rare','นานๆ สั่งที']];
+  const date = formatDDMMYYYY(todayISO());
+  const lines = [];
+  after.forEach((b,i)=>{
+    const a = before[i] || {};
+    const changes = [];
+    fields.forEach(([k,label])=>{
+      const o = String(a[k]||'').trim(), n = String(b[k]||'').trim();
+      if(o!==n) changes.push(`${label}: ${o||'(ว่าง)'} → ${n||'(ว่าง)'}`);
+    });
+    if(String(a.billAddr||'').trim() !== String(b.billAddr||'').trim()) changes.push('แก้ที่อยู่บิล'); // ที่อยู่ยาวหลายบรรทัด ไม่ใส่ค่าเต็มให้ log รก
+    flags.forEach(([k,label])=>{ if(!!a[k] !== !!b[k]) changes.push(`${b[k]?'ติ๊ก':'เลิกติ๊ก'} ${label}`); });
+    if(changes.length) lines.push(`แก้ไขสาขา ${b.code} — ${changes.join(', ')} — วันที่ ${date}`);
+  });
+  return lines;
 }
 function branchCodeNum_(code){ const m = String(code).match(/^\d+/); return m ? Number(m[0]) : null; }
 async function addBranch(){
@@ -5897,7 +5946,7 @@ async function addBranch(){
   // แยกต่างหากถึงจะติดจริง ถ้าลืมกด/ปิดหน้าไปก่อน สาขาที่เพิ่งเพิ่มจะหายไปเงียบๆ โดยไม่มีอะไรเตือนเลย
   await saveBranches({silent:true});
   showToast(`เพิ่มสาขา ${code} ${area} แล้ว`);
-  logActivity_(`เพิ่มสาขา ${code} ${area}`);
+  logActivity_(`เพิ่มสาขา ${code} ${area} — วันที่ ${formatDDMMYYYY(todayISO())}`);
 }
 
 function showBackupFallbackModal(jsonStr){
@@ -10316,7 +10365,7 @@ async function renderDashboard(){
   await renderDataGaps();
   await renderMonthPL();
   await renderYearSummary();
-  await loadActivityLog();
+  await loadActivityLog({fresh:true});
   renderActivityFeed_();
   const day14Map = await loadDaysBulk(days14);
 

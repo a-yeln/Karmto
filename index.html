@@ -1851,6 +1851,66 @@ function readDayFromLocalStorage_(iso){
 function writeDayToLocalStorage_(iso, data){
   try{ localStorage.setItem(DAY_CACHE_LS_PREFIX+iso, JSON.stringify(data)); }
   catch(e){ /* พื้นที่เต็มหรือใช้ localStorage ไม่ได้ — ข้ามไปเฉยๆ ไม่กระทบการทำงานหลักของแอป */ }
+  if(dayRevs_[iso]) writeLocalDayRev_(iso, dayRevs_[iso]);
+}
+// แคชวันเก่าในเครื่องไม่เคยโหลดซ้ำ — เลยต้องมีป้าย "เวอร์ชัน" ต่อวันบนเซิร์ฟเวอร์ (คีย์ dayRevs) ทุกครั้งที่เครื่องไหนเขียน day:* จะสุ่มป้ายใหม่
+// เครื่องอื่นเทียบป้ายกับที่จำไว้ ถ้าไม่ตรงก็ทิ้งแคชวันนั้นแล้วโหลดสด (ใช้ป้ายสุ่ม ไม่ใช้เวลา เพราะนาฬิกาแต่ละเครื่องไม่ตรงกัน)
+const DAY_REV_LS_PREFIX = 'karmto_dayrev:';
+let dayRevs_ = {};
+function readLocalDayRev_(iso){ try{ return localStorage.getItem(DAY_REV_LS_PREFIX+iso); }catch(e){ return null; } }
+function writeLocalDayRev_(iso, rev){ try{ localStorage.setItem(DAY_REV_LS_PREFIX+iso, rev || ''); }catch(e){} }
+// รวมป้ายที่ต้องส่งเป็นคำขอเดียว (เช่น กู้คืนสำรองเขียนหลายร้อยวันติดกัน จะได้ไม่ยิงเซิร์ฟเวอร์หลายร้อยครั้ง)
+let pendingDayRevs_ = {}, dayRevFlushTimer_ = null;
+function pushDayRev_(raw, iso, rev){
+  pendingDayRevs_[iso] = rev;
+  clearTimeout(dayRevFlushTimer_);
+  dayRevFlushTimer_ = setTimeout(async ()=>{
+    const batch = pendingDayRevs_; pendingDayRevs_ = {};
+    const ops = Object.keys(batch).map(d=>({path:[d], value: batch[d]}));
+    try{ await raw.patchOps('dayRevs', ops, false); }
+    catch(e){
+      try{ await raw.get('dayRevs'); }
+      catch(e2){ if(String(e2 && e2.message).indexOf('Key not found')===0){ try{ await raw.set('dayRevs', JSON.stringify(batch)); }catch(e3){} } }
+    }
+  }, 400);
+}
+function wrapStorageForDayRevs_(raw){
+  if(!raw || raw.__dayRevWrapped) return raw;
+  const stamp = key => {
+    if(typeof key !== 'string' || key.indexOf('day:') !== 0) return;
+    const iso = key.slice(4);
+    const rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    dayRevs_[iso] = rev;
+    writeLocalDayRev_(iso, rev);
+    pushDayRev_(raw, iso, rev);
+  };
+  const w = Object.create(raw);
+  w.__dayRevWrapped = true;
+  ['set', 'patchField', 'patchOps', 'delete'].forEach(m=>{
+    if(typeof raw[m] !== 'function') return;
+    w[m] = async function(key, ...rest){ const res = await raw[m](key, ...rest); stamp(key); return res; };
+  });
+  return w;
+}
+(function(){
+  let current = wrapStorageForDayRevs_(window.storage);
+  Object.defineProperty(window, 'storage', { configurable: true, get(){ return current; }, set(v){ current = wrapStorageForDayRevs_(v); } });
+})();
+// คืนรายชื่อวันที่แคชในเครื่องเก่ากว่าเซิร์ฟเวอร์ (และล้างแคชวันนั้นทิ้งแล้ว) — ห้าม throw
+async function syncDayRevs_(){
+  let server;
+  try{ server = JSON.parse((await window.storage.get('dayRevs')).value) || {}; }
+  catch(e){ return []; }
+  dayRevs_ = server;
+  const changed = [];
+  Object.keys(server).forEach(iso=>{
+    if(readLocalDayRev_(iso) === server[iso]) return;
+    const hadCache = !!dayCache_[iso] || readDayFromLocalStorage_(iso) !== null;
+    delete dayCache_[iso];
+    try{ localStorage.removeItem(DAY_CACHE_LS_PREFIX+iso); }catch(e){}
+    if(hadCache) changed.push(iso); else writeLocalDayRev_(iso, server[iso]);
+  });
+  return changed;
 }
 function isRecentDay_(iso){
   return iso >= addDaysISO(todayISO(), -3);
@@ -10575,6 +10635,34 @@ function setDateNavControlsDisabled_(disabled){
   const todayBtn = document.getElementById('dwhTodayBtn');
   if(todayBtn) todayBtn.style.opacity = disabled ? '0.55' : '';
 }
+// ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
+// ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
+let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
+function userBusy_(){
+  const a = document.activeElement;
+  if(a && (a.tagName==='TEXTAREA' || a.tagName==='SELECT' || (a.tagName==='INPUT' && !['button','checkbox','radio','submit'].includes(a.type)))) return true;
+  if(editingCode) return true;
+  return [...document.querySelectorAll('[id$="ModalOverlay"],[id$="Overlay"]')].some(el=>el.style.display && el.style.display!=='none');
+}
+async function syncFromOtherDevices_(){
+  if(syncInFlight_ || dateNavInFlight_ || !currentDate) return;
+  syncInFlight_ = true;
+  try{
+    const changed = await syncDayRevs_();
+    if(changed.length) pendingSyncRender_ = true;
+    if(!pendingSyncRender_ || userBusy_()) return;
+    const fresh = await loadDay(currentDate);
+    if(dateNavInFlight_) return;
+    pendingSyncRender_ = false;
+    dayData = fresh;
+    const y = window.scrollY;
+    renderStats(); refreshOrderTab();
+    const activeTab = document.querySelector('.tab.active');
+    if(activeTab) await switchTab(activeTab.getAttribute('data-tab'));
+    window.scrollTo(0, y);
+  }catch(e){ /* เน็ตหลุด — ลองใหม่รอบหน้า */ }
+  finally{ syncInFlight_ = false; }
+}
 async function loadForDate(iso){
   if(dateNavInFlight_) return;
   dateNavInFlight_ = true;
@@ -10923,7 +11011,12 @@ async function init(){
       else{ clearTimeout(motionTimer_); document.body.classList.remove('motion-intro','motion-first'); }
     });
   }
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updateCalIcon_(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ hiddenAt_ = Date.now(); return; }
+    updateCalIcon_();
+    if(Date.now() - hiddenAt_ >= 3000) syncFromOtherDevices_();
+  });
+  setInterval(()=>{ if(!document.hidden) syncFromOtherDevices_(); }, 60000);
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');
@@ -11149,7 +11242,7 @@ async function init(){
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{
-    await loadSettings();
+    await Promise.all([loadSettings(), syncDayRevs_()]);
     await loadForDate(todayISO());
   }catch(e){
     showConnectionErrorBanner(e);

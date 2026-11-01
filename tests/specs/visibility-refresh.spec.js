@@ -54,6 +54,8 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   }, today);
   await page.evaluate(() => syncFromOtherDevices_());
   check('Recent day refreshes even without a version marker', await page.evaluate(() => !!dayData.billingPaid['02']));
+  const labels = await page.evaluate(() => ({ build: document.getElementById('appBuildLabel').textContent, sync: document.getElementById('lastSyncLabel').textContent }));
+  check('Settings shows app version and last sync time', labels.build === await page.evaluate(() => APP_BUILD) && labels.sync !== '—', labels);
 
   await finish(browser);
 })();

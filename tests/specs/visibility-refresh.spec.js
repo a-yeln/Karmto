@@ -45,5 +45,15 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   await page.evaluate(() => syncFromOtherDevices_());
   check('Deferred refresh applies once the user is done', await page.evaluate(() => !dayData.billingPaid['01'] && !pendingSyncRender_));
 
+  // อีกเครื่องยังเป็นเวอร์ชันเก่า (ไม่สแตมป์ป้าย) แก้ "วันนี้" — ต้องเห็นเหมือนกันตอนกลับมาที่แอป
+  const today = await page.evaluate(() => todayISO());
+  await page.evaluate(async t => {
+    window.__store['day:' + t] = { orders: { '02': { p1: 3 } }, billingPaid: {} };
+    await loadForDate(t);
+    window.__store['day:' + t] = { orders: { '02': { p1: 3 } }, billingPaid: { '02': { paid: true, paidDate: t } } };
+  }, today);
+  await page.evaluate(() => syncFromOtherDevices_());
+  check('Recent day refreshes even without a version marker', await page.evaluate(() => !!dayData.billingPaid['02']));
+
   await finish(browser);
 })();

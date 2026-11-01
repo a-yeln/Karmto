@@ -10650,9 +10650,13 @@ async function syncFromOtherDevices_(){
   try{
     const changed = await syncDayRevs_();
     if(changed.length) pendingSyncRender_ = true;
-    if(!pendingSyncRender_ || userBusy_()) return;
-    const fresh = await loadDay(currentDate);
-    if(dateNavInFlight_) return;
+    if(userBusy_()) return;
+    const iso = currentDate;
+    if(!pendingSyncRender_ && !isRecentDay_(iso)) return;
+    // วันใกล้ๆ โหลดสดเสมออยู่แล้ว — เทียบกับที่โชว์อยู่ตรงๆ ด้วย ไม่พึ่งป้ายอย่างเดียว (เผื่ออีกเครื่องยังเป็นเวอร์ชันเก่าที่ไม่สแตมป์ป้าย)
+    const fresh = await loadDay(iso);
+    if(dateNavInFlight_ || iso !== currentDate) return;
+    if(!pendingSyncRender_ && JSON.stringify(fresh) === JSON.stringify(dayData)) return;
     pendingSyncRender_ = false;
     dayData = fresh;
     const y = window.scrollY;

@@ -1366,6 +1366,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
         </select>
       </div>
       <button class="btn small secondary" id="splashPreviewBtn" style="width:auto;">▶ ดูตัวอย่างหน้าเปิดแอป</button>
+      <div class="small muted" style="margin-top:12px;">เวอร์ชันแอป: <b id="appBuildLabel"></b> · ซิงก์ข้ามเครื่องล่าสุด: <span id="lastSyncLabel">—</span></div>
     </div>
     <div class="card dash-wide-card">
       <h3>💲 ประวัติราคาขายสินค้า <span class="subhint">รองรับกรอกย้อนหลัง</span></h3>
@@ -1842,6 +1843,15 @@ const dayCache_ = {};
 const DAY_CACHE_LS_PREFIX = 'karmto_dayc2:';
 const DAY_CACHE_LS_KEY_OLD = 'karmto_daycache_v1';
 try{ localStorage.removeItem(DAY_CACHE_LS_KEY_OLD); }catch(e){ /* ไม่มีของเก่าอยู่แล้ว หรือใช้ localStorage ไม่ได้ ก็ไม่เป็นไร */ }
+// ล้างแคชวันในเครื่องทิ้งครั้งเดียวเมื่อเลขรุ่นแคชเปลี่ยน — แคชที่เก็บก่อนมีป้าย dayRevs อาจเก่ากว่าเซิร์ฟเวอร์แล้วโดยไม่มีทางรู้
+// (เคสจริง: ไอโฟนแก้ 22/10 จาก 97 เป็น 95 แต่แอนดรอยด์/แท็บเล็ตยังโชว์ 97 จากแคชเก่า)
+const DAY_CACHE_EPOCH = '3';
+try{
+  if(localStorage.getItem('karmto_daycache_epoch') !== DAY_CACHE_EPOCH){
+    Object.keys(localStorage).forEach(k=>{ if(k.indexOf('karmto_dayc2:')===0 || k.indexOf('karmto_dayrev:')===0) localStorage.removeItem(k); });
+    localStorage.setItem('karmto_daycache_epoch', DAY_CACHE_EPOCH);
+  }
+}catch(e){}
 function readDayFromLocalStorage_(iso){
   try{
     const raw = localStorage.getItem(DAY_CACHE_LS_PREFIX+iso);
@@ -10638,6 +10648,24 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
+const APP_BUILD = '2026-11-02.2';
+function setLastSyncLabel_(){
+  const el = document.getElementById('lastSyncLabel');
+  if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+// มือถือ (โดยเฉพาะไอคอนบนหน้าจอโฮมของ iPhone) ชอบจำหน้าเว็บเวอร์ชันเก่าไว้นาน — กลับมาที่แอปเมื่อไหร่ เช็คว่าบนเว็บมีเวอร์ชันใหม่ไหม
+// ถ้ามีและไม่ได้กรอกอะไรค้างอยู่ ก็โหลดหน้าใหม่ให้เอง
+let lastUpdateCheck_ = 0;
+async function checkForAppUpdate_(){
+  if(navigator.webdriver || Date.now() - lastUpdateCheck_ < 60000) return;
+  lastUpdateCheck_ = Date.now();
+  try{
+    const res = await fetch(location.pathname + '?v=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) return;
+    const m = (await res.text()).match(/const APP_BUILD = '([^']+)'/);
+    if(m && m[1] !== APP_BUILD && !userBusy_() && !dateNavInFlight_) location.reload();
+  }catch(e){}
+}
 function userBusy_(){
   const a = document.activeElement;
   if(a && (a.tagName==='TEXTAREA' || a.tagName==='SELECT' || (a.tagName==='INPUT' && !['button','checkbox','radio','submit'].includes(a.type)))) return true;
@@ -10649,6 +10677,7 @@ async function syncFromOtherDevices_(){
   syncInFlight_ = true;
   try{
     const changed = await syncDayRevs_();
+    setLastSyncLabel_();
     if(changed.length) pendingSyncRender_ = true;
     if(userBusy_()) return;
     const iso = currentDate;
@@ -10664,6 +10693,7 @@ async function syncFromOtherDevices_(){
     const activeTab = document.querySelector('.tab.active');
     if(activeTab) await switchTab(activeTab.getAttribute('data-tab'));
     window.scrollTo(0, y);
+    showToast('🔄 อัปเดตข้อมูลจากเครื่องอื่นแล้ว');
   }catch(e){ /* เน็ตหลุด — ลองใหม่รอบหน้า */ }
   finally{ syncInFlight_ = false; }
 }
@@ -11018,8 +11048,10 @@ async function init(){
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden){ hiddenAt_ = Date.now(); return; }
     updateCalIcon_();
-    if(Date.now() - hiddenAt_ >= 3000) syncFromOtherDevices_();
+    if(Date.now() - hiddenAt_ >= 3000){ syncFromOtherDevices_(); checkForAppUpdate_(); }
   });
+  const buildLabel = document.getElementById('appBuildLabel');
+  if(buildLabel) buildLabel.textContent = APP_BUILD;
   setInterval(()=>{ if(!document.hidden) syncFromOtherDevices_(); }, 60000);
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();

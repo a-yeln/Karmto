@@ -54,6 +54,19 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   }, today);
   await page.evaluate(() => syncFromOtherDevices_());
   check('Recent day refreshes even without a version marker', await page.evaluate(() => !!dayData.billingPaid['02']));
+  const labels = await page.evaluate(() => ({ build: document.getElementById('appBuildLabel').textContent, sync: document.getElementById('lastSyncLabel').textContent }));
+  check('Settings shows app version and last sync time', labels.build === await page.evaluate(() => APP_BUILD) && labels.sync !== '—', labels);
+
+  // แคชเก่าก่อนมีป้าย (รุ่นแคชเก่า) ต้องถูกล้างครั้งเดียวตอนเปิดแอปเวอร์ชันนี้
+  await page.evaluate(() => { localStorage.setItem('karmto_dayc2:2026-10-22', '{"orders":{"01":{"p3":97}}}'); localStorage.setItem('karmto_daycache_epoch', '2'); localStorage.setItem('karmto.splash', 'off'); });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof DAY_CACHE_EPOCH !== 'undefined');
+  const purge = await page.evaluate(() => ({ gone: localStorage.getItem('karmto_dayc2:2026-10-22') === null, epoch: localStorage.getItem('karmto_daycache_epoch') }));
+  check('Pre-marker device cache is purged once on upgrade', purge.gone && purge.epoch === '3', purge);
+  await page.evaluate(() => localStorage.setItem('karmto_dayc2:2026-10-23', '{}'));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof DAY_CACHE_EPOCH !== 'undefined');
+  check('Cache is kept on later opens', await page.evaluate(() => localStorage.getItem('karmto_dayc2:2026-10-23') === '{}'));
 
   await finish(browser);
 })();

@@ -278,6 +278,25 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .orderticket-qty{font-size:28px;font-weight:800;color:#000;flex:none;min-width:66px;text-align:right;}
 .orderticket-qty .oti-unit{font-size:13px;font-weight:600;margin-left:2px;}
 .orderticket-row-unordered{opacity:.35;}
+/* ป้าย PeriPage แบบนุ่มขึ้น (ยังขาว-ดำล้วน พิมพ์กระดาษความร้อนได้) — หัวเป็นบล็อกมน เลขสาขาในป้ายมน แถวสลับพื้นเทาอ่อนแทนเส้นประ */
+.orderticket{border-width:2.5px;border-radius:26px;padding:14px;}
+.orderticket-head{margin-bottom:8px;}
+.orderticket-numhead,.orderticket-00block{background:#F1F1F1;border-bottom:none;border-radius:20px;padding:12px 14px;}
+.orderticket-topline{padding:0 4px;}
+.orderticket-numhead .orderticket-code{flex:none;margin:0 auto;background:#000;color:#fff;border-radius:22px;padding:8px 16px 10px;min-width:84px;font-size:50px;}
+.orderticket-numhead .orderticket-saxa{font-size:26px;}
+.orderticket-numhead .orderticket-name{font-size:18px;font-weight:600;}
+.orderticket-date{background:#fff;color:#000;border:2px solid #000;padding:4px 12px;font-size:13.5px;}
+.orderticket-kicker{font-size:14px;letter-spacing:1.2px;}
+.orderticket-rows{gap:4px;}
+.orderticket-row{border-bottom:none;border-radius:16px;padding:9px 10px;}
+.orderticket-row:nth-child(odd){background:#F4F4F4;}
+.orderticket-check{border-radius:50%;width:22px;height:22px;border-width:2.5px;}
+.orderticket-itemname{font-size:21px;font-weight:600;}
+.orderticket-qty{font-size:27px;}
+.orderticket-total .orderticket-numhead .orderticket-code{background:#fff;color:#000;border:3px solid #000;font-size:42px;}
+.orderticket-total .orderticket-code small{display:block;font-size:13px;font-weight:700;line-height:1;margin-top:2px;}
+.orderticket-total .orderticket-row:not(.orderticket-row-unordered) .orderticket-qty{font-size:30px;}
 .msgblock{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:12px;margin-bottom:10px;}
 .msgblock .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:8px;font-weight:600;}
 .tag.mahkard{background:var(--mahkard-soft);color:var(--mahkard);}
@@ -778,14 +797,14 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .dash-grid > .dash-metric:nth-child(8n+6){background:var(--c-peach);border-color:var(--b-peach);}
 .dash-grid > .dash-metric:nth-child(8n+7){background:var(--c-aqua);border-color:var(--b-aqua);}
 .dash-grid > .dash-metric:nth-child(8n+8){background:var(--c-lime);border-color:var(--b-lime);}
-.dash-grid > .dash-metric[data-tone=sky],.dwtile[data-tone=sky],.ltile[data-tone=sky]{background:var(--c-sky);border-color:var(--b-sky);}
-.dash-grid > .dash-metric[data-tone=pink],.dwtile[data-tone=pink],.ltile[data-tone=pink]{background:var(--c-pink);border-color:var(--b-pink);}
-.dash-grid > .dash-metric[data-tone=lemon],.dwtile[data-tone=lemon],.ltile[data-tone=lemon]{background:var(--c-lemon);border-color:var(--b-lemon);}
-.dash-grid > .dash-metric[data-tone=mint],.dwtile[data-tone=mint],.ltile[data-tone=mint]{background:var(--c-mint);border-color:var(--b-mint);}
-.dash-grid > .dash-metric[data-tone=lav],.dwtile[data-tone=lav],.ltile[data-tone=lav]{background:var(--c-lav);border-color:var(--b-lav);}
-.dash-grid > .dash-metric[data-tone=peach],.dwtile[data-tone=peach],.ltile[data-tone=peach]{background:var(--c-peach);border-color:var(--b-peach);}
-.dash-grid > .dash-metric[data-tone=aqua],.dwtile[data-tone=aqua],.ltile[data-tone=aqua]{background:var(--c-aqua);border-color:var(--b-aqua);}
-.dash-grid > .dash-metric[data-tone=lime],.dwtile[data-tone=lime],.ltile[data-tone=lime]{background:var(--c-lime);border-color:var(--b-lime);}
+.dash-grid > .dash-metric[data-tone=sky],.dwtile[data-tone=sky],:is(.ltile,.fee-part,.xfer-row)[data-tone=sky]{background:var(--c-sky);border-color:var(--b-sky);}
+.dash-grid > .dash-metric[data-tone=pink],.dwtile[data-tone=pink],:is(.ltile,.fee-part,.xfer-row)[data-tone=pink]{background:var(--c-pink);border-color:var(--b-pink);}
+.dash-grid > .dash-metric[data-tone=lemon],.dwtile[data-tone=lemon],:is(.ltile,.fee-part,.xfer-row)[data-tone=lemon]{background:var(--c-lemon);border-color:var(--b-lemon);}
+.dash-grid > .dash-metric[data-tone=mint],.dwtile[data-tone=mint],:is(.ltile,.fee-part,.xfer-row)[data-tone=mint]{background:var(--c-mint);border-color:var(--b-mint);}
+.dash-grid > .dash-metric[data-tone=lav],.dwtile[data-tone=lav],:is(.ltile,.fee-part,.xfer-row)[data-tone=lav]{background:var(--c-lav);border-color:var(--b-lav);}
+.dash-grid > .dash-metric[data-tone=peach],.dwtile[data-tone=peach],:is(.ltile,.fee-part,.xfer-row)[data-tone=peach]{background:var(--c-peach);border-color:var(--b-peach);}
+.dash-grid > .dash-metric[data-tone=aqua],.dwtile[data-tone=aqua],:is(.ltile,.fee-part,.xfer-row)[data-tone=aqua]{background:var(--c-aqua);border-color:var(--b-aqua);}
+.dash-grid > .dash-metric[data-tone=lime],.dwtile[data-tone=lime],:is(.ltile,.fee-part,.xfer-row)[data-tone=lime]{background:var(--c-lime);border-color:var(--b-lime);}
 .dash-grid.g4{grid-template-columns:repeat(4,minmax(0,1fr));}
 @media (max-width:1023px){
   .dash-grid.g4{grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -811,14 +830,19 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .pl-grand.danger{background:var(--c-pink);color:#C2475D;}
 /* ---- เมนู Noti ---- */
 .dash-wide-nav button{position:relative;}
-.noti-badge{position:absolute;top:4px;left:26px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#E0607E;color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;}
+.noti-badge{position:absolute;top:50%;right:8px;transform:translateY(-50%);min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#E0607E;color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;}
 .noti-feed{max-height:none;}
+@media (min-width:768px) and (max-width:1023px){ .noti-badge{top:1px;right:1px;transform:none;} }
+@media (min-width:1024px){ body.dash-nav-collapsed .noti-badge{top:1px;right:1px;transform:none;} }
 .noti-card .badge-delay{white-space:nowrap;flex:none;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
 /* ---- กล่องรูป เหลือรับเข้า ---- */
-.ltile-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;}
-.ltile-grid > .ltile{flex:0 0 132px;}
-@media (max-width:520px){ .ltile-grid{gap:8px;} .ltile-grid > .ltile{flex-basis:calc((100% - 16px)/3);} }
+.ltile-grid{display:flex;flex-wrap:nowrap;gap:12px;}
+.ltile-grid > .ltile{flex:1 1 0;min-width:0;max-width:170px;}
+@media (max-width:767px){
+  .ltile-grid{gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;}
+  .ltile-grid > .ltile{flex:0 0 100px;scroll-snap-align:start;}
+}
 .ltile{position:relative;aspect-ratio:3/4;max-width:100%;border-radius:20px;overflow:hidden;border:3px solid var(--b-sky);box-shadow:0 6px 16px rgba(70,110,150,.18);display:flex;align-items:center;justify-content:center;}
 .ltile::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.7),rgba(255,255,255,0) 55%);pointer-events:none;}
 .ltile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
@@ -833,6 +857,46 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .ltile-cam{position:absolute;top:6px;right:6px;z-index:1;width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .ltile-cam:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 @media (max-width:520px){ .ltile-emoji{font-size:40px;} .ltile-qty{font-size:18px;} .ltile-name{font-size:11px;} }
+/* ---- หน้า Brand Fee ---- */
+h3 .h3-select{margin-left:auto;width:auto;min-width:0;font-size:13px;font-weight:600;padding:6px 30px 6px 14px;border-radius:999px;background-color:#fff;}
+.card h3:has(.h3-select){display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.fee-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;margin-top:4px;}
+@media (max-width:767px){ .fee-hero{grid-template-columns:1fr;} }
+.fee-hero-total{position:relative;border-radius:20px;padding:16px 18px;background:linear-gradient(135deg,#FFFFFF 0%,#FFF1F6 55%,#FFF7DC 100%);border:2px solid var(--b-pink);overflow:hidden;}
+.fee-hero-total::after{content:"🏷️";position:absolute;right:-6px;bottom:-14px;font-size:76px;opacity:.13;transform:rotate(-14deg);}
+.fee-hero-lbl{font-size:12px;font-weight:600;color:var(--text-dim);}
+.fee-hero-val{font-size:40px;font-weight:800;line-height:1.1;color:#D2507A;letter-spacing:-.5px;}
+.fee-hero-val .unit{display:none;}
+.fee-hero-note{font-size:11.5px;color:var(--text-faint);margin-top:4px;}
+.fee-parts{display:flex;flex-direction:column;gap:8px;}
+.fee-part{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:2px solid;}
+.fee-part-ic{width:38px;height:38px;flex:none;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.fee-part-txt{flex:1;min-width:0;}
+.fee-part-lbl{font-size:12px;color:var(--text-dim);font-weight:600;}
+.fee-part-calc{font-size:13.5px;font-weight:600;}
+.fee-part-amt{font-size:18px;font-weight:800;}
+.fee-excluded{margin-top:10px;font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.fee-excluded:empty{display:none;}
+.fee-pill{display:inline-block;padding:3px 10px;border-radius:999px;background:#fff;border:1.5px solid var(--b-lav);font-weight:600;font-size:11.5px;}
+table.fee-ledger th,table.fee-ledger td{padding:3px 6px;line-height:1.3;}
+table.fee-ledger tr.fee-total-row td{background:#fff;font-weight:800;border-top:2px solid var(--card-bd,var(--b-mint));padding:7px 6px;color:var(--text);}
+table.fee-ledger tr.fee-total-row td:first-child{border-radius:10px 0 0 10px;}
+table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
+.xfer-list{display:flex;flex-direction:column;gap:6px;text-align:left;}
+.xfer-total{text-align:left;}
+.xfer-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:2px solid;}
+.xfer-ic{width:36px;height:36px;flex:none;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.xfer-main{flex:1;min-width:0;}
+.xfer-name{font-size:13px;font-weight:700;}
+.xfer-calc{font-size:11.5px;color:var(--text-dim);}
+.xfer-bar{height:5px;border-radius:999px;background:rgba(255,255,255,.8);margin-top:5px;overflow:hidden;}
+.xfer-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#7FB8F0,#F28AB3);}
+.xfer-amt{font-size:15px;font-weight:800;white-space:nowrap;}
+.xfer-total{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;padding:14px 18px;border-radius:20px;color:#fff;background:linear-gradient(120deg,#6FB3EE 0%,#A98BEA 50%,#F08DB6 100%);box-shadow:0 8px 20px rgba(150,120,210,.28);}
+.xfer-total-lbl{font-weight:700;font-size:14px;}
+.xfer-total-sub{font-size:11.5px;opacity:.9;}
+.xfer-total-val{font-size:28px;font-weight:800;}
+
 
 
 /* ===================== หน้าเปิดแอป (splash) — ท่อนอินโทรของวิดีโอโชว์รีล ทำด้วย CSS ล้วน ===================== */
@@ -930,7 +994,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
       <button class="tab" data-tab="fee">🏷️ Brand Fee</button>
       <button class="tab" data-tab="debts">💳 Debts</button>
       <button class="tab" data-tab="personal">👛 Personal Finance</button>
-      <button class="tab" data-tab="noti">🔔 Noti</button>
+      <button class="tab" data-tab="noti">🔔 Notifications</button>
       <button class="tab" data-tab="settings">⚙️ Settings</button>
     </div>
   </div>
@@ -948,7 +1012,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
         <button data-tab="fee"><span class="dwn-ic">🏷️</span><span class="dwn-lbl">Brand Fee</span></button>
         <button data-tab="debts"><span class="dwn-ic">💳</span><span class="dwn-lbl">Debts</span></button>
         <button data-tab="personal"><span class="dwn-ic">👛</span><span class="dwn-lbl">Personal Finance</span></button>
-        <button data-tab="noti"><span class="dwn-ic">🔔</span><span class="dwn-lbl">Noti</span><span class="noti-badge" id="notiBadge" hidden></span></button>
+        <button data-tab="noti"><span class="dwn-ic">🔔</span><span class="dwn-lbl">Notifications</span><span class="noti-badge" id="notiBadge" hidden></span></button>
         <button data-tab="settings"><span class="dwn-ic">⚙️</span><span class="dwn-lbl">Settings</span></button>
       </nav>
       <div class="dash-wide-main">
@@ -1111,27 +1175,34 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
   </div>
 
   <div class="panel" id="panel-fee">
-    <div class="card dash-wide-card">
+    <div class="card dash-wide-card fee-card">
       <h3>🏷️ Brand fee วันนี้</h3>
-      <div class="dash-metric hero accent" style="margin-top:8px;">
-        <div class="dm-label">รวมวันนี้</div>
-        <div class="dm-value num feebig" id="feeToday">฿0</div>
+      <div class="fee-hero">
+        <div class="fee-hero-total">
+          <div class="fee-hero-lbl">รวมวันนี้</div>
+          <div class="fee-hero-val num" id="feeToday">฿0</div>
+          <div class="fee-hero-note">ไม่รวมสาขาที่ตั้งเป็น "แยกส่ง"</div>
+        </div>
+        <div class="fee-parts">
+          <div class="fee-part" data-tone="peach">
+            <div class="fee-part-ic" aria-hidden="true">🦐</div>
+            <div class="fee-part-txt"><div class="fee-part-lbl">กก. รวม 6 รายการ</div><div class="fee-part-calc num"><span id="feeKg">0 กก.</span> × ฿5</div></div>
+            <div class="fee-part-amt num" id="feeKgAmt">฿0</div>
+          </div>
+          <div class="fee-part" data-tone="lav">
+            <div class="fee-part-ic" aria-hidden="true">🦪</div>
+            <div class="fee-part-txt"><div class="fee-part-lbl">หอยนางรม</div><div class="fee-part-calc num"><span id="feeOyster">0 กระปุก</span> × ฿3</div></div>
+            <div class="fee-part-amt num" id="feeOysterAmt">฿0</div>
+          </div>
+        </div>
       </div>
-      <div class="hint" style="margin-top:8px;">ไม่รวมสาขาที่ตั้งเป็น "แยกส่ง" ในตั้งค่า</div>
-      <div class="hint" id="feeExcludedToday" style="margin-top:2px;"></div>
-      <table class="plain" style="margin-top:10px;">
-        <tr><td>กก. รวม 6 รายการ (แช่/ดอง/ตัดปาก/ปูจืด/หมึก/เชอรี่)</td><td class="num num" id="feeKg">0 กก.</td></tr>
-        <tr><td>× 5 บาท/กก.</td><td class="num num" id="feeKgAmt">฿0</td></tr>
-        <tr><td>หอยนางรม</td><td class="num num" id="feeOyster">0 กระปุก</td></tr>
-        <tr><td>× 3 บาท/กระปุก</td><td class="num num" id="feeOysterAmt">฿0</td></tr>
-      </table>
+      <div class="fee-excluded" id="feeExcludedToday"></div>
     </div>
-    <div class="card dash-wide-card">
-      <h3>📊 สรุปรายเดือน</h3>
-      <div class="field"><label>เดือน</label><input type="month" id="monthInput"> <span class="subhint" id="monthInputLabel"></span></div>
+    <div class="card dash-wide-card fee-month-card">
+      <h3>📊 สรุปรายเดือน <select id="monthInput" class="h3-select" aria-label="Month"></select></h3>
       <div id="monthLedger" class="loading">กำลังโหลด…</div>
     </div>
-    <div class="card dash-wide-card">
+    <div class="card dash-wide-card fee-xfer-card">
       <h3>💸 สรุปยอดโอนบริษัทสิ้นเดือน <span class="subhint">(แยกตามสินค้า)</span></h3>
       <div id="monthProductSummary" class="loading">กำลังโหลด…</div>
     </div>
@@ -2484,6 +2555,35 @@ function buildOrderTicketHTML(code, iso, row, cardId){
       <div class="orderticket-rows">${rowsHtml}</div>
     </div>`;
 }
+// ใบ ORDER รวมทั้งวัน (ทุกสาขารวมกัน รวมสาขาแยกส่ง) — ออกพร้อม "บันทึกทุกภาพ PeriPage" เป็นใบแรก ไว้ดูยอดรวมตอนแพ็ค
+function buildDayTotalTicketHTML(iso, orders){
+  const entries = Object.entries(orders||{}).filter(([c,row])=>orderRowHasOrder_(row));
+  const totals = computeTotals(Object.fromEntries(entries));
+  const customAgg = {};
+  entries.forEach(([,row])=>(row.custom||[]).forEach(it=>{ const q = Number(it.qty||0); if(q>0) customAgg[it.name] = (customAgg[it.name]||0) + q; }));
+  const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(totals[p.id]||0), unit:p.unit}));
+  Object.entries(customAgg).forEach(([name,qty])=>items.push({emoji:'📦', name, qty, unit:''}));
+  const rowsHtml = items.map(it=>{
+    const ordered = it.qty > 0;
+    const q = Number.isInteger(it.qty) ? it.qty : it.qty.toFixed(1);
+    return `
+    <div class="orderticket-row${ordered?'':' orderticket-row-unordered'}">
+      <div class="orderticket-check"></div>
+      <div class="orderticket-emoji">${it.emoji}</div>
+      <div class="orderticket-itemname">${escapeHtml(it.name)}</div>
+      <div class="orderticket-qty">${ordered?`${q}${it.unit?`<span class="oti-unit">${escapeHtml(it.unit)}</span>`:''}`:''}</div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="orderticket orderticket-total" id="orderticket-total">
+      <div class="orderticket-head"><div class="orderticket-numhead">
+        <div class="orderticket-left"><div class="orderticket-saxa">ORDER</div><div class="orderticket-name">รวมทั้งวัน</div></div>
+        <div class="orderticket-code">${entries.length}<small>สาขา</small></div>
+        <div class="orderticket-right"><div class="orderticket-kicker">🦀 KARMTO</div><div class="orderticket-date">${formatDDMMYYYY(iso)}</div></div>
+      </div></div>
+      <div class="orderticket-rows">${rowsHtml}</div>
+    </div>`;
+}
 // ความกว้างล็อกตายตัวไว้ (ไม่ตามความกว้างจอเหมือน renderOffscreenReceipt) เพราะป้ายนี้จะไปพิมพ์ลงกระดาษสติ๊กเกอร์จริงที่ขนาด
 // คงที่เสมอ ไม่ว่าจะกดจากมือถือจอเล็กหรือเดสก์ท็อปจอกว้าง ต้องได้สัดส่วนเดียวกันทุกใบ
 function renderOffscreenOrderTicket(code, row, iso, width){
@@ -2554,6 +2654,19 @@ async function saveAllOrderTicketsAsImages(){
     finally{ if(wrapper) wrapper.remove(); }
   }
   if(files.length===0){ showToast('สร้างรูปภาพไม่สำเร็จ'); return; }
+  {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:380px;';
+    wrapper.innerHTML = buildDayTotalTicketHTML(currentDate, dayData.orders);
+    document.body.appendChild(wrapper);
+    try{
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const canvas = await html2canvas(wrapper.querySelector('.orderticket'), {backgroundColor:null, scale:3});
+      const blob = await canvasToBlobAsync(canvas);
+      if(blob) files.unshift({code:'total', fileName:`order-00-total-${currentDate}.png`, blob});
+    }catch(e){ /* ใบรวมพลาดก็ยังส่งใบรายสาขาได้ตามปกติ */ }
+    finally{ wrapper.remove(); }
+  }
   try{
     const shareFiles = files.map(f=>new File([f.blob], f.fileName, {type:'image/png'}));
     if(navigator.canShare && navigator.canShare({files:shareFiles})){
@@ -3536,7 +3649,7 @@ function renderFeeToday(){
     .filter(([code,row]) => isFeeExempt(code) && PRODUCTS.some(p=>Number(row[p.id]||0)>0))
     .map(([code]) => `${code} ${branchName(code)}`);
   const excludedEl = document.getElementById('feeExcludedToday');
-  excludedEl.textContent = excludedCodes.length ? `สาขาที่ยกเว้นวันนี้ (ไม่นับในยอดข้างบน): ${excludedCodes.join(', ')}` : '';
+  excludedEl.innerHTML = excludedCodes.length ? `<span class="fee-excl-lbl">ยกเว้นวันนี้ (ไม่นับในยอด):</span> ${excludedCodes.map(c=>`<span class="fee-pill">${escapeHtml(c)}</span>`).join('')}` : '';
 }
 // คืนทุกวันของเดือนนั้นจริงๆ (ไม่ใช่แค่วันที่เคยมีการบันทึกข้อมูลไว้) — เพื่อให้ตารางสรุปรายเดือนโชว์วันที่ครบทุกวัน แม้วันไหน
 // ไม่มีออเดอร์เลยก็ยังเห็นวันที่นั้นอยู่ในตาราง (โชว์ว่างแทนเลข 0 ที่หน้าเรียก) พร้อมช่องหมายเหตุอธิบายได้ (เช่น "น้ำท่วม")
@@ -3555,8 +3668,6 @@ async function getMonthDays(monthVal){
 }
 async function renderMonthFee(){
   const monthVal = document.getElementById('monthInput').value;
-  const monthLabelEl = document.getElementById('monthInputLabel');
-  if(monthLabelEl) monthLabelEl.textContent = formatMonthEnglish_(monthVal);
   const ledgerEl = document.getElementById('monthLedger');
   const sumEl = document.getElementById('monthProductSummary');
   ledgerEl.innerHTML = '<div class="loading">กำลังคำนวณ…</div>';
@@ -3568,7 +3679,16 @@ async function renderMonthFee(){
     // โชว์ทุกวันของเดือนเรียงตามวันที่เสมอ ไม่ใช่แค่วันที่มีออเดอร์ — วันที่ไม่มีออเดอร์เลยจะโชว์ตัวเลขว่างเปล่า (ไม่ใช่ 0) แต่ยัง
     // เห็นวันที่อยู่ในตาราง พร้อมกรอกหมายเหตุอธิบายได้ (เช่น "น้ำท่วม การจราจรไม่ปกติ") — สะสม (cum) ยังไล่ตามลำดับวันปกติ
     const ledgerRows = allRows.map(r=>{ cum += r.fee.total; return {...r, cum}; });
-    ledgerEl.innerHTML = `<div class="scrollx"><table class="plain">
+    const sumOf = f => allRows.reduce((a,r)=>a+(r.hasOrders?f(r):0),0);
+    const totalRow = `<tr class="fee-total-row"><td>รวมทั้งเดือน</td>
+          ${PRODUCTS.map(p=>`<td class="num">${sumOf(r=>Number(r.totals[p.id]||0)).toLocaleString('th-TH')}</td>`).join('')}
+          <td class="num">${sumOf(r=>r.fee.kg).toLocaleString('th-TH')}</td>
+          <td class="num">${sumOf(r=>r.fee.oyster).toLocaleString('th-TH')}</td>
+          <td class="num">${money(sumOf(r=>r.fee.kgAmt))}</td>
+          <td class="num">${money(sumOf(r=>r.fee.oysterAmt))}</td>
+          <td class="num">${money(sumOf(r=>r.fee.total))}</td>
+          <td class="num">${money(cum)}</td><td></td></tr>`;
+    ledgerEl.innerHTML = `<div class="scrollx"><table class="plain fee-ledger">
       <tr><th>วันที่</th>${PRODUCTS.map(p=>`<th class="num">${p.emoji}</th>`).join('')}<th class="num">กก.</th><th class="num">กระปุก</th><th class="num">กก.x5</th><th class="num">กระปุกx3</th><th class="num">รวม</th><th class="num">สะสม</th><th>หมายเหตุ</th></tr>
       ${ledgerRows.map(r=>{
         const blank = !r.hasOrders;
@@ -3585,6 +3705,7 @@ async function renderMonthFee(){
           <td>${r.note ? `<button type="button" class="monthfee-note-btn" data-monthfeenote="${r.iso}" title="${escapeHtml(r.note)}" aria-label="ดู/แก้ไขหมายเหตุ">📝</button>` : ''}</td>
         </tr>`;
       }).join('')}
+      ${totalRow}
     </table></div>`;
     // กดไอคอน 📝 เพื่อเปิดดู/แก้ไขหมายเหตุ Brand Fee ของวันนั้นๆ ได้เหมือนเดิม (ใช้ modal UI เดียวกับปุ่ม 📝 บนแดชบอร์ด
     // แต่ระบุฟิลด์เป็น feeNote ชัดเจน — คนละฟิลด์กับ dashNote ของแดชบอร์ด ไม่เชื่อมกัน) ไม่ต้องมีกล่อง input ค้างอยู่ทุกแถว
@@ -3602,13 +3723,19 @@ async function renderMonthFee(){
       sumEl.innerHTML = '<div class="empty">ยังไม่มีข้อมูลออเดอร์เดือนนี้เลย</div>';
       return;
     }
-    sumEl.innerHTML = `<div class="scrollx"><table class="plain">
-      <tr><th>สินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวม</th></tr>
-      ${PRODUCTS.map(p=>{ const mult = p.id==='p7'?3:5; return `<tr><td>${p.emoji} ${p.name}</td><td class="num num">${grandTotals[p.id].toLocaleString('th-TH')}</td><td>${p.unit} ×${mult}</td><td class="num num">${money(grandTotals[p.id]*mult)}</td></tr>`; }).join('')}
-      </table></div>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
-        <span style="color:var(--text-dim);font-size:13px;">รวม ${dataRows.length} วันที่มีออเดอร์ — โอนให้บริษัททวีโชคสิ้นเดือน</span>
-        <span class="feebig" style="font-size:20px;">${money(grandTotal)}</span>
+    const maxAmt = Math.max(1, ...PRODUCTS.map(p=>grandTotals[p.id]*(p.id==='p7'?3:5)));
+    sumEl.innerHTML = `<div class="xfer-list">
+      ${PRODUCTS.map((p,i)=>{ const mult = p.id==='p7'?3:5; const amt = grandTotals[p.id]*mult; return `<div class="xfer-row" data-tone="${LT_TONES[i%LT_TONES.length]}">
+        <span class="xfer-ic" aria-hidden="true">${p.emoji}</span>
+        <div class="xfer-main"><div class="xfer-name">${escapeHtml(p.name)}</div>
+          <div class="xfer-calc num">${grandTotals[p.id].toLocaleString('th-TH')} ${escapeHtml(p.unit)} × ฿${mult}</div>
+          <div class="xfer-bar"><span style="width:${(amt/maxAmt*100).toFixed(1)}%"></span></div></div>
+        <div class="xfer-amt num">${money(amt)}</div>
+      </div>`; }).join('')}
+      </div>
+      <div class="xfer-total">
+        <div><div class="xfer-total-lbl">โอนให้บริษัททวีโชคสิ้นเดือน</div><div class="xfer-total-sub">${formatMonthEnglish_(monthVal)} · ${dataRows.length} วันที่มีออเดอร์</div></div>
+        <div class="xfer-total-val num">${money(grandTotal)}</div>
       </div>`;
   }catch(e){
     ledgerEl.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง</div>';
@@ -10621,6 +10748,18 @@ const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','ม�
 const ENGLISH_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 // ตัว <input type="month"> เองแสดงผลเป็นภาษาอะไรก็ได้ตามการตั้งค่าของเบราว์เซอร์/OS ผู้ใช้ บังคับผ่าน HTML ไม่ได้ตรงๆ —
 // เลยทำป้ายกำกับภาษาอังกฤษแยกไว้ข้างๆ ให้ชัดเจนแน่นอนเสมอ ไม่ขึ้นกับเบราว์เซอร์
+function populateEnglishMonthSelect_(id, selected){
+  const sel = document.getElementById(id);
+  const [cy, cm] = todayISO().slice(0,7).split('-').map(Number);
+  const opts = [];
+  for(let i=0; i<36; i++){
+    const d = new Date(Date.UTC(cy, cm-1-i, 1));
+    const v = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+    opts.push(`<option value="${v}">${formatMonthEnglish_(v)}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  sel.value = selected;
+}
 function formatMonthEnglish_(monthVal){
   const [y,m] = (monthVal||'').split('-').map(Number);
   if(!y || !m) return '';
@@ -10796,7 +10935,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-03.1';
+const APP_BUILD = '2026-11-03.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -11133,7 +11272,8 @@ function initCollapsibleSettings(){
     chev.className = 'chev';
     chev.textContent = '▾';
     h3.appendChild(chev);
-    h3.addEventListener('click', ()=>{
+    h3.addEventListener('click', (e)=>{
+      if(e.target.closest('select,input,textarea')) return;
       const nowCollapsed = body.classList.toggle('collapsed');
       h3.classList.toggle('open', !nowCollapsed);
     });
@@ -11142,7 +11282,7 @@ function initCollapsibleSettings(){
 async function init(){
   initCollapsibleSettings();
   document.getElementById('newPriceDate').value = todayISO();
-  document.getElementById('monthInput').value = todayISO().slice(0,7);
+  populateEnglishMonthSelect_('monthInput', todayISO().slice(0,7));
   document.getElementById('plMonthInput').value = todayISO().slice(0,7);
   document.getElementById('personalMonthInput').value = todayISO().slice(0,7);
   document.getElementById('purMonthInput').value = todayISO().slice(0,7);

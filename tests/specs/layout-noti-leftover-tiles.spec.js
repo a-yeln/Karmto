@@ -53,5 +53,26 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   const img = await page.evaluate(() => ({ stored: typeof window.__store['productImage:p1'] === 'string' && window.__store['productImage:p1'].startsWith('data:image/jpeg'), size: (window.__store['productImage:p1'] || '').length, shown: !!document.querySelector('#leftoverInView .ltile.has-img img') }));
   check('Uploaded photo is saved small under its own key and shown in the tile', img.stored && img.size <= 45000 && img.shown, img);
 
+  // Brand Fee: เลือกเดือนเป็นภาษาอังกฤษในหัวการ์ด + แถวรวมทั้งเดือน
+  await page.evaluate(async () => { await switchTab('fee'); });
+  const fee = await page.evaluate(() => {
+    const sel = document.getElementById('monthInput');
+    sel.value = '2026-10'; sel.dispatchEvent(new Event('change'));
+    return { inHeader: !!sel.closest('h3'), tag: sel.tagName, label: sel.options[sel.selectedIndex].textContent };
+  });
+  await page.waitForTimeout(600);
+  const totalRow = await page.evaluate(() => { const r = document.querySelector('#monthLedger .fee-total-row'); return r && [...r.cells].map(c => c.textContent.trim()); });
+  check('Month picker is an English dropdown inside the card heading', fee.inHeader && fee.tag === 'SELECT' && fee.label === 'October 2026', fee);
+  check('Monthly ledger ends with a month-total row', !!totalRow && totalRow[0] === 'รวมทั้งเดือน' && totalRow[1] === '6', totalRow);
+
+  // ใบ ORDER รวมทั้งวัน
+  const tot = await page.evaluate(() => {
+    const w = document.createElement('div');
+    w.innerHTML = buildDayTotalTicketHTML('2026-10-20', { '01': { p1: 2, p3: 1 }, '13S': { p1: 1.5, custom: [{ name: 'ถุง', qty: 3 }] }, '02': {} });
+    const rows = [...w.querySelectorAll('.orderticket-row')].map(r => [r.querySelector('.orderticket-itemname').textContent, r.querySelector('.orderticket-qty').textContent]);
+    return { count: w.querySelector('.orderticket-code').textContent, rows };
+  });
+  check('Day-total ticket sums every branch (incl. separate-send) and custom items', tot.count.startsWith('2') && tot.rows[0][1].startsWith('3.5') && tot.rows.some(r => r[0] === 'ถุง' && r[1] === '3'), tot);
+
   await finish(browser);
 })();

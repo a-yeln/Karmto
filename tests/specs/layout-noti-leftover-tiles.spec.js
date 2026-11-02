@@ -74,6 +74,17 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   });
   check('Day-total ticket sums every branch (incl. separate-send) and custom items', tot.count.startsWith('2') && tot.rows[0][1].startsWith('3.5') && tot.rows.some(r => r[0] === 'ถุง' && r[1] === '3'), tot);
 
+  // ใบรวมไม่มีคำว่า "รวมทั้งวัน", เช็คลิสต์ 7 ขั้น, กราฟกำไรรายวันเลื่อนได้
+  check('Day-total ticket no longer says "รวมทั้งวัน"', await page.evaluate(() => !buildDayTotalTicketHTML('2026-10-20', { '01': { p1: 1 } }).includes('รวมทั้งวัน')));
+  await page.evaluate(async () => { await switchTab('dashboard'); });
+  await page.waitForTimeout(800);
+  const wf = await page.evaluate(() => ({ n: document.querySelectorAll('#wfJourney .wf-step').length, done: document.querySelector('#wfJourney .wf-step[data-wfstep="order"]').classList.contains('done'), count: document.querySelector('#wfJourney .wf-count b').textContent }));
+  check('Daily checklist shows 7 steps and ticks orders', wf.n === 7 && wf.done && /\/7$/.test(wf.count), wf);
+  await page.evaluate(async () => { await markWorkflow_('peripageAt'); });
+  check('Pressing save-all PeriPage ticks step 2', await page.evaluate(() => document.querySelector('#wfJourney .wf-step[data-wfstep="peri"]').classList.contains('done')));
+  const pd = await page.evaluate(() => ({ bars: document.querySelectorAll('#profitDailyChart .pd-bar').length, line: !!document.querySelector('#profitDailyChart polyline'), scroll: !!document.getElementById('pdScroll') }));
+  check('Daily profit chart renders bars + 7-day line in a horizontal scroller', pd.bars >= 1 && pd.line && pd.scroll, pd);
+
   // ธีม: เลือกได้ 4 แบบ เปลี่ยนเฉพาะสี/ทั้งดีไซน์ บิลคลาสสิก/ตามธีม จำไว้ในเครื่อง
   const opts = await page.evaluate(() => [...document.querySelectorAll('[data-themeopt]')].map(b => b.getAttribute('data-themeopt')));
   check('Settings offers Macaron / Mermaid / Pastel Sea / Dark Neon', JSON.stringify(opts) === '["macaron","mermaid","sea","neon"]', opts);

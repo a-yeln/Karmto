@@ -934,20 +934,6 @@ html[data-theme=mermaid][data-tmode=full] .dwtile,html[data-theme=mermaid][data-
 html[data-theme=mermaid][data-tmode=full] .statchip{border-color:#EBC7E6;}
 html[data-theme=mermaid][data-tmode=full] .dash-wide-brand .dwb-name::after{content:" 🧜‍♀️";}
 
-/* ---- เปลี่ยนทั้งดีไซน์: Pastel Sea (กระจกใส คลื่น ทรายเหลือง) ---- */
-html[data-theme=sea][data-tmode=full]{--radius:24px;}
-html[data-theme=sea][data-tmode=full] body{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120' preserveAspectRatio='none'%3E%3Cpath d='M0 60 C240 0 480 120 720 60 S1200 0 1440 60 V120 H0Z' fill='%23FFE7A8' fill-opacity='.55'/%3E%3Cpath d='M0 85 C240 40 480 130 720 85 S1200 40 1440 85 V120 H0Z' fill='%23FFD2DF' fill-opacity='.5'/%3E%3C/svg%3E") bottom/100% 140px no-repeat fixed,linear-gradient(180deg,#D6EEFC 0%,#E6F6FB 45%,#FFF8E4 100%) fixed;}
-html[data-theme=sea][data-tmode=full] :is(h1,h2,h3,.dwb-name){font-family:'Mitr',sans-serif;font-weight:600;}
-html[data-theme=sea][data-tmode=full] .card{background:color-mix(in srgb,var(--card-bg) 62%,transparent);border:2px solid rgba(255,255,255,.92);box-shadow:0 10px 28px rgba(46,139,208,.14),inset 0 1px 0 rgba(255,255,255,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);}
-html[data-theme=sea][data-tmode=full] .card h3{padding-bottom:8px;border-bottom:2px dashed color-mix(in srgb,var(--card-bd) 80%,transparent);}
-html[data-theme=sea][data-tmode=full] .card h3.collapsible:not(.open){padding-bottom:0;border-bottom:none;}
-html[data-theme=sea][data-tmode=full] .dwtile,html[data-theme=sea][data-tmode=full] .dash-metric{border-color:rgba(255,255,255,.92);box-shadow:0 8px 20px rgba(46,139,208,.12);}
-html[data-theme=sea][data-tmode=full] .btn:not(.secondary):not(.danger){background:linear-gradient(180deg,#5DB8F2,#2E8BD0);box-shadow:0 4px 0 #1B6297;}
-html[data-theme=sea][data-tmode=full] .dwh-addexp-btn{background:linear-gradient(180deg,#FFD66B,#F5B02E);box-shadow:0 3px 0 #C98A12;}
-html[data-theme=sea][data-tmode=full] .dash-wide-nav,html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-color:rgba(255,255,255,.95);}
-html[data-theme=sea][data-tmode=full] .dash-wide-nav button.active{background:linear-gradient(120deg,#D3ECFC,#FFF1C9);box-shadow:none;}
-html[data-theme=sea][data-tmode=full] .dash-wide-brand .dwb-name::after{content:" 🌊";}
-
 /* ---- เปลี่ยนทั้งดีไซน์: Dark Neon (ตาราง เรืองแสง ฟอนต์ Chakra Petch) ---- */
 html[data-theme=neon][data-tmode=full]{--radius:16px;--r-md:12px;}
 html[data-theme=neon][data-tmode=full] body{background:linear-gradient(rgba(166,107,255,.06) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,rgba(34,228,255,.05) 1px,transparent 1px) 0 0/32px 32px,radial-gradient(ellipse at 20% 0%,rgba(166,107,255,.22),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(255,79,163,.16),transparent 55%),#0B0A1A;background-attachment:fixed;}
@@ -962,6 +948,138 @@ html[data-theme=neon][data-tmode=full] .dash-wide-nav button.active{background:r
 html[data-theme=neon][data-tmode=full] .dwh-sticky-wrap{background:rgba(11,10,26,.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1.5px solid #3B2F7A;}
 html[data-theme=neon][data-tmode=full] .statchip{box-shadow:0 0 10px -3px var(--b-sky);}
 html[data-theme=neon][data-tmode=full] .dash-wide-brand .dwb-name{color:#FF4FA3;text-shadow:0 0 10px #FF4FA3;}
+
+/* ---- เช็คลิสต์งานประจำวัน (ทุกธีม) ---- */
+.wf-journey{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 14px;border-radius:var(--radius);background:var(--paper);border:2px solid var(--b-sky);box-shadow:var(--candy-shadow);}
+.wf-journey:empty{display:none;}
+.wf-steps{flex:1;min-width:0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;position:relative;}
+.wf-steps::-webkit-scrollbar{display:none;}
+.wf-step{flex:1 0 82px;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--text);padding:2px 2px 4px;position:relative;}
+.wf-step:not(:last-child)::after{content:"";position:absolute;top:22px;left:calc(50% + 24px);right:calc(-50% + 24px);border-top:2.5px dotted var(--b-sky);}
+.wf-step.done:not(:last-child)::after{border-top-style:solid;border-color:var(--success);}
+.wf-dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;background:var(--surface-3);border:2.5px solid var(--b-sky);}
+.wf-step.done .wf-dot{background:var(--success-soft);border-color:var(--success);color:var(--success);font-weight:800;font-size:18px;}
+.wf-step.next .wf-dot{border-color:var(--danger);box-shadow:0 0 0 5px var(--danger-soft);animation:wfPulse 1.6s ease-in-out infinite;}
+@keyframes wfPulse{50%{box-shadow:0 0 0 9px transparent;}}
+@media (prefers-reduced-motion:reduce){.wf-step.next .wf-dot{animation:none;}}
+.wf-lbl{font-size:12px;font-weight:700;line-height:1.2;text-align:center;}
+.wf-step.next .wf-lbl{color:var(--danger);}
+.wf-sub{font-size:10.5px;color:var(--text-faint);text-align:center;white-space:nowrap;}
+.wf-count{flex:none;display:flex;flex-direction:column;align-items:center;padding-left:8px;border-left:2px dashed var(--b-sky);}
+.wf-count b{font-size:24px;color:var(--accent);line-height:1;}
+.wf-count span{font-size:10.5px;color:var(--text-dim);}
+.wf-step:focus-visible .wf-dot{outline:2px solid var(--accent);outline-offset:2px;}
+/* ---- กราฟกำไรรายวัน ---- */
+.pd-card h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.pd-sw-bar{background:linear-gradient(180deg,#7C6CF0,#7EE3C9)!important;border-radius:3px!important;}
+.pd-sw-line{background:linear-gradient(90deg,#F28CC0,#F5A623)!important;height:4px!important;width:16px!important;border-radius:2px!important;}
+.pd-wrap{display:flex;align-items:stretch;background:var(--paper);border:2px solid var(--card-bd,var(--b-sky));border-radius:18px;padding:8px 6px 4px 0;}
+.pd-yaxis{flex:none;}
+.pd-yaxis text{font-size:10px;fill:var(--text-faint);}
+.pd-scroll{flex:1;min-width:0;overflow-x:auto;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}
+.pd-svg{display:block;}
+.pd-grid{stroke:var(--border-soft);stroke-width:1;stroke-dasharray:3 4;}
+.pd-grid.zero{stroke:var(--text-faint);stroke-dasharray:none;stroke-width:1.2;}
+.pd-day{font-size:9.5px;fill:var(--text-faint);}
+.pd-day.today{fill:var(--accent);font-weight:700;}
+.pd-month{font-size:10.5px;font-weight:700;fill:var(--text-dim);}
+.pd-msep{stroke:var(--border);stroke-width:1;}
+.pd-hit{cursor:pointer;}
+.pd-bar.sel{filter:drop-shadow(0 0 6px rgba(124,108,240,.65));}
+
+/* ===== เลย์เอาต์เต็มรูปแบบ: Pastel Sea (ตามแบบที่ตกลงกันไว้ — แบนเนอร์คลื่น + ฟองสถิติกลม + ด็อกเมนูล่าง + ปุ่ม +) ===== */
+F{--radius:28px;--r-md:20px;}
+html[data-theme=sea][data-tmode=full] body{background:linear-gradient(180deg,#F4FBFF 0%,#FFFDF6 100%) fixed;}
+html[data-theme=sea][data-tmode=full] :is(h1,h2,h3,.dwb-name,.wf-lbl){font-family:'Mali','Mitr',sans-serif;font-weight:700;}
+html[data-theme=sea][data-tmode=full] .dash-wide-shell{display:block;max-width:1240px;}
+html[data-theme=sea][data-tmode=full] .dash-wide-main{padding-bottom:120px;}
+html[data-theme=sea][data-tmode=full] .dwh-menu-btn,html[data-theme=sea][data-tmode=full] #dwNavCollapseBtn,html[data-theme=sea][data-tmode=full] .dash-wide-brand{display:none!important;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav{position:fixed;left:50%;right:auto;top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:auto;max-width:calc(100% - 20px);height:auto;flex-direction:row;gap:2px;padding:6px 8px;border-radius:999px;overflow-x:auto;scrollbar-width:none;z-index:45;background:rgba(255,255,255,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:2px solid #fff;box-shadow:0 12px 32px rgba(46,139,208,.28);animation:none!important;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav::-webkit-scrollbar{display:none;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button{width:auto;flex:none;flex-direction:column;justify-content:center;gap:1px;padding:6px 10px;min-width:64px;border-radius:22px;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button .dwn-ic{font-size:20px;width:auto;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button .dwn-lbl{display:block!important;font-size:10px;max-width:70px;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button.active{background:linear-gradient(135deg,#D9EFFC,#FFF2C4);color:#1E5F96;box-shadow:none;}
+html[data-theme=sea][data-tmode=full] .noti-badge{top:2px!important;right:8px!important;transform:none!important;}
+html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{position:relative;top:auto;z-index:auto;padding:18px 20px 60px;border:none;border-radius:0 0 44px 44px;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none!important;background:radial-gradient(circle at 78% 22%,rgba(255,255,255,.85) 0 26px,rgba(255,255,255,.35) 27px,transparent 46px),radial-gradient(circle at 90% 62%,rgba(255,255,255,.7) 0 12px,transparent 22px),radial-gradient(circle at 46% 30%,rgba(255,255,255,.6) 0 8px,transparent 16px),linear-gradient(115deg,#BDE3FB 0%,#E6F4F7 32%,#FFF1BE 62%,#FFCFDD 100%);}
+html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:46px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60' preserveAspectRatio='none'%3E%3Cpath d='M0 30 C200 0 400 60 600 30 S1000 0 1200 30 V60 H0Z' fill='%23F4FBFF'/%3E%3C/svg%3E") bottom/100% 100% no-repeat;pointer-events:none;}
+html[data-theme=sea][data-tmode=full] .dash-wide-header{margin-bottom:10px;}
+html[data-theme=sea][data-tmode=full] .dwh-titles h2{font-size:26px;color:#1E3550;}
+html[data-theme=sea][data-tmode=full] .dwh-addexp-btn{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:46;width:62px;height:62px;padding:0;border-radius:50%;font-size:0;justify-content:center;background:conic-gradient(from 210deg,#7CC8F5,#FFD86B,#F7A3C2,#7CC8F5);box-shadow:0 10px 24px rgba(242,140,180,.45),inset 0 -4px 0 rgba(0,0,0,.08);border:3px solid #fff;}
+html[data-theme=sea][data-tmode=full] .dwh-addexp-btn::before{content:"+";font-size:34px;font-weight:300;color:#fff;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.18);}
+html[data-theme=sea][data-tmode=full] .statchip{background:rgba(255,255,255,.75);border-color:#fff;}
+html[data-theme=sea][data-tmode=full] .wf-journey{position:relative;z-index:3;margin-top:-40px;background:rgba(255,255,255,.92);border:2px solid #fff;border-radius:32px;box-shadow:0 14px 34px rgba(46,139,208,.16);}
+html[data-theme=sea][data-tmode=full] .wf-step:not(:last-child)::after{border-top:3px dotted #fff;filter:drop-shadow(0 0 1px #9ED3F2);}
+html[data-theme=sea][data-tmode=full] .wf-dot{width:50px;height:50px;background:#fff;border:3px solid #A7D4F2;box-shadow:0 4px 10px rgba(46,139,208,.15);}
+html[data-theme=sea][data-tmode=full] .wf-step.next .wf-dot{border-color:#F28CB0;box-shadow:0 0 0 7px rgba(247,187,208,.45);}
+html[data-theme=sea][data-tmode=full] .card,html[data-theme=sea][data-tmode=full] .dash-wide-main .card.dash-wide-card{border:2px solid #fff;border-radius:32px;background:radial-gradient(circle at calc(100% + 12px) -12px,color-mix(in srgb,var(--card-bd) 55%,transparent) 0 86px,transparent 87px),color-mix(in srgb,var(--card-bg) 55%,#fff);box-shadow:0 12px 30px rgba(46,139,208,.12);}
+html[data-theme=sea][data-tmode=full] .card h3{font-size:18px;}
+html[data-theme=sea][data-tmode=full] .dash-wide-bento{grid-auto-flow:dense;}
+html[data-theme=sea][data-tmode=full] .dwtile.chart{grid-row:auto;}
+html[data-theme=sea][data-tmode=full] .dwtile.wide2{grid-column:span 1;}
+html[data-theme=sea][data-tmode=full] .dwtile.hero{border-radius:36px;border:3px solid #fff;box-shadow:0 14px 30px rgba(46,139,208,.14);background-image:radial-gradient(circle at 88% 18%,rgba(255,255,255,.9) 0 18px,transparent 40px);}
+html[data-theme=sea][data-tmode=full] .dash-wide-bento > .dwtile:not(.hero):not(.chart){aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:none;background-image:radial-gradient(circle at 32% 26%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,0) 42%),radial-gradient(circle at 70% 85%,rgba(255,255,255,.35),transparent 55%);box-shadow:inset -10px -14px 26px color-mix(in srgb,var(--card-bd) 70%,transparent),0 16px 30px rgba(46,139,208,.14);max-width:210px;justify-self:center;align-self:center;width:100%;}
+html[data-theme=sea][data-tmode=full] .dash-wide-bento > .dwtile:not(.hero):not(.chart) .dm-value{font-size:clamp(20px,3vw,30px);}
+@media (max-width:767px){ html[data-theme=sea][data-tmode=full] .dash-wide-bento{grid-template-columns:repeat(2,minmax(0,1fr));} html[data-theme=sea][data-tmode=full] .dwtile.hero,html[data-theme=sea][data-tmode=full] .dwtile.chart{grid-column:span 2;grid-row:auto;} html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{border-radius:0 0 34px 34px;padding:14px 16px 56px;} html[data-theme=sea][data-tmode=full] .dwh-titles h2{font-size:21px;} }
+@media (min-width:768px) and (max-width:1023px){ html[data-theme=sea][data-tmode=full] .dwtile.chart{grid-column:span 2;grid-row:auto;} }
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button:focus-visible{outline:2px solid #2E8BD0;outline-offset:2px;}
+
+/* ===== เลย์เอาต์เต็มรูปแบบ: Mermaid (แถบเมนูไข่มุกด้านบน + คอลัมน์กลาง + การ์ดขอบหยักเปลือกหอย) ===== */
+html[data-theme=mermaid][data-tmode=full] .dash-wide-shell{display:block;max-width:1080px;}
+html[data-theme=mermaid][data-tmode=full] .dwh-menu-btn,html[data-theme=mermaid][data-tmode=full] #dwNavCollapseBtn,html[data-theme=mermaid][data-tmode=full] .dash-wide-brand .dwb-sub{display:none!important;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav{position:relative;top:auto;left:auto;bottom:auto;transform:none;width:auto;height:auto;flex-direction:row;align-items:center;gap:4px;margin:10px auto 14px;padding:6px 8px;border-radius:999px;overflow-x:auto;scrollbar-width:none;box-shadow:0 8px 24px rgba(169,123,234,.2);animation:none!important;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav::-webkit-scrollbar{display:none;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-brand{border:none;margin:0 6px 0 0;padding:0 8px;flex:none;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-brand .dwb-textwrap{display:block!important;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav button{width:auto;flex:none;padding:8px 14px;border-radius:999px;justify-content:center;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav button .dwn-lbl{display:block!important;}
+html[data-theme=mermaid][data-tmode=full] .noti-badge{position:static!important;transform:none!important;margin-left:4px;}
+html[data-theme=mermaid][data-tmode=full] .dwh-sticky-wrap{border-radius:0 0 30px 30px;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-header{justify-content:center;text-align:center;}
+html[data-theme=mermaid][data-tmode=full] .dwh-titles{margin-right:0;flex:1 1 100%;}
+html[data-theme=mermaid][data-tmode=full] .dwh-titles h2{font-size:24px;color:#8F4FC9;text-shadow:0 2px 0 #FBE0F0;}
+html[data-theme=mermaid][data-tmode=full] .card{position:relative;margin-top:14px;}
+html[data-theme=mermaid][data-tmode=full] .card::before{content:"";position:absolute;left:26px;right:26px;top:-11px;height:11px;background:radial-gradient(circle at 11px 11px,#E8C9F2 0 10px,transparent 10.5px) 0 0/22px 11px repeat-x;pointer-events:none;}
+html[data-theme=mermaid][data-tmode=full] .card .card::before{display:none;}
+html[data-theme=mermaid][data-tmode=full] .dwtile,html[data-theme=mermaid][data-tmode=full] .dash-metric{border-radius:40px 40px 22px 22px / 34px 34px 22px 22px;background-image:linear-gradient(160deg,rgba(255,255,255,.75),rgba(255,255,255,0) 50%);}
+html[data-theme=mermaid][data-tmode=full] .dwtile .dm-label::before{content:"🐚 ";}
+html[data-theme=mermaid][data-tmode=full] .wf-journey{border-radius:40px;border:2.5px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#F6B5D6,#C9B0F4,#A6DAF4) border-box;}
+html[data-theme=mermaid][data-tmode=full] .wf-dot{background:linear-gradient(135deg,#FFF0F8,#F0E8FF);border-color:#E3C9F4;}
+html[data-theme=mermaid][data-tmode=full] .wf-step.done .wf-dot{background:linear-gradient(135deg,#F7B5D6,#B99BF0);color:#fff;border-color:#fff;}
+@media (max-width:767px){ html[data-theme=mermaid][data-tmode=full] .dash-wide-nav{position:sticky;top:0;z-index:30;margin:0 0 10px;border-radius:0 0 24px 24px;max-width:none;} }
+
+/* ===== เลย์เอาต์เต็มรูปแบบ: Dark Neon (ราวไอคอนเรืองแสง + มุมกรอบ HUD + หัวแบบเทอร์มินัล) ===== */
+html[data-theme=neon][data-tmode=full] .dwh-menu-btn,html[data-theme=neon][data-tmode=full] #dwNavCollapseBtn,html[data-theme=neon][data-tmode=full] .dash-wide-brand .dwb-textwrap,html[data-theme=neon][data-tmode=full] .dash-wide-nav .dwn-lbl{display:none!important;}
+html[data-theme=neon][data-tmode=full] .dash-wide-nav{width:68px!important;padding:10px 6px;align-items:center;gap:6px;}
+html[data-theme=neon][data-tmode=full] .dash-wide-nav button{justify-content:center;padding:10px 0;width:52px;border-radius:12px;}
+html[data-theme=neon][data-tmode=full] .dash-wide-nav button .dwn-ic{font-size:19px;filter:drop-shadow(0 0 6px rgba(34,228,255,.55));}
+html[data-theme=neon][data-tmode=full] .dash-wide-brand{justify-content:center;padding:4px 0 12px;}
+html[data-theme=neon][data-tmode=full] .noti-badge{top:2px!important;right:2px!important;transform:none!important;box-shadow:0 0 8px #FF4FA3;}
+html[data-theme=neon][data-tmode=full] .dwh-titles h2{font-family:'Chakra Petch',monospace;text-transform:uppercase;letter-spacing:2px;font-size:20px;}
+html[data-theme=neon][data-tmode=full] .dwh-titles h2::before{content:"> ";color:#22E4FF;}
+html[data-theme=neon][data-tmode=full] .dwh-titles h2::after{content:"_";color:#FF4FA3;animation:neonBlink 1s steps(1) infinite;}
+@keyframes neonBlink{50%{opacity:0;}}
+@media (prefers-reduced-motion:reduce){html[data-theme=neon][data-tmode=full] .dwh-titles h2::after{animation:none;}}
+html[data-theme=neon][data-tmode=full] .card{position:relative;border-radius:10px;}
+html[data-theme=neon][data-tmode=full] .card::before,html[data-theme=neon][data-tmode=full] .card::after{content:"";position:absolute;width:18px;height:18px;pointer-events:none;border-color:var(--card-bd);border-style:solid;filter:drop-shadow(0 0 4px var(--card-bd));}
+html[data-theme=neon][data-tmode=full] .card::before{top:-4px;left:-4px;border-width:3px 0 0 3px;}
+html[data-theme=neon][data-tmode=full] .card::after{bottom:-4px;right:-4px;border-width:0 3px 3px 0;}
+html[data-theme=neon][data-tmode=full] .card .card::before,html[data-theme=neon][data-tmode=full] .card .card::after{display:none;}
+html[data-theme=neon][data-tmode=full] .card h3{text-transform:uppercase;letter-spacing:1px;font-size:14.5px;}
+html[data-theme=neon][data-tmode=full] .dwtile,html[data-theme=neon][data-tmode=full] .dash-metric{border-radius:8px;position:relative;}
+html[data-theme=neon][data-tmode=full] .dash-wide-bento > .dwtile::before{content:"";position:absolute;left:14px;right:14px;top:-1.5px;height:2px;background:linear-gradient(90deg,transparent,var(--card-bd,#22E4FF),transparent);}
+html[data-theme=neon][data-tmode=full] .wf-journey{border-radius:10px;border:1.5px solid #3B2F7A;box-shadow:0 0 20px -6px #A66BFF;}
+html[data-theme=neon][data-tmode=full] .wf-dot{border-radius:10px;background:#120F26;border-color:#3B2F7A;}
+html[data-theme=neon][data-tmode=full] .wf-step.done .wf-dot{border-color:#5CFF9D;box-shadow:0 0 12px -2px #5CFF9D;}
+html[data-theme=neon][data-tmode=full] .wf-step.next .wf-dot{border-color:#FF4FA3;box-shadow:0 0 14px -1px #FF4FA3;animation:none;}
+html[data-theme=neon][data-tmode=full] .wf-step:not(:last-child)::after{border-top:2px dashed #3B2F7A;}
+html[data-theme=neon][data-tmode=full] .pd-wrap{border-radius:8px;}
+@media (max-width:767px){
+  html[data-theme=neon][data-tmode=full] .dash-wide-nav{position:fixed;left:0;right:0;top:auto;bottom:0;transform:none;width:auto!important;height:auto;flex-direction:row;justify-content:space-around;overflow-x:auto;border-radius:14px 14px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));z-index:45;}
+  html[data-theme=neon][data-tmode=full] .dash-wide-brand{display:none;}
+  html[data-theme=neon][data-tmode=full] .dash-wide-nav button{flex:none;width:46px;}
+  html[data-theme=neon][data-tmode=full] .dash-wide-main{padding-bottom:80px;}
+}
 
 /* ---- บิลตามธีม (เลือกได้ในตั้งค่า) ---- */
 html[data-bill=theme][data-theme=mermaid] .receipt{background:linear-gradient(180deg,#FFF6FB,#FFFFFF 40%);border-top:5px solid #C98BE0;}
@@ -1221,6 +1339,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
         </div>
 
   <div class="panel active" id="panel-dashboard">
+        <div class="wf-journey" id="wfJourney" aria-label="เช็คลิสต์งานประจำวัน"></div>
         <div class="dash-wide-bento">
           <div class="dwtile hero success" data-tone="mint" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
           <div class="dwtile hero success" data-tone="lemon"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div><div id="dashDayNoteText" class="hint" style="margin-top:6px;display:none;white-space:pre-wrap;"></div></div>
@@ -1235,6 +1354,11 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
           <div class="dwtile success" data-tone="aqua" data-goto="billing"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidTodayWide">฿0</div></div>
           <div class="dwtile danger wide2" data-tone="lav" data-goto="billing"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableTodayWide">฿0</div></div>
           <div class="dwtile danger wide2" data-tone="pink" data-action="jumpLongestOverdue"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaidWide">0 บิล</div></div>
+        </div>
+        <div class="card dash-wide-card pd-card">
+          <h3>📊 กำไรรายวัน <span class="pl-legend" style="margin-left:auto;"><i class="pd-sw-bar"></i>กำไรสุทธิ <i class="pd-sw-line"></i>เฉลี่ย 7 วัน</span></h3>
+          <div id="pdInfo" class="hint" style="min-height:18px;">แตะแท่งเพื่อดูตัวเลข · เลื่อนซ้าย-ขวาเพื่อดูย้อนหลัง</div>
+          <div id="profitDailyChart" class="loading">กำลังโหลด…</div>
         </div>
         <div class="card dash-wide-card pl-card">
           <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
@@ -2798,7 +2922,7 @@ function buildDayTotalTicketHTML(iso, orders){
   return `
     <div class="orderticket orderticket-total" id="orderticket-total">
       <div class="orderticket-head"><div class="orderticket-numhead">
-        <div class="orderticket-left"><div class="orderticket-saxa">ORDER</div><div class="orderticket-name">รวมทั้งวัน</div></div>
+        <div class="orderticket-left"><div class="orderticket-saxa">ORDER</div></div>
         <div class="orderticket-code">${entries.length}<small>สาขา</small></div>
         <div class="orderticket-right"><div class="orderticket-kicker">🦀 KARMTO</div><div class="orderticket-date">${formatDDMMYYYY(iso)}</div></div>
       </div></div>
@@ -2860,6 +2984,7 @@ async function saveAllOrderTicketsAsImages(){
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   logActivity_(`บันทึกทุกภาพ PeriPage (${entries.length} สาขา + ใบรวม) — วันที่ ${formatDDMMYYYY(currentDate)}`);
+  markWorkflow_('peripageAt');
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -4211,6 +4336,7 @@ async function saveAllReceiptsAsImages(){
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
   logActivity_(`บันทึกบิลทุกใบเป็นรูป (${entries.length} สาขา) — วันที่ ${formatDDMMYYYY(currentDate)}`);
+  markWorkflow_('billsAt');
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -10891,7 +11017,145 @@ function setDashDual_(id, value, isHTML){
   const b = document.getElementById(id+'Wide');
   if(b){ if(isHTML) b.innerHTML = value; else b.textContent = value; }
 }
+// ---- เช็คลิสต์งานประจำวัน 7 ขั้น (ติ๊กเองอัตโนมัติจากข้อมูลจริงของวันนั้น) ----
+// 2 (PeriPage) กับ 6 (บิลเป็นรูป) ติ๊กตอนกด "บันทึกทุกภาพ" ของวันนั้น · 7 ติ๊กเมื่อมีบิลของวันนั้นเปลี่ยนเป็นโอนแล้ว
+const WF_STEPS = [
+  {k:'order', ic:'📝', label:'ออเดอร์', tab:'order'},
+  {k:'peri',  ic:'🏷️', label:'ป้าย PeriPage', tab:'order'},
+  {k:'buy',   ic:'🛒', label:'ต้นทุนซื้อ', tab:'purchase'},
+  {k:'left',  ic:'📦', label:'ของเหลือ', tab:'leftover'},
+  {k:'exp',   ic:'💸', label:'รายจ่ายกิจการ', action:'expense'},
+  {k:'bill',  ic:'🧾', label:'บิลเป็นรูป', tab:'billing'},
+  {k:'pay',   ic:'💰', label:'ตามยอดโอน', tab:'billing'},
+];
+async function markWorkflow_(field){
+  const iso = currentDate;
+  try{
+    const fresh = await writeDayFieldPath_(iso, ['workflow', field], Date.now());
+    if(iso===currentDate){ dayData = fresh; renderWorkflowJourney_(); }
+  }catch(e){}
+}
+let wfSeq_ = 0;
+async function renderWorkflowJourney_(){
+  const el = document.getElementById('wfJourney');
+  if(!el) return;
+  const seq = ++wfSeq_;
+  const iso = currentDate, d = dayData;
+  const hhmm = ts => { const t = new Date(ts); return String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'); };
+  const entries = Object.entries(d.orders||{}).filter(([c,row])=>orderRowHasOrder_(row));
+  const wf = d.workflow || {};
+  let buyDone = false, buySub = 'ยังไม่บันทึก';
+  try{
+    const prevDay = await loadDay(addDaysISO(iso,-1));
+    const rawLots = await loadRawLots();
+    const lotIds = new Set(rawLots.map(l=>l.productId));
+    let gaps = computeDayGaps_(iso, d, prevDay, lotIds).filter(g=>g.tab==='purchase');
+    gaps = gaps.concat(await computeLotUncoveredNeedGaps_(iso, d, rawLots, prevDay));
+    const hasBuy = (d.purchases||[]).length>0;
+    buyDone = entries.length>0 && gaps.length===0 && hasBuy;
+    buySub = buyDone ? 'ครบตามออเดอร์' : (gaps.length ? `ขาด ${gaps.length} รายการ` : (hasBuy ? 'บันทึกแล้ว' : 'ยังไม่บันทึก'));
+  }catch(e){}
+  if(seq !== wfSeq_) return;
+  const leftDone = LEFTOVER_IDS.some(id=>Object.prototype.hasOwnProperty.call(d.leftoverOut||{}, id));
+  const expTotal = (d.expenses||[]).reduce((a,e)=>a+Number(e.amount||0),0);
+  const paidCount = entries.filter(([c])=>d.billingPaid && d.billingPaid[c]).length;
+  const state = {
+    order: [entries.length>0, entries.length ? `${entries.length} สาขา` : 'ยังไม่มี'],
+    peri:  [!!wf.peripageAt, wf.peripageAt ? hhmm(wf.peripageAt) : 'ยังไม่บันทึกภาพ'],
+    buy:   [buyDone, buySub],
+    left:  [leftDone, leftDone ? 'บันทึกแล้ว' : 'ยังไม่บันทึก'],
+    exp:   [(d.expenses||[]).length>0, expTotal ? money(expTotal) : 'ยังไม่ลง'],
+    bill:  [!!wf.billsAt, wf.billsAt ? hhmm(wf.billsAt) : 'ยังไม่บันทึกภาพ'],
+    pay:   [paidCount>0, entries.length ? `โอน ${paidCount}/${entries.length}` : '-'],
+  };
+  const done = WF_STEPS.filter(s=>state[s.k][0]).length;
+  const nextIdx = WF_STEPS.findIndex(s=>!state[s.k][0]);
+  el.innerHTML = `<div class="wf-steps">${WF_STEPS.map((s,i)=>{
+      const [ok, sub] = state[s.k];
+      return `<button type="button" class="wf-step${ok?' done':''}${i===nextIdx?' next':''}" data-wfstep="${s.k}">
+        <span class="wf-dot">${ok?'✓':s.ic}</span><span class="wf-lbl">${s.label}</span><span class="wf-sub">${escapeHtml(sub)}</span></button>`;
+    }).join('')}</div>
+    <div class="wf-count"><b class="num">${done}/7</b><span>ขั้นเสร็จวันนี้</span></div>`;
+  el.querySelectorAll('[data-wfstep]').forEach(b=>b.addEventListener('click', ()=>{
+    const st = WF_STEPS.find(x=>x.k===b.getAttribute('data-wfstep'));
+    if(st.action==='expense') openDashExpenseModal_(); else switchTab(st.tab);
+  }));
+}
+// ---- กราฟกำไรรายวัน (แท่ง = กำไรสุทธิ, เส้น = เฉลี่ย 7 วัน) เลื่อนซ้าย-ขวาต่อเนื่องข้ามเดือน ----
+function dayNetProfit_(iso, d){
+  const entries = Object.entries(d.orders||{}).filter(([c,row])=>orderRowHasOrder_(row));
+  if(!entries.length && !(d.purchases||[]).length && !(d.expenses||[]).length) return null;
+  const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,iso) + Number((d.billExtra||{})[code]||0), 0);
+  const cogs = (d.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
+  const exp = (d.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
+  const fee = computeFee(computeFeeTotals(d.orders||{})).total;
+  return revenue - cogs - exp - fee;
+}
+async function renderProfitDailyChart_(){
+  const el = document.getElementById('profitDailyChart');
+  if(!el) return;
+  try{
+    const today = todayISO();
+    const start = addDaysISO(today, -179);
+    const listRes = await window.storage.list('day:');
+    const have = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(iso=>iso>=start && iso<=today).sort();
+    if(!have.length){ el.className='empty'; el.innerHTML='ยังไม่มีข้อมูล'; return; }
+    const dayMap = await loadDaysBulk(have);
+    const days = []; for(let iso=have[0]; iso<=today; iso=addDaysISO(iso,1)) days.push(iso);
+    const vals = days.map(iso=>dayMap[iso] ? dayNetProfit_(iso, dayMap[iso]) : null);
+    const ma = vals.map((v,i)=>{ const w = vals.slice(Math.max(0,i-6), i+1).filter(x=>x!==null); return w.length ? w.reduce((a,b)=>a+b,0)/w.length : null; });
+    const nums = vals.concat(ma).filter(x=>x!==null);
+    const max = Math.max(1, ...nums), min = Math.min(0, ...nums);
+    const step = 26, barW = 16, H = 230, padT = 26, padB = 34, padL = 6;
+    const W = padL*2 + days.length*step;
+    const h = H - padT - padB;
+    const y = v => padT + (max - v) / (max - min) * h;
+    const y0 = y(0);
+    const ticks = [max, max/2, 0, min<0 ? min : null].filter(v=>v!==null);
+    const grid = ticks.map(v=>`<line x1="0" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="pd-grid${v===0?' zero':''}"/>`).join('');
+    let bars = '', labels = '';
+    days.forEach((iso,i)=>{
+      const x = padL + i*step + (step-barW)/2;
+      const v = vals[i];
+      const dd = Number(iso.slice(8,10));
+      if(v!==null){
+        const top = Math.min(y(v), y0), bh = Math.max(2, Math.abs(y(v)-y0));
+        bars += `<rect class="km-bar pd-bar${v<0?' neg':''}" style="--i:${Math.max(0,i-(days.length-30))}" x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW}" height="${bh.toFixed(1)}" rx="6" fill="url(#${v<0?'pdNeg':'pdPos'})"/>`;
+      }
+      bars += `<rect class="pd-hit" data-pdi="${i}" x="${padL+i*step}" y="0" width="${step}" height="${H}" fill="transparent"/>`;
+      labels += `<text x="${(x+barW/2).toFixed(1)}" y="${H-padB+14}" text-anchor="middle" class="pd-day${iso===today?' today':''}">${dd}</text>`;
+      if(dd===1 || i===0) labels += `<text x="${(padL+i*step+2).toFixed(1)}" y="${H-4}" class="pd-month">${formatMonthEnglish_(iso.slice(0,7))}</text><line x1="${padL+i*step}" x2="${padL+i*step}" y1="${padT-6}" y2="${H-padB}" class="pd-msep"/>`;
+    });
+    const pts = ma.map((v,i)=>v===null?null:`${(padL+i*step+step/2).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean);
+    const firstX = (padL + ma.findIndex(v=>v!==null)*step + step/2).toFixed(1);
+    const lastX = (padL + (ma.length-1)*step + step/2).toFixed(1);
+    const area = pts.length ? `<polygon points="${firstX},${y0.toFixed(1)} ${pts.join(' ')} ${lastX},${y0.toFixed(1)}" fill="url(#pdArea)"/>` : '';
+    const line = pts.length ? `<polyline class="km-line" pathLength="1" points="${pts.join(' ')}" fill="none" stroke="url(#pdLine)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    const fmtK = v => (Math.abs(v)>=1000 ? (v/1000).toFixed(Math.abs(v)>=10000?0:1)+'k' : Math.round(v));
+    const yAxis = `<svg class="pd-yaxis" viewBox="0 0 40 ${H}" width="40" height="${H}">${ticks.map(v=>`<text x="36" y="${(y(v)+3).toFixed(1)}" text-anchor="end">${fmtK(v)}</text>`).join('')}</svg>`;
+    el.className='';
+    el.innerHTML = `<div class="pd-wrap">${yAxis}<div class="pd-scroll" id="pdScroll"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="pd-svg">
+      <defs>
+        <linearGradient id="pdPos" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7C6CF0"/><stop offset=".5" stop-color="#5AB8F2"/><stop offset="1" stop-color="#7EE3C9"/></linearGradient>
+        <linearGradient id="pdNeg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB37A"/><stop offset="1" stop-color="#F05A8B"/></linearGradient>
+        <linearGradient id="pdLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F28CC0"/><stop offset=".5" stop-color="#C27BEA"/><stop offset="1" stop-color="#F5A623"/></linearGradient>
+        <linearGradient id="pdArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C27BEA" stop-opacity=".22"/><stop offset="1" stop-color="#C27BEA" stop-opacity="0"/></linearGradient>
+      </defs>
+      ${grid}${area}${bars}${line}${labels}
+    </svg></div></div>`;
+    const sc = document.getElementById('pdScroll');
+    sc.scrollLeft = sc.scrollWidth;
+    const info = document.getElementById('pdInfo');
+    el.querySelectorAll('[data-pdi]').forEach(r=>r.addEventListener('click', ()=>{
+      const i = Number(r.getAttribute('data-pdi'));
+      el.querySelectorAll('.pd-bar').forEach(b=>b.classList.remove('sel'));
+      const bar = r.previousElementSibling; if(bar && bar.classList.contains('pd-bar')) bar.classList.add('sel');
+      info.innerHTML = vals[i]===null ? `${formatDDMMYYYY(days[i])}: ไม่มีข้อมูล` : `<b>${formatDDMMYYYY(days[i])} (${weekdayShortTH_(days[i])})</b> กำไร <b style="color:${vals[i]<0?'var(--danger)':'var(--success)'}">${money(vals[i])}</b> · เฉลี่ย 7 วัน ${money(ma[i]||0)}`;
+    }));
+  }catch(e){ el.className='empty'; el.innerHTML='โหลดกราฟไม่สำเร็จ'; }
+}
 async function renderDashboard(){
+  renderWorkflowJourney_();
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
   const fee = computeFee(feeTotals);
@@ -10937,6 +11201,7 @@ async function renderDashboard(){
   const aggAll = await computeBranchAggregates();
   const payables = await computeAllExpensePayables();
   await renderDataGaps();
+  await renderProfitDailyChart_();
   await renderMonthPL();
   await renderYearSummary();
   await loadActivityLog();
@@ -11240,7 +11505,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-03.4';
+const APP_BUILD = '2026-11-03.5';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

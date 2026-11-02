@@ -616,7 +616,11 @@ table.plain td.num{text-align:right;}
   .dash-grid > *:last-child:nth-child(odd){grid-column:1/-1;}
   .grid7{grid-template-columns:1fr;}
   .dash-wide-header{padding:0 16px;}
-  .dwh-datenav{flex-basis:100%;}
+  .dwh-datenav{flex-basis:100%;order:5;}
+  .dash-wide-header{gap:8px;}
+  .dwh-titles{min-width:0;flex:1;}
+  .dwh-titles h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dwh-addexp-btn{padding:8px 12px;font-size:12.5px;}
   .statbar{padding:0 16px;}
 }
 .qr-types{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
@@ -764,6 +768,72 @@ body.motion-intro svg.km-donut{animation:kmSpin 1.1s cubic-bezier(.3,.8,.3,1) bo
 body.motion-intro .dash-cost-bar span{transform-origin:0 50%;animation:kmBarX 1s ease-out both;animation-delay:.45s}
 body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,.3,1.2) both;animation-delay:calc(var(--mi,0) * 70ms + .2s)}
 @media (prefers-reduced-motion:reduce){body.motion-intro *{animation:none!important}}
+/* ---- โทนสีการ์ด: การ์ดในกลุ่มเดียวกันไม่ซ้ำสีกัน (หมุน 8 สีตามลำดับ หรือกำหนดเองด้วย data-tone) ---- */
+:root{--c-aqua:#DCF5F4;--b-aqua:#A9E1DD;--c-lime:#EEF7DA;--b-lime:#CDE3A2;}
+.dash-grid > .dash-metric:nth-child(8n+1){background:var(--c-sky);border-color:var(--b-sky);}
+.dash-grid > .dash-metric:nth-child(8n+2){background:var(--c-pink);border-color:var(--b-pink);}
+.dash-grid > .dash-metric:nth-child(8n+3){background:var(--c-lemon);border-color:var(--b-lemon);}
+.dash-grid > .dash-metric:nth-child(8n+4){background:var(--c-mint);border-color:var(--b-mint);}
+.dash-grid > .dash-metric:nth-child(8n+5){background:var(--c-lav);border-color:var(--b-lav);}
+.dash-grid > .dash-metric:nth-child(8n+6){background:var(--c-peach);border-color:var(--b-peach);}
+.dash-grid > .dash-metric:nth-child(8n+7){background:var(--c-aqua);border-color:var(--b-aqua);}
+.dash-grid > .dash-metric:nth-child(8n+8){background:var(--c-lime);border-color:var(--b-lime);}
+.dash-grid > .dash-metric[data-tone=sky],.dwtile[data-tone=sky],.ltile[data-tone=sky]{background:var(--c-sky);border-color:var(--b-sky);}
+.dash-grid > .dash-metric[data-tone=pink],.dwtile[data-tone=pink],.ltile[data-tone=pink]{background:var(--c-pink);border-color:var(--b-pink);}
+.dash-grid > .dash-metric[data-tone=lemon],.dwtile[data-tone=lemon],.ltile[data-tone=lemon]{background:var(--c-lemon);border-color:var(--b-lemon);}
+.dash-grid > .dash-metric[data-tone=mint],.dwtile[data-tone=mint],.ltile[data-tone=mint]{background:var(--c-mint);border-color:var(--b-mint);}
+.dash-grid > .dash-metric[data-tone=lav],.dwtile[data-tone=lav],.ltile[data-tone=lav]{background:var(--c-lav);border-color:var(--b-lav);}
+.dash-grid > .dash-metric[data-tone=peach],.dwtile[data-tone=peach],.ltile[data-tone=peach]{background:var(--c-peach);border-color:var(--b-peach);}
+.dash-grid > .dash-metric[data-tone=aqua],.dwtile[data-tone=aqua],.ltile[data-tone=aqua]{background:var(--c-aqua);border-color:var(--b-aqua);}
+.dash-grid > .dash-metric[data-tone=lime],.dwtile[data-tone=lime],.ltile[data-tone=lime]{background:var(--c-lime);border-color:var(--b-lime);}
+.dash-grid.g4{grid-template-columns:repeat(4,minmax(0,1fr));}
+@media (max-width:1023px){
+  .dash-grid.g4{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .dwtile.wide2{grid-column:span 1;}
+}
+@media (min-width:1024px){ .dwtile.wide2{grid-column:span 2;} }
+.dash-metric .dm-value{overflow-wrap:anywhere;}
+/* ---- สรุปกำไร-ขาดทุน / รายปี: พื้นฟ้าอ่อน + กล่องขาวแยกส่วน กราฟสีเข้มอ่านชัด ---- */
+.card.pl-card{--card-bg:var(--c-sky);--card-bd:var(--b-sky);}
+.pl-panel{background:#fff;border:2px solid var(--card-bd,var(--b-sky));border-radius:18px;padding:12px 14px;margin-bottom:12px;}
+.pl-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:600;font-size:13px;margin-bottom:8px;}
+.pl-legend{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--text-dim);}
+.pl-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;}
+.pl-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.pl-two > .pl-panel{margin-bottom:12px;}
+@media (max-width:1023px){ .pl-two{grid-template-columns:1fr;gap:0;} }
+.pl-table td{padding:6px 2px;border-bottom:1px dashed var(--border-soft);}
+.pl-table tr:last-child td{border-bottom:none;}
+.pl-table td.num{text-align:right;white-space:nowrap;}
+.pl-table tr.pl-sub td{background:var(--c-sky);}
+.pl-grand{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;margin-top:8px;border-radius:12px;font-weight:700;}
+.pl-grand.success{background:var(--c-mint);color:#1B8A64;}
+.pl-grand.danger{background:var(--c-pink);color:#C2475D;}
+/* ---- เมนู Noti ---- */
+.dash-wide-nav button{position:relative;}
+.noti-badge{position:absolute;top:4px;left:26px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#E0607E;color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;}
+.noti-feed{max-height:none;}
+.noti-card .badge-delay{white-space:nowrap;flex:none;}
+.noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
+/* ---- กล่องรูป เหลือรับเข้า ---- */
+.ltile-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;}
+.ltile-grid > .ltile{flex:0 0 132px;}
+@media (max-width:520px){ .ltile-grid{gap:8px;} .ltile-grid > .ltile{flex-basis:calc((100% - 16px)/3);} }
+.ltile{position:relative;aspect-ratio:3/4;max-width:100%;border-radius:20px;overflow:hidden;border:3px solid var(--b-sky);box-shadow:0 6px 16px rgba(70,110,150,.18);display:flex;align-items:center;justify-content:center;}
+.ltile::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.7),rgba(255,255,255,0) 55%);pointer-events:none;}
+.ltile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ltile-emoji{font-size:58px;line-height:1;transform:translateY(-14%);filter:drop-shadow(0 6px 8px rgba(0,0,0,.15));}
+.ltile-cap{position:absolute;left:0;right:0;bottom:0;padding:22px 8px 8px;text-align:center;background:linear-gradient(to top,rgba(30,50,80,.72),rgba(30,50,80,0));color:#fff;}
+.ltile:not(.has-img) .ltile-cap{background:linear-gradient(to top,rgba(255,255,255,.95),rgba(255,255,255,0));color:var(--text);}
+.ltile-name{font-size:12.5px;font-weight:700;line-height:1.2;}
+.ltile-qty{font-size:22px;font-weight:800;line-height:1.15;}
+.ltile-qty small{font-size:11px;font-weight:600;}
+.ltile.zero .ltile-qty{opacity:.55;}
+.ltile.zero .ltile-emoji,.ltile.zero img{opacity:.6;}
+.ltile-cam{position:absolute;top:6px;right:6px;z-index:1;width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.ltile-cam:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (max-width:520px){ .ltile-emoji{font-size:40px;} .ltile-qty{font-size:18px;} .ltile-name{font-size:11px;} }
+
 
 /* ===================== หน้าเปิดแอป (splash) — ท่อนอินโทรของวิดีโอโชว์รีล ทำด้วย CSS ล้วน ===================== */
 #splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;
@@ -860,6 +930,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
       <button class="tab" data-tab="fee">🏷️ Brand Fee</button>
       <button class="tab" data-tab="debts">💳 Debts</button>
       <button class="tab" data-tab="personal">👛 Personal Finance</button>
+      <button class="tab" data-tab="noti">🔔 Noti</button>
       <button class="tab" data-tab="settings">⚙️ Settings</button>
     </div>
   </div>
@@ -877,6 +948,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
         <button data-tab="fee"><span class="dwn-ic">🏷️</span><span class="dwn-lbl">Brand Fee</span></button>
         <button data-tab="debts"><span class="dwn-ic">💳</span><span class="dwn-lbl">Debts</span></button>
         <button data-tab="personal"><span class="dwn-ic">👛</span><span class="dwn-lbl">Personal Finance</span></button>
+        <button data-tab="noti"><span class="dwn-ic">🔔</span><span class="dwn-lbl">Noti</span><span class="noti-badge" id="notiBadge" hidden></span></button>
         <button data-tab="settings"><span class="dwn-ic">⚙️</span><span class="dwn-lbl">Settings</span></button>
       </nav>
       <div class="dash-wide-main">
@@ -930,37 +1002,29 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 
   <div class="panel active" id="panel-dashboard">
         <div class="dash-wide-bento">
-          <div class="dwtile hero success" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
-          <div class="dwtile hero success"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div><div id="dashDayNoteText" class="hint" style="margin-top:6px;display:none;white-space:pre-wrap;"></div></div>
+          <div class="dwtile hero success" data-tone="mint" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
+          <div class="dwtile hero success" data-tone="lemon"><button type="button" class="dwtile-note-btn" id="dashDayNoteBtn" aria-label="เพิ่ม/แก้ไขหมายเหตุวันนี้" title="เพิ่ม/แก้ไขหมายเหตุวันนี้">📝</button><div class="dm-label">💵 ยอดขายประมาณการ</div><div class="dm-value num" id="dashRevenueWide">฿0</div><div id="dashDayNoteText" class="hint" style="margin-top:6px;display:none;white-space:pre-wrap;"></div></div>
           <div class="dwtile chart">
             <div class="dm-label" style="margin-bottom:4px;">🏷️ เทรนด์ Brand fee 14 วันล่าสุด</div>
             <div id="trendSelectedValue" class="hint" style="min-height:16px;margin-bottom:4px;"></div>
             <div id="dashTrend" class="loading">กำลังโหลด…</div>
           </div>
-          <div class="dwtile ocean" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
-          <div class="dwtile danger" data-goto="purchase"><div class="dm-label">🛒 ต้นทุนรวมวันนี้ ›</div><div class="dm-value num" id="dashCogsTodayWide">฿0</div></div>
-          <div class="dwtile sunset" data-goto="fee"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFeeWide">฿0</div></div>
-          <div class="dwtile success" data-goto="billing"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidTodayWide">฿0</div></div>
-          <div class="dwtile danger" data-goto="billing"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableTodayWide">฿0</div></div>
-          <div class="dwtile danger" data-action="jumpLongestOverdue"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaidWide">0 บิล</div></div>
-          <div class="dwtile feed">
-            <div class="dm-label" style="margin-bottom:4px;">🕓 รายการล่าสุด</div>
-            <div class="dwtile-feed-list" id="dashActivityFeed"><div class="hint">กำลังโหลด…</div></div>
-          </div>
+          <div class="dwtile ocean" data-tone="sky" data-goto="billing"><div class="dm-label">🏪 สาขาที่สั่ง ›</div><div class="dm-value num" id="dashBranchesWide">0</div></div>
+          <div class="dwtile danger" data-tone="lime" data-goto="purchase"><div class="dm-label">🛒 ต้นทุนรวมวันนี้ ›</div><div class="dm-value num" id="dashCogsTodayWide">฿0</div></div>
+          <div class="dwtile sunset" data-tone="peach" data-goto="fee"><div class="dm-label">🏷️ Brand fee ›</div><div class="dm-value num" id="dashFeeWide">฿0</div></div>
+          <div class="dwtile success" data-tone="aqua" data-goto="billing"><div class="dm-label">✅ โอนเข้าแล้ววันนี้ ›</div><div class="dm-value num" id="dashPaidTodayWide">฿0</div></div>
+          <div class="dwtile danger wide2" data-tone="lav" data-goto="billing"><div class="dm-label">📤 รอจ่ายทั้งหมด ›</div><div class="dm-value num" id="dashPayableTodayWide">฿0</div></div>
+          <div class="dwtile danger wide2" data-tone="pink" data-action="jumpLongestOverdue"><div class="dm-label">⏳ ค้างโอน ›</div><div class="dm-value num" id="dashUnpaidWide">0 บิล</div></div>
         </div>
-        <div class="card dash-wide-card">
+        <div class="card dash-wide-card pl-card">
           <h3>📈 สรุปกำไร-ขาดทุนรายเดือน</h3>
           <div class="field"><label>เดือน</label><input type="month" id="plMonthInput"></div>
           <div id="plSummary" class="loading">กำลังโหลด…</div>
         </div>
-        <div class="card dash-wide-card">
+        <div class="card dash-wide-card yr-card">
           <h3>📅 สรุปรวมรายปี</h3>
           <div class="field"><label>ปี</label><select id="yearSummaryInput"></select></div>
           <div id="yearSummary" class="loading">กำลังโหลด…</div>
-        </div>
-        <div class="card dash-wide-card" id="dataGapsCard" style="display:none;border-color:var(--danger);">
-          <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
-          <div id="dataGapsList"></div>
         </div>
         <div class="card dash-wide-card">
           <h3>⚠️ สาขาที่ต้องติดตามด่วน <span class="subhint">(กดหัวตารางเพื่อเรียงลำดับ)</span></h3>
@@ -1028,7 +1092,8 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
     </div>
     <div class="card dash-wide-card">
       <h3 id="leftoverInHeader">เหลือรับเข้า</h3>
-      <div class="leftover-grid" id="leftoverInView"></div>
+      <div class="ltile-grid" id="leftoverInView"></div>
+      <input type="file" accept="image/*" id="ltImgInput" hidden>
     </div>
     <div class="card dash-wide-card">
       <h3 id="leftoverOutHeader">ของเหลือที่ต้องเก็บ</h3>
@@ -1347,6 +1412,17 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
       <div class="field"><label>จำนวนเงิน</label><input type="number" step="1" id="pExpenseAmount" placeholder="0"></div>
       <button class="btn secondary" id="addPExpenseBtn">+ เพิ่มรายจ่าย</button>
       <div class="rowlist" id="pExpenseList" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-noti">
+    <div class="card dash-wide-card noti-card" id="dataGapsCard">
+      <h3>🔔 แจ้งเตือนข้อมูลที่ยังไม่ครบ</h3>
+      <div id="dataGapsList"><div class="hint">กำลังตรวจ…</div></div>
+    </div>
+    <div class="card dash-wide-card noti-card">
+      <h3>🕓 รายการล่าสุด</h3>
+      <div class="dwtile-feed-list noti-feed" id="dashActivityFeed"><div class="hint">กำลังโหลด…</div></div>
     </div>
   </div>
 
@@ -3036,6 +3112,65 @@ async function autoFillLeftoverIfNeeded(pid){
 let wasteEditPid = null; // pid ของสินค้าที่กำลังกรอกฟอร์ม "บันทึกของเสีย/ตัดทิ้ง" อยู่ (ในแท็บของเหลือค้าง)
 let wasteActionInFlight = false;
 let leftoverFormRenderedForDate_ = null; // วันที่ที่ช่องกรอก "เหลือจากวันที่..." กำลังแสดงผลอยู่จริงตอนนี้ (ดูคอมเมนต์ด้านล่าง)
+// กล่องรูป "เหลือรับเข้า" — รูปเต็มกล่อง ชื่อ+จำนวนอยู่ในกล่อง ยังไม่มีรูปจริงใช้อิโมจิบนพื้นไล่สีแทน
+// รูปจริงอัปโหลดได้จากปุ่ม 📷 บนกล่อง เก็บแยกคีย์ละสินค้า (ย่อให้เล็กกว่า ~45KB เพราะช่องเก็บข้อมูลฝั่ง Sheets จำกัดขนาด)
+const LT_TONES = ['sky','pink','lemon','mint','lav','peach','aqua','lime'];
+const productImageKey_ = pid => 'productImage:'+pid;
+let productImages_ = null;
+async function loadProductImages_(){
+  if(productImages_) return productImages_;
+  const out = {};
+  try{
+    const vals = await window.bulkGetStorageImpl(PRODUCTS.map(p=>productImageKey_(p.id)));
+    PRODUCTS.forEach(p=>{
+      const raw = vals && vals[productImageKey_(p.id)];
+      if(!raw) return;
+      try{ const v = JSON.parse(raw); if(typeof v==='string' && v.indexOf('data:image/')===0) out[p.id] = v; }catch(e){}
+    });
+  }catch(e){ return out; }
+  productImages_ = out;
+  return out;
+}
+function leftoverTileHtml_(p, qty, idx){
+  const img = productImages_ && productImages_[p.id];
+  const qtyTxt = Number.isInteger(qty) ? qty : qty.toFixed(1);
+  return `<div class="ltile${qty>0?'':' zero'}${img?' has-img':''}" data-tone="${LT_TONES[idx%LT_TONES.length]}">
+    ${img ? `<img src="${escapeHtml(img)}" alt="">` : `<span class="ltile-emoji" aria-hidden="true">${p.emoji}</span>`}
+    <button type="button" class="ltile-cam" data-ltimg="${p.id}" aria-label="เปลี่ยนรูป ${escapeHtml(p.name)}" title="เปลี่ยนรูป">📷</button>
+    <div class="ltile-cap"><div class="ltile-name">${escapeHtml(p.name)}</div><div class="ltile-qty num">${qtyTxt}<small> ${escapeHtml(p.unit)}</small></div></div>
+  </div>`;
+}
+function shrinkImageToDataUrl_(file){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let side = 420, q = 0.8, out = '';
+      for(let i=0; i<8; i++){
+        const sc = Math.min(1, side/Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(im.width*sc); c.height = Math.round(im.height*sc);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        out = c.toDataURL('image/jpeg', q);
+        if(out.length <= 45000) return resolve(out);
+        if(q > 0.5) q -= 0.1; else side = Math.round(side*0.8);
+      }
+      reject(new Error('รูปใหญ่เกินไป'));
+    };
+    im.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('เปิดรูปไม่ได้')); };
+    im.src = url;
+  });
+}
+async function setProductImage_(pid, file){
+  try{
+    const dataUrl = await shrinkImageToDataUrl_(file);
+    await window.storage.set(productImageKey_(pid), JSON.stringify(dataUrl));
+    (productImages_ = productImages_ || {})[pid] = dataUrl;
+    showToast('เปลี่ยนรูปแล้ว');
+    await renderLeftover();
+  }catch(e){ showToast('บันทึกรูปไม่สำเร็จ — '+((e&&e.message)||'ลองใหม่อีกครั้ง')); }
+}
 async function renderLeftover(){
   const prevIso = addDaysISO(currentDate,-1);
   const nextIso = addDaysISO(currentDate,1);
@@ -3045,7 +3180,8 @@ async function renderLeftover(){
   document.getElementById('leftoverActiveDate').textContent = formatDDMMYYYY(currentDate);
   document.getElementById('leftoverInHeader').innerHTML = `เหลือรับเข้าวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(จากวันที่ ${formatDDMMYYYY(prevIso)})</span>`;
   document.getElementById('leftoverOutHeader').innerHTML = `👉🏻 เหลือจากวันที่ ${formatDDMMYYYY(currentDate)} <span class="subhint">(หักออกวันที่ ${formatDDMMYYYY(nextIso)})</span>`;
-  document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return `<div class="lrow"><div class="lname">${p.emoji} ${p.name}</div><div class="lin num">${leftIn[id]||0} ${p.unit}</div></div>`; }).join('');
+  await loadProductImages_();
+  document.getElementById('leftoverInView').innerHTML = LEFTOVER_IDS.map((id,i)=>leftoverTileHtml_(PRODUCTS.find(x=>x.id===id), Number(leftIn[id]||0), i)).join('');
   // เก็บค่าที่พิมพ์ค้างอยู่ในช่องกรอก "เหลือจากวันที่..." ไว้ก่อนเขียนทับ innerHTML ทั้งก้อนด้านล่าง — ฟังก์ชันนี้ถูกเรียกซ้ำจากปุ่มข้างเคียงที่ไม่
   // เกี่ยวกับช่องกรอกพวกนี้เลย (เปิด/ปิดฟอร์มบันทึกของเสีย 🗑️, บันทึกของเสีย/เคลมสำเร็จ) แต่เดิม build ใหม่ทั้งก้อนจาก dayData ทุกครั้งที่เรียก
   // ทำให้ตัวเลขที่เพิ่งพิมพ์แต่ยังไม่ทันกด "บันทึกของเหลือ" หายไปเงียบๆ (ผู้ใช้กดบันทึกแล้วเข้าใจว่าค่าไม่ติด ทั้งที่จริงๆ ค่าที่พิมพ์ไว้ถูกฟอร์ม
@@ -4557,6 +4693,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
     filteredRevenue: hasBranchFilter ? branchRevenue : core.revenue,
   };
 }
+const PL_REV_COLOR = '#2F80C9', PL_EXP_COLOR = '#E0607E';
 function buildTrendLineSVG(dailyMap, monthVal){
   const [y,m] = monthVal.split('-').map(Number);
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -4578,10 +4715,14 @@ function buildTrendLineSVG(dailyMap, monthVal){
     const x = padL+idx*stepX;
     return `<text x="${x}" y="${H-4}" font-size="9" fill="#87A2A8" text-anchor="middle">${d}</text>`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px;">
+  const baseY = (padT+h).toFixed(1);
+  const area = `${padL},${baseY} ${pts(revSeries)} ${(padL+(n-1)*stepX).toFixed(1)},${baseY}`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:170px;">
+    <defs><linearGradient id="plRevFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${PL_REV_COLOR}" stop-opacity=".28"/><stop offset="1" stop-color="${PL_REV_COLOR}" stop-opacity="0"/></linearGradient></defs>
     ${gridY}${dayLabels}
-    <polyline class="km-line" pathLength="1" points="${pts(expSeries)}" fill="none" stroke="#F2ADAD" stroke-width="2"/>
-    <polyline class="km-line" pathLength="1" style="--i:3" points="${pts(revSeries)}" fill="none" stroke="#8DE2C5" stroke-width="2.5"/>
+    <polygon points="${area}" fill="url(#plRevFill)"/>
+    <polyline class="km-line" pathLength="1" points="${pts(expSeries)}" fill="none" stroke="${PL_EXP_COLOR}" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>
+    <polyline class="km-line" pathLength="1" style="--i:3" points="${pts(revSeries)}" fill="none" stroke="${PL_REV_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
   </svg>`;
 }
 function prevMonthOf(monthVal){
@@ -4616,54 +4757,55 @@ async function renderMonthPL(){
       bestDayHtml = `<div class="hint">ยอดขายสูงสุด: ${formatDDMMYYYY(bestDay[0])} (${money(bestDay[1].revenue)})</div>`;
       worstDayHtml = `<div class="hint">ยอดขายต่ำสุด: ${formatDDMMYYYY(worstDay[0])} (${money(worstDay[1].revenue)})</div>`;
     }
+    const sign = v => v>=0 ? 'success' : 'danger';
+    const row = (label, val, kind) => `<tr><td>${label}</td><td class="num" style="color:${kind==='neg'?'var(--danger)':kind==='pos'?'var(--success)':'var(--text-faint)'};">${val}</td></tr>`;
     el.innerHTML = `
-      <div class="hint" style="margin-bottom:6px;">เทียบกับเดือนก่อนหน้า (${prevMonthOf(monthVal)})</div>
-      <div class="dash-grid" style="margin-bottom:12px;">
-        <div class="dash-metric info"><div class="dm-label">💰 ยอดขายรวม (บิล)</div><div class="dm-value num">${money(r.revenue)}${pctChangeBadge(r.revenue, prevR.revenue)}</div></div>
-        <div class="dash-metric success"><div class="dm-label">✅ รายรับจริง (โอนแล้ว)</div><div class="dm-value num">${money(r.revenuePaid)}${pctChangeBadge(r.revenuePaid, prevR.revenuePaid)}</div></div>
-        <div class="dash-metric danger"><div class="dm-label">⏳ ค้างรับ (ยังไม่โอน)</div><div class="dm-value num">${money(r.revenueUnpaid)}</div></div>
-        <div class="dash-metric ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ</div><div class="dm-value num">${money(r.netProfit)}${pctChangeBadge(r.netProfit, prevR.netProfit)}</div></div>
+      <div class="hint" style="margin-bottom:8px;">เทียบกับเดือนก่อนหน้า (${prevMonthOf(monthVal)})</div>
+      <div class="dash-grid g4" style="margin-bottom:12px;">
+        <div class="dash-metric" data-tone="lav"><div class="dm-label">💰 ยอดขายรวม (บิล)</div><div class="dm-value num">${money(r.revenue)}${pctChangeBadge(r.revenue, prevR.revenue)}</div></div>
+        <div class="dash-metric success" data-tone="mint"><div class="dm-label">✅ รายรับจริง (โอนแล้ว)</div><div class="dm-value num">${money(r.revenuePaid)}${pctChangeBadge(r.revenuePaid, prevR.revenuePaid)}</div></div>
+        <div class="dash-metric danger" data-tone="pink"><div class="dm-label">⏳ ค้างรับ (ยังไม่โอน)</div><div class="dm-value num">${money(r.revenueUnpaid)}</div></div>
+        <div class="dash-metric ${sign(r.netProfit)}" data-tone="lemon"><div class="dm-label">📈 กำไรสุทธิโดยประมาณ</div><div class="dm-value num">${money(r.netProfit)}${pctChangeBadge(r.netProfit, prevR.netProfit)}</div></div>
       </div>
-      <div style="display:flex;gap:12px;font-size:11.5px;margin-bottom:4px;">
-        <span style="color:#8DE2C5;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8DE2C5;margin-right:4px;"></span>รายรับ</span>
-        <span style="color:#F2ADAD;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#F2ADAD;margin-right:4px;"></span>รายจ่ายกิจการ</span>
+      <div class="pl-panel">
+        <div class="pl-panel-h">รายรับ vs รายจ่ายกิจการ รายวัน
+          <span class="pl-legend"><i style="background:${PL_REV_COLOR}"></i>รายรับ <i style="background:${PL_EXP_COLOR}"></i>รายจ่ายกิจการ</span>
+        </div>
+        ${buildTrendLineSVG(r.daily, monthVal)}
       </div>
-      ${buildTrendLineSVG(r.daily, monthVal)}
-      <table class="plain" style="margin-top:10px;">
-      <tr><td>ยอดขายรวม (บิลลูกค้าทั้งหมด)</td><td class="num num" style="color:var(--success);">${money(r.revenue)}</td></tr>
-      <tr><td>&nbsp;&nbsp;└ รายรับจริง (สาขาโอนแล้ว)</td><td class="num num" style="color:var(--success);">${money(r.revenuePaid)}</td></tr>
-      <tr><td>&nbsp;&nbsp;└ ค้างรับ (สาขายังไม่โอน)</td><td class="num num" style="color:var(--danger);">${money(r.revenueUnpaid)}</td></tr>
-      <tr><td>ต้นทุนซื้อ (COGS)${pctChangeBadge(r.cogsTotal, prevR.cogsTotal)}</td><td class="num num" style="color:var(--danger);">-${money(r.cogsTotal)}</td></tr>
-      <tr><td><b>กำไรขั้นต้น</b></td><td class="num num"><b>${money(r.grossProfit)}</b></td></tr>
-      <tr><td>รายจ่ายกิจการอื่นๆ${pctChangeBadge(r.expenseTotal, prevR.expenseTotal)}</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal)}</td></tr>
-      <tr><td>ค่าธรรมเนียมบริษัท (Brand fee)</td><td class="num num" style="color:var(--danger);">-${money(r.feeTotal)}</td></tr>
-      <tr><td>ของเสีย/เคลม${pctChangeBadge(r.wasteTotal, prevR.wasteTotal)}</td><td class="num num" style="color:var(--danger);">-${money(r.wasteTotal)}</td></tr>
-      </table>
-      <div class="grand" style="display:flex;justify-content:space-between;padding:10px 12px;margin-top:8px;border-radius:8px;background:${r.netProfit>=0?'var(--success-soft)':'var(--danger-soft)'};">
-        <span style="font-weight:600;">กำไรสุทธิโดยประมาณ</span>
-        <span class="num" style="font-weight:600;color:${r.netProfit>=0?'var(--success)':'var(--danger)'};">${money(r.netProfit)}</span>
+      <div class="pl-two">
+        <div class="pl-panel">
+          <div class="pl-panel-h">งบกำไร-ขาดทุน</div>
+          <table class="plain pl-table">
+          ${row('ยอดขายรวม (บิลลูกค้าทั้งหมด)', money(r.revenue), 'pos')}
+          ${row('&nbsp;&nbsp;└ รายรับจริง (สาขาโอนแล้ว)', money(r.revenuePaid), 'pos')}
+          ${row('&nbsp;&nbsp;└ ค้างรับ (สาขายังไม่โอน)', money(r.revenueUnpaid), 'neg')}
+          ${row('ต้นทุนซื้อ (COGS)'+pctChangeBadge(r.cogsTotal, prevR.cogsTotal), '-'+money(r.cogsTotal), 'neg')}
+          <tr class="pl-sub"><td><b>กำไรขั้นต้น</b></td><td class="num"><b>${money(r.grossProfit)}</b></td></tr>
+          ${row('รายจ่ายกิจการอื่นๆ'+pctChangeBadge(r.expenseTotal, prevR.expenseTotal), '-'+money(r.expenseTotal), 'neg')}
+          ${row('ค่าธรรมเนียมบริษัท (Brand fee)', '-'+money(r.feeTotal), 'neg')}
+          ${row('ของเสีย/เคลม'+pctChangeBadge(r.wasteTotal, prevR.wasteTotal), '-'+money(r.wasteTotal), 'neg')}
+          </table>
+          <div class="pl-grand ${sign(r.netProfit)}"><span>กำไรสุทธิโดยประมาณ</span><span class="num">${money(r.netProfit)}</span></div>
+        </div>
+        <div class="pl-panel">
+          <div class="pl-panel-h">🥧 สัดส่วนรายจ่ายเดือนนี้</div>
+          ${buildPieChartSVG([
+            {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#5AA9E6'},
+            {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#F6C945'},
+            {label:'Brand fee', value:r.feeTotal, color:'#F28AB3'},
+          ])}
+          <div class="pl-panel-h" style="margin-top:12px;">💳 เงินเข้า-ออกในบัญชี</div>
+          <table class="plain pl-table">
+          ${row('รายรับจริง (สาขาโอนแล้ว)', money(r.revenuePaid), 'pos')}
+          ${row('รายจ่ายกิจการอื่นๆ + ต้นทุนซื้อ + Brand fee', '-'+money(r.expenseTotal + r.cogsTotal + r.feeTotal), 'neg')}
+          ${row('ชำระหนี้องค์กร (เงินต้น)', '-'+money(r.orgDebtPayments), 'neg')}
+          ${row('ชำระหนี้องค์กร (ดอกเบี้ย) — นับรวมในรายจ่ายกิจการด้านบนแล้ว', money(r.orgDebtInterest), 'muted')}
+          </table>
+          <div class="pl-grand ${sign(r.netCashFlow)}"><span>เงินเข้า-ออกสุทธิในบัญชี</span><span class="num">${money(r.netCashFlow)}</span></div>
+        </div>
       </div>
-      <div class="hint" style="margin-top:12px;margin-bottom:4px;">🥧 สัดส่วนรายจ่ายเดือนนี้</div>
-      <!-- โทนฟ้า-เหลือง-ชมพูพาสเทลตามที่ขอ (แยกจาก PIE_COLORS เพราะขอเป็นสีชุดเฉพาะของกราฟนี้) — อัปเดตตามพาเลตต์อ้างอิงที่ส่งมา
-           (Sky/Mastard/Cotton Candy) แค่ 3 สีที่ห่างกันคนละโทน (ฟ้า/เหลือง/ชมพู) เลยอ่อนหวานได้มากกว่า PIE_COLORS (8 สี) โดยยัง
-           ผ่านเช็คตาบอดสีสบายๆ (ΔE 13.5+ ทุกคู่ — เช็คด้วย dataviz skill's validate_palette.js แล้ว เท่าเดิมกับชุดสีก่อนหน้า) -->
-      ${buildPieChartSVG([
-        {label:'ต้นทุนซื้อ (COGS)', value:r.cogsTotal, color:'#8BD2EC'},
-        {label:'รายจ่ายกิจการอื่นๆ', value:r.expenseTotal, color:'#FCEE9E'},
-        {label:'Brand fee', value:r.feeTotal, color:'#FFBBDA'},
-      ])}
-      <table class="plain" style="margin-top:10px;">
-      <tr><td>รายรับจริง (สาขาโอนแล้ว)</td><td class="num num" style="color:var(--success);">${money(r.revenuePaid)}</td></tr>
-      <tr><td>รายจ่ายกิจการอื่นๆ + ต้นทุนซื้อ + Brand fee</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal + r.cogsTotal + r.feeTotal)}</td></tr>
-      <tr><td>ชำระหนี้องค์กร (เงินต้น)</td><td class="num num" style="color:var(--danger);">-${money(r.orgDebtPayments)}</td></tr>
-      <tr><td>ชำระหนี้องค์กร (ดอกเบี้ย) — นับรวมในรายจ่ายกิจการด้านบนแล้ว</td><td class="num num" style="color:var(--text-faint);">${money(r.orgDebtInterest)}</td></tr>
-      </table>
-      <div class="grand" style="display:flex;justify-content:space-between;padding:10px 12px;margin-top:8px;border-radius:8px;background:${r.netCashFlow>=0?'var(--success-soft)':'var(--danger-soft)'};">
-        <span style="font-weight:600;">เงินเข้า-ออกสุทธิในบัญชี</span>
-        <span class="num" style="font-weight:600;color:${r.netCashFlow>=0?'var(--success)':'var(--danger)'};">${money(r.netCashFlow)}</span>
-      </div>
-      ${bestDayHtml}${worstDayHtml}
-      ${buildMonthInsightsHtml(r, prevR)}
+      ${(bestDayHtml||worstDayHtml) ? `<div class="pl-panel">${bestDayHtml}${worstDayHtml}${buildMonthInsightsHtml(r, prevR)}</div>` : ''}
       <div class="hint">กำไรสุทธิ = ยอดขายทั้งหมด − ต้นทุนซื้อ − รายจ่ายกิจการอื่นๆ − Brand fee (คิดแบบบัญชีคงค้าง รวมยอดค้างรับด้วย) — ถ้าแท็บต้นทุนซื้อยังกรอกไม่ครบ ตัวเลขนี้จะสูงเกินจริง<br>เงินเข้า-ออกสุทธิ = เฉพาะเงินที่โอนมาจริง หักรายจ่าย/ต้นทุน/ชำระหนี้องค์กรที่จ่ายจริง (ไม่รวมยอดค้างรับ, ไม่รวมชำระหนี้ส่วนตัว AY/WJ)</div>`;
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
 }
@@ -4756,7 +4898,7 @@ function buildYearBarSVG(monthly){
     const x = padL + i*gap + (gap-barW)/2;
     const barH = Math.abs(m.netProfit)*scale;
     const y = m.netProfit>=0 ? zeroY-barH : zeroY;
-    const color = m.netProfit>=0 ? '#8DE2C5' : '#F2ADAD';
+    const color = m.netProfit>=0 ? '#3FB58E' : '#E0607E';
     return `<rect class="km-bar${m.netProfit<0?' neg':''}" data-monthidx="${i}" style="cursor:pointer;--i:${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1,barH).toFixed(1)}" fill="${color}" rx="2"/><text x="${(x+barW/2).toFixed(1)}" y="${H-4}" font-size="9" fill="#87A2A8" text-anchor="middle">${m.month}</text>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;">
@@ -4782,21 +4924,25 @@ async function renderYearSummary(){
     const r = await computeYearFinancials(year);
     el.className='';
     el.innerHTML = `
-      <div class="dash-grid" style="margin-bottom:10px;">
-        <div class="dash-metric info"><div class="dm-label">💰 ยอดขายรวมปีนี้</div><div class="dm-value num">${money(r.revenue)}</div></div>
-        <div class="dash-metric ${r.netProfit>=0?'success':'danger'}"><div class="dm-label">📈 กำไรสุทธิรวมปีนี้</div><div class="dm-value num">${money(r.netProfit)}</div></div>
-        <div class="dash-metric"><div class="dm-label">📆 กำไรเฉลี่ย/เดือน</div><div class="dm-value num">${money(r.avgProfitPerMonth)}</div></div>
-        <div class="dash-metric success"><div class="dm-label">✅ รับเงินจริงแล้ว</div><div class="dm-value num">${money(r.revenuePaid)}</div></div>
+      <div class="dash-grid g4" style="margin-bottom:12px;">
+        <div class="dash-metric" data-tone="lav"><div class="dm-label">💰 ยอดขายรวมปีนี้</div><div class="dm-value num">${money(r.revenue)}</div></div>
+        <div class="dash-metric ${r.netProfit>=0?'success':'danger'}" data-tone="mint"><div class="dm-label">📈 กำไรสุทธิรวมปีนี้</div><div class="dm-value num">${money(r.netProfit)}</div></div>
+        <div class="dash-metric" data-tone="sky"><div class="dm-label">📆 กำไรเฉลี่ย/เดือน</div><div class="dm-value num">${money(r.avgProfitPerMonth)}</div></div>
+        <div class="dash-metric success" data-tone="aqua"><div class="dm-label">✅ รับเงินจริงแล้ว</div><div class="dm-value num">${money(r.revenuePaid)}</div></div>
       </div>
-      <div class="hint" style="margin-bottom:4px;">กำไรสุทธิรายเดือนตลอดปี (<span style="color:#8DE2C5;font-weight:600;">เขียว</span>=กำไร <span style="color:#F2ADAD;font-weight:600;">แดง</span>=ขาดทุน)</div>
+      <div class="pl-panel">
+      <div class="pl-panel-h">กำไรสุทธิรายเดือนตลอดปี <span class="pl-legend"><i style="background:#3FB58E"></i>กำไร <i style="background:#E0607E"></i>ขาดทุน</span></div>
       <div id="yearSelectedValue" class="hint" style="min-height:16px;"></div>
       ${buildYearBarSVG(r.monthly)}
-      <table class="plain" style="margin-top:10px;">
+      </div>
+      <div class="pl-panel">
+      <table class="plain pl-table">
       <tr><td>ต้นทุนซื้อ (COGS) รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.cogsTotal)}</td></tr>
       <tr><td>รายจ่ายกิจการอื่นๆ รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.expenseTotal)}</td></tr>
       <tr><td>Brand fee รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.feeTotal)}</td></tr>
       <tr><td>ของเสีย/เคลม รวมทั้งปี</td><td class="num num" style="color:var(--danger);">-${money(r.wasteTotal)}</td></tr>
-      </table>`;
+      </table>
+      </div>`;
     const yearSelectedEl = document.getElementById('yearSelectedValue');
     el.querySelectorAll('[data-monthidx]').forEach(rect=>{
       rect.addEventListener('click', ()=>{
@@ -10309,8 +10455,9 @@ async function renderDataGaps(){
   const list = document.getElementById('dataGapsList');
   try{
     const gaps = await computeDataGaps();
-    if(gaps.length===0){ card.style.display='none'; return; }
-    card.style.display='';
+    const badge = document.getElementById('notiBadge');
+    if(badge){ badge.textContent = gaps.length > 99 ? '99+' : String(gaps.length); badge.hidden = gaps.length===0; }
+    if(gaps.length===0){ list.innerHTML = '<div class="empty">✅ ข้อมูลครบทุกวัน ไม่มีอะไรต้องแก้</div>'; return; }
     // เรียงล่าสุดก่อน และโชว์แค่ 25 รายการแรกกันการ์ดยาวเกินไป (ยังเช็คครบทุกวันอยู่ดี แค่จำกัดจำนวนที่แสดง)
     const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
     const shown = sortedGaps.slice(0,25);
@@ -10461,6 +10608,7 @@ async function switchTab(name){
     if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
+    if(name==='noti'){ await loadActivityLog(); renderActivityFeed_(); await renderDataGaps(); }
     if(name==='settings'){ renderPriceProductSelect(); renderShelfLifeSettings(); renderBillInfoForm(); renderBranchSettings(); renderExpenseCategorySettings(); renderDebtOwnerSettings(); renderDebtTypeSettings(); renderPIncomeCategorySettings(); renderPExpenseCategorySettings(); renderPurchSellerSettings(); }
   }catch(e){
     showToast('โหลดข้อมูลบางส่วนของหน้านี้ไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหรือสลับแท็บใหม่อีกครั้ง');
@@ -10648,7 +10796,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-02.2';
+const APP_BUILD = '2026-11-03.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -11081,6 +11229,12 @@ async function init(){
   guardedClick('saveRowBtn', saveRow);
   document.getElementById('clearRowBtn').addEventListener('click', ()=>{ editingCode=null; renderProductInputs(); });
   guardedClick('saveLeftoverBtn', saveLeftover);
+  const ltInput = document.getElementById('ltImgInput');
+  document.getElementById('leftoverInView').addEventListener('click', e=>{
+    const b = e.target.closest('[data-ltimg]'); if(!b) return;
+    ltInput.dataset.pid = b.getAttribute('data-ltimg'); ltInput.value = ''; ltInput.click();
+  });
+  ltInput.addEventListener('change', ()=>{ if(ltInput.files && ltInput.files[0]) setProductImage_(ltInput.dataset.pid, ltInput.files[0]); });
   document.getElementById('noLeftoverBtn').addEventListener('click', confirmNoLeftover);
   document.getElementById('clearLeftoverBtn').addEventListener('click', clearLeftoverToday);
   document.getElementById('monthInput').addEventListener('change', renderMonthFee);

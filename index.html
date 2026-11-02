@@ -847,6 +847,8 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 @media (min-width:1024px){ body.dash-nav-collapsed .noti-badge{top:1px;right:1px;transform:none;} }
 .noti-card .badge-delay{white-space:nowrap;flex:none;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
+.actfeed-day{position:sticky;top:0;z-index:1;margin-top:10px;padding:4px 10px;border-radius:999px;background:var(--card-bg,var(--c-sky));border:1.5px solid var(--card-bd,var(--b-sky));font-size:11.5px;font-weight:700;width:fit-content;}
+.actfeed-day:first-child{margin-top:0;}
 /* ---- กล่องรูป เหลือรับเข้า ---- */
 .ltile-grid{display:flex;flex-wrap:nowrap;gap:12px;}
 .ltile-grid > .ltile{flex:1 1 0;min-width:0;max-width:170px;}
@@ -2308,6 +2310,11 @@ async function saveDay(iso, data){
 async function writeBillingPaid_(iso, code, value){
   const res = await window.storage.patchField('day:'+iso, ['billingPaid', code], value);
   const fresh = normalizeDay_(JSON.parse(res.value));
+  try{
+    const amt = branchBillAmount(fresh.orders[code]||{}, iso) + Number((fresh.billExtra||{})[code]||0);
+    const pd = value && value.paidDate ? ` (โอนวันที่ ${formatDDMMYYYY(value.paidDate)})` : '';
+    logActivity_(`${value ? '✅ โอนแล้ว' : '↩️ เปลี่ยนเป็นรอโอน'} บิลสาขา ${code} ${branchName(code)} ${money(amt)}${value?pd:''} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
+  }catch(e){}
   dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์ เหมือนที่ saveDay() ทำ
   writeDayToLocalStorage_(iso, fresh);
   return fresh;
@@ -2320,6 +2327,8 @@ async function writeExpensePaid_(iso, expenseId, paid, paidDate){
   const res = await window.storage.patchOps('day:'+iso, ops, false);
   const fresh = normalizeDay_(JSON.parse(res.value));
   if(!(fresh.expenses||[]).some(x=>x.id===expenseId)) throw new Error('รายการนี้ถูกลบไปแล้ว');
+  const ex = fresh.expenses.find(x=>x.id===expenseId);
+  logActivity_(`${paid?'✅ จ่ายแล้ว':'↩️ เปลี่ยนเป็นรอจ่าย'} รายจ่าย ${ex.category}${ex.seller?` (${ex.seller})`:''} ${money(ex.amount)} — วันที่ ${formatDDMMYYYY(iso)}`);
   dayCache_[iso] = fresh;
   writeDayToLocalStorage_(iso, fresh);
   return fresh;
@@ -2335,6 +2344,7 @@ async function writePurchaseGroupPaid_(iso, seller, paid, paidDate){
   ];
   const res = await window.storage.patchOps('day:'+iso, ops, false);
   const fresh = normalizeDay_(JSON.parse(res.value));
+  logActivity_(`${paid?'✅ จ่ายแล้ว':'↩️ เปลี่ยนเป็นรอจ่าย'} บิลซื้อของ ${seller} — วันที่ ${formatDDMMYYYY(iso)}`);
   dayCache_[iso] = fresh;
   writeDayToLocalStorage_(iso, fresh);
   return fresh;
@@ -2353,6 +2363,10 @@ async function writeLotBillPaid_(which, billId, fields){
   try{ bills = JSON.parse(res.value); }catch(e){ bills = []; }
   if(!Array.isArray(bills)) bills = [];
   if(!bills.some(x=>x.id===billId)) throw new Error('บิลนี้ถูกลบไปแล้ว');
+  if(Object.prototype.hasOwnProperty.call(fields,'paid')){
+    const b = bills.find(x=>x.id===billId);
+    logActivity_(`${fields.paid?'✅ จ่ายแล้ว':'↩️ เปลี่ยนเป็นรอจ่าย'} ${which==='transport'?'บิลค่าขนส่งล็อต':'บิลสินค้าล็อต'} ${b.seller||b.name||''} ${b.amount!=null?money(b.amount):''}`.replace(/\s+/g,' ').trim());
+  }
   if(which==='transport') lotTransportBillsCache_ = bills;
   else lotProductBillsCache_ = bills;
   return bills;
@@ -2398,35 +2412,73 @@ async function writeRootArrayOp_(key, op, setCache){
 // เก็บเป็น root array key เดียวกับ debts/rawLots — แคชในหน่วยความจำแบบเดียวกับ loadRawLots() (โหลดครั้งแรกที่ใช้ค่อยยิงเน็ต)
 // จงใจบันทึกเฉพาะจุดที่มีนัยสำคัญ (ไม่ใช่ทุกการกระทำในแอพ) กันไม่ให้ activityLog บวมและกันความเสี่ยงจากการแตะจุดบันทึกข้อมูลจำนวนมาก
 let activityLogCache_ = null;
-async function loadActivityLog(){
+// บันทึกแยกคีย์ต่อวัน (actlog:YYYY-MM-DD) — ช่องเก็บข้อมูลฝั่ง Sheets รับได้ราว 5 หมื่นตัวอักษรต่อคีย์ ถ้ารวมทุกกิจกรรม
+// ไว้คีย์เดียวจะเต็มภายในไม่กี่วันแล้วบันทึกไม่ได้อีก — 'activityLog' เดิมยังอ่านมารวมแสดงด้วย (ไม่เขียนเพิ่มแล้ว)
+const ACT_LOG_PREFIX = 'actlog:';
+let activityLogDays_ = [], activityLogShownDays_ = 0;
+const ACT_LOG_PAGE_DAYS = 7;
+async function loadActivityLog(more){
+  if(activityLogCache_ && !more) return activityLogCache_;
   if(!activityLogCache_){
-    try{ const r = await window.storage.get('activityLog'); const v = JSON.parse(r.value); activityLogCache_ = Array.isArray(v)?v:[]; }
-    catch(e){
-      const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-      if(isNotFound){ activityLogCache_ = []; }
-      else{ throw e; }
-    }
+    const listRes = await window.storage.list(ACT_LOG_PREFIX);
+    activityLogDays_ = ((listRes && listRes.keys) || []).map(k=>k.slice(ACT_LOG_PREFIX.length)).sort().reverse();
+    activityLogShownDays_ = 0;
+    activityLogCache_ = [];
+    try{ const r = await window.storage.get('activityLog'); const v = JSON.parse(r.value); if(Array.isArray(v)) activityLogCache_ = v.slice(); }
+    catch(e){ if(!(e && e.message && e.message.indexOf('Key not found') === 0)) throw e; }
   }
+  const nextDays = activityLogDays_.slice(activityLogShownDays_, activityLogShownDays_ + ACT_LOG_PAGE_DAYS);
+  if(nextDays.length){
+    const vals = await window.bulkGetStorageImpl(nextDays.map(d=>ACT_LOG_PREFIX+d));
+    nextDays.forEach(d=>{ try{ const v = JSON.parse(vals[ACT_LOG_PREFIX+d]); if(Array.isArray(v)) activityLogCache_.push(...v); }catch(e){} });
+    activityLogShownDays_ += nextDays.length;
+  }
+  const seen = new Set();
+  activityLogCache_ = activityLogCache_.filter(e=>e && !seen.has(e.id) && seen.add(e.id)).sort((a,b)=>a.ts-b.ts);
   return activityLogCache_;
+}
+function lotLabel_(lotId){
+  const l = (rawLotsCache_||[]).find(x=>x.id===lotId);
+  if(!l) return 'ล็อต';
+  const p = PRODUCTS.find(x=>x.id===l.productId);
+  return `ล็อต ${p?p.emoji+p.name:(l.customName||l.productId||'')}${l.buyDate?` (ซื้อ ${formatDDMMYYYY(l.buyDate)})`:''}`;
+}
+function orderRowSummary_(row){
+  if(!row) return '';
+  const parts = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>p.emoji+Number(row[p.id]));
+  (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) parts.push('📦'+it.name+' '+it.qty); });
+  return parts.join(' ');
 }
 async function logActivity_(text){
   const entry = {id: uid('act'), ts: Date.now(), text};
+  const day = todayISO();
   try{
-    await writeRootArrayOp_('activityLog', {push: entry}, arr=>{activityLogCache_=arr;});
+    await writeRootArrayOp_(ACT_LOG_PREFIX+day, {push: entry}, ()=>{});
+    if(activityLogCache_){
+      activityLogCache_.push(entry);
+      if(!activityLogDays_.includes(day)){ activityLogDays_.unshift(day); activityLogShownDays_++; }
+    }
   }catch(e){ console.error('logActivity_ failed', e); } // อย่าให้การบันทึก log ล้มแล้วพาการกระทำหลัก (เช่นเพิ่มรายจ่าย) ที่เพิ่งสำเร็จไปแล้วดูเหมือนพัง
   renderActivityFeed_();
 }
 function renderActivityFeed_(){
   const el = document.getElementById('dashActivityFeed');
   if(!el || !activityLogCache_) return;
-  // เพิ่มจำนวนที่โชว์ไว้มาก (ไม่ใช่แค่ 6 ล่าสุด) เพราะกล่องนี้เลื่อนดูได้อยู่แล้ว (overflow-y:auto) อยากย้อนดูประวัติได้ไกลๆ
-  const latest = activityLogCache_.slice(-200).reverse();
-  el.innerHTML = latest.length ? latest.map(e=>{
+  const latest = activityLogCache_.slice().reverse();
+  let lastDay = '';
+  const items = latest.map(e=>{
     const d = new Date(e.ts);
     const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
     const dd = String(d.getDate()).padStart(2,'0'), mo = String(d.getMonth()+1).padStart(2,'0');
-    return `<div class="dwtile-feed-item"><span class="dwtile-feed-time">${dd}/${mo} ${hh}:${mm}</span>${escapeHtml(e.text)}</div>`;
-  }).join('') : '<div class="hint">ยังไม่มีรายการ</div>';
+    const dayKey = `${dd}/${mo}/${d.getFullYear()}`;
+    const head = dayKey !== lastDay ? `<div class="actfeed-day">${dayKey}</div>` : '';
+    lastDay = dayKey;
+    return `${head}<div class="dwtile-feed-item"><span class="dwtile-feed-time">${dd}/${mo} ${hh}:${mm}</span>${escapeHtml(e.text)}</div>`;
+  }).join('');
+  const moreBtn = activityLogShownDays_ < activityLogDays_.length ? '<button type="button" class="btn secondary small" id="actFeedMoreBtn" style="margin-top:8px;">ดูย้อนหลังเพิ่ม</button>' : '';
+  el.innerHTML = latest.length ? items + moreBtn : '<div class="hint">ยังไม่มีรายการ</div>';
+  const mb = document.getElementById('actFeedMoreBtn');
+  if(mb) mb.addEventListener('click', async ()=>{ mb.disabled = true; await loadActivityLog(true); renderActivityFeed_(); });
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
@@ -2630,6 +2682,7 @@ function renderOrderList(){
       dayCache_[iso] = fresh;
       writeDayToLocalStorage_(iso, fresh);
       if(iso===currentDate) dayData = fresh;
+      logActivity_(`ลบออเดอร์ สาขา ${code} ${branchName(code)} — วันที่ ${formatDDMMYYYY(iso)}`);
       refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
     }catch(e){
       showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
@@ -2647,11 +2700,13 @@ async function saveRow(){
   // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
   // ทั้งก้อนที่ยิงออกไปพร้อมกันอาจถึงเซิร์ฟเวอร์สลับคิวกัน ใครมาถึงทีหลังจะเขียนทับของอีกฝั่งทั้งหมดแบบเงียบๆ (ตรงกับปัญหา
   // จริงที่เจอ: กรอกออเดอร์ใหม่แล้วต้นทุนซื้อ/สถานะบิลของวันนั้นกลับกลายเป็นข้อมูลเก่า) patchField ล็อกฝั่งเซิร์ฟเวอร์ตรงนี้
+  const hadOrder = orderRowHasOrder_((dayData.orders||{})[code]);
   const res = await window.storage.patchField('day:'+iso, ['orders', code], row);
   const fresh = normalizeDay_(JSON.parse(res.value));
   dayCache_[iso] = fresh;
   writeDayToLocalStorage_(iso, fresh);
   if(iso===currentDate) dayData = fresh;
+  logActivity_(`${hadOrder?'แก้ไขออเดอร์':'บันทึกออเดอร์'} สาขา ${code} ${branchName(code)} ${orderRowSummary_(row)} — วันที่ ${formatDDMMYYYY(iso)}`);
   editingCode = null;
   refreshOrderTab(); renderStats();
   // เลื่อนไปให้เห็นบรรทัดสาขาที่เพิ่งบันทึกในลิสต์ "สาขาที่บันทึกแล้ววันนี้" ทันที ให้มั่นใจว่าบันทึกจริง (ไม่ต้องคอยเชื่อ toast อย่างเดียว)
@@ -2765,6 +2820,7 @@ function renderOffscreenOrderTicket(code, row, iso, width){
 async function saveOrderTicketAsImage(code){
   const row = dayData.orders[code];
   if(!row){ showToast('ไม่พบออเดอร์สาขานี้'); return; }
+  logActivity_(`บันทึกรูปป้าย PeriPage สาขา ${code} — วันที่ ${formatDDMMYYYY(currentDate)}`);
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   showToast('กำลังสร้างรูปภาพ…');
@@ -2803,6 +2859,7 @@ async function saveOrderTicketAsImage(code){
 async function saveAllOrderTicketsAsImages(){
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
+  logActivity_(`บันทึกทุกภาพ PeriPage (${entries.length} สาขา + ใบรวม) — วันที่ ${formatDDMMYYYY(currentDate)}`);
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -3140,6 +3197,7 @@ async function readOrderImages(fileList){
       dayCache_[targetDate] = fresh;
       writeDayToLocalStorage_(targetDate, fresh);
       if(targetDate===currentDate){ dayData = fresh; refreshOrderTab(); renderStats(); }
+      logActivity_(`อ่านออเดอร์จากรูป ${successList.length} สาขา (${successList.join(', ')}) — วันที่ ${formatDDMMYYYY(targetDate)}`);
     }catch(e){
       statusEl.textContent = `อ่านภาพเสร็จแล้ว แต่บันทึกลงวันที่ ${formatDDMMYYYY(targetDate)} ไม่สำเร็จ (เน็ตมีปัญหา?) — ยังไม่ได้บันทึกอะไรลงไปเลย ลองใหม่อีกครั้ง`;
       return;
@@ -3255,6 +3313,7 @@ async function renderMessages(){
   });
   document.getElementById('copyAllMsgBtn').addEventListener('click', async (e)=>{
     const btn = e.currentTarget;
+    logActivity_(`คัดลอกข้อความส่งทั้งหมด — วันที่ ${formatDDMMYYYY(currentDate)}`);
     try{ await navigator.clipboard.writeText(copyAllText); }
     catch(err){ const ta=document.createElement('textarea'); ta.value=copyAllText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
     const original = `📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)`;
@@ -3265,6 +3324,7 @@ async function renderMessages(){
     btn.addEventListener('click', async (e)=>{
       e.stopPropagation(); // ปุ่มนี้อยู่ในแถวหัวข้อที่มี toggle พับ/กางผูกอยู่ทั้งแถว (data-msgblocktoggle) — กันไม่ให้กดคัดลอกแล้วพับ/กางไปด้วย
       const idx = Number(btn.getAttribute('data-copy'));
+      logActivity_(`คัดลอกข้อความส่ง (${blocks[idx].tag||'ส่วนที่ '+(idx+1)}) — วันที่ ${formatDDMMYYYY(currentDate)}`);
       try{ await navigator.clipboard.writeText(blocks[idx].text); }
       catch(err){ const ta=document.createElement('textarea'); ta.value=blocks[idx].text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
       const original = btn.textContent;
@@ -3299,6 +3359,7 @@ async function renderMessages(){
     writeDayToLocalStorage_(iso, fresh);
     if(iso===currentDate) dayData = fresh;
     showToast('บันทึกข้อความแล้ว');
+    logActivity_(`แก้ไขข้อความส่ง (${tag}) — วันที่ ${formatDDMMYYYY(iso)}`);
     renderMessages();
   }));
   area.querySelectorAll('[data-msgreset]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -3310,6 +3371,7 @@ async function renderMessages(){
     dayCache_[iso] = fresh;
     writeDayToLocalStorage_(iso, fresh);
     if(iso===currentDate) dayData = fresh;
+    logActivity_(`รีเซ็ตข้อความส่งเป็นแบบอัตโนมัติ (${tag}) — วันที่ ${formatDDMMYYYY(iso)}`);
     showToast('รีเซ็ตเป็นข้อความอัตโนมัติแล้ว');
     renderMessages();
   }));
@@ -3447,6 +3509,7 @@ async function setProductImage_(pid, file){
     await window.storage.set(productImageKey_(pid), JSON.stringify(dataUrl));
     (productImages_ = productImages_ || {})[pid] = dataUrl;
     showToast('เปลี่ยนรูปแล้ว');
+    const pp = PRODUCTS.find(x=>x.id===pid); logActivity_(`เปลี่ยนรูปสินค้า ${pp?pp.emoji+pp.name:pid}`);
     await renderLeftover();
   }catch(e){ showToast('บันทึกรูปไม่สำเร็จ — '+((e&&e.message)||'ลองใหม่อีกครั้ง')); }
 }
@@ -3769,6 +3832,8 @@ async function saveLeftover(){
   writeDayToLocalStorage_(iso, fresh);
   if(iso===currentDate) dayData = fresh;
   showToast('บันทึกของเหลือแล้ว');
+  const lsum = LEFTOVER_IDS.filter(id=>Number(fresh.leftoverOut[id]||0)>0).map(id=>{ const p=PRODUCTS.find(x=>x.id===id); return p.emoji+fresh.leftoverOut[id]; }).join(' ');
+  logActivity_(`บันทึกของเหลือ ${lsum||'(ไม่มี)'} — วันที่ ${formatDDMMYYYY(iso)}`);
   renderMessages();
 }
 async function confirmNoLeftover(){
@@ -3782,6 +3847,7 @@ async function confirmNoLeftover(){
   if(iso===currentDate) dayData = fresh;
   renderLeftover();
   showToast('ยืนยันแล้วว่าวันนี้ไม่มีของเหลือ');
+  logActivity_(`ยืนยันว่าไม่มีของเหลือ — วันที่ ${formatDDMMYYYY(iso)}`);
   renderMessages();
 }
 // ล้างค่าของเหลือที่เคยบันทึก/ยืนยันไว้ของวันนี้ทั้งหมดทิ้ง (ไม่ใช่ตั้งเป็น 0 แบบ "วันนี้ไม่มีของเหลือ" — คือเอาออกไปเลยจนกลายเป็น
@@ -3798,6 +3864,7 @@ async function clearLeftoverToday(){
   writeDayToLocalStorage_(iso, fresh);
   if(iso===currentDate) dayData = fresh;
   renderLeftover();
+  logActivity_(`ล้างของเหลือที่บันทึกไว้ ให้คำนวณใหม่ — วันที่ ${formatDDMMYYYY(iso)}`);
   showToast('ล้างข้อมูลของเหลือวันนี้แล้ว — ระบบคำนวณค่าแนะนำใหม่ให้แล้ว รอกดบันทึกยืนยันอีกครั้ง');
   renderMessages();
 }
@@ -4096,6 +4163,7 @@ function renderBillingList(){
 async function saveReceiptAsImage(code){
   const node = document.getElementById(`receiptcard-${code}`);
   if(!node){ showToast('ไม่พบบิล'); return; }
+  logActivity_(`บันทึกรูปบิล สาขา ${code} ${branchName(code)} — วันที่ ${formatDDMMYYYY(currentDate)}`);
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   showToast('กำลังสร้างรูปภาพ…');
@@ -4142,6 +4210,7 @@ async function renderOffscreenReceipt(code, width){
 async function saveAllReceiptsAsImages(){
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   if(entries.length===0){ showToast('ยังไม่มีออเดอร์วันนี้'); return; }
+  logActivity_(`บันทึกบิลทุกใบเป็นรูป (${entries.length} สาขา) — วันที่ ${formatDDMMYYYY(currentDate)}`);
   showToast('กำลังโหลดตัวช่วยสร้างรูปภาพ…');
   if(!(await ensureHtml2Canvas_())){ showToast('โหลดตัวช่วยสร้างรูปภาพไม่สำเร็จ ลองเชื่อมอินเทอร์เน็ตแล้วลองใหม่'); return; }
   entries.sort(branchEntrySortSeparateLast_);
@@ -4281,6 +4350,7 @@ async function toggleReceipt(code){
   holder.querySelector(`[data-billnote="${code}"]`).addEventListener('change', async (e)=>{
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['billNote', code], e.target.value);
+    logActivity_(`แก้หมายเหตุบิล สาขา ${code} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     // พิมพ์/คัดลอกบิลอ่านค่านี้สดจาก dayData ทุกครั้งอยู่แล้ว (computeReceiptData) แต่การ์ดที่เปิดค้างอยู่ตอนนี้ยังโชว์เลขเก่า
     // ถ้าติ๊ก "ลงในบิล" ไว้แล้ว — เปิดใหม่ให้ตรงกับค่าที่เพิ่งบันทึก
@@ -4289,6 +4359,7 @@ async function toggleReceipt(code){
   holder.querySelector(`[data-billnoteshow="${code}"]`).addEventListener('change', async (e)=>{
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['billNoteShowOnBill', code], e.target.checked);
+    logActivity_(`${e.target.checked?'แสดง':'ซ่อน'}หมายเหตุบนบิล สาขา ${code} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     holder.innerHTML=''; toggleReceipt(code);
   });
@@ -4296,6 +4367,7 @@ async function toggleReceipt(code){
   extraInput.addEventListener('change', async ()=>{
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['billExtra', code], Number(extraInput.value||0));
+    logActivity_(`แก้ค่าใช้จ่ายเพิ่ม/เคลมในบิล สาขา ${code} เป็น ${money(Number(extraInput.value||0))} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     const newTotal = subtotal + Number(extraInput.value||0);
     document.getElementById(`grandtotal-${code}`).textContent = money(newTotal);
@@ -4317,7 +4389,7 @@ async function toggleReceipt(code){
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
     ].join('\n');
     try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-    showToast('คัดลอกข้อความบิลแล้ว');
+    showToast('คัดลอกข้อความบิลแล้ว'); logActivity_(`คัดลอกข้อความบิล สาขา ${code}`);
   });
 }
 // เวอร์ชันเปิดบิลแบบฝังอยู่ในที่เดิม (ไม่เปลี่ยนหน้า/ไม่เปลี่ยนวันที่ที่กำลังดูอยู่บนสุดของแอป) ใช้ใน "เช็คยอดรายสาขา"
@@ -4356,6 +4428,7 @@ async function toggleBranchDetailReceipt(iso, code){
   const extraInput = holder.querySelector(`[data-extra="${code}"]`);
   extraInput.addEventListener('change', async ()=>{
     const fresh = await writeDayFieldPath_(iso, ['billExtra', code], Number(extraInput.value||0));
+    logActivity_(`แก้ค่าใช้จ่ายเพิ่ม/เคลมในบิล สาขา ${code} เป็น ${money(Number(extraInput.value||0))} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     const newTotal = subtotal + Number(extraInput.value||0);
     document.getElementById(`grandtotal-${code}`).textContent = money(newTotal);
@@ -4376,7 +4449,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
     ].join('\n');
     try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-    showToast('คัดลอกข้อความบิลแล้ว');
+    showToast('คัดลอกข้อความบิลแล้ว'); logActivity_(`คัดลอกข้อความบิล สาขา ${code}`);
   });
 }
 // โชว์/ซ่อนช่องพิมพ์ชื่อเองของ "จ่ายให้ใคร" ตามตัวเลือกปัจจุบัน — ใช้ร่วมกันทั้งฟอร์มเดิมและ modal เพิ่มรายจ่ายด่วน
@@ -4723,6 +4796,7 @@ async function saveDashNote_(){
   const value = document.getElementById('dashNoteTextarea').value;
   try{
     const fresh = await writeDayFieldPath_(iso, [field], value);
+    logActivity_(`${field==='feeNote'?'แก้หมายเหตุ Brand Fee':'แก้บันทึกวันนี้'} — วันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     dayCache_[iso] = fresh; // เก็บแคชให้ตรงกับของจริงบนเซิร์ฟเวอร์เสมอ (จุดนี้เคยลืมไว้ — ลบ/แก้โน้ตของวันอื่นที่ไม่ใช่
     // currentDate เช่นแก้ feeNote ผ่านตาราง Brand Fee แล้วบันทึกสำเร็จจริง แต่แคชยังเป็นค่าเก่า พอตารางรีเรนเดอร์ทันที
@@ -4848,7 +4922,7 @@ function renderExpenseCategorySettings(){
 async function saveExpenseCategories(){
   const inputs = document.querySelectorAll('[data-expcat]');
   settings.expenseCategories = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await writeSettingsFieldPath_(['expenseCategories'], settings.expenseCategories);
+  await writeSettingsFieldPath_(['expenseCategories'], settings.expenseCategories); logActivity_('แก้ไขตั้งค่า: หมวดรายจ่ายกิจการ');
   showToast('บันทึกหมวดรายจ่ายแล้ว');
 }
 function addExpenseCategory(){
@@ -5597,7 +5671,7 @@ async function renderRecheckHistory_(){
       if(!round) return;
       const txt = recheckRoundSummaryText_(round);
       try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-      showToast('คัดลอกสรุปรอบรีเช็คแล้ว');
+      showToast('คัดลอกสรุปรอบรีเช็คแล้ว'); logActivity_('คัดลอกสรุปรอบรีเช็คบิล');
     }));
     el.querySelectorAll('[data-recheckroundimg]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const card = btn.closest('.card');
@@ -5708,6 +5782,7 @@ async function renderRecheckRoundSummary_(){
       clearBtn.disabled = true; clearBtn.textContent = 'กำลังเคลียร์…';
       try{
         await clearBillingRecheckRound_();
+        logActivity_('บันทึกและปิดรอบรีเช็คบิล');
         showToast('เคลียร์รอบรีเช็คแล้ว');
         await renderRecheckRoundSummary_();
         await renderRecheckHistory_();
@@ -5972,6 +6047,7 @@ async function onOutstandingListClick_(e){
     t.disabled = true;
     try{
       const cur = await unmarkBillingRecheck_(key);
+      logActivity_('ยกเลิกผลรีเช็คบิล 1 รายการ');
       outstandingMarks_ = cur.marks || {};
       await renderRecheckRoundSummary_();
       rerenderOutstandingRow_(key);
@@ -5990,6 +6066,7 @@ async function onOutstandingListClick_(e){
     const mark = {key, iso:r.iso, code:r.code, amt:r.amt, checkedAt:new Date().toISOString(), note, result};
     try{
       const cur = await writeBillingRecheckMark_(key, mark);
+      logActivity_(`รีเช็คบิล สาขา ${r.code} ${money(r.amt)}: ${result==='found_paid'?'เจอยอดโอนแล้ว':'ยังไม่โอน'}${note?' ('+note+')':''} — บิลวันที่ ${formatDDMMYYYY(r.iso)}`);
       outstandingMarks_ = cur.marks || {};
       // ผลเช็คไม่ตรงกับสถานะจ่ายปัจจุบัน -> แก้สถานะให้ตรงในจุดเดียวกันนี้เลย (ทั้งสองทิศทาง)
       const resultMeansPaid = result==='found_paid';
@@ -6220,7 +6297,7 @@ async function renderOutstandingLineMsgs_(){
     el.querySelectorAll('[data-linemsgcopy]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const txt = el.querySelector(`[data-linemsgtext="${btn.getAttribute('data-linemsgcopy')}"]`).textContent;
       try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-      showToast('คัดลอกข้อความแล้ว — วางใน Line ได้เลย');
+      showToast('คัดลอกข้อความแล้ว — วางใน Line ได้เลย'); logActivity_(`คัดลอกข้อความตามยอดค้าง (${btn.getAttribute('data-linemsgcopy')})`);
     }));
   }catch(e){ el.innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ</div>'; }
 }
@@ -6243,7 +6320,7 @@ function renderPriceHistory(){
       if(!confirm('ลบประวัติราคานี้?')) return;
       const [ppid, pdate] = btn.getAttribute('data-delprice').split('|');
       settings.priceHistory[ppid] = settings.priceHistory[ppid].filter(h=>h.date!==pdate);
-      await writeSettingsFieldPath_(['priceHistory', ppid], settings.priceHistory[ppid]);
+      await writeSettingsFieldPath_(['priceHistory', ppid], settings.priceHistory[ppid]); { const pp=PRODUCTS.find(x=>x.id===ppid); logActivity_(`ลบประวัติราคาขาย ${pp?pp.emoji+pp.name:ppid}`); }
       renderPriceHistory();
       showToast('ลบประวัติราคาแล้ว');
     });
@@ -6258,7 +6335,7 @@ async function addPriceHistory(){
   if(!settings.priceHistory[pid]) settings.priceHistory[pid] = [];
   settings.priceHistory[pid] = settings.priceHistory[pid].filter(h=>h.date!==date);
   settings.priceHistory[pid].push({date, price});
-  await writeSettingsFieldPath_(['priceHistory', pid], settings.priceHistory[pid]);
+  await writeSettingsFieldPath_(['priceHistory', pid], settings.priceHistory[pid]); { const pp=PRODUCTS.find(x=>x.id===pid); logActivity_(`ตั้งราคาขาย ${pp?pp.emoji+pp.name:pid} ${money(price)} เริ่มวันที่ ${formatDDMMYYYY(date)}`); }
   dateEl.value=''; priceEl.value='';
   renderPriceHistory();
   showToast('เพิ่มราคาแล้ว');
@@ -6277,7 +6354,7 @@ async function saveShelfLifeSettings(){
     const v = Math.max(1, Math.round(Number(inp.value||0)) || (DEFAULT_SHELF_LIFE_DAYS[pid]||2));
     settings.shelfLifeDays[pid] = v;
   });
-  await writeSettingsFieldPath_(['shelfLifeDays'], settings.shelfLifeDays);
+  await writeSettingsFieldPath_(['shelfLifeDays'], settings.shelfLifeDays); logActivity_('แก้ไขตั้งค่า: อายุเก็บของเหลือ');
   renderShelfLifeSettings();
   showToast('บันทึกอายุเก็บแล้ว');
 }
@@ -6296,7 +6373,7 @@ async function saveBillInfo(){
     sellerAddr2: document.getElementById('biSellerAddr2').value,
     sellerContact: document.getElementById('biSellerContact').value,
   };
-  await writeSettingsFieldPath_(['billInfo'], settings.billInfo);
+  await writeSettingsFieldPath_(['billInfo'], settings.billInfo); logActivity_('แก้ไขตั้งค่า: ข้อมูลออกบิล');
   showToast('บันทึกข้อมูลบิลแล้ว');
 }
 function renderBranchSettings(){
@@ -6340,16 +6417,18 @@ function renderBranchSettings(){
     settings.branches[i].separate = cb.checked;
     renderBranchSettings();
     await saveBranches({silent:true});
+    logActivity_(`${cb.checked?'ตั้ง':'ยกเลิก'} "แยกส่ง" สาขา ${settings.branches[i]?settings.branches[i].code:''}`);
   }));
   wrap.querySelectorAll('[data-brare]').forEach((cb,i)=>cb.addEventListener('change', async ()=>{
     settings.branches[i].rare = cb.checked;
     renderBranchSettings();
     await saveBranches({silent:true});
+    logActivity_(`${cb.checked?'ตั้ง':'ยกเลิก'} "สั่งนานๆ ครั้ง" สาขา ${settings.branches[i]?settings.branches[i].code:''}`);
   }));
   // ช่องข้อความ (รหัส/ชื่อพื้นที่/ป้ายชื่อ/ชื่อผู้ซื้อ/ที่อยู่/เลขภาษี) บันทึกอัตโนมัติตอนออกจากช่อง (blur) ด้วยเหตุผล
   // เดียวกับเช็คบ็อกซ์ด้านบน — ไม่ต้องพึ่งปุ่มบันทึกแยกอีกต่อไป (ปุ่มยังอยู่ไว้เผื่ออยากกดบันทึกทุกช่องรวดเดียวเอง)
   wrap.querySelectorAll('[data-bcode],[data-barea],[data-blabel],[data-bbillname],[data-bbilladdr],[data-bbilltax]').forEach(el=>{
-    el.addEventListener('blur', ()=>{ saveBranches({silent:true}); });
+    el.addEventListener('blur', ()=>{ saveBranches({silent:true, logEdit:true}); });
   });
 }
 async function saveBranches(opts={}){
@@ -6372,9 +6451,15 @@ async function saveBranches(opts={}){
     billAddr: billAddrs[i].value.trim(),
     billTax: billTaxes[i].value.trim(),
   }));
+  const beforeJson = JSON.stringify(settings.branches||[]);
   settings.branches = newBranches.filter(b=>b.code);
   try{
     await writeSettingsFieldPath_(['branches'], settings.branches);
+    if(opts.logEdit && beforeJson !== JSON.stringify(settings.branches)){
+      const before = JSON.parse(beforeJson);
+      const changed = settings.branches.filter((b,i)=>JSON.stringify(b)!==JSON.stringify(before[i])).map(b=>b.code);
+      logActivity_(`แก้ไขข้อมูลสาขา ${changed.join(', ')}`.trim());
+    }
     refreshOrderTab();
     if(!opts.silent) showToast('บันทึกรายชื่อสาขาแล้ว');
   }catch(e){
@@ -6450,6 +6535,14 @@ async function exportAllData(){
       try{ const r = await window.storage.get(k); extra[k] = JSON.parse(r.value); }
       catch(e){ extra[k] = null; } // ยังไม่เคยมีข้อมูล key นี้เลย (Key not found) ถือว่าไม่มีอะไรต้องสำรอง ไม่ใช่ error
     }
+    try{
+      const actRes = await window.storage.list(ACT_LOG_PREFIX);
+      const actKeys = (actRes && actRes.keys) || [];
+      if(actKeys.length){
+        const vals = await window.bulkGetStorageImpl(actKeys);
+        actKeys.forEach(k=>{ try{ extra[k] = JSON.parse(vals[k]); }catch(e){} });
+      }
+    }catch(e){ /* สำรองประวัติกิจกรรมไม่ได้ก็ยังสำรองข้อมูลหลักได้ */ }
     payload = {exportedAt: new Date().toISOString(), settings, days, debts, ...extra};
   }catch(e){
     console.error('Export: failed to gather data', e);
@@ -6464,7 +6557,7 @@ async function exportAllData(){
     a.href = url; a.download = `karmto-backup-${todayISO()}.json`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('ส่งออกข้อมูลสำรองแล้ว');
+    showToast('ส่งออกข้อมูลสำรองแล้ว'); logActivity_('ส่งออกข้อมูลสำรอง');
   }catch(e){
     console.error('Export: download trigger failed', e);
     showBackupFallbackModal(jsonStr);
@@ -6507,13 +6600,13 @@ async function importAllData(file){
     if(payload.debts){ await saveDebts(payload.debts); }
     // กู้คืน root key อื่นๆ ที่ exportAllData() สำรองไว้ด้วย (ดูคอมเมนต์ที่ BACKUP_EXTRA_ROOT_KEYS) — ไฟล์สำรองเก่าก่อนรอบนี้
     // จะไม่มีฟิลด์พวกนี้เลย ก็แค่ข้ามไปเฉยๆ ไม่ต้องเขียนทับด้วยค่าว่าง
-    for(const k of BACKUP_EXTRA_ROOT_KEYS){
+    for(const k of BACKUP_EXTRA_ROOT_KEYS.concat(Object.keys(payload).filter(k=>k.indexOf(ACT_LOG_PREFIX)===0))){
       if(payload[k] !== undefined && payload[k] !== null){
         await window.storage.set(k, JSON.stringify(payload[k]));
       }
     }
     rawLotsCache_ = null; lotTransportBillsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null; activityLogCache_ = null;
-    showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`);
+    showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
 }
@@ -6663,7 +6756,7 @@ async function savePersonalCategories(){
   settings.personalIncomeCategories = Array.from(document.querySelectorAll('[data-pinccat]')).map(i=>i.value.trim()).filter(Boolean);
   settings.personalExpenseCategories = Array.from(document.querySelectorAll('[data-pexpcat]')).map(i=>i.value.trim()).filter(Boolean);
   await writeSettingsFieldPath_(['personalIncomeCategories'], settings.personalIncomeCategories);
-  await writeSettingsFieldPath_(['personalExpenseCategories'], settings.personalExpenseCategories);
+  await writeSettingsFieldPath_(['personalExpenseCategories'], settings.personalExpenseCategories); logActivity_('แก้ไขตั้งค่า: หมวดรายรับ/รายจ่ายส่วนตัว');
   showToast('บันทึกหมวดส่วนตัวแล้ว');
 }
 function addPIncomeCategory(){
@@ -7191,6 +7284,7 @@ async function confirmLotSettle_(productId, opts = {}){
       await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
       rawLotsSaved = true;
       const fresh = await writeDayArrayOp_(iso, 'purchases', newEntries.map(e=>({push:e})));
+      logActivity_(`ตัดต้นทุนจากล็อต ${newEntries.length} รายการ (${newEntries.map(e=>{ const pp=PRODUCTS.find(x=>x.id===e.productId); return (pp?pp.emoji+pp.name:e.productId)+' '+e.qty; }).join(', ')}) — วันที่ ${formatDDMMYYYY(iso)}`);
       if(iso===currentDate) dayData = fresh;
     }catch(e){
       if(rawLotsSaved){
@@ -7429,6 +7523,7 @@ async function deleteWholeBill(billId){
     ], arr=>{rawLotsCache_=arr;});
     await writeRootArrayOp_('lotProductBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotProductBillsCache_=arr;});
     await writeRootArrayOp_('lotTransportBills', {remove:{matchField:'billId', matchValue:billId}}, arr=>{lotTransportBillsCache_=arr;});
+    logActivity_(`ลบบิลล็อตทั้งบิล`);
     showToast('ลบทั้งบิลแล้ว');
     await renderLotList();
     await renderLotProductBillList();
@@ -7615,6 +7710,7 @@ async function addLot(){
       if(transportTotal>0){
         await writeRootArrayOp_('lotTransportBills', {push:{id:uid('lt'), billId, payee: transportPayee, amount: transportTotal, buyDate, productLabel: productLabels.join(' '), paid:false, paidDate:null}}, arr=>{lotTransportBillsCache_=arr;});
       }
+      logActivity_(`ซื้อล็อตใหม่ ${productLabels.join(' ')} ${seller||''} ${money(productAmountTotal)}${transportTotal>0?` + ค่าขนส่ง ${money(transportTotal)}`:''} — ซื้อวันที่ ${formatDDMMYYYY(buyDate)}`.replace(/\s+/g,' '));
     }catch(stepErr){
       // ก่อนจะ "ลบทำความสะอาด" ส่วนที่คิดว่าไม่สำเร็จ ต้องเช็คก่อนว่าจริงๆ แล้วมันไปถึงเซิร์ฟเวอร์หรือเปล่า (เหตุผลเดียวกับ
       // confirmLotSettle_ — withApiTimeout ไม่ได้ยกเลิก request จริง คำขอที่ client เห็นเป็น error อาจสำเร็จบนเซิร์ฟเวอร์จริงๆ
@@ -7961,7 +8057,9 @@ async function renderLotList(preloadedLots){
       if(!confirm(`ล็อตนี้มีประวัติเบิกใช้แล้ว การลบล็อตจะไม่ลบต้นทุนที่บันทึกไปแล้วในแต่ละวัน (ต้องไปลบที่รายการต้นทุนซื้อของวันนั้นเอง)${pendingMsg}\n\nต้องการลบล็อตนี้ไหม?`)) return;
     }
     try{
+      const actLotLbl_ = lotLabel_(id);
       const updated = await writeRootArrayOp_('rawLots', {remove:{matchField:'id', matchValue:id}}, arr=>{rawLotsCache_=arr;});
+      logActivity_(`ลบ${actLotLbl_}`);
       // ถ้าลบล็อตนี้แล้วไม่เหลือ rawLots ของบิลเดียวกันอีกเลย (ลบทีละรายการจนหมดบิล ไม่ใช่กด "ลบทั้งบิล") ต้องเก็บกวาด
       // lotProductBills/lotTransportBills ของบิลนี้ตามไปด้วย ไม่งั้นจะเหลือ "บิลลอย" ค้างอยู่ในสรุปบิลวันนี้ทั้งที่ไม่มีล็อต
       // จริงให้ดูรายละเอียดอีกต่อไป (เหมือนพฤติกรรมที่ deleteWholeBill() ทำอยู่แล้วตอนลบทั้งบิลทีเดียว)
@@ -8013,6 +8111,7 @@ async function renderLotList(preloadedLots){
     }
     try{
       const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:id, set:{qtyTotal:newQtyTotal, pricePerKg:newPrice, buyDate:newBuyDate, note:newNote}}, arr=>{rawLotsCache_=arr;});
+      logActivity_(`แก้ไข${lotLabel_(id)} ${newQtyTotal} × ${newPrice}`);
       lotEditId = null;
       showToast('บันทึกการแก้ไขล็อตแล้ว');
       renderLotList(updated);
@@ -8090,6 +8189,7 @@ async function renderLotList(preloadedLots){
     }
     try{
       const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:lotId, nested:{field:'draws', remove:{matchField:'id', matchValue:drawId}}}, arr=>{rawLotsCache_=arr;});
+      logActivity_(`ลบรอบเบิก${lotLabel_(lotId)}`);
       showToast('ลบรอบเบิกแล้ว');
       renderLotList(updated);
       renderPurchaseList(); renderPurchaseGroups(); await renderAllExpenseList(); await renderLotSettleCards_(); await renderPendingStockValueCard_();
@@ -8144,6 +8244,7 @@ async function renderLotList(preloadedLots){
       // แก้เฉพาะรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested set) แทนโหลด rawLots ทั้งก้อนมาแก้แล้วเขียนทับ
       // ทั้งอาเรย์ — กันเผลอทับรอบเบิก/ล็อตอื่นที่ไม่เกี่ยวข้องเลยถ้ามีคนบันทึกคาบเกี่ยวกันพอดี
       const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:lotId, nested:{field:'draws', matchField:'id', matchValue:drawId, set:setFields}}, arr=>{rawLotsCache_=arr;});
+      logActivity_(`แก้ไขรอบเบิก${lotLabel_(lotId)}`);
       lotDrawEditId = null;
       showToast('แก้ไขรอบเบิกแล้ว');
       renderLotList(updated);
@@ -8191,6 +8292,7 @@ async function renderLotList(preloadedLots){
     // เพิ่มรอบเบิกนี้แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps nested push บนอาเรย์ draws ของล็อตนี้โดยตรง) แทนโหลด rawLots
     // ทั้งก้อนมาต่อท้ายเองแล้วเขียนทับทั้งอาเรย์
     const updated = await writeRootArrayOp_('rawLots', {matchField:'id', matchValue:id, nested:{field:'draws', push:{id:drawId, date:currentDate, qtyUsed, sellableQty, note, totalCost, costedQty:0}}}, arr=>{rawLotsCache_=arr;});
+    logActivity_(`เบิก${lotLabel_(id)} ใช้ ${qtyUsed} ได้ขาย ${sellableQty} — วันที่ ${formatDDMMYYYY(currentDate)}`);
     await autoFillLeftoverIfNeeded(lot.productId); // ถ้าเบิกเกินยอดออเดอร์วันนี้ เติมของเหลือให้อัตโนมัติเลย ไม่ต้องไปกดที่หน้าของเหลือเอง
     lotDrawOpenId = null;
     showToast('บันทึกการเบิกใช้แล้ว — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยัน "ตัดต้นทุนสต็อกล็อตวันนี้" ตามจำนวนที่ใช้จริงแต่ละวันแทน');
@@ -8315,6 +8417,7 @@ async function renderLotList(preloadedLots){
         });
         pendingDraws = allocations.map(a=>({lotId:a.lot.id, drawId:a.drawId}));
         const updated = await writeRootArrayOp_('rawLots', rawLotsOps, arr=>{rawLotsCache_=arr;});
+        { const pp=PRODUCTS.find(x=>x.id===productId); logActivity_(`เบิกล็อต ${pp?pp.emoji+pp.name:productId} ${allocations.reduce((a,x)=>a+Number(x.qty||0),0)} (แบ่งจาก ${allocations.length} ล็อต) — วันที่ ${formatDDMMYYYY(currentDate)}`); }
         await autoFillLeftoverIfNeeded(productId);
         multiLotDrawOpen = false;
         showToast(`บันทึกการเบิกรวมแล้ว (แบ่งให้ ${allocations.length} ล็อตอัตโนมัติ) — ยังไม่ตัดต้นทุนซื้อ ไปกดยืนยันตัดต้นทุนตามที่ใช้จริงแต่ละวันแทน`);
@@ -8448,6 +8551,7 @@ async function renderLotTransportList(){
     const id = btn.getAttribute('data-lottransdel');
     try{
       await writeRootArrayOp_('lotTransportBills', {remove:{matchField:'id', matchValue:id}}, arr=>{lotTransportBillsCache_=arr;});
+      logActivity_('ลบบิลค่าขนส่งล็อต');
       showToast('ลบแล้ว');
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -8500,6 +8604,7 @@ async function renderLotTransportList(){
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
       await writeRootArrayOp_('lotTransportBills', {matchField:'id', matchValue:id, set:{amount:newAmount, payee:(payeeInput && payeeInput.value) || '', note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotTransportBillsCache_=arr;});
+      logActivity_(`แก้ไขบิลค่าขนส่งล็อต ยอด ${money(newAmount)}`);
       lotTransportFieldEditId = null;
       await renderLotTransportList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -8601,6 +8706,7 @@ async function renderLotProductBillList(){
     const id = btn.getAttribute('data-lotproddel');
     try{
       await writeRootArrayOp_('lotProductBills', {remove:{matchField:'id', matchValue:id}}, arr=>{lotProductBillsCache_=arr;});
+      logActivity_('ลบบิลสินค้าล็อต');
       showToast('ลบแล้ว');
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -8651,6 +8757,7 @@ async function renderLotProductBillList(){
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try{
       await writeRootArrayOp_('lotProductBills', {matchField:'id', matchValue:id, set:{amount:newAmount, note:(noteInput && noteInput.value.trim()) || ''}}, arr=>{lotProductBillsCache_=arr;});
+      logActivity_(`แก้ไขบิลสินค้าล็อต ยอด ${money(newAmount)}`);
       lotProductBillFieldEditId = null;
       await renderLotProductBillList();
       renderAllExpenseList(); // ไม่ต้องรอ (fire-and-forget) กันปุ่มสถานะรู้สึกหน่วง — มี sequence guard กันผลลัพธ์เก่าทับใหม่อยู่แล้ว
@@ -9007,6 +9114,7 @@ async function addCustomPurchase(){
   const entry = {id: uid('pu'), customName:name, customSellPrice: sellPrice, seller, qty, price, extra, sellableQty: qty, note, paid:false};
   try{
     const fresh = await writeDayArrayOp_(iso, 'purchases', {push:entry});
+    logActivity_(`เพิ่มต้นทุนซื้อ 📦${name} ${qty}×${price} — วันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
   }catch(e){
     showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
@@ -9060,6 +9168,7 @@ async function addShortfall(){
   const entry = {id: uid('sf'), date: currentDate, seller, branchCode, product, ordered, received, note, value, settled:false};
   try{
     const fresh = await writeRootArrayOp_('supplierShortfalls', {push:entry}, arr=>{shortfallsCache_=arr;});
+    logActivity_(`บันทึกของขาด ${product} สั่ง ${ordered} ได้ ${received} (${seller||'-'}) — วันที่ ${formatDDMMYYYY(currentDate)}`);
     renderShortfallList(fresh);
   }catch(e){
     showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
@@ -9099,6 +9208,7 @@ function renderShortfallList(list){
     const id = btn.getAttribute('data-shortfalldel');
     try{
       const fresh = await writeRootArrayOp_('supplierShortfalls', {remove:{matchField:'id', matchValue:id}}, arr=>{shortfallsCache_=arr;});
+      logActivity_('ลบรายการของขาด');
       renderShortfallList(fresh);
       showToast('ลบแล้ว');
     }catch(e){ showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
@@ -9107,6 +9217,7 @@ function renderShortfallList(list){
     const id = cb.getAttribute('data-shortfallsettle');
     try{
       const fresh = await writeRootArrayOp_('supplierShortfalls', {matchField:'id', matchValue:id, set:{settled:cb.checked}}, arr=>{shortfallsCache_=arr;});
+      { const sf=(fresh||[]).find(x=>x.id===id); logActivity_(`${cb.checked?'ปิดเรื่อง':'เปิดใหม่'} ของขาด ${sf?sf.product+' ('+(sf.seller||'-')+')':''}`); }
       renderShortfallList(fresh);
     }catch(e){ cb.checked = !cb.checked; showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
   }));
@@ -9394,6 +9505,7 @@ function renderPurchaseGroups(){
     const seller = inp.getAttribute('data-groupextra');
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['purchaseGroupPayment', seller, 'extra'], Number(inp.value||0));
+    logActivity_(`แก้ค่าใช้จ่ายเพิ่มบิลซื้อของ ${seller} เป็น ${money(Number(inp.value||0))} — วันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
     renderPurchaseGroups();
   }));
@@ -9401,6 +9513,7 @@ function renderPurchaseGroups(){
     const seller = inp.getAttribute('data-groupnote');
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['purchaseGroupPayment', seller, 'note'], inp.value);
+    logActivity_(`แก้หมายเหตุบิลซื้อของ ${seller} — วันที่ ${formatDDMMYYYY(iso)}`);
     if(iso===currentDate) dayData = fresh;
   }));
   wrap.querySelectorAll('[data-grouppay]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -9512,7 +9625,7 @@ function renderPurchSellerSettings(){
 }
 async function savePurchSellers(){
   settings.purchaseSellers = Array.from(document.querySelectorAll('[data-purchseller]')).map(i=>i.value.trim()).filter(Boolean);
-  await writeSettingsFieldPath_(['purchaseSellers'], settings.purchaseSellers);
+  await writeSettingsFieldPath_(['purchaseSellers'], settings.purchaseSellers); logActivity_('แก้ไขตั้งค่า: รายชื่อผู้ขาย/แหล่งซื้อ');
   showToast('บันทึกรายชื่อผู้ขายแล้ว');
 }
 function addPurchSeller(){
@@ -9761,7 +9874,7 @@ function renderDebtOwnerSettings(){
 async function saveDebtOwners(){
   const inputs = document.querySelectorAll('[data-debtowner]');
   settings.debtOwners = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await writeSettingsFieldPath_(['debtOwners'], settings.debtOwners);
+  await writeSettingsFieldPath_(['debtOwners'], settings.debtOwners); logActivity_('แก้ไขตั้งค่า: รายชื่อเจ้าของหนี้');
   showToast('บันทึกรายชื่อเจ้าของหนี้แล้ว');
 }
 function addDebtOwner(){
@@ -9780,7 +9893,7 @@ function renderDebtTypeSettings(){
 async function saveDebtTypes(){
   const inputs = document.querySelectorAll('[data-debttype]');
   settings.debtTypes = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  await writeSettingsFieldPath_(['debtTypes'], settings.debtTypes);
+  await writeSettingsFieldPath_(['debtTypes'], settings.debtTypes); logActivity_('แก้ไขตั้งค่า: ประเภทหนี้');
   showToast('บันทึกรายชื่อประเภทหนี้แล้ว');
 }
 function addDebtType(){
@@ -10901,7 +11014,7 @@ async function switchTab(name){
     if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
-    if(name==='noti'){ await loadActivityLog(); renderActivityFeed_(); await renderDataGaps(); }
+    if(name==='noti'){ activityLogCache_ = null; await loadActivityLog(); renderActivityFeed_(); await renderDataGaps(); }
     if(name==='settings'){ renderPriceProductSelect(); renderShelfLifeSettings(); renderBillInfoForm(); renderBranchSettings(); renderExpenseCategorySettings(); renderDebtOwnerSettings(); renderDebtTypeSettings(); renderPIncomeCategorySettings(); renderPExpenseCategorySettings(); renderPurchSellerSettings(); }
   }catch(e){
     showToast('โหลดข้อมูลบางส่วนของหน้านี้ไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหรือสลับแท็บใหม่อีกครั้ง');
@@ -11127,7 +11240,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-03.3';
+const APP_BUILD = '2026-11-03.4';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

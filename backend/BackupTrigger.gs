@@ -41,7 +41,9 @@ var BACKUP_RETENTION_DAYS = 30; // เก็บไฟล์สำรองอั
 function runDailyKarmtoBackup() {
   var listRes = backupFetch_('?action=list&prefix=day:');
   var dayKeys = listRes.keys || [];
-  var allKeys = dayKeys.concat(['settings', 'debts']).concat(BACKUP_EXTRA_ROOT_KEYS);
+  // ประวัติกิจกรรมเก็บแยกคีย์ต่อวัน (actlog:YYYY-MM-DD) — ต้องตรงกับ ACT_LOG_PREFIX ใน index.html
+  var actKeys = (backupFetch_('?action=list&prefix=actlog:').keys) || [];
+  var allKeys = dayKeys.concat(['settings', 'debts']).concat(BACKUP_EXTRA_ROOT_KEYS).concat(actKeys);
   var bulkRes = backupFetch_(null, { action: 'bulkGet', keys: allKeys });
   var values = bulkRes.values || {};
 
@@ -62,6 +64,9 @@ function runDailyKarmtoBackup() {
   };
   BACKUP_EXTRA_ROOT_KEYS.forEach(function (k) {
     payload[k] = values[k] ? JSON.parse(values[k]) : null;
+  });
+  actKeys.forEach(function (k) {
+    if (values[k]) { try { payload[k] = JSON.parse(values[k]); } catch (e) {} }
   });
 
   var folder = backupGetOrCreateFolder_();

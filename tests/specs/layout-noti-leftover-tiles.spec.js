@@ -74,5 +74,25 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   });
   check('Day-total ticket sums every branch (incl. separate-send) and custom items', tot.count.startsWith('2') && tot.rows[0][1].startsWith('3.5') && tot.rows.some(r => r[0] === 'ถุง' && r[1] === '3'), tot);
 
+  // ธีม: เลือกได้ 4 แบบ เปลี่ยนเฉพาะสี/ทั้งดีไซน์ บิลคลาสสิก/ตามธีม จำไว้ในเครื่อง
+  const opts = await page.evaluate(() => [...document.querySelectorAll('[data-themeopt]')].map(b => b.getAttribute('data-themeopt')));
+  check('Settings offers Macaron / Mermaid / Pastel Sea / Dark Neon', JSON.stringify(opts) === '["macaron","mermaid","sea","neon"]', opts);
+  const th = await page.evaluate(() => {
+    applyTheme_('neon', 'full', 'classic');
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const w = document.createElement('div'); w.innerHTML = buildReceiptCardHTML('01'); document.body.appendChild(w);
+    const classicGrand = getComputedStyle(w.querySelector('.receipt .grand')).backgroundColor;
+    applyTheme_('neon', 'full', 'theme');
+    const themedGrand = getComputedStyle(w.querySelector('.receipt .grand')).backgroundColor;
+    w.remove();
+    return { bg, classicGrand, themedGrand, stored: localStorage.getItem('karmto.theme') + '/' + localStorage.getItem('karmto.themeMode') + '/' + localStorage.getItem('karmto.billTheme') };
+  });
+  check('Dark Neon paints a dark page', th.bg === 'rgb(11, 10, 26)', th);
+  check('Classic bill is unchanged by the app theme; "ตามธีม" restyles it', th.classicGrand === 'rgb(43, 36, 32)' && th.themedGrand !== th.classicGrand, th);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const kept = await page.evaluate(() => [document.documentElement.getAttribute('data-theme'), document.documentElement.getAttribute('data-tmode'), document.documentElement.getAttribute('data-bill')]);
+  check('Theme choice survives reload (applied before first paint)', JSON.stringify(kept) === '["neon","full","theme"]', kept);
+  await page.evaluate(() => { ['karmto.theme', 'karmto.themeMode', 'karmto.billTheme'].forEach(k => localStorage.removeItem(k)); });
+
   await finish(browser);
 })();

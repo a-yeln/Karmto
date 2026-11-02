@@ -4,8 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Karmto — ระบบสั่งของรายวัน</title>
+<script>
+  // ใส่ธีมก่อนหน้าแสดงผล กันกระพริบเป็นสีเดิมแว้บหนึ่ง — ค่าเก็บในเครื่องนี้เท่านั้น
+  (function(){ try{
+    var r = document.documentElement, t = localStorage.getItem('karmto.theme') || 'macaron';
+    if(t !== 'macaron') r.setAttribute('data-theme', t);
+    r.setAttribute('data-tmode', localStorage.getItem('karmto.themeMode') || 'full');
+    r.setAttribute('data-bill', localStorage.getItem('karmto.billTheme') || 'classic');
+  }catch(e){} })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=Mitr:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=Mitr:wght@400;500;600&family=Mali:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script type="module">
   // ==================================================================
   // KARMTO — การเชื่อมต่อ Google Sheets ผ่าน Apps Script
@@ -139,6 +148,7 @@
   --field-bd:#CBE0EE;
   --pill:999px; --r-md:16px; --r-sm:12px;
   --candy-shadow:0 3px 0 rgba(120,160,190,.28), 0 10px 22px rgba(70,110,140,.08);
+  --paper:#FFFFFF; --paper-a:rgba(255,255,255,.7); --btn-depth:#0A5C6E; --val-neg:#C2475D; --val-pos:#1B8A64;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;overscroll-behavior-y:contain;}
@@ -659,6 +669,7 @@ table.plain td.num{text-align:right;}
   --surface-2:#E9F2F4; --surface-3:#DAEAEE; --border:#D3E4E8; --border-soft:#E1EEF0;
   --text:#0F262B; --text-dim:#4E6B72; --text-faint:#87A2A8; --accent:#0E7C93; --accent-soft:rgba(14,124,147,0.10);
   --danger:#F2ADAD; --success:#8DE2C5; --radius:10px;
+  --paper:#FFFFFF; --paper-a:rgba(255,255,255,.7); --field-bd:#CBE0EE; color-scheme:light;
 }
 h1,h2,h3,.dwb-name{font-family:'Mitr','IBM Plex Sans Thai','IBM Plex Sans',sans-serif;font-weight:500;}
 .dash-wide-brand .dwb-name{font-family:'Chonburi',cursive;font-weight:400;}
@@ -671,89 +682,89 @@ body{background:var(--bg);}
 .card:nth-of-type(6n+4){--card-bg:var(--c-lav);--card-bd:var(--b-lav);}
 .card:nth-of-type(6n+5){--card-bg:var(--c-lemon);--card-bd:var(--b-lemon);}
 .card:nth-of-type(6n+6){--card-bg:var(--c-pink);--card-bd:var(--b-pink);}
-.card .card{background:#fff;border-color:var(--card-bd);box-shadow:none;border-radius:var(--r-md);}
+.card .card{background:var(--paper);border-color:var(--card-bd);box-shadow:none;border-radius:var(--r-md);}
 .dash-wide-main .card.dash-wide-card{border:2px solid var(--card-bd);box-shadow:var(--candy-shadow);border-radius:var(--radius);}
 .card h3{font-size:16px;color:var(--text);margin-bottom:12px;}
 .card .hint{color:var(--text-dim);}
-.card h3.collapsible .chev{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--card-bd);display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-dim);}
+.card h3.collapsible .chev{width:26px;height:26px;border-radius:50%;background:var(--paper);border:2px solid var(--card-bd);display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-dim);}
 
 /* ช่องกรอก: ขาวสะอาด ขอบสีฟ้าพาสเทล มน เวลาโฟกัสมีวงเรืองสี */
-select,input[type=number],input[type=text],input[type=date],input[type=month],input[type=time],input[type=password],input[type=search],textarea{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-md);padding:10px 13px;color:var(--text);}
+select,input[type=number],input[type=text],input[type=date],input[type=month],input[type=time],input[type=password],input[type=search],textarea{background:var(--paper);border:2px solid var(--field-bd);border-radius:var(--r-md);padding:10px 13px;color:var(--text);}
 select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
 input[type=file]{font-family:inherit;font-size:13px;color:var(--text-dim);}
-input[type=file]::file-selector-button{font-family:inherit;font-size:13px;font-weight:600;border:2px solid var(--field-bd);background:#fff;color:var(--text);border-radius:var(--pill);padding:6px 14px;margin-right:10px;cursor:pointer;}
+input[type=file]::file-selector-button{font-family:inherit;font-size:13px;font-weight:600;border:2px solid var(--field-bd);background:var(--paper);color:var(--text);border-radius:var(--pill);padding:6px 14px;margin-right:10px;cursor:pointer;}
 label{color:var(--text-dim);font-size:12.5px;font-weight:500;margin-bottom:5px;}
 
 /* ปุ่ม: อ้วนกลม มีเงาเส้นล่างเหมือนลูกอม กดแล้วยุบลง */
-.btn{border-radius:var(--r-md);padding:11px 16px;box-shadow:0 3px 0 #0A5C6E;transition:transform .08s ease,box-shadow .08s ease,filter .15s;}
-.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #0A5C6E;}
+.btn{border-radius:var(--r-md);padding:11px 16px;box-shadow:0 3px 0 var(--btn-depth);transition:transform .08s ease,box-shadow .08s ease,filter .15s;}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--btn-depth);}
 .btn:hover{filter:brightness(1.04);}
-.btn.secondary{background:#fff;color:var(--text);border:2px solid var(--field-bd);box-shadow:0 3px 0 var(--field-bd);font-weight:600;}
+.btn.secondary{background:var(--paper);color:var(--text);border:2px solid var(--field-bd);box-shadow:0 3px 0 var(--field-bd);font-weight:600;}
 .btn.secondary:active{box-shadow:0 1px 0 var(--field-bd);}
 .btn.secondary.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);box-shadow:0 3px 0 rgba(14,124,147,.4);}
 .btn.danger{background:var(--danger-soft);color:#B8465A;border:2px solid var(--danger);box-shadow:0 3px 0 rgba(226,108,128,.45);font-weight:600;}
-.btn.small{border-radius:var(--r-sm);padding:6px 12px;box-shadow:0 2px 0 #0A5C6E;}
+.btn.small{border-radius:var(--r-sm);padding:6px 12px;box-shadow:0 2px 0 var(--btn-depth);}
 .btn.secondary.small{box-shadow:0 2px 0 var(--field-bd);}
 .btn:disabled{opacity:.5;box-shadow:none;transform:none;}
-.iconbtn{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-sm);width:32px;height:32px;}
+.iconbtn{background:var(--paper);border:2px solid var(--field-bd);border-radius:var(--r-sm);width:32px;height:32px;}
 .iconbtn.danger{background:var(--danger-soft);border-color:var(--danger);}
-.copybtn{background:#fff;border:2px solid var(--field-bd);border-radius:var(--r-sm);padding:7px 13px;font-weight:600;}
+.copybtn{background:var(--paper);border:2px solid var(--field-bd);border-radius:var(--r-sm);padding:7px 13px;font-weight:600;}
 
 /* แท็บ/ชิปตัวกรอง: เม็ดยาขาว ตัวที่เลือกเป็นสีฟ้าพาสเทลขอบเข้ม */
-.tab,.qr-type{background:#fff;border:2px solid var(--field-bd);color:var(--text-dim);border-radius:var(--pill);font-weight:600;}
+.tab,.qr-type{background:var(--paper);border:2px solid var(--field-bd);color:var(--text-dim);border-radius:var(--pill);font-weight:600;}
 .tab.active,.qr-type.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-.dash-outstanding-filter{background:#fff;border:2px solid var(--field-bd);padding:3px;}
+.dash-outstanding-filter{background:var(--paper);border:2px solid var(--field-bd);padding:3px;}
 .dash-outstanding-filter button.active{background:var(--accent-soft);}
-.statchip{background:#fff;border:2px solid var(--b-sky);border-radius:var(--pill);padding:5px 12px;}
+.statchip{background:var(--paper);border:2px solid var(--b-sky);border-radius:var(--pill);padding:5px 12px;}
 
 /* แถวรายการ/กล่องย่อยในการ์ด: ขาว ขอบบาง มนกลาง */
-.orow,.branchbill,.msgblock,.linemsg{background:#fff;border:2px solid var(--border-soft);border-radius:var(--r-md);padding:10px 12px;}
+.orow,.branchbill,.msgblock,.linemsg{background:var(--paper);border:2px solid var(--border-soft);border-radius:var(--r-md);padding:10px 12px;}
 .linemsg,.msgblock{border-color:var(--card-bd,var(--border-soft));}
-.olist{background:#fff;border:2px solid var(--border-soft);border-radius:var(--r-md);}
-.olist .branchbill.otrow{background:#fff;}
+.olist{background:var(--paper);border:2px solid var(--border-soft);border-radius:var(--r-md);}
+.olist .branchbill.otrow{background:var(--paper);}
 .olist .otrow.checked{background:var(--c-lemon);}
 .rchk-btn{border-radius:var(--r-sm);border-width:2px;}
 .otrow .osep,.msgblock .tag,.tag{border-radius:var(--pill);}
 .lrow .lin{background:var(--surface-3);border-radius:var(--r-sm);}
-.empty{background:rgba(255,255,255,.7);border:2px dashed var(--field-bd);border-radius:var(--r-md);padding:20px 12px;}
-table.plain th{background:rgba(255,255,255,.7);border-bottom:2px solid var(--field-bd);}
+.empty{background:var(--paper-a);border:2px dashed var(--field-bd);border-radius:var(--r-md);padding:20px 12px;}
+table.plain th{background:var(--paper-a);border-bottom:2px solid var(--field-bd);}
 table.plain td{border-bottom:1px dashed var(--field-bd);}
 .delayrow{border-bottom:1px dashed var(--field-bd);}
 
 /* ทายล์แดชบอร์ด: มนใหญ่ ขอบหนา สีตามชนิด */
-.dwtile,.dash-metric{background:#fff;border:2px solid var(--b-sky);border-radius:var(--radius);box-shadow:var(--candy-shadow);}
-.dwtile.ocean,.dwtile.accent,.dash-metric.accent{background:var(--c-sky);border-color:var(--b-sky);}
-.dwtile.sunset{background:var(--c-peach);border-color:var(--b-peach);}
-.dwtile.danger,.dash-metric.danger{background:var(--c-pink);border-color:var(--b-pink);}
-.dwtile.success,.dash-metric.success{background:var(--c-mint);border-color:var(--b-mint);}
-.dash-metric.info{background:var(--c-lav);border-color:var(--b-lav);}
+.dwtile,.dash-metric{background:var(--paper);border:2px solid var(--b-sky);border-radius:var(--radius);box-shadow:var(--candy-shadow);}
+.dwtile.ocean,.dwtile.accent,.dash-metric.accent{background:var(--c-sky);border-color:var(--b-sky);--card-bd:var(--b-sky);}
+.dwtile.sunset{background:var(--c-peach);border-color:var(--b-peach);--card-bd:var(--b-peach);}
+.dwtile.danger,.dash-metric.danger{background:var(--c-pink);border-color:var(--b-pink);--card-bd:var(--b-pink);}
+.dwtile.success,.dash-metric.success{background:var(--c-mint);border-color:var(--b-mint);--card-bd:var(--b-mint);}
+.dash-metric.info{background:var(--c-lav);border-color:var(--b-lav);--card-bd:var(--b-lav);}
 .dwtile .dm-label,.dash-metric .dm-label{color:var(--text-dim);font-weight:500;}
 .dwtile .dm-value,.dash-metric .dm-value{font-weight:700;}
-.dwtile.danger .dm-value,.dash-metric.danger .dm-value{color:#C2475D;}
-.dwtile.success .dm-value,.dash-metric.success .dm-value{color:#1B8A64;}
+.dwtile.danger .dm-value,.dash-metric.danger .dm-value{color:var(--val-neg);}
+.dwtile.success .dm-value,.dash-metric.success .dm-value{color:var(--val-pos);}
 .dwtile-note-btn{border-radius:10px;border-width:2px;}
-.dash-cost-bar{height:8px;background:#fff;border:2px solid var(--field-bd);}
+.dash-cost-bar{height:8px;background:var(--paper);border:2px solid var(--field-bd);}
 
 /* แถบเมนูข้าง + แถบหัว */
-.dash-wide-nav{background:#fff;border:2px solid var(--b-sky);border-radius:26px;box-shadow:var(--candy-shadow);padding:12px;}
+.dash-wide-nav{background:var(--paper);border:2px solid var(--b-sky);border-radius:26px;box-shadow:var(--candy-shadow);padding:12px;}
 .dash-wide-nav button{border-radius:var(--r-md);font-weight:500;}
 .dash-wide-nav button:hover{background:var(--c-sky);}
 .dash-wide-nav button.active{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 2px var(--b-sky);}
 .dash-wide-brand{border-bottom:2px dashed var(--b-sky);}
-.dwh-datenav,.dwh-idchip,.dwh-menu-btn{background:#fff;border:2px solid var(--field-bd);}
+.dwh-datenav,.dwh-idchip,.dwh-menu-btn{background:var(--paper);border:2px solid var(--field-bd);}
 .dwh-datenav button:hover{background:var(--c-sky);}
 .dwh-addexp-btn{border-radius:var(--pill);padding:10px 16px;box-shadow:0 3px 0 rgba(200,110,40,.45);}
 .dwh-sticky-wrap{border-bottom:2px solid var(--b-sky);}
 .dwh-titles h2{font-size:20px;}
-.cal-popup{background:#fff;border:2px solid var(--b-sky);border-radius:22px;box-shadow:var(--candy-shadow);}
+.cal-popup{background:var(--paper);border:2px solid var(--b-sky);border-radius:22px;box-shadow:var(--candy-shadow);}
 .cal-day{border-radius:var(--r-sm);}
 .cal-switch .track{border-width:2px;}
 
 /* หน้าต่างป๊อปอัป/ทูสต์ */
 .modalOverlay{background:rgba(52,78,100,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
-.modalBox{background:#fff;border:2px solid var(--b-sky);border-radius:28px;padding:20px;box-shadow:0 18px 50px rgba(50,80,110,.25);}
+.modalBox{background:var(--paper);border:2px solid var(--b-sky);border-radius:28px;padding:20px;box-shadow:0 18px 50px rgba(50,80,110,.25);}
 .modalBox textarea{background:var(--c-sky);border:2px solid var(--b-sky);border-radius:var(--r-md);}
-.toast{background:#fff;border:2px solid var(--b-mint);color:var(--text);box-shadow:var(--candy-shadow);font-weight:600;}
+.toast{background:var(--paper);border:2px solid var(--b-mint);color:var(--text);box-shadow:var(--candy-shadow);font-weight:600;}
 
 /* มือถือ: เมนูข้างเป็นลิ้นชัก เงาต้องโผล่เฉพาะตอนเปิด ไม่ให้ลอดเข้าขอบจอตอนซ่อนอยู่ */
 @media (max-width:767px){
@@ -789,22 +800,22 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 @media (prefers-reduced-motion:reduce){body.motion-intro *{animation:none!important}}
 /* ---- โทนสีการ์ด: การ์ดในกลุ่มเดียวกันไม่ซ้ำสีกัน (หมุน 8 สีตามลำดับ หรือกำหนดเองด้วย data-tone) ---- */
 :root{--c-aqua:#DCF5F4;--b-aqua:#A9E1DD;--c-lime:#EEF7DA;--b-lime:#CDE3A2;}
-.dash-grid > .dash-metric:nth-child(8n+1){background:var(--c-sky);border-color:var(--b-sky);}
-.dash-grid > .dash-metric:nth-child(8n+2){background:var(--c-pink);border-color:var(--b-pink);}
-.dash-grid > .dash-metric:nth-child(8n+3){background:var(--c-lemon);border-color:var(--b-lemon);}
-.dash-grid > .dash-metric:nth-child(8n+4){background:var(--c-mint);border-color:var(--b-mint);}
-.dash-grid > .dash-metric:nth-child(8n+5){background:var(--c-lav);border-color:var(--b-lav);}
-.dash-grid > .dash-metric:nth-child(8n+6){background:var(--c-peach);border-color:var(--b-peach);}
-.dash-grid > .dash-metric:nth-child(8n+7){background:var(--c-aqua);border-color:var(--b-aqua);}
-.dash-grid > .dash-metric:nth-child(8n+8){background:var(--c-lime);border-color:var(--b-lime);}
-.dash-grid > .dash-metric[data-tone=sky],.dwtile[data-tone=sky],:is(.ltile,.fee-part,.xfer-row)[data-tone=sky]{background:var(--c-sky);border-color:var(--b-sky);}
-.dash-grid > .dash-metric[data-tone=pink],.dwtile[data-tone=pink],:is(.ltile,.fee-part,.xfer-row)[data-tone=pink]{background:var(--c-pink);border-color:var(--b-pink);}
-.dash-grid > .dash-metric[data-tone=lemon],.dwtile[data-tone=lemon],:is(.ltile,.fee-part,.xfer-row)[data-tone=lemon]{background:var(--c-lemon);border-color:var(--b-lemon);}
-.dash-grid > .dash-metric[data-tone=mint],.dwtile[data-tone=mint],:is(.ltile,.fee-part,.xfer-row)[data-tone=mint]{background:var(--c-mint);border-color:var(--b-mint);}
-.dash-grid > .dash-metric[data-tone=lav],.dwtile[data-tone=lav],:is(.ltile,.fee-part,.xfer-row)[data-tone=lav]{background:var(--c-lav);border-color:var(--b-lav);}
-.dash-grid > .dash-metric[data-tone=peach],.dwtile[data-tone=peach],:is(.ltile,.fee-part,.xfer-row)[data-tone=peach]{background:var(--c-peach);border-color:var(--b-peach);}
-.dash-grid > .dash-metric[data-tone=aqua],.dwtile[data-tone=aqua],:is(.ltile,.fee-part,.xfer-row)[data-tone=aqua]{background:var(--c-aqua);border-color:var(--b-aqua);}
-.dash-grid > .dash-metric[data-tone=lime],.dwtile[data-tone=lime],:is(.ltile,.fee-part,.xfer-row)[data-tone=lime]{background:var(--c-lime);border-color:var(--b-lime);}
+.dash-grid > .dash-metric:nth-child(8n+1){background:var(--c-sky);border-color:var(--b-sky);--card-bd:var(--b-sky);}
+.dash-grid > .dash-metric:nth-child(8n+2){background:var(--c-pink);border-color:var(--b-pink);--card-bd:var(--b-pink);}
+.dash-grid > .dash-metric:nth-child(8n+3){background:var(--c-lemon);border-color:var(--b-lemon);--card-bd:var(--b-lemon);}
+.dash-grid > .dash-metric:nth-child(8n+4){background:var(--c-mint);border-color:var(--b-mint);--card-bd:var(--b-mint);}
+.dash-grid > .dash-metric:nth-child(8n+5){background:var(--c-lav);border-color:var(--b-lav);--card-bd:var(--b-lav);}
+.dash-grid > .dash-metric:nth-child(8n+6){background:var(--c-peach);border-color:var(--b-peach);--card-bd:var(--b-peach);}
+.dash-grid > .dash-metric:nth-child(8n+7){background:var(--c-aqua);border-color:var(--b-aqua);--card-bd:var(--b-aqua);}
+.dash-grid > .dash-metric:nth-child(8n+8){background:var(--c-lime);border-color:var(--b-lime);--card-bd:var(--b-lime);}
+.dash-grid > .dash-metric[data-tone=sky],.dwtile[data-tone=sky],:is(.ltile,.fee-part,.xfer-row)[data-tone=sky]{background:var(--c-sky);border-color:var(--b-sky);--card-bd:var(--b-sky);}
+.dash-grid > .dash-metric[data-tone=pink],.dwtile[data-tone=pink],:is(.ltile,.fee-part,.xfer-row)[data-tone=pink]{background:var(--c-pink);border-color:var(--b-pink);--card-bd:var(--b-pink);}
+.dash-grid > .dash-metric[data-tone=lemon],.dwtile[data-tone=lemon],:is(.ltile,.fee-part,.xfer-row)[data-tone=lemon]{background:var(--c-lemon);border-color:var(--b-lemon);--card-bd:var(--b-lemon);}
+.dash-grid > .dash-metric[data-tone=mint],.dwtile[data-tone=mint],:is(.ltile,.fee-part,.xfer-row)[data-tone=mint]{background:var(--c-mint);border-color:var(--b-mint);--card-bd:var(--b-mint);}
+.dash-grid > .dash-metric[data-tone=lav],.dwtile[data-tone=lav],:is(.ltile,.fee-part,.xfer-row)[data-tone=lav]{background:var(--c-lav);border-color:var(--b-lav);--card-bd:var(--b-lav);}
+.dash-grid > .dash-metric[data-tone=peach],.dwtile[data-tone=peach],:is(.ltile,.fee-part,.xfer-row)[data-tone=peach]{background:var(--c-peach);border-color:var(--b-peach);--card-bd:var(--b-peach);}
+.dash-grid > .dash-metric[data-tone=aqua],.dwtile[data-tone=aqua],:is(.ltile,.fee-part,.xfer-row)[data-tone=aqua]{background:var(--c-aqua);border-color:var(--b-aqua);--card-bd:var(--b-aqua);}
+.dash-grid > .dash-metric[data-tone=lime],.dwtile[data-tone=lime],:is(.ltile,.fee-part,.xfer-row)[data-tone=lime]{background:var(--c-lime);border-color:var(--b-lime);--card-bd:var(--b-lime);}
 .dash-grid.g4{grid-template-columns:repeat(4,minmax(0,1fr));}
 @media (max-width:1023px){
   .dash-grid.g4{grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -814,7 +825,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .dash-metric .dm-value{overflow-wrap:anywhere;}
 /* ---- สรุปกำไร-ขาดทุน / รายปี: พื้นฟ้าอ่อน + กล่องขาวแยกส่วน กราฟสีเข้มอ่านชัด ---- */
 .card.pl-card{--card-bg:var(--c-sky);--card-bd:var(--b-sky);}
-.pl-panel{background:#fff;border:2px solid var(--card-bd,var(--b-sky));border-radius:18px;padding:12px 14px;margin-bottom:12px;}
+.pl-panel{background:var(--paper);border:2px solid var(--card-bd,var(--b-sky));border-radius:18px;padding:12px 14px;margin-bottom:12px;}
 .pl-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:600;font-size:13px;margin-bottom:8px;}
 .pl-legend{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--text-dim);}
 .pl-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;}
@@ -826,8 +837,8 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .pl-table td.num{text-align:right;white-space:nowrap;}
 .pl-table tr.pl-sub td{background:var(--c-sky);}
 .pl-grand{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;margin-top:8px;border-radius:12px;font-weight:700;}
-.pl-grand.success{background:var(--c-mint);color:#1B8A64;}
-.pl-grand.danger{background:var(--c-pink);color:#C2475D;}
+.pl-grand.success{background:var(--c-mint);color:var(--val-pos);}
+.pl-grand.danger{background:var(--c-pink);color:var(--val-neg);}
 /* ---- เมนู Noti ---- */
 .dash-wide-nav button{position:relative;}
 .noti-badge{position:absolute;top:50%;right:8px;transform:translateY(-50%);min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#E0607E;color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;}
@@ -844,7 +855,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
   .ltile-grid > .ltile{flex:0 0 100px;scroll-snap-align:start;}
 }
 .ltile{position:relative;aspect-ratio:3/4;max-width:100%;border-radius:20px;overflow:hidden;border:3px solid var(--b-sky);box-shadow:0 6px 16px rgba(70,110,150,.18);display:flex;align-items:center;justify-content:center;}
-.ltile::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.7),rgba(255,255,255,0) 55%);pointer-events:none;}
+.ltile::before{content:"";position:absolute;inset:0;background:linear-gradient(160deg,var(--paper-a),rgba(255,255,255,0) 55%);pointer-events:none;}
 .ltile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .ltile-emoji{font-size:58px;line-height:1;transform:translateY(-14%);filter:drop-shadow(0 6px 8px rgba(0,0,0,.15));}
 .ltile-cap{position:absolute;left:0;right:0;bottom:0;padding:22px 8px 8px;text-align:center;background:linear-gradient(to top,rgba(30,50,80,.72),rgba(30,50,80,0));color:#fff;}
@@ -857,8 +868,151 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .ltile-cam{position:absolute;top:6px;right:6px;z-index:1;width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.85);font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .ltile-cam:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 @media (max-width:520px){ .ltile-emoji{font-size:40px;} .ltile-qty{font-size:18px;} .ltile-name{font-size:11px;} }
+
+/* ===================== ธีม (ตั้งค่า → การแสดงผล) =====================
+   html[data-theme] = ชุดสี, html[data-tmode=full] = เปลี่ยนทั้งดีไซน์ (ฟอนต์/ทรง/พื้นหลัง/การ์ด), html[data-bill=theme] = บิลตามธีม
+   ป้าย PeriPage ไม่เปลี่ยนตามธีม (ต้องขาว-ดำสำหรับเครื่องพิมพ์ความร้อน) */
+html[data-theme=mermaid]{
+  --bg:#FBF3FB; --surface:#FFFFFF; --surface-2:#FFFFFF; --surface-3:#F4E8F8; --border:#E8D3F0; --border-soft:#F0E1F5;
+  --text:#3A2A48; --text-dim:#6F5A80; --text-faint:#9A88A8; --accent:#9B5CC7; --accent-soft:#F0E2FA;
+  --danger:#E0609A; --danger-soft:#FFE0EE; --success:#2FA597; --success-soft:#DDF5F1; --ocean:#5B8FD6; --ocean-soft:#E2EEFC; --sunset:#E9789F; --sunset-soft:#FFE6EF;
+  --c-sky:#E5F1FD; --b-sky:#BBD8F3; --c-mint:#E2F6F4; --b-mint:#AFE0D9; --c-peach:#FFE7F0; --b-peach:#F6BED4;
+  --c-lav:#F0E5FD; --b-lav:#D2BBF3; --c-lemon:#FDF0FA; --b-lemon:#EEC6E5; --c-pink:#FFE1EF; --b-pink:#F4B3D2;
+  --c-aqua:#E0F3FA; --b-aqua:#A6D9EC; --c-lime:#F4EAFF; --b-lime:#D8C1F7; --field-bd:#E4CDEF;
+  --btn-depth:#6E3A98; --val-neg:#C93F80; --val-pos:#1E8579;
+  --candy-shadow:0 3px 0 rgba(170,120,200,.25), 0 10px 22px rgba(150,100,180,.10);
+}
+html[data-theme=sea]{
+  --bg:#EDF8FE; --surface-3:#E2F1FA; --border:#C6E2F3; --border-soft:#D9ECF7;
+  --text:#1E3550; --text-dim:#4E6680; --text-faint:#7D93A8; --accent:#2E8BD0; --accent-soft:#DAEEFB;
+  --danger:#EF6F93; --danger-soft:#FFE3EC; --success:#21A58C; --sunset:#F2B22F; --sunset-soft:#FFF2CC; --ocean:#2E8BD0; --ocean-soft:#DAEEFB;
+  --c-sky:#DDF0FD; --b-sky:#A7D4F2; --c-mint:#DCF5F4; --b-mint:#A2DDD8; --c-peach:#FFF2D1; --b-peach:#F4D57F;
+  --c-lav:#E7EDFD; --b-lav:#BFCCF4; --c-lemon:#FFF8DB; --b-lemon:#F3E199; --c-pink:#FFE5EE; --b-pink:#F7BBD0;
+  --c-aqua:#D9F4FA; --b-aqua:#9ED9E9; --c-lime:#FFF0E0; --b-lime:#F6CFA0; --field-bd:#BFDDF1;
+  --btn-depth:#1B6297; --val-neg:#D2476F; --val-pos:#14806C;
+  --candy-shadow:0 3px 0 rgba(90,150,200,.25), 0 10px 22px rgba(50,110,170,.10);
+}
+html[data-theme=neon]{
+  color-scheme:dark;
+  --bg:#0B0A1A; --surface:#15142B; --surface-2:#17162E; --surface-3:#1F1D3A; --border:#2D2A55; --border-soft:#26244A;
+  --text:#EEEDFF; --text-dim:#B6B2DC; --text-faint:#8783B5; --accent:#22E4FF; --accent-text:#0B0A1A; --accent-soft:rgba(34,228,255,.14);
+  --danger:#FF4FA3; --danger-soft:rgba(255,79,163,.16); --success:#5CFF9D; --success-soft:rgba(92,255,157,.13);
+  --ocean:#22E4FF; --ocean-soft:rgba(34,228,255,.14); --sunset:#FFB84D; --sunset-soft:rgba(255,184,77,.15);
+  --mahkard:#7DB7FF; --mahkard-soft:rgba(125,183,255,.14);
+  --c-sky:#102338; --b-sky:#1FA9C9; --c-mint:#0F2A22; --b-mint:#2BD483; --c-peach:#2A1C12; --b-peach:#FF9F43;
+  --c-lav:#1E1638; --b-lav:#A66BFF; --c-lemon:#29260F; --b-lemon:#E9DB3A; --c-pink:#2C1226; --b-pink:#FF4FA3;
+  --c-aqua:#0E2A2E; --b-aqua:#2EF2E0; --c-lime:#1C2A10; --b-lime:#A8F03C; --field-bd:#3A3670;
+  --paper:#17162E; --paper-a:rgba(23,22,46,.75); --btn-depth:#0B8FA8; --val-neg:#FF6FB5; --val-pos:#5CFF9D;
+  --candy-shadow:0 3px 0 rgba(0,0,0,.45), 0 10px 22px rgba(0,0,0,.35); --dash-wide-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+html[data-theme=neon] body{background:var(--bg);}
+html[data-theme=neon] .pl-panel,html[data-theme=neon] .fee-part-ic,html[data-theme=neon] .xfer-ic,html[data-theme=neon] .fee-pill,html[data-theme=neon] .ltile-cam,html[data-theme=neon] .fee-hero-total,html[data-theme=neon] table.fee-ledger tr.fee-total-row td{background:var(--paper);}
+html[data-theme=neon] .fee-hero-val{color:var(--b-pink);}
+html[data-theme=neon] .ltile:not(.has-img) .ltile-cap{background:linear-gradient(to top,rgba(11,10,26,.92),rgba(11,10,26,0));color:var(--text);}
+html[data-theme=neon] .ltile::before{background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,0) 55%);}
+html[data-theme=neon] .xfer-bar{background:rgba(255,255,255,.08);}
+html[data-theme=neon] .btn.danger{color:#FF8CC6;}
+html[data-theme=neon] .modalOverlay{background:rgba(0,0,0,.6);}
+html[data-theme=mermaid] .xfer-total{background:linear-gradient(120deg,#F49AC8,#B58AF0 55%,#8EC9F2);}
+html[data-theme=sea] .xfer-total{background:linear-gradient(120deg,#58B3EE,#7FD3E6 50%,#F6C75A);}
+html[data-theme=neon] .xfer-total{background:linear-gradient(120deg,#0E7FA0,#6A3BD1 55%,#C2287C);box-shadow:0 0 22px rgba(166,107,255,.45);}
+
+/* ---- เปลี่ยนทั้งดีไซน์: Mermaid (ฟองอากาศ ขอบรุ้งมุก ฟอนต์ Mali) ---- */
+html[data-theme=mermaid][data-tmode=full]{--radius:30px;--r-md:20px;}
+html[data-theme=mermaid][data-tmode=full] body{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.9) 0 6px,transparent 7px),radial-gradient(circle at 86% 30%,rgba(255,255,255,.8) 0 10px,transparent 11px),radial-gradient(circle at 70% 78%,rgba(255,255,255,.7) 0 5px,transparent 6px),linear-gradient(170deg,#FDEFF8 0%,#F1EBFD 48%,#E4F3FC 100%) fixed;}
+html[data-theme=mermaid][data-tmode=full] :is(h1,h2,h3,.dwb-name,.dm-label,.dash-wide-nav button,.tab){font-family:'Mali','Mitr',sans-serif;}
+html[data-theme=mermaid][data-tmode=full] .card{border:2.5px solid transparent;background:linear-gradient(var(--card-bg),var(--card-bg)) padding-box,linear-gradient(135deg,#F6B5D6,#C9B0F4 50%,#A6DAF4) border-box;box-shadow:0 10px 26px rgba(160,110,200,.16);}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-main .card.dash-wide-card{border:2.5px solid transparent;}
+html[data-theme=mermaid][data-tmode=full] .card h3{font-weight:700;font-size:17px;}
+html[data-theme=mermaid][data-tmode=full] .btn:not(.secondary):not(.danger),html[data-theme=mermaid][data-tmode=full] .dwh-addexp-btn{background:linear-gradient(120deg,#F28CC0,#A97BEA);color:#fff;border-radius:999px;box-shadow:0 4px 0 #8A55B8,0 8px 18px rgba(169,123,234,.3);}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav{background:rgba(255,255,255,.75);border:2.5px solid #EBD6F3;border-radius:32px;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-nav button.active{background:linear-gradient(120deg,#FBD3E8,#E3D3FB);color:#7A3FAE;box-shadow:none;}
+html[data-theme=mermaid][data-tmode=full] .dwh-sticky-wrap{background:rgba(253,240,249,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:2px solid #EBD6F3;}
+html[data-theme=mermaid][data-tmode=full] .dwtile,html[data-theme=mermaid][data-tmode=full] .dash-metric{border-radius:26px;}
+html[data-theme=mermaid][data-tmode=full] .statchip{border-color:#EBC7E6;}
+html[data-theme=mermaid][data-tmode=full] .dash-wide-brand .dwb-name::after{content:" 🧜‍♀️";}
+
+/* ---- เปลี่ยนทั้งดีไซน์: Pastel Sea (กระจกใส คลื่น ทรายเหลือง) ---- */
+html[data-theme=sea][data-tmode=full]{--radius:24px;}
+html[data-theme=sea][data-tmode=full] body{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120' preserveAspectRatio='none'%3E%3Cpath d='M0 60 C240 0 480 120 720 60 S1200 0 1440 60 V120 H0Z' fill='%23FFE7A8' fill-opacity='.55'/%3E%3Cpath d='M0 85 C240 40 480 130 720 85 S1200 40 1440 85 V120 H0Z' fill='%23FFD2DF' fill-opacity='.5'/%3E%3C/svg%3E") bottom/100% 140px no-repeat fixed,linear-gradient(180deg,#D6EEFC 0%,#E6F6FB 45%,#FFF8E4 100%) fixed;}
+html[data-theme=sea][data-tmode=full] :is(h1,h2,h3,.dwb-name){font-family:'Mitr',sans-serif;font-weight:600;}
+html[data-theme=sea][data-tmode=full] .card{background:color-mix(in srgb,var(--card-bg) 62%,transparent);border:2px solid rgba(255,255,255,.92);box-shadow:0 10px 28px rgba(46,139,208,.14),inset 0 1px 0 rgba(255,255,255,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);}
+html[data-theme=sea][data-tmode=full] .card h3{padding-bottom:8px;border-bottom:2px dashed color-mix(in srgb,var(--card-bd) 80%,transparent);}
+html[data-theme=sea][data-tmode=full] .card h3.collapsible:not(.open){padding-bottom:0;border-bottom:none;}
+html[data-theme=sea][data-tmode=full] .dwtile,html[data-theme=sea][data-tmode=full] .dash-metric{border-color:rgba(255,255,255,.92);box-shadow:0 8px 20px rgba(46,139,208,.12);}
+html[data-theme=sea][data-tmode=full] .btn:not(.secondary):not(.danger){background:linear-gradient(180deg,#5DB8F2,#2E8BD0);box-shadow:0 4px 0 #1B6297;}
+html[data-theme=sea][data-tmode=full] .dwh-addexp-btn{background:linear-gradient(180deg,#FFD66B,#F5B02E);box-shadow:0 3px 0 #C98A12;}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav,html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-color:rgba(255,255,255,.95);}
+html[data-theme=sea][data-tmode=full] .dash-wide-nav button.active{background:linear-gradient(120deg,#D3ECFC,#FFF1C9);box-shadow:none;}
+html[data-theme=sea][data-tmode=full] .dash-wide-brand .dwb-name::after{content:" 🌊";}
+
+/* ---- เปลี่ยนทั้งดีไซน์: Dark Neon (ตาราง เรืองแสง ฟอนต์ Chakra Petch) ---- */
+html[data-theme=neon][data-tmode=full]{--radius:16px;--r-md:12px;}
+html[data-theme=neon][data-tmode=full] body{background:linear-gradient(rgba(166,107,255,.06) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,rgba(34,228,255,.05) 1px,transparent 1px) 0 0/32px 32px,radial-gradient(ellipse at 20% 0%,rgba(166,107,255,.22),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(255,79,163,.16),transparent 55%),#0B0A1A;background-attachment:fixed;}
+html[data-theme=neon][data-tmode=full] :is(h1,h2,h3,.dwb-name,.dm-value,.dash-wide-nav button,.tab,.statchip,.btn){font-family:'Chakra Petch','Mitr',sans-serif;}
+html[data-theme=neon][data-tmode=full] h3{letter-spacing:.4px;}
+html[data-theme=neon][data-tmode=full] .card,html[data-theme=neon][data-tmode=full] .dwtile,html[data-theme=neon][data-tmode=full] .dash-metric{border-width:1.5px;box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 18px -4px var(--card-bd,var(--b-sky)),inset 0 0 22px -12px var(--card-bd,var(--b-sky));}
+html[data-theme=neon][data-tmode=full] .dm-value{text-shadow:0 0 10px currentColor;}
+html[data-theme=neon][data-tmode=full] .btn:not(.secondary):not(.danger),html[data-theme=neon][data-tmode=full] .dwh-addexp-btn{background:transparent;color:var(--accent);border:1.5px solid var(--accent);box-shadow:0 0 14px -2px var(--accent),inset 0 0 12px -6px var(--accent);text-shadow:0 0 8px rgba(34,228,255,.6);}
+html[data-theme=neon][data-tmode=full] .dwh-addexp-btn{color:#FFB84D;border-color:#FFB84D;box-shadow:0 0 14px -2px #FFB84D;}
+html[data-theme=neon][data-tmode=full] .dash-wide-nav{background:rgba(21,20,43,.85);border:1.5px solid #3B2F7A;box-shadow:0 0 24px -6px #A66BFF;}
+html[data-theme=neon][data-tmode=full] .dash-wide-nav button.active{background:rgba(34,228,255,.12);color:#22E4FF;box-shadow:inset 0 0 0 1.5px #22E4FF,0 0 12px -2px #22E4FF;}
+html[data-theme=neon][data-tmode=full] .dwh-sticky-wrap{background:rgba(11,10,26,.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1.5px solid #3B2F7A;}
+html[data-theme=neon][data-tmode=full] .statchip{box-shadow:0 0 10px -3px var(--b-sky);}
+html[data-theme=neon][data-tmode=full] .dash-wide-brand .dwb-name{color:#FF4FA3;text-shadow:0 0 10px #FF4FA3;}
+
+/* ---- บิลตามธีม (เลือกได้ในตั้งค่า) ---- */
+html[data-bill=theme][data-theme=mermaid] .receipt{background:linear-gradient(180deg,#FFF6FB,#FFFFFF 40%);border-top:5px solid #C98BE0;}
+html[data-bill=theme][data-theme=mermaid] .receipt .rheadinfo .shopname{color:#7A3FAE;}
+html[data-bill=theme][data-theme=mermaid] .receipt .rheadmeta .rbillno{background:linear-gradient(120deg,#F28CC0,#A97BEA);border-radius:999px;}
+html[data-bill=theme][data-theme=mermaid] .receipt .idblock{background:#FBF2FD;border-color:#EBD6F3;border-radius:14px;}
+html[data-bill=theme][data-theme=mermaid] .receipt table th{border-bottom-color:#C98BE0;}
+html[data-bill=theme][data-theme=mermaid] .receipt table tr:last-child td{border-bottom-color:#C98BE0;}
+html[data-bill=theme][data-theme=mermaid] .receipt .grand{background:linear-gradient(120deg,#F28CC0,#A97BEA 60%,#86C3F0);border-radius:16px;color:#fff;}
+html[data-bill=theme][data-theme=mermaid] .receipt .grand span:first-child{color:rgba(255,255,255,.9);}
+html[data-bill=theme][data-theme=mermaid] .receipt .thanks{color:#C0569A;}
+html[data-bill=theme][data-theme=mermaid] .receipt .receiptlogo{border-color:#E7C2EE;background:#FDF1FA;}
+html[data-bill=theme][data-theme=sea] .receipt{background:linear-gradient(180deg,#EEF8FE,#FFFFFF 38%,#FFFBEE);border-top:5px solid #5DB8F2;}
+html[data-bill=theme][data-theme=sea] .receipt .rheadinfo .shopname{color:#1E5F96;}
+html[data-bill=theme][data-theme=sea] .receipt .rheadmeta .rbillno{background:#2E8BD0;border-radius:999px;}
+html[data-bill=theme][data-theme=sea] .receipt .idblock{background:#F1F8FD;border-color:#CFE6F6;border-radius:14px;}
+html[data-bill=theme][data-theme=sea] .receipt table th,html[data-bill=theme][data-theme=sea] .receipt table tr:last-child td{border-bottom-color:#7CC3EF;}
+html[data-bill=theme][data-theme=sea] .receipt .grand{background:linear-gradient(120deg,#2E8BD0,#5DB8F2 60%,#F5C451);border-radius:16px;color:#fff;}
+html[data-bill=theme][data-theme=sea] .receipt .grand span:first-child{color:rgba(255,255,255,.92);}
+html[data-bill=theme][data-theme=sea] .receipt .thanks{color:#2E8BD0;}
+html[data-bill=theme][data-theme=sea] .receipt .receiptlogo{border-color:#BFDDF1;background:#F1F8FD;}
+html[data-bill=theme][data-theme=neon] .receipt{background:#121028;color:#EEEDFF;border:1.5px solid #3B2F7A;border-top:4px solid #22E4FF;box-shadow:0 0 24px -6px #A66BFF;}
+html[data-bill=theme][data-theme=neon] .receipt .rheadinfo .shopname{color:#22E4FF;}
+html[data-bill=theme][data-theme=neon] .receipt .rheadinfo .addr,html[data-bill=theme][data-theme=neon] .receipt .kv,html[data-bill=theme][data-theme=neon] .receipt .rdate,html[data-bill=theme][data-theme=neon] .receipt .idrow .idlabel,html[data-bill=theme][data-theme=neon] .receipt .idrow .idsub,html[data-bill=theme][data-theme=neon] .receipt table th,html[data-bill=theme][data-theme=neon] .receipt .totline,html[data-bill=theme][data-theme=neon] .receipt .bahttext,html[data-bill=theme][data-theme=neon] .receipt .sign,html[data-bill=theme][data-theme=neon] .receipt .rno{color:#A9A5D6;}
+html[data-bill=theme][data-theme=neon] .receipt .idrow .idvalue{color:#EEEDFF;}
+html[data-bill=theme][data-theme=neon] .receipt .rheadmeta .rbillno{background:#FF4FA3;color:#120A1E;border-radius:999px;}
+html[data-bill=theme][data-theme=neon] .receipt .idblock{background:#1A1838;border-color:#3B2F7A;}
+html[data-bill=theme][data-theme=neon] .receipt hr{background:#3B2F7A;}
+html[data-bill=theme][data-theme=neon] .receipt table td{border-bottom-color:#2D2A55;color:#EEEDFF;}
+html[data-bill=theme][data-theme=neon] .receipt table th,html[data-bill=theme][data-theme=neon] .receipt table tr:last-child td{border-bottom-color:#22E4FF;}
+html[data-bill=theme][data-theme=neon] .receipt .grand{background:#0B0A1A;color:#22E4FF;border:1.5px solid #22E4FF;box-shadow:0 0 16px -3px #22E4FF;}
+html[data-bill=theme][data-theme=neon] .receipt .grand span:first-child{color:#FF8CC6;}
+html[data-bill=theme][data-theme=neon] .receipt .thanks{color:#FF4FA3;}
+html[data-bill=theme][data-theme=neon] .receipt .receiptlogo{border-color:#3B2F7A;background:#1A1838;}
+html[data-bill=theme][data-theme=neon] .receipt input{background:#1A1838;color:#EEEDFF;border-color:#3B2F7A;}
+
+/* ---- ตัวเลือกธีมในตั้งค่า ---- */
+.theme-picker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:6px 0 12px;}
+@media (max-width:520px){ .theme-picker{grid-template-columns:repeat(2,minmax(0,1fr));} }
+.theme-opt{position:relative;display:flex;flex-direction:column;gap:6px;align-items:stretch;padding:8px;border-radius:18px;border:2px solid var(--field-bd);background:var(--paper);cursor:pointer;font-family:inherit;color:var(--text);text-align:left;}
+.theme-opt[aria-checked=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.theme-opt .sw{height:54px;border-radius:12px;}
+.theme-opt b{font-size:13px;}
+.theme-opt small{font-size:11px;color:var(--text-dim);line-height:1.3;}
+.theme-opt[aria-checked=true]::after{content:"✓";position:absolute;top:12px;right:14px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.theme-opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.sw-macaron{background:linear-gradient(120deg,#E1F1FB,#DFF6EC 35%,#FFEBDC 65%,#FFE3EA);}
+.sw-mermaid{background:linear-gradient(120deg,#FBC6E1,#D6C2F7 50%,#BEE2F7);}
+.sw-sea{background:linear-gradient(180deg,#BFE4FB,#E3F5FB 55%,#FFE8A8 80%,#FFD2DF);}
+.sw-neon{background:radial-gradient(circle at 25% 40%,#22E4FF 0 6px,transparent 7px),radial-gradient(circle at 60% 60%,#FF4FA3 0 6px,transparent 7px),radial-gradient(circle at 82% 35%,#A8F03C 0 5px,transparent 6px),linear-gradient(120deg,#0B0A1A,#1E1638);box-shadow:inset 0 0 12px rgba(166,107,255,.6);}
+
 /* ---- หน้า Brand Fee ---- */
-h3 .h3-select{margin-left:auto;width:auto;min-width:0;font-size:13px;font-weight:600;padding:6px 30px 6px 14px;border-radius:999px;background-color:#fff;}
+h3 .h3-select{margin-left:auto;width:auto;min-width:0;font-size:13px;font-weight:600;padding:6px 30px 6px 14px;border-radius:999px;background-color:var(--paper);}
 .card h3:has(.h3-select){display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .fee-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;margin-top:4px;}
 @media (max-width:767px){ .fee-hero{grid-template-columns:1fr;} }
@@ -870,22 +1024,22 @@ h3 .h3-select{margin-left:auto;width:auto;min-width:0;font-size:13px;font-weight
 .fee-hero-note{font-size:11.5px;color:var(--text-faint);margin-top:4px;}
 .fee-parts{display:flex;flex-direction:column;gap:8px;}
 .fee-part{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:2px solid;}
-.fee-part-ic{width:38px;height:38px;flex:none;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.fee-part-ic{width:38px;height:38px;flex:none;border-radius:50%;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;}
 .fee-part-txt{flex:1;min-width:0;}
 .fee-part-lbl{font-size:12px;color:var(--text-dim);font-weight:600;}
 .fee-part-calc{font-size:13.5px;font-weight:600;}
 .fee-part-amt{font-size:18px;font-weight:800;}
 .fee-excluded{margin-top:10px;font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
 .fee-excluded:empty{display:none;}
-.fee-pill{display:inline-block;padding:3px 10px;border-radius:999px;background:#fff;border:1.5px solid var(--b-lav);font-weight:600;font-size:11.5px;}
+.fee-pill{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--paper);border:1.5px solid var(--b-lav);font-weight:600;font-size:11.5px;}
 table.fee-ledger th,table.fee-ledger td{padding:3px 6px;line-height:1.3;}
-table.fee-ledger tr.fee-total-row td{background:#fff;font-weight:800;border-top:2px solid var(--card-bd,var(--b-mint));padding:7px 6px;color:var(--text);}
+table.fee-ledger tr.fee-total-row td{background:var(--paper);font-weight:800;border-top:2px solid var(--card-bd,var(--b-mint));padding:7px 6px;color:var(--text);}
 table.fee-ledger tr.fee-total-row td:first-child{border-radius:10px 0 0 10px;}
 table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
 .xfer-list{display:flex;flex-direction:column;gap:6px;text-align:left;}
 .xfer-total{text-align:left;}
 .xfer-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:2px solid;}
-.xfer-ic{width:36px;height:36px;flex:none;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.xfer-ic{width:36px;height:36px;flex:none;border-radius:12px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:19px;}
 .xfer-main{flex:1;min-width:0;}
 .xfer-name{font-size:13px;font-weight:700;}
 .xfer-calc{font-size:11.5px;color:var(--text-dim);}
@@ -912,7 +1066,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
 .sp-ring{position:absolute;left:50%;top:62px;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:5px solid #7CC7EC;opacity:0;animation:spRing 1.1s cubic-bezier(.2,.7,.3,1) both}
 .sp-ring.r2{border-color:#F28AAA;animation-delay:.14s}.sp-ring.r3{border-color:#E9C94A;animation-delay:.28s}
 @keyframes spRing{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(5)}}
-.sp-crab{width:124px;height:124px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:72px;line-height:1;
+.sp-crab{width:124px;height:124px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:72px;line-height:1;
   box-shadow:0 0 0 8px #FFD7E3,0 14px 34px rgba(40,80,110,.18);animation:spPop .9s cubic-bezier(.2,.9,.3,1.3) both,spWiggle 1.6s ease-in-out .9s infinite}
 @keyframes spPop{0%{transform:scale(0) rotate(-40deg)}55%{transform:scale(1.18) rotate(8deg)}75%{transform:scale(.94) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes spWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
@@ -1500,6 +1654,18 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
   <div class="panel" id="panel-settings">
     <div class="card dash-wide-card">
       <h3>✨ การแสดงผล</h3>
+      <div class="field" style="margin-bottom:4px;"><label>🎨 ธีม</label></div>
+      <div class="theme-picker" id="themePicker" role="radiogroup" aria-label="ธีม">
+        <button type="button" class="theme-opt" role="radio" data-themeopt="macaron"><span class="sw sw-macaron"></span><b>Macaron</b><small>แคนดี้พาสเทล (เดิม)</small></button>
+        <button type="button" class="theme-opt" role="radio" data-themeopt="mermaid"><span class="sw sw-mermaid"></span><b>Mermaid</b><small>ชมพู ม่วง ฟ้าอ่อน ขอบมุกรุ้ง</small></button>
+        <button type="button" class="theme-opt" role="radio" data-themeopt="sea"><span class="sw sw-sea"></span><b>Pastel Sea</b><small>ฟ้า เหลือง ชมพู กระจกใส คลื่นทะเล</small></button>
+        <button type="button" class="theme-opt" role="radio" data-themeopt="neon"><span class="sw sw-neon"></span><b>Dark Neon</b><small>โหมดมืด สีนีออนเรืองแสง</small></button>
+      </div>
+      <div class="field"><label for="themeModeSelect">เปลี่ยนแค่ไหน</label>
+        <select id="themeModeSelect"><option value="full">ทั้งดีไซน์ (สี + ฟอนต์ + ทรงการ์ด + พื้นหลัง)</option><option value="color">เฉพาะสี (เลย์เอาต์เหมือนเดิม)</option></select></div>
+      <div class="field"><label for="billThemeSelect">บิลที่ส่งสาขา</label>
+        <select id="billThemeSelect"><option value="classic">แบบคลาสสิก (เหมือนเดิม)</option><option value="theme">ตามธีมที่เลือก</option></select></div>
+      <div class="hint" style="margin-bottom:12px;">เก็บไว้ในเครื่องนี้ — แต่ละเครื่องเลือกธีมของตัวเองได้ · ป้าย PeriPage ยังเป็นขาว-ดำเสมอ (เครื่องพิมพ์ความร้อน)</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text);margin:0;cursor:pointer;">
         <input type="checkbox" id="motionToggle" style="width:auto;"> ภาพเคลื่อนไหวตอนเปิดแอป/สลับหน้า (การ์ดลอยขึ้น กราฟเด้งขึ้นลงก่อนหยุด)
       </label>
@@ -10783,6 +10949,32 @@ function updateWeekdayBadge_(iso){
 // ไม่เล่นตอนรันเทสต์อัตโนมัติ (navigator.webdriver) เพราะการ์ดที่กำลังขยับทำให้วัดขนาด/ตำแหน่งผิด เว้นแต่สั่ง force
 const MOTION_WINDOW_MS = 4000;
 let motionTimer_ = null;
+function applyTheme_(theme, mode, bill){
+  const r = document.documentElement;
+  if(theme === 'macaron') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', theme);
+  r.setAttribute('data-tmode', mode);
+  r.setAttribute('data-bill', bill);
+  try{ localStorage.setItem('karmto.theme', theme); localStorage.setItem('karmto.themeMode', mode); localStorage.setItem('karmto.billTheme', bill); }catch(e){}
+  document.querySelectorAll('[data-themeopt]').forEach(b=>b.setAttribute('aria-checked', String(b.getAttribute('data-themeopt')===theme)));
+}
+function currentTheme_(){
+  const r = document.documentElement;
+  return { theme: r.getAttribute('data-theme') || 'macaron', mode: r.getAttribute('data-tmode') || 'full', bill: r.getAttribute('data-bill') || 'classic' };
+}
+function initThemeSettings_(){
+  const picker = document.getElementById('themePicker');
+  if(!picker) return;
+  const modeSel = document.getElementById('themeModeSelect'), billSel = document.getElementById('billThemeSelect');
+  const cur = currentTheme_();
+  modeSel.value = cur.mode; billSel.value = cur.bill;
+  applyTheme_(cur.theme, cur.mode, cur.bill);
+  picker.addEventListener('click', e=>{
+    const b = e.target.closest('[data-themeopt]'); if(!b) return;
+    applyTheme_(b.getAttribute('data-themeopt'), modeSel.value, billSel.value);
+  });
+  modeSel.addEventListener('change', ()=>applyTheme_(currentTheme_().theme, modeSel.value, billSel.value));
+  billSel.addEventListener('change', ()=>applyTheme_(currentTheme_().theme, modeSel.value, billSel.value));
+}
 function motionEnabled_(){
   try{ return localStorage.getItem('karmto.motion') !== '0'; }catch(e){ return true; }
 }
@@ -10935,7 +11127,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-03.2';
+const APP_BUILD = '2026-11-03.3';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -11324,6 +11516,7 @@ async function init(){
   }
   const splashPrev = document.getElementById('splashPreviewBtn');
   if(splashPrev) splashPrev.addEventListener('click', ()=>{ try{ localStorage.removeItem('karmto.splashDate'); localStorage.setItem('karmto.splashPreview','1'); }catch(e){} location.reload(); });
+  initThemeSettings_();
   const motionToggle = document.getElementById('motionToggle');
   if(motionToggle){
     motionToggle.checked = motionEnabled_();

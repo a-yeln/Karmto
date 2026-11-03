@@ -85,6 +85,25 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   const pd = await page.evaluate(() => ({ bars: document.querySelectorAll('#profitDailyChart .pd-bar').length, line: !!document.querySelector('#profitDailyChart polyline'), scroll: !!document.getElementById('pdScroll') }));
   check('Daily profit chart renders bars + 7-day line in a horizontal scroller', pd.bars >= 1 && pd.line && pd.scroll, pd);
 
+  // รายจ่ายด่วน: แตะนอกกล่องไม่ปิดเมื่อกรอกค้างไว้ และปิดแล้วเปิดใหม่ ข้อมูลยังอยู่
+  const draft = await page.evaluate(() => {
+    openDashExpenseModal_();
+    document.getElementById('dashExpAmount').value = '123';
+    document.getElementById('dashExpNote').value = 'ทดสอบร่าง';
+    const ov = document.getElementById('dashExpenseModalOverlay');
+    ov.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const stillOpen = ov.style.display !== 'none';
+    closeDashExpenseModal_();
+    document.getElementById('dashExpAmount').value = ''; document.getElementById('dashExpNote').value = '';
+    openDashExpenseModal_();
+    const r = { stillOpen, amt: document.getElementById('dashExpAmount').value, note: document.getElementById('dashExpNote').value };
+    dashExpDraft_ = null; document.getElementById('dashExpAmount').value = ''; document.getElementById('dashExpNote').value = ''; closeDashExpenseModal_();
+    return r;
+  });
+  check('Quick expense: outside tap keeps it open, and reopening restores the draft', draft.stillOpen && draft.amt === '123' && draft.note === 'ทดสอบร่าง', draft);
+  const tones2 = await page.evaluate(() => { renderMessages(); return [...document.querySelectorAll('#messagesArea .msgblock')].map(b => b.getAttribute('data-msgtone')); });
+  check('Order messages: each block heading has its own color', tones2.length >= 3 && new Set(tones2).size === tones2.length, tones2);
+
   // ธีม: เลือกได้ 4 แบบ เปลี่ยนเฉพาะสี/ทั้งดีไซน์ บิลคลาสสิก/ตามธีม จำไว้ในเครื่อง
   const opts = await page.evaluate(() => [...document.querySelectorAll('[data-themeopt]')].map(b => b.getAttribute('data-themeopt')));
   check('Settings offers Macaron / Mermaid / Pastel Sea / Dark Neon', JSON.stringify(opts) === '["macaron","mermaid","sea","neon"]', opts);

@@ -846,6 +846,37 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 @media (min-width:768px) and (max-width:1023px){ .noti-badge{top:1px;right:1px;transform:none;} }
 @media (min-width:1024px){ body.dash-nav-collapsed .noti-badge{top:1px;right:1px;transform:none;} }
 .noti-card .badge-delay{white-space:nowrap;flex:none;}
+.purch-row2{display:grid;grid-template-columns:1fr;gap:0 12px;}
+@media (min-width:768px){ .purch-row2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);} }
+.purch-note-row{display:flex;align-items:flex-end;gap:10px;margin-top:8px;}
+.purch-note-field{flex:1;min-width:0;margin-bottom:0;}
+.purch-tabs{display:flex;flex-direction:column;gap:4px;flex:none;padding-bottom:2px;}
+.purch-tab{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-family:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:10px 999px 999px 10px;border:2px solid var(--card-bd,var(--field-bd));border-left-width:5px;background:var(--paper);color:var(--text-dim);cursor:pointer;}
+.purch-tab:hover{color:var(--text);}
+.purch-tab.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.purch-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+table.purch-table th{font-size:12px;font-weight:700;white-space:nowrap;}
+table.purch-table th small,table.purch-table td small{font-size:.78em;font-weight:500;color:var(--text-faint);}
+table.purch-table td{padding:7px 8px;vertical-align:middle;}
+.pt-main{font-weight:700;white-space:nowrap;}
+.pt-sub{font-size:11px;color:var(--text-faint);white-space:nowrap;margin-top:1px;}
+table.purch-table td .badge-delay{white-space:nowrap;}
+.msgblock[data-msgtone=sky]{border-color:var(--b-sky);}
+.msgblock[data-msgtone=sky] .tag{background:var(--c-sky);border:1.5px solid var(--b-sky);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=pink]{border-color:var(--b-pink);}
+.msgblock[data-msgtone=pink] .tag{background:var(--c-pink);border:1.5px solid var(--b-pink);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=lemon]{border-color:var(--b-lemon);}
+.msgblock[data-msgtone=lemon] .tag{background:var(--c-lemon);border:1.5px solid var(--b-lemon);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=mint]{border-color:var(--b-mint);}
+.msgblock[data-msgtone=mint] .tag{background:var(--c-mint);border:1.5px solid var(--b-mint);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=lav]{border-color:var(--b-lav);}
+.msgblock[data-msgtone=lav] .tag{background:var(--c-lav);border:1.5px solid var(--b-lav);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=peach]{border-color:var(--b-peach);}
+.msgblock[data-msgtone=peach] .tag{background:var(--c-peach);border:1.5px solid var(--b-peach);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=aqua]{border-color:var(--b-aqua);}
+.msgblock[data-msgtone=aqua] .tag{background:var(--c-aqua);border:1.5px solid var(--b-aqua);color:var(--text);font-size:12.5px;padding:4px 12px;}
+.msgblock[data-msgtone=lime]{border-color:var(--b-lime);}
+.msgblock[data-msgtone=lime] .tag{background:var(--c-lime);border:1.5px solid var(--b-lime);color:var(--text);font-size:12.5px;padding:4px 12px;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
 .actfeed-day{position:sticky;top:0;z-index:1;margin-top:10px;padding:4px 10px;border-radius:999px;background:var(--card-bg,var(--c-sky));border:1.5px solid var(--card-bd,var(--b-sky));font-size:11.5px;font-weight:700;width:fit-content;}
 .actfeed-day:first-child{margin-top:0;}
@@ -1116,6 +1147,33 @@ html[data-bill=theme][data-theme=neon] .receipt .thanks{color:#FF4FA3;}
 html[data-bill=theme][data-theme=neon] .receipt .receiptlogo{border-color:#3B2F7A;background:#1A1838;}
 html[data-bill=theme][data-theme=neon] .receipt input{background:#1A1838;color:#EEEDFF;border-color:#3B2F7A;}
 
+/* ---- บิลธีม Macaron: ขอบหยักแบบขนมมาการอง แถวสินค้าเป็นเม็ดสีพาสเทลสลับสี ยอดรวมเป็นมาการองสองชั้น ---- */
+html[data-bill=theme]:not([data-theme]) .receipt{position:relative;border:none;border-radius:28px;background:#FFFDF9;padding-top:34px;box-shadow:0 10px 28px rgba(200,140,170,.18);font-family:'IBM Plex Sans Thai',sans-serif;}
+html[data-bill=theme]:not([data-theme]) .receipt::before{content:"";position:absolute;left:0;right:0;top:0;height:18px;border-radius:28px 28px 0 0;background:radial-gradient(circle at 12px 0,transparent 9px,#F8C1D1 9.5px) 0 0/24px 18px repeat-x,linear-gradient(90deg,#F8C1D1,#D5C8F1 33%,#B9DBF1 66%,#B7E6D0);}
+html[data-bill=theme]:not([data-theme]) .receipt .rheadinfo .shopname{font-family:'Chonburi','Mitr',serif;font-weight:400;font-size:20px;color:#D2507A;letter-spacing:.3px;}
+html[data-bill=theme]:not([data-theme]) .receipt .receiptlogo{border:3px solid #FFE3EA;background:#FFF5F8;width:50px;height:50px;}
+html[data-bill=theme]:not([data-theme]) .receipt .rheadmeta .rbillno{background:#FFE3EA;color:#C2475D;border:2px solid #F8C1D1;border-radius:999px;font-weight:800;}
+html[data-bill=theme]:not([data-theme]) .receipt .rheadmeta .rdate{background:#E1F1FB;color:#3E7CB1;border-radius:999px;padding:2px 10px;font-weight:600;}
+html[data-bill=theme]:not([data-theme]) .receipt .rheadmeta .rsepnote{border:2px dashed #D5C8F1;color:#7F5FC0;border-radius:999px;}
+html[data-bill=theme]:not([data-theme]) .receipt hr{height:0;background:none;border-top:3px dotted #F8C1D1;}
+html[data-bill=theme]:not([data-theme]) .receipt .idblock{background:#EEE7FB;border:2px solid #D5C8F1;border-radius:20px;}
+html[data-bill=theme]:not([data-theme]) .receipt .idrow .idlabel{color:#8A6CC7;font-weight:700;}
+html[data-bill=theme]:not([data-theme]) .receipt table{border-collapse:separate;border-spacing:0 6px;}
+html[data-bill=theme]:not([data-theme]) .receipt table th{border-bottom:none;color:#B07A98;font-size:10px;padding:2px 10px;}
+html[data-bill=theme]:not([data-theme]) .receipt table td{border-bottom:none!important;padding:9px 10px;}
+html[data-bill=theme]:not([data-theme]) .receipt table tr:nth-child(4n+2) td{background:#FFE3EA;}
+html[data-bill=theme]:not([data-theme]) .receipt table tr:nth-child(4n+3) td{background:#E1F1FB;}
+html[data-bill=theme]:not([data-theme]) .receipt table tr:nth-child(4n+4) td{background:#DFF6EC;}
+html[data-bill=theme]:not([data-theme]) .receipt table tr:nth-child(4n+5) td{background:#FFF5D2;}
+html[data-bill=theme]:not([data-theme]) .receipt table td:first-child{border-radius:999px 0 0 999px;font-weight:700;}
+html[data-bill=theme]:not([data-theme]) .receipt table td:last-child{border-radius:0 999px 999px 0;font-weight:700;}
+html[data-bill=theme]:not([data-theme]) .receipt .totline{padding:0 6px;}
+html[data-bill=theme]:not([data-theme]) .receipt .grand{position:relative;align-items:center;border-radius:999px;background:linear-gradient(180deg,#FBB8CC 0 44%,#FFF6E9 44% 56%,#F7A6BE 56% 100%);color:#7A2E4A;padding:16px 22px;box-shadow:0 5px 0 #E58AA6,0 12px 22px rgba(229,138,166,.35);}
+html[data-bill=theme]:not([data-theme]) .receipt .grand span:first-child{color:#7A2E4A;font-weight:700;}
+html[data-bill=theme]:not([data-theme]) .receipt .grand span:last-child{font-size:22px;font-weight:800;color:#5E1E37;}
+html[data-bill=theme]:not([data-theme]) .receipt .bahttext{color:#B07A98;}
+html[data-bill=theme]:not([data-theme]) .receipt .thanks{color:#D2507A;font-weight:700;padding:8px;border-radius:999px;background:#FFF5F8;}
+html[data-bill=theme]:not([data-theme]) .receipt .rno{color:#B07A98;}
 /* ---- ตัวเลือกธีมในตั้งค่า ---- */
 .theme-picker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:6px 0 12px;}
 @media (max-width:520px){ .theme-picker{grid-template-columns:repeat(2,minmax(0,1fr));} }
@@ -1495,12 +1553,14 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
       <div id="purchaseFormGapWarning"></div>
       <div class="hint" style="color:var(--accent);margin-top:2px;">🧊 ซื้อวันต่อวัน (ม๊ะก๊าด/มนต์/อื่นๆ ปกติ)</div>
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนที่ทำได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนที่ทำได้เท่ากับจำนวนซื้อ ช่องนี้คือจำนวนที่แปลงหน่วยได้ทั้งหมด ไม่ใช่จำนวนที่ขายได้จริงวันนั้น ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก</div>
-      <div class="field" style="margin-top:8px;"><label>สินค้า</label><select id="purchProduct"></select></div>
+      <div class="purch-row2" style="margin-top:8px;">
+        <div class="field"><label>สินค้า</label><select id="purchProduct"></select></div>
+        <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select>
+          <input type="text" id="purchSellerOther" placeholder="ชื่อร้าน/ผู้ขาย" style="display:none;margin-top:6px;">
+        </div>
+      </div>
       <div id="purchLeftoverHint" class="hint" style="margin-top:-4px;margin-bottom:6px;"></div>
       <div id="purchLotEditHint" class="hint" style="color:var(--accent);"></div>
-      <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select>
-        <input type="text" id="purchSellerOther" placeholder="ชื่อร้าน/ผู้ขาย" style="display:none;margin-top:6px;">
-      </div>
       <div class="grid7">
         <div><label>จำนวนซื้อ (<span id="purchBuyUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchQty" placeholder="0"></div>
         <div><label>ราคาซื้อ/หน่วย</label><input type="number" step="0.01" id="purchPrice" placeholder="0"></div>
@@ -1509,15 +1569,17 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
         <div><label>ค่าใช้จ่ายเพิ่ม</label><input type="number" step="1" id="purchExtra" placeholder="0"></div>
         <div><label>จำนวนที่ทำได้ (<span id="purchSellUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchSellable" placeholder="เท่ากับจำนวนซื้อ"></div>
       </div>
-      <div class="field" style="margin-top:8px;"><label>หมายเหตุ</label><input type="text" id="purchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
-      <div id="purchStagedList"></div>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button type="button" class="btn small secondary" id="purchAddToStageBtn" style="width:auto;">➕ เพิ่มสินค้าในบิลนี้ (ถ้าบิลนี้มีหลายรายการ)</button>
+      <div class="purch-note-row">
+        <div class="purch-tabs" role="group" aria-label="ตัวช่วยบิล">
+          <button type="button" class="purch-tab" id="purchAddToStageBtn" title="บิลนี้มีหลายรายการ — พักรายการนี้ไว้แล้วกรอกรายการถัดไป">➕ เพิ่มในบิล</button>
+          <button type="button" class="purch-tab" id="customPurchToggleBtn" title="สินค้านอกแคตตาล็อก 7 รายการหลัก">✚ อื่นๆ</button>
+        </div>
+        <div class="field purch-note-field"><label for="purchNote">หมายเหตุ</label><input type="text" id="purchNote" placeholder="เช่น ซื้อที่พี่ฝน"></div>
       </div>
+      <div id="purchStagedList"></div>
       <button class="btn" id="addPurchaseBtn" style="margin-top:10px;">+ บันทึกต้นทุนซื้อ</button>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-        <button type="button" class="btn small secondary" id="customPurchToggleBtn" style="width:auto;">+ สินค้าอื่นๆ (นอกแคตตาล็อก)</button>
-        <div id="customPurchFormArea" style="display:none;margin-top:10px;">
+      <div>
+        <div id="customPurchFormArea" style="display:none;margin-top:12px;padding-top:10px;border-top:2px dashed var(--card-bd,var(--border));">
           <div class="hint">สำหรับสินค้านอกเหนือ 7 รายการหลัก (เช่นที่เพิ่มไว้ในออเดอร์ผ่านปุ่ม "+ อื่นๆ") — บันทึกแล้วจะรวมเข้าตารางต้นทุนซื้อวันนี้ด้านล่างเลย ไม่แก้ไขได้ทีหลัง ถ้าพิมพ์ผิดให้ลบแล้วบันทึกใหม่</div>
           <div id="customPurchQuickPicks" style="margin-top:8px;"></div>
           <div class="field" style="margin-top:8px;"><label>ชื่อสินค้า</label><input type="text" id="customPurchName" placeholder="เช่น กุ้งเผา"></div>
@@ -3402,7 +3464,7 @@ async function renderMessages(){
   area.innerHTML = `<button class="btn secondary" id="copyAllMsgBtn" style="margin-bottom:12px;">📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)</button>` +
     blocks.map((b,i)=>{
       const open = !!msgBlockOpen[b.tag];
-      return `<div class="msgblock">
+      return `<div class="msgblock" data-msgtone="${LT_TONES[i%LT_TONES.length]}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-msgblocktoggle="${i}">
         <span class="tag ${b.cat || b.tag}">${b.label}${b.edited?' <span style="opacity:0.75;">(แก้ไขแล้ว)</span>':''}</span>
         <div style="display:flex;align-items:center;gap:6px;flex:none;">
@@ -4823,6 +4885,7 @@ async function addExpenseFromDashboard(){
   const iso = document.getElementById('dashExpDate').value || todayISO();
   const ok = await addExpenseCore_(category, seller, note, amount, iso);
   if(!ok) return;
+  dashExpDraft_ = null;
   document.getElementById('dashExpNote').value=''; document.getElementById('dashExpAmount').value='';
   document.getElementById('dashExpCategory').selectedIndex = 0;
   setPayeeOtherValue_('dashExpPayee', 'dashExpPayeeOther', '');
@@ -4858,7 +4921,21 @@ async function prefillDashExpenseRoutine_(iso){
   }
   togglePayeeOther_('dashExpPayee', 'dashExpPayeeOther');
 }
+// ร่างที่กรอกค้างไว้ (ปิดหน้าต่างก่อนกดบันทึก) — เปิดใหม่แล้วกรอกต่อได้เลย ไม่ต้องพิมพ์ใหม่ ล้างทิ้งเมื่อบันทึกสำเร็จ
+let dashExpDraft_ = null;
+const DASH_EXP_FIELDS = ['dashExpDate','dashExpCategory','dashExpPayee','dashExpPayeeOther','dashExpAmount','dashExpNote'];
+function dashExpFormDirty_(){
+  return !!(document.getElementById('dashExpAmount').value || document.getElementById('dashExpNote').value.trim() || document.getElementById('dashExpPayeeOther').value.trim());
+}
 function openDashExpenseModal_(){
+  if(dashExpDraft_){
+    renderExpenseCategorySelect();
+    DASH_EXP_FIELDS.forEach(id=>{ const el = document.getElementById(id); if(el && dashExpDraft_[id] != null) el.value = dashExpDraft_[id]; });
+    togglePayeeOther_('dashExpPayee', 'dashExpPayeeOther');
+    document.getElementById('dashExpenseModalOverlay').style.display = 'flex';
+    document.getElementById('dashExpAmount').focus();
+    return;
+  }
   renderExpenseCategorySelect(); // เติม/รีเฟรชตัวเลือกหมวด/ผู้รับเงินให้ตรงกับ settings ล่าสุดทุกครั้งที่เปิด
   const iso = todayISO();
   document.getElementById('dashExpDate').value = iso; // ค่าเริ่มต้นเป็นวันนี้เสมอ แต่แก้ย้อนหลังได้ ถ้ารายจ่ายนี้เป็นของวันอื่น
@@ -4867,6 +4944,10 @@ function openDashExpenseModal_(){
   prefillDashExpenseRoutine_(iso);
 }
 function closeDashExpenseModal_(){
+  if(dashExpFormDirty_()){
+    dashExpDraft_ = {};
+    DASH_EXP_FIELDS.forEach(id=>{ const el = document.getElementById(id); if(el) dashExpDraft_[id] = el.value; });
+  }else dashExpDraft_ = null;
   document.getElementById('dashExpenseModalOverlay').style.display = 'none';
 }
 // ความเห็น/บันทึกวันนี้ (ปุ่ม 📝 บนการ์ดยอดขายประมาณการหน้าแดชบอร์ด) กับหมายเหตุ Brand Fee รายเดือน (ไอคอน 📝 ในตาราง
@@ -9431,8 +9512,8 @@ function renderPurchaseList(){
     const sq = purchaseSellableQty(e);
     return s + (sellPrice - purchaseCostPerUnit(e)) * sq;
   }, 0);
-  wrap.innerHTML = `<div class="scrollx"><table class="plain">
-    <tr><th>สินค้า</th><th>ผู้ขาย</th><th class="num">ซื้อ</th><th class="num">ราคา/หน่วย</th><th class="num">ค่าสินค้า</th><th class="num">ทำได้</th><th class="num">ต้นทุนรวม</th><th class="num">ต้นทุน/หน่วยขาย</th><th class="num">ราคาขาย/หน่วย</th><th class="num">กำไร/หน่วย</th><th class="num">กำไรรวม</th><th>สถานะ</th><th></th></tr>
+  wrap.innerHTML = `<div class="scrollx"><table class="plain purch-table">
+    <tr><th>สินค้า <small>· ผู้ขาย</small></th><th class="num">ซื้อ <small>× ราคา</small></th><th class="num">ทำได้</th><th class="num">ต้นทุน <small>/หน่วยขาย</small></th><th class="num">ขาย <small>/หน่วย</small></th><th class="num">กำไร <small>/หน่วย</small></th><th>สถานะ</th><th></th></tr>
     ${list.map(e=>{
       // สินค้าอื่นๆ (นอกแคตตาล็อก) ไม่มี productId จริง — ใช้ชื่อ/ราคาขายที่พิมพ์เองแทนการค้น PRODUCTS/priceOnDate ทุกจุด
       const isCustom = !!e.customName;
@@ -9447,17 +9528,14 @@ function renderPurchaseList(){
       const displayName = isCustom ? `📦 ${escapeHtml(e.customName)}` : `${p.emoji} ${p.name}`;
       const buyUnit = isCustom ? '' : purchaseBuyUnit(e.productId);
       const sellUnit = isCustom ? '' : purchaseSellUnit(e.productId);
+      const extraTxt = Number(e.extra||0) ? ` + ${numP(e.productId, e.extra)}` : '';
       return `<tr>
-        <td>${displayName}</td><td>${e.seller||'-'}${e.fromLot?' 📦':''}</td>
-        <td class="num num">${e.qty} ${buyUnit}</td>
-        <td class="num num">${numP(e.productId, e.price)}</td>
-        <td class="num num">${numP(e.productId, e.qty*e.price)}</td>
-        <td class="num num">${sq} ${sellUnit}</td>
-        <td class="num num">${moneyP(e.productId, ct)}</td>
-        <td class="num num" style="color:var(--accent);">${moneyP(e.productId, cpu)}</td>
-        <td class="num num">${hasSellPrice ? moneyP(e.productId, sellPrice) : '-'}</td>
-        <td class="num num" style="color:${profitColor};">${hasSellPrice ? moneyP(e.productId, profitPerUnit) : '-'}</td>
-        <td class="num num" style="color:${profitColor};font-weight:600;">${hasSellPrice ? moneyP(e.productId, profitTotal) : '-'}</td>
+        <td><div class="pt-main">${displayName}</div><div class="pt-sub">${escapeHtml(e.seller||'-')}${e.fromLot?' · 📦 ล็อต':''}</div></td>
+        <td class="num"><div class="pt-main">${e.qty} <small>${buyUnit}</small> × ${numP(e.productId, e.price)}</div><div class="pt-sub">= ${numP(e.productId, e.qty*e.price)}${extraTxt}</div></td>
+        <td class="num"><div class="pt-main">${sq} <small>${sellUnit}</small></div></td>
+        <td class="num"><div class="pt-main">${moneyP(e.productId, ct)}</div><div class="pt-sub" style="color:var(--accent);">${moneyP(e.productId, cpu)}<small>/หน่วยขาย</small></div></td>
+        <td class="num"><div class="pt-main">${hasSellPrice ? moneyP(e.productId, sellPrice) : '-'}</div></td>
+        <td class="num" style="color:${profitColor};"><div class="pt-main">${hasSellPrice ? moneyP(e.productId, profitTotal) : '-'}</div><div class="pt-sub" style="color:${profitColor};">${hasSellPrice ? moneyP(e.productId, profitPerUnit)+'<small>/หน่วย</small>' : ''}</div></td>
         <td><span class="badge-delay" style="${e.fromLot?'background:var(--accent-soft);color:var(--accent);':(e.paid?'background:var(--success-soft);color:var(--success);':'')}">${e.fromLot?'จากล็อต':(e.paid?'จ่ายแล้ว':'รอจ่าย')}</span></td>
         <td><div style="display:flex;gap:4px;">${isCustom ? '' : `<button class="iconbtn" data-purchedit="${e.id}" aria-label="แก้ไข">✎</button>`}<button class="iconbtn" data-purchdel="${e.id}" aria-label="ลบรายการนี้">✕</button>${(e.billId && billIdCounts[e.billId]>1) ? `<button class="iconbtn" data-purchdelbill="${e.billId}" aria-label="ลบทั้งบิล" title="ลบทั้งบิล (${billIdCounts[e.billId]} รายการ)">🗑️</button>` : ''}</div></td>
       </tr>`;
@@ -11505,7 +11583,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-03.5';
+const APP_BUILD = '2026-11-04.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -12047,6 +12125,7 @@ async function init(){
   document.getElementById('customPurchToggleBtn').addEventListener('click', ()=>{
     customPurchFormOpen = !customPurchFormOpen;
     document.getElementById('customPurchFormArea').style.display = customPurchFormOpen ? '' : 'none';
+    document.getElementById('customPurchToggleBtn').classList.toggle('on', customPurchFormOpen);
     if(customPurchFormOpen) renderCustomPurchQuickPicks_();
   });
   document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
@@ -12129,7 +12208,8 @@ async function init(){
   document.getElementById('dashExpenseModalCancel').addEventListener('click', closeDashExpenseModal_);
   document.getElementById('dashExpenseModalSave').addEventListener('click', addExpenseFromDashboard);
   const dashExpenseOverlayEl = document.getElementById('dashExpenseModalOverlay');
-  dashExpenseOverlayEl.addEventListener('click', e=>{ if(e.target===dashExpenseOverlayEl) closeDashExpenseModal_(); });
+  // แตะนอกกล่องไม่ปิดหน้าต่างแล้ว (เคยแตะพลาดแล้วข้อมูลที่กรอกหายหมด) — ปิดด้วยปุ่ม "ยกเลิก" เท่านั้น และยังจำร่างไว้ให้
+  dashExpenseOverlayEl.addEventListener('click', e=>{ if(e.target===dashExpenseOverlayEl && !dashExpFormDirty_()) closeDashExpenseModal_(); });
   document.getElementById('dashDayNoteBtn').addEventListener('click', openDashNoteModal_);
   document.getElementById('dashNoteModalCancel').addEventListener('click', closeDashNoteModal_);
   guardedClick('dashNoteModalSave', saveDashNote_);

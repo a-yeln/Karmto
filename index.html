@@ -2391,6 +2391,15 @@ function pushDayRev_(raw, iso, rev){
     }
   }, 400);
 }
+// เฝ้าขนาดข้อมูลต่อคีย์ — ช่องเก็บข้อมูลฝั่ง Sheets รับได้ราว 50,000 ตัวอักษร เกินแล้วบันทึกไม่ได้ (เงียบๆ)
+// เกิน 42,000 เตือนในหน้า Notifications ล่วงหน้า จะได้แยกเก็บก่อนเต็มจริง
+const STORAGE_SIZE_WARN = 42000;
+const storageSizeWarnings_ = {};
+function noteStorageSize_(key, value){
+  if(typeof key !== 'string' || typeof value !== 'string') return;
+  if(value.length > STORAGE_SIZE_WARN) storageSizeWarnings_[key] = value.length;
+  else delete storageSizeWarnings_[key];
+}
 function wrapStorageForDayRevs_(raw){
   if(!raw || raw.__dayRevWrapped) return raw;
   const stamp = key => {
@@ -2405,8 +2414,9 @@ function wrapStorageForDayRevs_(raw){
   w.__dayRevWrapped = true;
   ['set', 'patchField', 'patchOps', 'delete'].forEach(m=>{
     if(typeof raw[m] !== 'function') return;
-    w[m] = async function(key, ...rest){ const res = await raw[m](key, ...rest); stamp(key); return res; };
+    w[m] = async function(key, ...rest){ const res = await raw[m](key, ...rest); stamp(key); noteStorageSize_(key, res && res.value); return res; };
   });
+  if(typeof raw.get === 'function') w.get = async function(key, ...rest){ const res = await raw.get(key, ...rest); noteStorageSize_(key, res && res.value); return res; };
   return w;
 }
 (function(){
@@ -5765,72 +5775,108 @@ async function computeAllExpensePayables(){
 // patchOps path-based set ซึ่ง backend ที่ deploy อยู่ตอนนี้รองรับอยู่แล้ว) `billingRecheckHistory` เก็บรอบที่เคลียร์ไปแล้ว
 let billingRecheckMode = false;
 let billingRecheckCurrentCache_ = null;
+// เก็บแยกคีย์ (ช่องเก็บข้อมูลฝั่ง Sheets รับได้ราว 5 หมื่นตัวอักษร — รอบเดียวที่เช็ค 300 บิลก็เกือบเต็มแล้ว):
+//   ผลเช็คแต่ละบิล → rchkm:<roundId>:<iso|code>   รอบที่ปิดแล้ว → rchk:<roundId>:<n> (ทีละ 100 บิล)
+//   billingRecheckCurrent เก็บแค่ {startedAt, roundId} (+ marks แบบเก่าที่ยังอ่านรวมให้)  billingRecheckHistory แบบเก่ายังอ่านรวมให้
+const RCHK_MARK_PREFIX = 'rchkm:', RCHK_ROUND_PREFIX = 'rchk:', RCHK_CHUNK = 100;
 async function loadBillingRecheckCurrent(){
   if(billingRecheckCurrentCache_) return billingRecheckCurrentCache_;
+  let cur;
   try{
     const r = await window.storage.get('billingRecheckCurrent');
     const v = JSON.parse(r.value);
-    billingRecheckCurrentCache_ = (v && typeof v==='object' && !Array.isArray(v)) ? v : {startedAt:null, marks:{}};
+    cur = (v && typeof v==='object' && !Array.isArray(v)) ? v : {startedAt:null, marks:{}};
   }catch(e){
     const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-    if(isNotFound){ billingRecheckCurrentCache_ = {startedAt:null, marks:{}}; }
+    if(isNotFound){ cur = {startedAt:null, marks:{}}; }
     else{ throw e; }
   }
-  if(!billingRecheckCurrentCache_.marks) billingRecheckCurrentCache_.marks = {};
+  cur.marks = Object.assign({}, cur.marks||{});
+  if(cur.roundId){
+    const prefix = RCHK_MARK_PREFIX + cur.roundId + ':';
+    const listRes = await window.storage.list(prefix);
+    const keys = (listRes && listRes.keys) || [];
+    if(keys.length){
+      const vals = await window.bulkGetStorageImpl(keys);
+      keys.forEach(k=>{ try{ const m = JSON.parse(vals[k]); if(m) cur.marks[k.slice(prefix.length)] = m; }catch(e){} });
+    }
+  }
+  billingRecheckCurrentCache_ = cur;
   return billingRecheckCurrentCache_;
 }
-// บันทึกผลเช็คของบิลเดียว (key = "iso|code") แบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField/patchOps ไม่เขียนทับทั้งก้อน)
+// บันทึกผลเช็คของบิลเดียว — คีย์ของตัวเอง (ไม่ชนกับบิลอื่น ไม่โตเกินขนาด) เริ่มรอบใหม่ให้เองถ้ายังไม่มี
 async function writeBillingRecheckMark_(key, mark){
   const current = await loadBillingRecheckCurrent();
-  let res;
-  if(!current.startedAt){
-    // ยังไม่เคยเริ่มรอบนี้เลย (เพิ่งเปิดโหมดรีเช็คแล้วมาร์กบิลแรก) — ตั้งเวลาเริ่มรอบไว้ในคำขอเดียวกับมาร์กบิลแรกเลย
-    res = await window.storage.patchOps('billingRecheckCurrent', [
-      {path:['startedAt'], value: new Date().toISOString()},
-      {path:['marks', key], value: mark}
-    ], false);
-  }else{
-    res = await window.storage.patchField('billingRecheckCurrent', ['marks', key], mark);
+  if(!current.roundId){
+    current.roundId = uid('rr');
+    current.startedAt = current.startedAt || new Date().toISOString();
+    await window.storage.patchOps('billingRecheckCurrent', [{path:['startedAt'], value: current.startedAt}, {path:['roundId'], value: current.roundId}], false);
   }
-  billingRecheckCurrentCache_ = JSON.parse(res.value);
-  if(!billingRecheckCurrentCache_.marks) billingRecheckCurrentCache_.marks = {};
-  return billingRecheckCurrentCache_;
+  await window.storage.set(RCHK_MARK_PREFIX + current.roundId + ':' + key, JSON.stringify(mark));
+  current.marks[key] = mark;
+  billingRecheckCurrentCache_ = current;
+  return current;
 }
-// ยกเลิกมาร์กบิลเดียว — จุดนี้ยังไม่มี "ลบ key" แบบล็อกในเซิร์ฟเวอร์ที่ deploy อยู่ตอนนี้ (ต้อง backend v6) เลยใช้
-// อ่าน-แก้-เขียนทั้งก้อนธรรมดา ความเสี่ยงชนกันต่ำมากเพราะเป็นฟีเจอร์ที่ทำคนเดียวทีละรอบอยู่แล้วไม่ใช่จุดที่มีคนกดพร้อมกันถี่ๆ
 async function unmarkBillingRecheck_(key){
   const current = await loadBillingRecheckCurrent();
+  if(current.roundId) await window.storage.delete(RCHK_MARK_PREFIX + current.roundId + ':' + key);
+  // ผลเช็คแบบเก่าที่ยังอยู่ในก้อน billingRecheckCurrent
+  try{ await window.storage.patchOps('billingRecheckCurrent', [{path:['marks', key], deleteKey:true}], false); }catch(e){}
   delete current.marks[key];
-  await window.storage.set('billingRecheckCurrent', JSON.stringify(current));
   billingRecheckCurrentCache_ = current;
   return current;
 }
 let billingRecheckHistoryCache_ = null;
 async function loadBillingRecheckHistory(){
   if(billingRecheckHistoryCache_) return billingRecheckHistoryCache_;
+  let legacy = [];
   try{
     const r = await window.storage.get('billingRecheckHistory');
     const v = JSON.parse(r.value);
-    billingRecheckHistoryCache_ = Array.isArray(v) ? v : [];
+    legacy = Array.isArray(v) ? v : [];
   }catch(e){
     const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
-    if(isNotFound){ billingRecheckHistoryCache_ = []; }
-    else{ throw e; }
+    if(!isNotFound) throw e;
   }
+  const listRes = await window.storage.list(RCHK_ROUND_PREFIX);
+  const keys = (listRes && listRes.keys) || [];
+  const rounds = {};
+  if(keys.length){
+    const vals = await window.bulkGetStorageImpl(keys);
+    keys.forEach(k=>{
+      try{
+        const part = JSON.parse(vals[k]); if(!part || !part.id) return;
+        const r = rounds[part.id] = rounds[part.id] || {id: part.id, startedAt: part.startedAt, clearedAt: part.clearedAt, parts: []};
+        r.parts.push(part);
+      }catch(e){}
+    });
+  }
+  const sharded = Object.values(rounds).map(r=>({id:r.id, startedAt:r.startedAt, clearedAt:r.clearedAt, items: r.parts.sort((a,b)=>a.part-b.part).flatMap(p=>p.items||[])}));
+  billingRecheckHistoryCache_ = legacy.concat(sharded).sort((a,b)=>String(a.clearedAt||'').localeCompare(String(b.clearedAt||'')));
   return billingRecheckHistoryCache_;
 }
-// เคลียร์รอบปัจจุบัน — สแนปช็อตสรุปเก็บลงประวัติก่อน แล้วค่อยล้างรอบปัจจุบันทิ้ง (อ่าน-แก้-เขียนทั้งก้อนธรรมดา เหตุผลเดียว
-// กับ unmarkBillingRecheck_ ด้านบน — กดครั้งเดียวตอนจบรอบ ไม่ใช่จุดเสี่ยงชนกัน)
+// ปิดรอบ: เก็บสรุปเป็นชิ้นๆ (ทีละ 100 บิล) แล้วเริ่มรอบใหม่ — ผลเช็คทีละบิลของรอบเก่าลบทิ้งเบื้องหลัง (เก็บในสรุปแล้ว)
 async function clearBillingRecheckRound_(){
   const current = await loadBillingRecheckCurrent();
   const items = Object.keys(current.marks||{}).map(key=>current.marks[key]);
   const round = {id: uid('recheck'), startedAt: current.startedAt, clearedAt: new Date().toISOString(), items};
-  const history = await loadBillingRecheckHistory();
-  history.push(round);
-  await window.storage.set('billingRecheckHistory', JSON.stringify(history));
-  billingRecheckHistoryCache_ = history;
+  const chunks = [];
+  for(let i=0; i<Math.max(1, items.length); i+=RCHK_CHUNK) chunks.push(items.slice(i, i+RCHK_CHUNK));
+  for(let n=0; n<chunks.length; n++){
+    await window.storage.set(RCHK_ROUND_PREFIX + round.id + ':' + n, JSON.stringify({id: round.id, startedAt: round.startedAt, clearedAt: round.clearedAt, part: n, items: chunks[n]}));
+  }
+  if(billingRecheckHistoryCache_) billingRecheckHistoryCache_.push(round);
+  const oldRoundId = current.roundId;
   await window.storage.set('billingRecheckCurrent', JSON.stringify({startedAt:null, marks:{}}));
   billingRecheckCurrentCache_ = {startedAt:null, marks:{}};
+  if(oldRoundId){
+    (async ()=>{
+      try{
+        const listRes = await window.storage.list(RCHK_MARK_PREFIX + oldRoundId + ':');
+        for(const k of ((listRes && listRes.keys) || [])){ try{ await window.storage.delete(k); }catch(e){} }
+      }catch(e){ /* ลบไม่ครบก็ไม่กระทบอะไร รอบนั้นปิดแล้ว */ }
+    })();
+  }
   return round;
 }
 function formatRecheckTimestamp_(iso){
@@ -6732,7 +6778,9 @@ function showBackupFallbackModal(jsonStr){
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย ไม่งั้นกู้คืนจากไฟล์สำรองแล้วสต็อกล็อต/ของเสีย/ประวัติต่างๆ
 // จะหายไปทั้งหมด (เดิม exportAllData/importAllData สำรองแค่ 3 ตัวแรกเท่านั้น) — รายชื่อนี้คือทุก root key ที่แอปใช้จริง
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
-const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls'];
+const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft'];
+// คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
+const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:'];
 async function exportAllData(){
   let payload;
   try{
@@ -6748,14 +6796,16 @@ async function exportAllData(){
       try{ const r = await window.storage.get(k); extra[k] = JSON.parse(r.value); }
       catch(e){ extra[k] = null; } // ยังไม่เคยมีข้อมูล key นี้เลย (Key not found) ถือว่าไม่มีอะไรต้องสำรอง ไม่ใช่ error
     }
-    try{
-      const actRes = await window.storage.list(ACT_LOG_PREFIX);
-      const actKeys = (actRes && actRes.keys) || [];
-      if(actKeys.length){
-        const vals = await window.bulkGetStorageImpl(actKeys);
-        actKeys.forEach(k=>{ try{ extra[k] = JSON.parse(vals[k]); }catch(e){} });
-      }
-    }catch(e){ /* สำรองประวัติกิจกรรมไม่ได้ก็ยังสำรองข้อมูลหลักได้ */ }
+    for(const prefix of BACKUP_PREFIXES){
+      try{
+        const res = await window.storage.list(prefix);
+        const ks = (res && res.keys) || [];
+        if(ks.length){
+          const vals = await window.bulkGetStorageImpl(ks);
+          ks.forEach(k=>{ try{ extra[k] = JSON.parse(vals[k]); }catch(e){} });
+        }
+      }catch(e){ /* ส่วนเสริมสำรองไม่ได้ก็ยังสำรองข้อมูลหลักได้ */ }
+    }
     payload = {exportedAt: new Date().toISOString(), settings, days, debts, ...extra};
   }catch(e){
     console.error('Export: failed to gather data', e);
@@ -6813,7 +6863,7 @@ async function importAllData(file){
     if(payload.debts){ await saveDebts(payload.debts); }
     // กู้คืน root key อื่นๆ ที่ exportAllData() สำรองไว้ด้วย (ดูคอมเมนต์ที่ BACKUP_EXTRA_ROOT_KEYS) — ไฟล์สำรองเก่าก่อนรอบนี้
     // จะไม่มีฟิลด์พวกนี้เลย ก็แค่ข้ามไปเฉยๆ ไม่ต้องเขียนทับด้วยค่าว่าง
-    for(const k of BACKUP_EXTRA_ROOT_KEYS.concat(Object.keys(payload).filter(k=>k.indexOf(ACT_LOG_PREFIX)===0))){
+    for(const k of BACKUP_EXTRA_ROOT_KEYS.concat(Object.keys(payload).filter(k=>BACKUP_PREFIXES.some(px=>k.indexOf(px)===0)))){
       if(payload[k] !== undefined && payload[k] !== null){
         await window.storage.set(k, JSON.stringify(payload[k]));
       }
@@ -7390,6 +7440,28 @@ let lotSettleInFlight_ = false;
 // opts: {qty, auto, skipRerender, suppressSuccessToast} — เรียกจากปุ่ม "✅ ตัด" (manual, ไม่ส่ง opts) เหมือนเดิมทุกจุด
 // หรือเรียกจากลูปตัดต้นทุนอัตโนมัติใน renderLotSettleCards_ (auto:true) — ส่งค่ากลับ {ok, ...} ให้ผู้เรียกเช็คได้ว่าสำเร็จไหม
 // โดยไม่ต้องพึ่ง DOM/toast เป็นสัญญาณ (auto ไม่มีปุ่มให้ผูก event, และ toast อาจถูกเรียกซ้อนกันหลายครั้งในลูปเดียว)
+// กุญแจข้ามเครื่องสำหรับการตัดต้นทุนล็อต — หมดอายุเองใน 20 วินาที (กันค้างถ้าเครื่องที่ถือกุญแจปิดแอปไปกลางทาง)
+const LOT_LOCK_KEY = 'lotSettleLock', LOT_LOCK_TTL = 20000;
+function deviceId_(){
+  try{ let id = localStorage.getItem('karmto.deviceId'); if(!id){ id = 'dev-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); localStorage.setItem('karmto.deviceId', id); } return id; }
+  catch(e){ return 'dev-mem'; }
+}
+async function acquireLotSettleLock_(){
+  const me = deviceId_(), now = Date.now();
+  try{
+    const r = await window.storage.get(LOT_LOCK_KEY);
+    const v = JSON.parse(r.value);
+    if(v && v.dev && v.dev !== me && now - Number(v.ts||0) < LOT_LOCK_TTL) return false;
+  }catch(e){ if(!(e && e.message && e.message.indexOf('Key not found')===0)) throw e; }
+  const token = me + ':' + now;
+  await window.storage.set(LOT_LOCK_KEY, JSON.stringify({dev: me, ts: now, token}));
+  const r2 = await window.storage.get(LOT_LOCK_KEY);
+  const v2 = JSON.parse(r2.value);
+  return !!(v2 && v2.token === token);
+}
+async function releaseLotSettleLock_(){
+  try{ await window.storage.set(LOT_LOCK_KEY, JSON.stringify({dev: null, ts: 0})); }catch(e){ /* หมดอายุเองใน 20 วินาทีอยู่แล้ว */ }
+}
 async function confirmLotSettle_(productId, opts = {}){
   // opts.auto เงียบไว้ตอนโดนบล็อก (รอบเรนเดอร์ถัดไปจะลองใหม่เองอยู่แล้ว ไม่ต้องรบกวน) แต่กดเองต้องมี feedback เสมอ — เดิม
   // return เงียบๆ ตรงนี้ ตอนนี้ตัดต้นทุนอัตโนมัติทำงานถี่ขึ้นมาก (ทุกครั้งที่การ์ดเรนเดอร์) กดปุ่มเองพอดีตอน flag ติดอยู่
@@ -7404,7 +7476,13 @@ async function confirmLotSettle_(productId, opts = {}){
   // ฟังก์ชันนี้กินเวลา (รอเน็ตหลายจุด) ถ้า currentDate เปลี่ยนไปแล้วระหว่างรอ (สลับวันพอดี) การอ่านสดจะเอารายการต้นทุนซื้อ
   // ที่ตัดจากสต็อกล็อตของวันเดิมไปยัดใส่/บันทึกทับวันใหม่แทนแบบเงียบๆ
   const iso = currentDate;
+  let lockHeld = false;
   try{
+    // กันสองเครื่องตัดต้นทุนพร้อมกัน (ต่างคนต่างอ่านค่าเดิมแล้วเขียนทับกัน → ตัดซ้ำ/ยอดหาย) — ถือกุญแจสั้นๆ ข้ามเครื่องก่อน
+    lockHeld = await acquireLotSettleLock_();
+    if(!lockHeld){ if(!opts.auto) showToast('อีกเครื่องกำลังตัดต้นทุนล็อตอยู่ รอสักครู่แล้วลองใหม่'); return {ok:false}; }
+    // อ่านล็อตสดจากเซิร์ฟเวอร์ทุกครั้ง ไม่ใช้แคชในเครื่อง (อาจเก่ากว่าที่อีกเครื่องเพิ่งตัดไป)
+    rawLotsCache_ = null;
     const lots2 = await loadRawLots();
     const {items} = await lotPendingStock_(productId, lots2, iso);
     const totalPending = items.reduce((s,i)=>s+i.pend,0);
@@ -7449,8 +7527,8 @@ async function confirmLotSettle_(productId, opts = {}){
       const newCostedQty = Math.round((prevCostedQty + take)*100)/100;
       draw.costedQty = newCostedQty;
       const touched = touchedDraws.find(t=>t.lotId===it.lotId && t.drawId===it.drawId);
-      if(touched){ touched.newCostedQty = newCostedQty; }
-      else{ touchedDraws.push({lotId:it.lotId, drawId:it.drawId, newCostedQty, prevCostedQty}); }
+      if(touched){ touched.newCostedQty = newCostedQty; touched.delta = Math.round((newCostedQty - touched.prevCostedQty)*100)/100; }
+      else{ touchedDraws.push({lotId:it.lotId, drawId:it.drawId, newCostedQty, prevCostedQty, delta: Math.round((newCostedQty - prevCostedQty)*100)/100}); }
       const cost = take*it.cpu;
       // ปัด 2 ตำแหน่งทศนิยมให้ตรงกับ draw.costedQty ด้านบน (ไม่ปัดเป็นจำนวนเต็ม) — เดิม Math.round(take) ปัดเป็นเลขเต็ม
       // ทำให้ sellableQty ที่บันทึกไว้ในรายการต้นทุนซื้อเพี้ยนไปจาก take จริงที่ไปบวกเข้า draw.costedQty แล้ว (เช่น take=2.4
@@ -7530,7 +7608,15 @@ async function confirmLotSettle_(productId, opts = {}){
         // สต็อกล็อตถูกบันทึกว่าตัดต้นทุนไปแล้วบนเซิร์ฟเวอร์ แต่รายการต้นทุนซื้อคู่กันยืนยันแล้วว่าไม่ได้บันทึกจริง — คืนสต็อกล็อตกลับสภาพเดิม
         // (เจาะจงแค่รอบเบิกที่แตะไปเท่านั้น ไม่ใช่เขียนทับทั้งอาเรย์แบบเดิม)
         try{
-          const revertOps = touchedDraws.map(t=>({matchField:'id', matchValue:t.lotId, nested:{field:'draws', matchField:'id', matchValue:t.drawId, set:{costedQty:t.prevCostedQty}}}));
+          // คืนเฉพาะส่วนที่รอบนี้บวกไป (ค่าปัจจุบันสด − delta) ไม่ใช่ตั้งกลับเป็นค่าเดิมตรงๆ — กันลบงานที่เครื่องอื่นเพิ่งตัดไประหว่างนั้น
+          rawLotsCache_ = null;
+          const lotsNow = await loadRawLots();
+          const revertOps = touchedDraws.map(t=>{
+            const lotNow = lotsNow.find(l=>l.id===t.lotId);
+            const drNow = lotNow && (lotNow.draws||[]).find(d=>d.id===t.drawId);
+            const cur = Number((drNow && drNow.costedQty)||0);
+            return {matchField:'id', matchValue:t.lotId, nested:{field:'draws', matchField:'id', matchValue:t.drawId, set:{costedQty: Math.max(0, Math.round((cur - t.delta)*100)/100)}}};
+          });
           await writeRootArrayOp_('rawLots', revertOps, arr=>{rawLotsCache_=arr;});
           showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
         }catch(revertErr){
@@ -7557,7 +7643,7 @@ async function confirmLotSettle_(productId, opts = {}){
     showToast('ตัดต้นทุนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
     await refreshLotListAfterWriteFailure_();
     return {ok:false};
-  } finally { lotSettleInFlight_ = false; }
+  } finally { lotSettleInFlight_ = false; if(lockHeld) releaseLotSettleLock_(); }
 }
 // เติมต้นทุนที่ตกหล่นให้รอบเบิกที่ computeLotCostedQtyAudit_() เจอว่า costedQty ไม่มีรายการต้นทุนซื้อรองรับครบ — ไม่แก้ costedQty
 // เลย (มันถูกอยู่แล้ว นั่นคือต้นเหตุของปัญหา) แค่สร้างรายการต้นทุนซื้อย้อนหลังให้ตรงกับยอดที่ขาด โดยใช้ผู้ขาย/ราคาจากล็อตจริง
@@ -11071,13 +11157,16 @@ async function renderDataGaps(){
   const list = document.getElementById('dataGapsList');
   try{
     const gaps = await computeDataGaps();
+    const sizeKeys = Object.keys(storageSizeWarnings_);
+    const sizeHtml = sizeKeys.map(k=>`<div class="delayrow size-warn"><div><div>⚠️ ข้อมูลใกล้เต็ม: ${escapeHtml(k)}</div><div class="d">${storageSizeWarnings_[k].toLocaleString('th-TH')} / 50,000 ตัวอักษร — ถ้าเต็มจะบันทึกส่วนนี้ไม่ได้ ควรแจ้งให้แยกเก็บ</div></div></div>`).join('');
     const badge = document.getElementById('notiBadge');
-    if(badge){ badge.textContent = gaps.length > 99 ? '99+' : String(gaps.length); badge.hidden = gaps.length===0; }
-    if(gaps.length===0){ list.innerHTML = '<div class="empty">✅ ข้อมูลครบทุกวัน ไม่มีอะไรต้องแก้</div>'; return; }
+    const total = gaps.length + sizeKeys.length;
+    if(badge){ badge.textContent = total > 99 ? '99+' : String(total); badge.hidden = total===0; }
+    if(gaps.length===0){ list.innerHTML = sizeHtml + '<div class="empty">✅ ข้อมูลครบทุกวัน ไม่มีอะไรต้องแก้</div>'; return; }
     // เรียงล่าสุดก่อน และโชว์แค่ 25 รายการแรกกันการ์ดยาวเกินไป (ยังเช็คครบทุกวันอยู่ดี แค่จำกัดจำนวนที่แสดง)
     const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
     const shown = sortedGaps.slice(0,25);
-    list.innerHTML = shown.map(g=>`
+    list.innerHTML = sizeHtml + shown.map(g=>`
       <div class="delayrow" style="cursor:pointer;" data-gapiso="${g.iso}" data-gaptab="${g.tab}">
         <div><div>${formatDDMMYYYY(g.iso)}</div><div class="d">${g.text}</div></div>
         <span class="badge-delay">แก้ไข ›</span>
@@ -11590,7 +11679,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.1';
+const APP_BUILD = '2026-11-05.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

@@ -29,7 +29,7 @@ var BACKUP_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxBUioYu6BXM
 
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย — ต้องตรงกับ BACKUP_EXTRA_ROOT_KEYS ใน index.html เป๊ะๆ
 // (ถ้าแอปเพิ่ม root key ใหม่ในอนาคต ต้องมาเพิ่มในทั้งสองที่คู่กันเสมอ ไม่งั้น backup อัตโนมัติจะขาดข้อมูลส่วนใหม่ไปแบบเงียบๆ)
-var BACKUP_EXTRA_ROOT_KEYS = ['rawLots', 'lotProductBills', 'lotTransportBills', 'wasteRecords', 'activityLog', 'billingRecheckCurrent', 'billingRecheckHistory', 'supplierShortfalls'];
+var BACKUP_EXTRA_ROOT_KEYS = ['rawLots', 'lotProductBills', 'lotTransportBills', 'wasteRecords', 'activityLog', 'billingRecheckCurrent', 'billingRecheckHistory', 'supplierShortfalls', 'stockFormDraft'];
 
 var BACKUP_FOLDER_NAME = 'Karmto Backups';
 var BACKUP_RETENTION_DAYS = 30; // เก็บไฟล์สำรองอัตโนมัติไว้ย้อนหลังกี่วัน เกินกว่านี้ลบทิ้งอัตโนมัติ กันพื้นที่ Drive เต็มไปเรื่อยๆ ตามอายุร้าน
@@ -41,8 +41,11 @@ var BACKUP_RETENTION_DAYS = 30; // เก็บไฟล์สำรองอั
 function runDailyKarmtoBackup() {
   var listRes = backupFetch_('?action=list&prefix=day:');
   var dayKeys = listRes.keys || [];
-  // ประวัติกิจกรรมเก็บแยกคีย์ต่อวัน (actlog:YYYY-MM-DD) — ต้องตรงกับ ACT_LOG_PREFIX ใน index.html
-  var actKeys = (backupFetch_('?action=list&prefix=actlog:').keys) || [];
+  // คีย์ที่แยกเก็บทีละชิ้น — ต้องตรงกับ BACKUP_PREFIXES ใน index.html
+  var actKeys = [];
+  ['actlog:', 'rchkm:', 'rchk:', 'productImage:'].forEach(function (px) {
+    actKeys = actKeys.concat((backupFetch_('?action=list&prefix=' + encodeURIComponent(px)).keys) || []);
+  });
   var allKeys = dayKeys.concat(['settings', 'debts']).concat(BACKUP_EXTRA_ROOT_KEYS).concat(actKeys);
   var bulkRes = backupFetch_(null, { action: 'bulkGet', keys: allKeys });
   var values = bulkRes.values || {};

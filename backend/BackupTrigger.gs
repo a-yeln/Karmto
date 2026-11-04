@@ -82,6 +82,10 @@ function runDailyKarmtoBackup() {
 
 /** เรียก API ของเว็บแอป Karmto ตัวเดียวกับที่ window.storage ใน index.html เรียก (GET ตอนมี queryString, POST ตอนมี postBody) */
 function backupFetch_(queryString, postBody) {
+  // แนบรหัสเข้าใช้ระบบ (Script Properties: KARMTO_KEY — ดู AuthGuard.gs) ถ้าตั้งไว้
+  var key = PropertiesService.getScriptProperties().getProperty('KARMTO_KEY') || '';
+  if (postBody && key) postBody.k = key;
+  if (queryString && key) queryString += '&k=' + encodeURIComponent(key);
   var options = postBody
     ? { method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify(postBody), muteHttpExceptions: true }
     : { method: 'get', muteHttpExceptions: true };
@@ -91,7 +95,9 @@ function backupFetch_(queryString, postBody) {
   if (code < 200 || code >= 300) {
     throw new Error('Karmto backup: เรียก API ไม่สำเร็จ (HTTP ' + code + ') — ' + res.getContentText().slice(0, 300));
   }
-  return JSON.parse(res.getContentText());
+  var data = JSON.parse(res.getContentText());
+  if (data && data.error === 'unauthorized') throw new Error('Karmto backup: รหัส KARMTO_KEY ไม่ตรง — เช็ค Script Properties');
+  return data;
 }
 
 function backupGetOrCreateFolder_() {

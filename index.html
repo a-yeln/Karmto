@@ -23,6 +23,15 @@
   // บนเครือข่ายของผู้ใช้ (ลองแก้หลายทางแล้วไม่สำเร็จ) ส่วน Apps Script ทดสอบแล้วใช้งานได้จริง
   const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxBUioYu6BXMdc3Dmuy8XEQjc6DTW-oxivAT5yf3wWvQD-H50l32-dBZYq_XLTPbp2zBg/exec';
 
+  // รหัสเข้าใช้ระบบ (เก็บในเครื่องนี้เท่านั้น ไม่อยู่ในโค้ดเว็บ) — แนบไปกับทุกคำขอ ฝั่ง Apps Script ตรวจถ้าตั้ง KARMTO_KEY ไว้
+  function apiKey_(){ try{ return localStorage.getItem('karmto.apiKey') || ''; }catch(e){ return ''; } }
+  // ต้องเช็คก่อนเรื่องอื่น: get() แปล error ทุกแบบเป็น "Key not found" ซึ่งแอปถือว่า "ยังไม่มีข้อมูล" แล้วอาจเขียนค่าว่างทับ
+  function apiAuthCheck_(data){
+    if(data && data.error === 'unauthorized'){
+      try{ window.dispatchEvent(new Event('karmto-unauthorized')); }catch(e){}
+      throw new Error('Unauthorized: ต้องใส่รหัสเข้าใช้ระบบก่อน');
+    }
+  }
   function withApiTimeout(promise, label, ms){
     return Promise.race([
       promise,
@@ -32,9 +41,9 @@
 
   window.storage = {
     async get(key){
-      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=get&key=${encodeURIComponent(key)}`), 'get');
+      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=get&key=${encodeURIComponent(key)}&k=${encodeURIComponent(apiKey_())}`), 'get');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       if(data.error){ const err = new Error('Key not found: '+key); throw err; }
       return {key: data.key, value: data.value, shared:false};
     },
@@ -42,10 +51,10 @@
       const res = await withApiTimeout(fetch(SHEET_API_URL, {
         method:'POST',
         headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'set', key, value})
+        body: JSON.stringify({k: apiKey_(), action:'set', key, value})
       }), 'set');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       if(data.error){ throw new Error(data.message||data.error); }
       return {key: data.key, value: data.value, shared:false};
     },
@@ -53,16 +62,16 @@
       const res = await withApiTimeout(fetch(SHEET_API_URL, {
         method:'POST',
         headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'delete', key})
+        body: JSON.stringify({k: apiKey_(), action:'delete', key})
       }), 'delete');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       return {key: data.key, deleted: !!data.deleted, shared:false};
     },
     async list(prefix){
-      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=list&prefix=${encodeURIComponent(prefix||'')}`), 'list');
+      const res = await withApiTimeout(fetch(`${SHEET_API_URL}?action=list&prefix=${encodeURIComponent(prefix||'')}&k=${encodeURIComponent(apiKey_())}`), 'list');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       return {keys: data.keys||[], prefix, shared:false};
     },
     // แก้ "แค่ฟิลด์เดียว" ภายในค่า JSON ของ key นั้นๆ โดยฝั่งเซิร์ฟเวอร์ล็อกกันชนกันจริงๆ (Apps Script v4 ขึ้นไป) — path
@@ -72,10 +81,10 @@
       const res = await withApiTimeout(fetch(SHEET_API_URL, {
         method:'POST',
         headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'patchField', key, path, value})
+        body: JSON.stringify({k: apiKey_(), action:'patchField', key, path, value})
       }), 'patchField');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       if(data.error){ throw new Error(data.message||data.error); }
       return {key: data.key, value: data.value, shared:false};
     },
@@ -86,10 +95,10 @@
       const res = await withApiTimeout(fetch(SHEET_API_URL, {
         method:'POST',
         headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({action:'patchOps', key, ops, rootIsArray: !!rootIsArray})
+        body: JSON.stringify({k: apiKey_(), action:'patchOps', key, ops, rootIsArray: !!rootIsArray})
       }), 'patchOps');
       if(!res.ok){ throw new Error('Network error: '+res.status); }
-      const data = await res.json();
+      const data = await res.json(); apiAuthCheck_(data);
       if(data.error){ throw new Error(data.message||data.error); }
       return {key: data.key, value: data.value, shared:false};
     }
@@ -99,10 +108,10 @@
     const res = await withApiTimeout(fetch(SHEET_API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'bulkSet', items})
+      body: JSON.stringify({k: apiKey_(), action:'bulkSet', items})
     }), 'bulkSet', 30000);
     if(!res.ok){ throw new Error('Network error: '+res.status); }
-    const data = await res.json();
+    const data = await res.json(); apiAuthCheck_(data);
     if(data.error){ throw new Error(data.message||data.error); }
     return data;
   };
@@ -111,10 +120,10 @@
     const res = await withApiTimeout(fetch(SHEET_API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'bulkGet', keys})
+      body: JSON.stringify({k: apiKey_(), action:'bulkGet', keys})
     }), 'bulkGet', 30000);
     if(!res.ok){ throw new Error('Network error: '+res.status); }
-    const data = await res.json();
+    const data = await res.json(); apiAuthCheck_(data);
     if(data.error){ throw new Error(data.message||data.error); }
     return data.values || {};
   };
@@ -1846,6 +1855,13 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
   </div>
 
   <div class="panel" id="panel-settings">
+    <div class="card dash-wide-card">
+      <h3>🔐 รหัสเข้าใช้ระบบ <span class="subhint">(เก็บในเครื่องนี้เท่านั้น)</span></h3>
+      <div class="hint">กันคนอื่นที่ได้ลิงก์ไปอ่าน/แก้ข้อมูล — ต้องตั้งรหัสเดียวกันใน Apps Script (Script Properties ชื่อ KARMTO_KEY) แล้วทุกเครื่องใส่รหัสเดียวกันที่นี่ ไม่ได้อยู่ในโค้ดเว็บ</div>
+      <div class="field" style="margin-top:8px;"><label for="apiKeyInput">รหัส</label><input type="password" id="apiKeyInput" autocomplete="off" placeholder="ยังไม่ได้ตั้ง"></div>
+      <button class="btn small" id="apiKeySaveBtn" style="width:auto;">บันทึกรหัสในเครื่องนี้</button>
+      <span class="hint" id="apiKeyState" style="margin-left:8px;"></span>
+    </div>
     <div class="card dash-wide-card">
       <h3>✨ การแสดงผล</h3>
       <div class="field" style="margin-bottom:4px;"><label>🎨 ธีม</label></div>
@@ -11501,6 +11517,39 @@ function updateWeekdayBadge_(iso){
 // ไม่เล่นตอนรันเทสต์อัตโนมัติ (navigator.webdriver) เพราะการ์ดที่กำลังขยับทำให้วัดขนาด/ตำแหน่งผิด เว้นแต่สั่ง force
 const MOTION_WINDOW_MS = 4000;
 let motionTimer_ = null;
+function initApiKeySettings_(){
+  const inp = document.getElementById('apiKeyInput'), st = document.getElementById('apiKeyState');
+  if(!inp) return;
+  const has = ()=>{ try{ return !!localStorage.getItem('karmto.apiKey'); }catch(e){ return false; } };
+  st.textContent = has() ? '✓ ตั้งรหัสในเครื่องนี้แล้ว' : '';
+  document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
+    const v = inp.value.trim();
+    try{ if(v) localStorage.setItem('karmto.apiKey', v); else localStorage.removeItem('karmto.apiKey'); }catch(e){}
+    inp.value = '';
+    showToast(v ? 'บันทึกรหัสแล้ว — กำลังโหลดใหม่' : 'ลบรหัสออกจากเครื่องนี้แล้ว');
+    setTimeout(()=>location.reload(), 700);
+  });
+}
+// เซิร์ฟเวอร์ตอบว่ายังไม่ได้รับอนุญาต (ยังไม่ใส่รหัส/รหัสผิด) — ถามรหัสครั้งเดียว แล้วโหลดหน้าใหม่
+let apiKeyPromptShown_ = false;
+window.addEventListener('karmto-unauthorized', ()=>{
+  if(apiKeyPromptShown_) return;
+  apiKeyPromptShown_ = true;
+  const ov = document.createElement('div');
+  ov.className = 'modalOverlay'; ov.style.display = 'flex'; ov.style.zIndex = '200';
+  ov.innerHTML = `<div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="apiKeyDlgTitle" style="max-width:360px;">
+    <h3 id="apiKeyDlgTitle" style="margin-bottom:6px;">🔐 ใส่รหัสเข้าใช้ระบบ</h3>
+    <div class="hint" style="margin-bottom:10px;">ระบบตั้งรหัสป้องกันไว้ ใส่รหัสครั้งเดียว เครื่องนี้จะจำไว้</div>
+    <input type="password" id="apiKeyDlgInput" autocomplete="off" style="width:100%;">
+    <button class="btn" id="apiKeyDlgOk" style="margin-top:10px;">เข้าใช้งาน</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const inp = document.getElementById('apiKeyDlgInput');
+  inp.focus();
+  const go = ()=>{ const v = inp.value.trim(); if(!v) return; try{ localStorage.setItem('karmto.apiKey', v); }catch(e){} location.reload(); };
+  document.getElementById('apiKeyDlgOk').addEventListener('click', go);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
+});
 function applyTheme_(theme, mode, bill){
   const r = document.documentElement;
   if(theme === 'macaron') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', theme);
@@ -11679,7 +11728,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.2';
+const APP_BUILD = '2026-11-05.3';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -12711,6 +12760,7 @@ async function init(){
   const splashPrev = document.getElementById('splashPreviewBtn');
   if(splashPrev) splashPrev.addEventListener('click', ()=>{ try{ localStorage.removeItem('karmto.splashDate'); localStorage.setItem('karmto.splashPreview','1'); }catch(e){} location.reload(); });
   initThemeSettings_();
+  initApiKeySettings_();
   const motionToggle = document.getElementById('motionToggle');
   if(motionToggle){
     motionToggle.checked = motionEnabled_();

@@ -893,6 +893,8 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 .msgblock[data-msgtone=lime] .tag{background:var(--c-lime);border:1.5px solid var(--b-lime);color:var(--text);font-size:12.5px;padding:4px 12px;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
 .actfeed-day{position:sticky;top:0;z-index:1;margin-top:10px;padding:4px 10px;border-radius:999px;background:var(--card-bg,var(--c-sky));border:1.5px solid var(--card-bd,var(--b-sky));font-size:11.5px;font-weight:700;width:fit-content;}
+.offq-badge{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom, 0px));z-index:150;padding:6px 12px;border-radius:999px;background:var(--c-lemon,#FFF6CC);border:1.5px solid var(--b-lemon,#E8D27A);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+.actfeed-dev{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--border);font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
 .actfeed-day:first-child{margin-top:0;}
 /* ---- กล่องรูป เหลือรับเข้า ---- */
 .ltile-grid{display:flex;flex-wrap:nowrap;gap:12px;}
@@ -1483,6 +1485,10 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
       <button class="btn secondary" id="saveAllOrderTicketsBtn" style="margin-bottom:10px;">🏷️ บันทึกทุกภาพ PeriPage</button>
       <div class="rowlist" id="orderList"></div>
     </div>
+    <div class="card dash-wide-card" id="forecastCard">
+      <h3>🔮 คาดการณ์ยอดวันนี้ <span class="subhint">(เฉลี่ยวันเดียวกันของ 4 สัปดาห์ก่อน — แค่ช่วยกะ)</span></h3>
+      <div id="forecastBody" class="hint">กำลังคำนวณ…</div>
+    </div>
     <div class="card dash-wide-card" data-no-collapse="1">
       <div id="msgCardToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
         <h3 style="margin:0;">💬 ข้อความส่ง</h3>
@@ -1864,6 +1870,21 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
       <div class="field" style="margin-top:8px;"><label for="apiKeyInput">รหัส</label><input type="password" id="apiKeyInput" autocomplete="off" placeholder="ยังไม่ได้ตั้ง"></div>
       <button class="btn small" id="apiKeySaveBtn" style="width:auto;">บันทึกรหัสในเครื่องนี้</button>
       <span class="hint" id="apiKeyState" style="margin-left:8px;"></span>
+    </div>
+    <div class="card dash-wide-card">
+      <h3>🔒 ปิดเดือน <span class="subhint">(กันแก้ย้อนหลังหลังสรุปยอดแล้ว)</span></h3>
+      <div class="hint">เดือนที่ปิดแล้ว แก้ออเดอร์/ต้นทุน/รายจ่าย/ของเหลือ/ล็อตของวันในเดือนนั้นไม่ได้ทุกเครื่อง — ยังกดสถานะโอน/จ่าย และบันทึกเคลมได้ตามปกติ ปลดล็อกได้ตลอด</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <select id="closeMonthSelect" style="width:auto;"></select>
+        <button class="btn small" id="closeMonthBtn" style="width:auto;">🔒 ปิดเดือนนี้</button>
+      </div>
+      <div id="closedMonthsList" style="margin-top:8px;"></div>
+    </div>
+    <div class="card dash-wide-card">
+      <h3>📱 ชื่อเครื่องนี้ <span class="subhint">(แสดงในรายการกิจกรรม)</span></h3>
+      <div class="hint">ตั้งชื่อให้รู้ว่าใครแก้อะไรจากเครื่องไหน เช่น "ไอโฟนแม่" "แท็บเล็ตหน้าร้าน" — ไม่ตั้งระบบเดาจากชนิดเครื่องให้</div>
+      <div class="field" style="margin-top:8px;"><label for="deviceNameInput">ชื่อเครื่อง</label><input type="text" id="deviceNameInput" maxlength="30" autocomplete="off"></div>
+      <button class="btn small" id="deviceNameSaveBtn" style="width:auto;">บันทึกชื่อเครื่อง</button>
     </div>
     <div class="card dash-wide-card">
       <h3>✨ การแสดงผล</h3>
@@ -2248,7 +2269,7 @@ function bahtText(amount){
   return ArabicToThaiText(amount) + "บาทถ้วน";
 }
 
-function showToast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1600); }
+function showToast(msg){ if(Date.now() < monthLockToastUntil_ && !String(msg).startsWith('🔒')) return; const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1600); }
 
 async function loadSettings(){
   try{
@@ -2419,6 +2440,165 @@ function noteStorageSize_(key, value){
   if(value.length > STORAGE_SIZE_WARN) storageSizeWarnings_[key] = value.length;
   else delete storageSizeWarnings_[key];
 }
+// ---- ล็อกปิดเดือน ----
+// เดือนที่ปิดแล้ว (คีย์ closedMonths = {'YYYY-MM': {at, dev}}) แก้ข้อมูลวันในเดือนนั้นไม่ได้ ต้องปลดล็อกในตั้งค่าก่อน
+// ยกเว้นสถานะจ่าย/โอน/โน้ตบิล/เคลมที่มาทีหลังได้ตามปกติ (บิลเดือนนี้มักโอนเดือนหน้า) — กันที่จุดเขียนกลางจุดเดียว ครอบทุกฟอร์ม
+let closedMonths_ = {};
+let monthLockToastUntil_ = 0;
+const MONTH_LOCK_FREE_FIELDS = ['billingPaid','purchaseGroupPayment','billNote','billClaimNotes','messageOverrides','workflow'];
+const MONTH_LOCK_FREE_SET = ['paid','paidDate','paidAmount'];
+function isMonthClosed_(iso){ return !!(iso && closedMonths_[String(iso).slice(0,7)]); }
+async function loadClosedMonths_(){
+  try{ closedMonths_ = JSON.parse((await window.storage.get('closedMonths')).value) || {}; }
+  catch(e){ if(String(e && e.message).indexOf('Key not found')===0) closedMonths_ = {}; }
+  return closedMonths_;
+}
+function monthLockOpAllowed_(op){
+  if(!op) return false;
+  if(Array.isArray(op.path)) return MONTH_LOCK_FREE_FIELDS.includes(op.path[0]);
+  if(Array.isArray(op.arrayPath)){
+    if(MONTH_LOCK_FREE_FIELDS.includes(op.arrayPath[0])) return true;
+    return !!(op.set && !op.push && !op.remove && Object.keys(op.set).every(k=>MONTH_LOCK_FREE_SET.includes(k)));
+  }
+  return false;
+}
+// คืนเดือนที่ปิดแล้วที่การเขียนนี้จะไปแตะ (null = เขียนได้)
+function monthLockBlocks_(m, key, rest){
+  if(typeof key !== 'string' || !Object.keys(closedMonths_).length) return null;
+  if(key.indexOf('day:') === 0){
+    const iso = key.slice(4);
+    if(!isMonthClosed_(iso)) return null;
+    if(m === 'patchField') return (Array.isArray(rest[0]) && MONTH_LOCK_FREE_FIELDS.includes(rest[0][0])) ? null : iso.slice(0,7);
+    if(m === 'patchOps') return (rest[0]||[]).every(monthLockOpAllowed_) ? null : iso.slice(0,7);
+    return iso.slice(0,7);
+  }
+  // ของที่ลงวันที่ไว้ในคีย์รวม: ล็อตใหม่ / รอบเบิกใหม่ / ของเสีย-เคลมใหม่ ที่ลงวันที่ในเดือนที่ปิด
+  if(m === 'patchOps' && (key === 'rawLots' || key === 'wasteRecords')){
+    for(const op of (rest[0]||[])){
+      const items = [op.push, op.nested && op.nested.push].filter(Boolean);
+      for(const it of items){ const d = it.date || it.buyDate; if(isMonthClosed_(d)) return String(d).slice(0,7); }
+    }
+  }
+  return null;
+}
+function monthLabel_(ym){ const [y,mo] = ym.split('-'); return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(mo)-1]} ${y}`; }
+// ---- คิวบันทึกตอนออฟไลน์ ----
+// เน็ตหลุดตอนกดบันทึก (เครื่องรู้ตัวว่าออฟไลน์) → เก็บคำสั่งแก้ไว้ในเครื่อง แสดงผลทันทีจากแคช แล้วส่งตามลำดับเองเมื่อเน็ตกลับมา
+// รับเฉพาะคำสั่งแบบแก้ทีละจุด (patchOps/patchField) — การเขียนทับทั้งก้อนตอนออฟไลน์ไม่รับ (เสี่ยงทับของเครื่องอื่นตอนส่งทีหลัง)
+// ทุกคำสั่ง "เพิ่มรายการ" ถูกแปลงเป็น "ลบรหัสนี้ถ้ามี + เพิ่ม" ก่อนเก็บ ส่งซ้ำกี่รอบก็ไม่ได้รายการซ้ำ
+const OFFLINE_Q_LS = 'karmto_offline_queue';
+let offlineFlushing_ = false;
+function isOffline_(){ return !!window.__forceOffline || (typeof navigator !== 'undefined' && navigator.onLine === false); }
+function readOfflineQueue_(){ try{ return JSON.parse(localStorage.getItem(OFFLINE_Q_LS) || '[]') || []; }catch(e){ return []; } }
+function writeOfflineQueue_(q){ try{ if(q.length) localStorage.setItem(OFFLINE_Q_LS, JSON.stringify(q)); else localStorage.removeItem(OFFLINE_Q_LS); }catch(e){} renderOfflineBadge_(); }
+function renderOfflineBadge_(){
+  const el = document.getElementById('offlineQueueBadge');
+  if(!el) return;
+  const n = readOfflineQueue_().length;
+  el.style.display = (n || isOffline_()) ? '' : 'none';
+  el.textContent = isOffline_() ? `📴 ออฟไลน์${n?` • รอส่ง ${n} รายการ`:''}` : `⏳ กำลังส่งที่ค้าง ${n} รายการ…`;
+}
+function localPatchMatches_(item, op){
+  const v = item ? item[op.matchField] : undefined;
+  return (v === undefined || v === null || v === '') && op.matchDefault !== undefined ? op.matchDefault === op.matchValue : v === op.matchValue;
+}
+function localApplyArrayOp_(arr, op){
+  if(op.push !== undefined){ arr.push(JSON.parse(JSON.stringify(op.push))); return; }
+  if(op.remove){
+    for(let i = arr.length - 1; i >= 0; i--){ if(localPatchMatches_(arr[i], op.remove)){ arr.splice(i, 1); if(!op.remove.matchAll) break; } }
+    return;
+  }
+  if(op.matchField){
+    const idxs = []; arr.forEach((it, i)=>{ if(localPatchMatches_(it, op)) idxs.push(i); });
+    (op.matchAll ? idxs : idxs.slice(0,1)).forEach(i=>{
+      const item = arr[i];
+      if(op.set) Object.assign(item, JSON.parse(JSON.stringify(op.set)));
+      if(op.nested){ if(!Array.isArray(item[op.nested.field])) item[op.nested.field] = []; localApplyArrayOp_(item[op.nested.field], op.nested); }
+    });
+  }
+}
+function localGetAt_(root, path){ let t = root; for(const seg of path){ if(t[seg] === undefined || t[seg] === null || typeof t[seg] !== 'object') t[seg] = {}; t = t[seg]; } return t; }
+function localPatchOps_(root, ops){
+  for(const op of (Array.isArray(ops) ? ops : [ops])){
+    if(op.path){ const parent = localGetAt_(root, op.path.slice(0,-1)); const last = op.path[op.path.length-1]; if(op.deleteKey) delete parent[last]; else parent[last] = JSON.parse(JSON.stringify(op.value===undefined?null:op.value)); continue; }
+    const ap = op.arrayPath || [];
+    let arr;
+    if(!ap.length) arr = root;
+    else { const parent = localGetAt_(root, ap.slice(0,-1)); const last = ap[ap.length-1]; if(!Array.isArray(parent[last])) parent[last] = []; arr = parent[last]; }
+    localApplyArrayOp_(arr, op);
+  }
+  return root;
+}
+// แปลง "เพิ่มรายการที่มีรหัส" เป็น "ลบรหัสนี้ (ถ้ามี) แล้วเพิ่ม" — ส่งซ้ำไม่ซ้ำ
+function idempotentOps_(ops){
+  const out = [];
+  (Array.isArray(ops) ? ops : [ops]).forEach(op=>{
+    if(op && op.push && op.push.id !== undefined && !op.path){
+      out.push(Object.assign({}, op, {push: undefined, remove: {matchField:'id', matchValue: op.push.id}}));
+      out.push(op);
+    }else if(op && op.nested && op.nested.push && op.nested.push.id !== undefined){
+      out.push(Object.assign({}, op, {nested: {field: op.nested.field, remove: {matchField:'id', matchValue: op.nested.push.id}}}));
+      out.push(op);
+    }else out.push(op);
+  });
+  return out.map(o=>{ const c = {...o}; if(c.push === undefined) delete c.push; return c; });
+}
+// ค่าปัจจุบันของคีย์จากแคชในเครื่อง (ไว้คำนวณผลลัพธ์ตอนออฟไลน์) — undefined = ไม่รู้ค่า รับคิวไม่ได้
+function offlineBase_(key, rootIsArray){
+  if(key.indexOf('day:') === 0){ const iso = key.slice(4); const d = dayCache_[iso] || readDayFromLocalStorage_(iso); return d ? JSON.parse(JSON.stringify(d)) : undefined; }
+  const map = {rawLots: ()=>rawLotsCache_, wasteRecords: ()=>wasteRecordsCache_, lotProductBills: ()=>lotProductBillsCache_, lotTransportBills: ()=>lotTransportBillsCache_, debts: ()=>debtsCache_, settings: ()=>settings};
+  if(map[key]){ const v = map[key](); return v ? JSON.parse(JSON.stringify(v)) : undefined; }
+  if(key.indexOf('actlog:') === 0) return [];
+  return undefined;
+}
+function queueOfflineWrite_(m, key, rest){
+  const rootIsArray = m === 'patchOps' ? !!rest[1] : false;
+  const base = offlineBase_(key, rootIsArray);
+  if(base === undefined){ const e = new Error('Offline: ออฟไลน์อยู่ — ส่วนนี้ต้องต่อเน็ตก่อน'); e.offline = true; throw e; }
+  let root = base, entry;
+  if(m === 'patchOps'){
+    const ops = idempotentOps_(rest[0]);
+    root = localPatchOps_(root, ops);
+    entry = {m, key, ops, rootIsArray};
+  }else{
+    root = localPatchOps_(root, [{path: rest[0], value: rest[1]}]);
+    entry = {m, key, path: rest[0], value: rest[1]};
+  }
+  entry.at = Date.now(); entry.qid = uid('q');
+  const q = readOfflineQueue_(); q.push(entry); writeOfflineQueue_(q);
+  clearTimeout(window.__offqToastT); window.__offqToastT = setTimeout(()=>showToast('📴 ออฟไลน์ — บันทึกไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา'), 1700);
+  if(key.indexOf('day:') === 0){ const iso = key.slice(4); const d = normalizeDay_(JSON.parse(JSON.stringify(root))); dayCache_[iso] = d; writeDayToLocalStorage_(iso, d); }
+  return {key, value: JSON.stringify(root), shared:false, queued:true};
+}
+async function flushOfflineQueue_(){
+  if(offlineFlushing_ || isOffline_()) { renderOfflineBadge_(); return; }
+  let q = readOfflineQueue_();
+  if(!q.length){ renderOfflineBadge_(); return; }
+  offlineFlushing_ = true;
+  renderOfflineBadge_();
+  let sent = 0;
+  try{
+    while(q.length){
+      const e = q[0];
+      try{
+        const res = e.m === 'patchOps' ? await window.storage.patchOps(e.key, e.ops, e.rootIsArray) : await window.storage.patchField(e.key, e.path, e.value);
+        if(e.key.indexOf('day:') === 0 && res && res.value){ const iso = e.key.slice(4); try{ const d = normalizeDay_(JSON.parse(res.value)); dayCache_[iso] = d; writeDayToLocalStorage_(iso, d); if(iso === currentDate) dayData = d; }catch(_){} }
+      }catch(err){
+        if(err && err.monthLocked){ /* เดือนถูกปิดระหว่างออฟไลน์ — ทิ้งคำสั่งนี้ (แจ้งไปแล้ว) */ }
+        else break; // ยังส่งไม่ได้ เก็บไว้รอบหน้า (ลำดับเดิม)
+      }
+      q.shift(); writeOfflineQueue_(q); sent++;
+    }
+  }finally{
+    offlineFlushing_ = false;
+    rawLotsCache_ = null; wasteRecordsCache_ = null; lotProductBillsCache_ = null; lotTransportBillsCache_ = null;
+    renderOfflineBadge_();
+  }
+  if(sent){ showToast(`✅ ส่งข้อมูลที่บันทึกตอนออฟไลน์แล้ว ${sent} รายการ`); try{ pendingSyncRender_ = true; syncFromOtherDevices_(); }catch(e){} }
+}
+window.addEventListener('online', ()=>{ renderOfflineBadge_(); flushOfflineQueue_(); });
+window.addEventListener('offline', renderOfflineBadge_);
+const STORAGE_LIST_TTL = 60000;
 function wrapStorageForDayRevs_(raw){
   if(!raw || raw.__dayRevWrapped) return raw;
   const stamp = key => {
@@ -2433,9 +2613,41 @@ function wrapStorageForDayRevs_(raw){
   w.__dayRevWrapped = true;
   ['set', 'patchField', 'patchOps', 'delete'].forEach(m=>{
     if(typeof raw[m] !== 'function') return;
-    w[m] = async function(key, ...rest){ const res = await raw[m](key, ...rest); stamp(key); noteStorageSize_(key, res && res.value); return res; };
+    w[m] = async function(key, ...rest){
+      const locked = monthLockBlocks_(m, key, rest);
+      if(locked){
+        monthLockToastUntil_ = Date.now() + 2500;
+        showToast(`🔒 เดือน ${monthLabel_(locked)} ปิดแล้ว — แก้ไม่ได้ (ปลดล็อกได้ที่ ตั้งค่า → ปิดเดือน)`);
+        const err = new Error('MonthLocked: ' + locked); err.monthLocked = locked; throw err;
+      }
+      if(!offlineFlushing_ && (m === 'patchOps' || m === 'patchField') && (isOffline_() || readOfflineQueue_().length)){
+        if(!isOffline_()) await flushOfflineQueue_();
+        if(isOffline_() || readOfflineQueue_().length) return queueOfflineWrite_(m, key, rest); // ยังส่งของเก่าไม่หมด — ต่อคิวไว้ รักษาลำดับ
+      }
+      if(isOffline_() && !offlineFlushing_){ const e = new Error('Offline: ออฟไลน์อยู่ — ต่อเน็ตก่อนแล้วลองใหม่'); e.offline = true; throw e; }
+      const res = await raw[m](key, ...rest); stamp(key); noteStorageSize_(key, res && res.value);
+      if(w.__noteKey) w.__noteKey(key, m === 'delete');
+      return res;
+    };
   });
   if(typeof raw.get === 'function') w.get = async function(key, ...rest){ const res = await raw.get(key, ...rest); noteStorageSize_(key, res && res.value); return res; };
+  // รายชื่อคีย์ (เช่นทุกวัน 'day:') ถูกขอซ้ำแทบทุกหน้าสรุป ต้องยิงเซิร์ฟเวอร์ทุกครั้ง (ช้า) — จำไว้ 60 วินาที และอัปเดตเองทุกครั้งที่เครื่องนี้
+  // เขียน/ลบคีย์ หรือเจอวันใหม่จากป้าย dayRevs ของเครื่องอื่น (syncDayRevs_) เลยไม่พลาดวันที่เพิ่งสร้าง
+  if(typeof raw.list === 'function'){
+    const listCache = {};
+    w.list = async function(prefix, ...rest){
+      const p = prefix || '';
+      const c = listCache[p];
+      if(c && Date.now() - c.at < STORAGE_LIST_TTL && !window.__noListCache) return {keys: [...c.keys], prefix, shared:false};
+      const res = await raw.list(prefix, ...rest);
+      listCache[p] = {at: Date.now(), keys: new Set((res && res.keys) || [])};
+      return res;
+    };
+    w.__noteKey = function(key, removed){
+      Object.keys(listCache).forEach(p=>{ if(String(key).indexOf(p)===0){ if(removed) listCache[p].keys.delete(key); else listCache[p].keys.add(key); } });
+    };
+    w.__clearListCache = function(){ Object.keys(listCache).forEach(p=>delete listCache[p]); };
+  }
   return w;
 }
 (function(){
@@ -2448,6 +2660,7 @@ async function syncDayRevs_(){
   try{ server = JSON.parse((await window.storage.get('dayRevs')).value) || {}; }
   catch(e){ return []; }
   dayRevs_ = server;
+  if(window.storage.__noteKey) Object.keys(server).forEach(iso=>window.storage.__noteKey('day:'+iso, false));
   const changed = [];
   Object.keys(server).forEach(iso=>{
     if(readLocalDayRev_(iso) === server[iso]) return;
@@ -2670,8 +2883,17 @@ function orderRowSummary_(row){
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) parts.push('📦'+it.name+' '+it.qty); });
   return parts.join(' ');
 }
+// ชื่อเครื่อง (ตั้งเองในหน้าตั้งค่า ไม่ตั้งก็เดาจากชนิดเครื่อง) — แสดงในรายการกิจกรรมว่าใครแก้จากเครื่องไหน
+function deviceName_(){
+  try{ const n = localStorage.getItem('karmto.deviceName'); if(n) return n; }catch(e){}
+  const ua = navigator.userAgent || '';
+  if(/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iPad';
+  if(/iPhone/.test(ua)) return 'iPhone';
+  if(/Android/.test(ua)) return /Mobile/.test(ua) ? 'Android' : 'แท็บเล็ต Android';
+  return 'คอม';
+}
 async function logActivity_(text){
-  const entry = {id: uid('act'), ts: Date.now(), text};
+  const entry = {id: uid('act'), ts: Date.now(), text, dev: deviceName_()};
   const day = todayISO();
   try{
     await writeRootArrayOp_(ACT_LOG_PREFIX+day, {push: entry}, ()=>{});
@@ -2694,7 +2916,7 @@ function renderActivityFeed_(){
     const dayKey = `${dd}/${mo}/${d.getFullYear()}`;
     const head = dayKey !== lastDay ? `<div class="actfeed-day">${dayKey}</div>` : '';
     lastDay = dayKey;
-    return `${head}<div class="dwtile-feed-item"><span class="dwtile-feed-time">${dd}/${mo} ${hh}:${mm}</span>${escapeHtml(e.text)}</div>`;
+    return `${head}<div class="dwtile-feed-item"><span class="dwtile-feed-time">${dd}/${mo} ${hh}:${mm}</span>${escapeHtml(e.text)}${e.dev?` <span class="actfeed-dev">📱 ${escapeHtml(e.dev)}</span>`:''}</div>`;
   }).join('');
   const moreBtn = activityLogShownDays_ < activityLogDays_.length ? '<button type="button" class="btn secondary small" id="actFeedMoreBtn" style="margin-top:8px;">ดูย้อนหลังเพิ่ม</button>' : '';
   el.innerHTML = latest.length ? items + moreBtn : '<div class="hint">ยังไม่มีรายการ</div>';
@@ -2946,7 +3168,7 @@ async function saveRow(){
   }
   showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
-function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); }
+function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); renderOrderForecast_(); }
 // ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — ไม่มีราคา เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จ
 // เก็บเงิน (อันนั้นมี buildReceiptCardHTML อยู่แล้ว คนละการ์ดกัน) — โชว์สินค้าหลักครบทั้ง 7 ตัวเสมอ (ไม่กรองเฉพาะที่สั่งวันนี้)
 // ตัวที่ไม่ได้สั่ง (qty=0) ให้ช่องจำนวนว่างไว้ + แถวจางลง เอาไว้ให้เห็นครบทุกสินค้าในป้ายเดียวเทียบง่ายว่าตัวไหนไม่ได้สั่งบ้าง
@@ -3139,6 +3361,45 @@ async function saveAllOrderTicketsAsImages(){
 }
 // การ์ด "ออเดอร์วันนี้ที่ดูผิดปกติ" ย้ายมาอยู่ในแท็บ order แล้ว (ต่อจาก "สาขาที่บันทึกแล้ววันนี้") — ต้องอัปเดตทุกครั้งที่ข้อมูลออเดอร์เปลี่ยน
 // ไม่ผูกกับ renderDashboard() อีกต่อไปเพราะบางคนอาจไม่เปิดแท็บแดชบอร์ดเลยในแต่ละวัน ทำงานแบบ fire-and-forget ไม่ await เพื่อไม่ให้บันทึกออเดอร์ช้าลง
+// ---- คาดการณ์ยอดสั่ง: เฉลี่ยวันเดียวกันในสัปดาห์ 4 สัปดาห์ย้อนหลัง (นับเฉพาะวันที่มีออเดอร์) — แสดงอย่างเดียว ไม่เขียนอะไร ----
+async function computeOrderForecast_(iso){
+  const past = [1,2,3,4].map(w=>addDaysISO(iso, -7*w));
+  const map = await loadDaysBulk(past);
+  const used = past.filter(d=>{ const o = (map[d]||{}).orders||{}; return Object.values(o).some(hasNonEmptyOrder_); });
+  const avg = {}; PRODUCTS.forEach(p=>avg[p.id]=0);
+  let branches = 0;
+  used.forEach(d=>{
+    const o = map[d].orders||{};
+    const t = computeTotals(o);
+    PRODUCTS.forEach(p=>{ avg[p.id] += t[p.id]; });
+    branches += Object.values(o).filter(hasNonEmptyOrder_).length;
+  });
+  if(used.length) PRODUCTS.forEach(p=>{ avg[p.id] = Math.round(avg[p.id]/used.length*10)/10; });
+  const prev = await loadDay(addDaysISO(iso,-1)).catch(()=>emptyDay());
+  return {used, avg, branches: used.length ? Math.round(branches/used.length*10)/10 : 0, leftoverIn: {...((prev&&prev.leftoverOut)||{})}};
+}
+let forecastSeq_ = 0;
+async function renderOrderForecast_(){
+  const el = document.getElementById('forecastBody');
+  if(!el) return;
+  const iso = currentDate, my = ++forecastSeq_;
+  try{
+    const f = await computeOrderForecast_(iso);
+    if(my !== forecastSeq_) return;
+    if(!f.used.length){ el.innerHTML = 'ยังไม่มีข้อมูลวันเดียวกันย้อนหลังพอให้คาดการณ์'; return; }
+    const now = computeTotals((dayData && dayData.orders) || {});
+    const rows = PRODUCTS.filter(p=>f.avg[p.id]>0 || now[p.id]>0).map(p=>{
+      const left = Number(f.leftoverIn[p.id]||0);
+      const buy = Math.max(0, Math.round((f.avg[p.id]-left)*10)/10);
+      const diff = now[p.id] - f.avg[p.id];
+      return `<tr><td>${p.emoji} ${p.name}</td><td class="num"><b>${f.avg[p.id]}</b></td><td class="num">${now[p.id]||'—'}${now[p.id]?` <span style="font-size:10.5px;color:${diff>=0?'var(--success)':'var(--text-dim)'};">${diff>=0?'+':''}${Math.round(diff*10)/10}</span>`:''}</td><td class="num">${left||'—'}</td><td class="num">${buy}</td></tr>`;
+    }).join('');
+    el.className = '';
+    el.innerHTML = `<div class="hint" style="margin-bottom:6px;">จาก ${f.used.map(d=>formatDDMMYYYY(d).slice(0,5)).join(', ')} • เฉลี่ย ${f.branches} สาขา/วัน</div>
+      <div class="scrollx"><table class="plain"><tr><th>สินค้า</th><th class="num">คาด</th><th class="num">สั่งแล้ววันนี้</th><th class="num">ของเหลือยกมา</th><th class="num">ควรซื้อ~</th></tr>${rows}</table></div>
+      <div class="hint" style="margin-top:6px;">ควรซื้อ~ = คาดการณ์ − ของเหลือยกมา (ยังไม่นับของเสีย/ขนาดที่ได้จริง) ใช้ประกอบการสั่งเท่านั้น</div>`;
+  }catch(e){ if(my===forecastSeq_) el.textContent = 'คำนวณไม่ได้ (เน็ตมีปัญหา?)'; }
+}
 async function refreshTodayAnomalyCard_(){
   try{
     const aggAll = await computeBranchAggregates();
@@ -5415,8 +5676,57 @@ async function renderMonthPL(){
         </div>
       </div>
       ${(bestDayHtml||worstDayHtml) ? `<div class="pl-panel">${bestDayHtml}${worstDayHtml}${buildMonthInsightsHtml(r, prevR)}</div>` : ''}
+      <div class="pl-two"><div class="pl-panel" id="plByProduct"><div class="loading">กำลังคำนวณกำไรแยกสินค้า…</div></div><div class="pl-panel" id="plByBranch"></div></div>
       <div class="hint">กำไรสุทธิ = ยอดขายทั้งหมด − ต้นทุนซื้อ − รายจ่ายกิจการอื่นๆ − Brand fee (คิดแบบบัญชีคงค้าง รวมยอดค้างรับด้วย) — ถ้าแท็บต้นทุนซื้อยังกรอกไม่ครบ ตัวเลขนี้จะสูงเกินจริง<br>เงินเข้า-ออกสุทธิ = เฉพาะเงินที่โอนมาจริง หักรายจ่าย/ต้นทุน/ชำระหนี้องค์กรที่จ่ายจริง (ไม่รวมยอดค้างรับ, ไม่รวมชำระหนี้ส่วนตัว AY/WJ)</div>`;
+    renderPLBreakdown_(monthVal);
   }catch(e){ el.className='empty'; el.innerHTML = 'โหลดข้อมูลไม่สำเร็จ'; }
+}
+// กำไรแยกสินค้า (ยอดขายตามบิล − ต้นทุนซื้อของสินค้านั้นทั้งเดือน) และแยกสาขา (ยอดบิล − ปริมาณ×ต้นทุนเฉลี่ยต่อหน่วยของเดือน)
+async function computePLBreakdown_(monthVal){
+  const [y, m] = monthVal.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const isos = []; for(let d=1; d<=last; d++){ const iso = `${monthVal}-${String(d).padStart(2,'0')}`; if(iso<=todayISO()) isos.push(iso); }
+  const map = await loadDaysBulk(isos);
+  const prod = {}; PRODUCTS.forEach(p=>prod[p.id] = {qty:0, rev:0, cost:0});
+  const br = {};
+  isos.forEach(iso=>{
+    const d = map[iso]; if(!d) return;
+    Object.entries(d.orders||{}).forEach(([code,row])=>{
+      if(!hasNonEmptyOrder_(row)) return;
+      const b = br[code] = br[code] || {rev:0, qty:{}, custom:0};
+      PRODUCTS.forEach(p=>{ const q = Number(row[p.id]||0); if(!q) return; const v = q*priceOnDate(p.id, iso); prod[p.id].qty += q; prod[p.id].rev += v; b.qty[p.id] = (b.qty[p.id]||0)+q; b.rev += v; });
+      const cu = (row.custom||[]).reduce((s2,it)=>s2+Number(it.qty||0)*Number(it.price||0),0);
+      b.rev += cu + Number((d.billExtra||{})[code]||0); b.custom += cu;
+    });
+    (d.purchases||[]).forEach(e=>{ if(prod[e.productId]) prod[e.productId].cost += purchaseCostTotal(e); });
+  });
+  const unitCost = {}; PRODUCTS.forEach(p=>{ unitCost[p.id] = prod[p.id].qty>0 ? prod[p.id].cost/prod[p.id].qty : 0; });
+  const branches = Object.entries(br).map(([code,b])=>{
+    const cost = PRODUCTS.reduce((s2,p)=>s2+(b.qty[p.id]||0)*unitCost[p.id],0);
+    return {code, rev:b.rev, gross:b.rev-cost};
+  }).sort((a,b)=>b.rev-a.rev);
+  return {prod, branches};
+}
+let plBreakdownSeq_ = 0;
+async function renderPLBreakdown_(monthVal){
+  const pe = document.getElementById('plByProduct'), be = document.getElementById('plByBranch');
+  if(!pe || !be) return;
+  const my = ++plBreakdownSeq_;
+  try{
+    const r = await computePLBreakdown_(monthVal);
+    if(my !== plBreakdownSeq_) return;
+    const pct = (a,b)=> b>0 ? `${Math.round(a/b*100)}%` : '—';
+    const col = v => v>=0 ? 'var(--val-pos,var(--success))' : 'var(--val-neg,var(--danger))';
+    const prows = PRODUCTS.filter(p=>r.prod[p.id].rev>0 || r.prod[p.id].cost>0).map(p=>{ const x = r.prod[p.id]; const g = x.rev-x.cost;
+      return `<tr><td>${p.emoji} ${p.name}</td><td class="num">${money(x.rev)}</td><td class="num">${money(x.cost)}</td><td class="num" style="color:${col(g)};font-weight:700;">${money(g)}</td><td class="num">${pct(g,x.rev)}</td></tr>`; }).join('');
+    pe.innerHTML = `<div class="pl-panel-h">🦐 กำไรขั้นต้นแยกสินค้า</div>
+      <div class="scrollx"><table class="plain"><tr><th>สินค้า</th><th class="num">ขาย</th><th class="num">ต้นทุนซื้อ</th><th class="num">กำไร</th><th class="num">%</th></tr>${prows || '<tr><td colspan="5" class="hint">ยังไม่มีข้อมูล</td></tr>'}</table></div>
+      <div class="hint">ขายตามบิล − ต้นทุนซื้อสินค้านั้นทั้งเดือน (ยังไม่หักรายจ่ายกิจการ/Brand fee)</div>`;
+    const brows = r.branches.map(b=>`<tr><td>${escapeHtml(branchDisplayName(settings.branches.find(x=>x.code===b.code)||{code:b.code, area:''}))}</td><td class="num">${money(b.rev)}</td><td class="num" style="color:${col(b.gross)};font-weight:700;">${money(b.gross)}</td><td class="num">${pct(b.gross,b.rev)}</td></tr>`).join('');
+    be.innerHTML = `<div class="pl-panel-h">🏪 ยอดขาย/กำไรแยกสาขา</div>
+      <div class="scrollx"><table class="plain"><tr><th>สาขา</th><th class="num">ยอดบิล</th><th class="num">กำไร~</th><th class="num">%</th></tr>${brows || '<tr><td colspan="4" class="hint">ยังไม่มีข้อมูล</td></tr>'}</table></div>
+      <div class="hint">กำไร~ = ยอดบิล − ปริมาณที่สั่ง × ต้นทุนเฉลี่ยต่อหน่วยของเดือน (ประมาณการ)</div>`;
+  }catch(e){ if(my===plBreakdownSeq_) pe.innerHTML = '<div class="empty">คำนวณกำไรแยกสินค้าไม่สำเร็จ</div>'; }
 }
 function buildMonthInsightsHtml(r, prevR){
   const insights = [];
@@ -6797,7 +7107,7 @@ function showBackupFallbackModal(jsonStr){
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย ไม่งั้นกู้คืนจากไฟล์สำรองแล้วสต็อกล็อต/ของเสีย/ประวัติต่างๆ
 // จะหายไปทั้งหมด (เดิม exportAllData/importAllData สำรองแค่ 3 ตัวแรกเท่านั้น) — รายชื่อนี้คือทุก root key ที่แอปใช้จริง
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
-const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync'];
+const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
 const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:'];
 async function exportAllData(){
@@ -6888,6 +7198,7 @@ async function importAllData(file){
       }
     }
     rawLotsCache_ = null; lotTransportBillsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null; activityLogCache_ = null;
+    if(window.storage.__clearListCache) window.storage.__clearListCache();
     showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
@@ -11171,6 +11482,28 @@ async function jumpToLongestOverdue(){
   await switchTab('billing');
   showToast(`ไปที่วันที่ค้างนานสุด (${worst.delay} วัน)`);
 }
+// ราคาซื้อสด 7 วันล่าสุดที่สูงกว่าค่าเฉลี่ย 30 วันก่อนหน้าเกิน 15% (สินค้าเดียวกัน มีข้อมูลเทียบอย่างน้อย 3 รายการ)
+const PRICE_SPIKE_PCT = 15;
+async function computePriceSpikes_(){
+  const t = todayISO();
+  const isos = []; for(let i=0; i<37; i++) isos.push(addDaysISO(t, -i));
+  const map = await loadDaysBulk(isos);
+  const recentFrom = addDaysISO(t, -6);
+  const out = [];
+  PRODUCTS.forEach(p=>{
+    const rows = [];
+    isos.forEach(iso=>((map[iso]||{}).purchases||[]).forEach(e=>{ if(e.productId===p.id && !e.fromLot && !e.lotSettle && Number(e.price)>0) rows.push({iso, e}); }));
+    const base = rows.filter(r=>r.iso<recentFrom).map(r=>Number(r.e.price));
+    if(base.length < 3) return;
+    const avg = base.reduce((a,b)=>a+b,0)/base.length;
+    rows.filter(r=>r.iso>=recentFrom).forEach(r=>{
+      const pr = Number(r.e.price);
+      const pct = Math.round((pr/avg-1)*100);
+      if(pct > PRICE_SPIKE_PCT) out.push({iso:r.iso, name:p.emoji+p.name, seller:r.e.seller, price:pr, avg:Math.round(avg*100)/100, pct});
+    });
+  });
+  return out.sort((a,b)=>b.iso.localeCompare(a.iso)).slice(0,10);
+}
 async function renderDataGaps(){
   const card = document.getElementById('dataGapsCard');
   const list = document.getElementById('dataGapsList');
@@ -11178,14 +11511,17 @@ async function renderDataGaps(){
     const gaps = await computeDataGaps();
     const sizeKeys = Object.keys(storageSizeWarnings_);
     const sizeHtml = sizeKeys.map(k=>`<div class="delayrow size-warn"><div><div>⚠️ ข้อมูลใกล้เต็ม: ${escapeHtml(k)}</div><div class="d">${storageSizeWarnings_[k].toLocaleString('th-TH')} / 50,000 ตัวอักษร — ถ้าเต็มจะบันทึกส่วนนี้ไม่ได้ ควรแจ้งให้แยกเก็บ</div></div></div>`).join('');
+    let priceAlerts = [];
+    try{ priceAlerts = await computePriceSpikes_(); }catch(e){}
+    const priceHtml = priceAlerts.map(a=>`<div class="delayrow price-warn"><div><div>📈 ราคาซื้อ${escapeHtml(a.name)} สูงกว่าปกติ +${a.pct}%</div><div class="d">${formatDDMMYYYY(a.iso)} ${escapeHtml(a.seller||'')} ฿${a.price}/หน่วย เทียบเฉลี่ย 30 วันก่อน ฿${a.avg} — เช็คว่าราคาจริงหรือกรอกผิด</div></div></div>`).join('');
     const badge = document.getElementById('notiBadge');
-    const total = gaps.length + sizeKeys.length;
+    const total = gaps.length + sizeKeys.length + priceAlerts.length;
     if(badge){ badge.textContent = total > 99 ? '99+' : String(total); badge.hidden = total===0; }
-    if(gaps.length===0){ list.innerHTML = sizeHtml + '<div class="empty">✅ ข้อมูลครบทุกวัน ไม่มีอะไรต้องแก้</div>'; return; }
+    if(gaps.length===0){ list.innerHTML = sizeHtml + priceHtml + '<div class="empty">✅ ข้อมูลครบทุกวัน ไม่มีอะไรต้องแก้</div>'; return; }
     // เรียงล่าสุดก่อน และโชว์แค่ 25 รายการแรกกันการ์ดยาวเกินไป (ยังเช็คครบทุกวันอยู่ดี แค่จำกัดจำนวนที่แสดง)
     const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
     const shown = sortedGaps.slice(0,25);
-    list.innerHTML = sizeHtml + shown.map(g=>`
+    list.innerHTML = sizeHtml + priceHtml + shown.map(g=>`
       <div class="delayrow" style="cursor:pointer;" data-gapiso="${g.iso}" data-gaptab="${g.tab}">
         <div><div>${formatDDMMYYYY(g.iso)}</div><div class="d">${g.text}</div></div>
         <span class="badge-delay">แก้ไข ›</span>
@@ -11513,13 +11849,68 @@ function updateWeekdayBadge_(iso){
   const badge = document.getElementById('dwhWeekday');
   if(badge){ badge.textContent = wd; badge.classList.toggle('sun', wd==='อา'); }
   const label = document.getElementById('dwhDateLabel');
-  if(label) label.textContent = `${formatDDMMYYYY(iso)} (${wd})`;
+  if(label) label.textContent = `${formatDDMMYYYY(iso)} (${wd})${isMonthClosed_(iso) ? ' 🔒 ปิดเดือนแล้ว' : ''}`;
 }
 // ภาพเคลื่อนไหวตอนเปิดแอป/สลับแท็บ (ดู CSS "motion-intro") — เปิดไว้เป็นค่าเริ่มต้น ปิดได้ในตั้งค่า (เก็บในเครื่อง)
 // ใส่คลาสไว้ช่วงสั้นๆ แล้วถอดออก ของที่โหลดเสร็จช้าภายในช่วงนี้ก็ยังได้เล่น แต่การเรนเดอร์ซ้ำหลังกดบันทึกปกติจะไม่เล่นซ้ำ
 // ไม่เล่นตอนรันเทสต์อัตโนมัติ (navigator.webdriver) เพราะการ์ดที่กำลังขยับทำให้วัดขนาด/ตำแหน่งผิด เว้นแต่สั่ง force
 const MOTION_WINDOW_MS = 4000;
 let motionTimer_ = null;
+async function writeClosedMonth_(ym, value){
+  const op = value ? {path:[ym], value} : {path:[ym], deleteKey:true};
+  let res;
+  try{ res = await window.storage.patchOps('closedMonths', [op], false); }
+  catch(e){
+    if(String(e && e.message).indexOf('Key not found')!==0) throw e;
+    const cur = {...closedMonths_}; if(value) cur[ym] = value; else delete cur[ym];
+    await window.storage.set('closedMonths', JSON.stringify(cur)); res = {value: JSON.stringify(cur)};
+  }
+  try{ closedMonths_ = JSON.parse(res.value) || {}; }catch(e){}
+}
+function renderClosedMonths_(){
+  const el = document.getElementById('closedMonthsList');
+  if(!el) return;
+  const list = Object.keys(closedMonths_).sort().reverse();
+  el.innerHTML = list.length ? list.map(ym=>{ const v = closedMonths_[ym]||{}; return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:13px;">
+      <b style="flex:1;">🔒 ${monthLabel_(ym)}</b><span class="hint" style="margin:0;">${v.at?new Date(v.at).toLocaleDateString('th-TH'):''}${v.dev?' • '+escapeHtml(v.dev):''}</span>
+      <button class="btn small secondary" data-unlockmonth="${ym}" style="width:auto;">ปลดล็อก</button></div>`; }).join('')
+    : '<div class="hint">ยังไม่มีเดือนที่ปิด</div>';
+  el.querySelectorAll('[data-unlockmonth]').forEach(b=>b.addEventListener('click', async ()=>{
+    const ym = b.getAttribute('data-unlockmonth');
+    if(!confirm(`ปลดล็อกเดือน ${monthLabel_(ym)}? ทุกเครื่องจะแก้ข้อมูลเดือนนี้ได้อีกครั้ง`)) return;
+    try{ await writeClosedMonth_(ym, null); logActivity_(`🔓 ปลดล็อกเดือน ${monthLabel_(ym)}`); showToast('ปลดล็อกแล้ว'); }
+    catch(e){ showToast('ปลดล็อกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+    renderClosedMonths_(); updateWeekdayBadge_(currentDate);
+  }));
+}
+function initMonthLockSettings_(){
+  const sel = document.getElementById('closeMonthSelect');
+  if(!sel) return;
+  const prev = addDaysISO(todayISO().slice(0,7)+'-01', -1).slice(0,7);
+  populateEnglishMonthSelect_('closeMonthSelect', prev);
+  renderClosedMonths_();
+  document.getElementById('closeMonthBtn').addEventListener('click', async ()=>{
+    const ym = sel.value; if(!ym) return;
+    if(closedMonths_[ym]){ showToast(`เดือน ${monthLabel_(ym)} ปิดไว้แล้ว`); return; }
+    if(ym >= todayISO().slice(0,7) && !confirm(`เดือน ${monthLabel_(ym)} ยังไม่จบเดือน — ปิดเลยไหม?`)) return;
+    if(!confirm(`ปิดเดือน ${monthLabel_(ym)}?\nทุกเครื่องจะแก้ออเดอร์/ต้นทุน/รายจ่าย/ของเหลือ/ล็อตของเดือนนี้ไม่ได้ จนกว่าจะปลดล็อก (สถานะโอน/จ่ายยังกดได้)`)) return;
+    try{ await writeClosedMonth_(ym, {at: new Date().toISOString(), dev: deviceName_()}); logActivity_(`🔒 ปิดเดือน ${monthLabel_(ym)}`); showToast(`ปิดเดือน ${monthLabel_(ym)} แล้ว`); }
+    catch(e){ showToast('ปิดเดือนไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
+    renderClosedMonths_(); updateWeekdayBadge_(currentDate);
+  });
+}
+function initDeviceNameSettings_(){
+  const inp = document.getElementById('deviceNameInput');
+  if(!inp) return;
+  inp.placeholder = deviceName_();
+  try{ inp.value = localStorage.getItem('karmto.deviceName') || ''; }catch(e){}
+  document.getElementById('deviceNameSaveBtn').addEventListener('click', ()=>{
+    const v = inp.value.trim().slice(0,30);
+    try{ if(v) localStorage.setItem('karmto.deviceName', v); else localStorage.removeItem('karmto.deviceName'); }catch(e){}
+    inp.placeholder = deviceName_();
+    showToast(`ตั้งชื่อเครื่องนี้เป็น "${deviceName_()}" แล้ว`);
+  });
+}
 function initApiKeySettings_(){
   const inp = document.getElementById('apiKeyInput'), st = document.getElementById('apiKeyState');
   if(!inp) return;
@@ -11731,7 +12122,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.4';
+const APP_BUILD = '2026-11-05.5';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -11760,6 +12151,7 @@ async function syncFromOtherDevices_(){
   syncInFlight_ = true;
   try{
     const changed = await syncDayRevs_();
+    try{ await loadClosedMonths_(); updateWeekdayBadge_(currentDate); }catch(e){}
     setLastSyncLabel_();
     if(changed.length) pendingSyncRender_ = true;
     if(userBusy_()) return;
@@ -12565,6 +12957,8 @@ async function sfBuildPlan_(){
   const errors = comp.errors.filter(e=>daySet.has(e.iso));
   const pname = pid => { const p = PRODUCTS.find(x=>x.id===pid); return p ? p.emoji+p.name : pid; };
   const base = {scope, days, errors, notes:[], perDay:[], ops:{rawLots:[], lotProductBills:[], wasteRecords:[], day:{}}, inv:{rawLots:[], lotProductBills:[], wasteRecords:[], day:{}}, newDraws:[], count:0};
+  await loadClosedMonths_();
+  days.filter(isMonthClosed_).forEach(iso=>errors.push({iso, pid:null, msg:`เดือน ${monthLabel_(iso.slice(0,7))} ปิดแล้ว — ปลดล็อกในตั้งค่าก่อนซิงค์`}));
   if(!days.length || errors.length) return base;
 
   const dayMap = await sfFreshDays_(days);
@@ -13062,7 +13456,7 @@ async function init(){
   const splashPrev = document.getElementById('splashPreviewBtn');
   if(splashPrev) splashPrev.addEventListener('click', ()=>{ try{ localStorage.removeItem('karmto.splashDate'); localStorage.setItem('karmto.splashPreview','1'); }catch(e){} location.reload(); });
   initThemeSettings_();
-  initApiKeySettings_();
+  initApiKeySettings_(); initDeviceNameSettings_(); initMonthLockSettings_();
   const motionToggle = document.getElementById('motionToggle');
   if(motionToggle){
     motionToggle.checked = motionEnabled_();
@@ -13079,7 +13473,8 @@ async function init(){
   });
   const buildLabel = document.getElementById('appBuildLabel');
   if(buildLabel) buildLabel.textContent = APP_BUILD;
-  setInterval(()=>{ if(!document.hidden) syncFromOtherDevices_(); }, 60000);
+  setInterval(()=>{ if(!document.hidden){ syncFromOtherDevices_(); flushOfflineQueue_(); } }, 60000);
+  { const b = document.createElement('div'); b.id = 'offlineQueueBadge'; b.className = 'offq-badge'; b.style.display = 'none'; document.body.appendChild(b); renderOfflineBadge_(); setTimeout(flushOfflineQueue_, 3000); }
   document.getElementById('calBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const popup = document.getElementById('calPopup');
@@ -13313,7 +13708,7 @@ async function init(){
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{
-    await Promise.all([loadSettings(), syncDayRevs_()]);
+    await Promise.all([loadSettings(), syncDayRevs_(), loadClosedMonths_()]);
     await loadForDate(todayISO());
   }catch(e){
     showConnectionErrorBanner(e);

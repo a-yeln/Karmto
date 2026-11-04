@@ -51,6 +51,7 @@ function check(label, cond, extra) {
 (async () => {
   const browser = await require('../sandbox').launch(chromium);
   const page = await browser.newPage({ viewport: { width: 420, height: 1400 } });
+  await page.clock.setFixedTime(new Date('2026-10-08T10:00:00+07:00')); // เทสนี้อิง "วันนี้" = 8 ต.ค. 2026 — ตรึงนาฬิกาไว้ ไม่งั้นพังเมื่อเดือนจริงเปลี่ยน
   page.on('pageerror', err => console.log('PAGE EXCEPTION:', err.message));
   await page.goto((process.env.BASE_URL || 'http://localhost:8765') + '/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);

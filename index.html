@@ -855,6 +855,7 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .purch-tab:hover{color:var(--text);}
 .purch-tab.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
 .purch-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.sf-claim{flex:1;min-width:44px;padding:6px 8px;border-radius:12px;background:var(--c-pink);border:2px solid var(--b-pink);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
 .sf-lock{margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--c-lemon);border:2px dashed var(--b-lemon);font-size:12.5px;font-weight:600;color:var(--text);}
 table.purch-table th{font-size:12px;font-weight:700;white-space:nowrap;}
 table.purch-table th small,table.purch-table td small{font-size:.78em;font-weight:500;color:var(--text-faint);}
@@ -11589,7 +11590,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-04.2';
+const APP_BUILD = '2026-11-05.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -11922,7 +11923,7 @@ function sfHas(v){ return !(v===''||v===null||v===undefined||isNaN(Number(v))); 
 function sfR(n){ return Math.round(n*100)/100; }
 function sfEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
 function sfDates(from, to){ const out=[]; let d=from, g=0; while(d<=to && g<200){ out.push(d); d=addDaysISO(d,1); g++; } return out; }
-function sfEmptyCell(){ return {fresh:[], lots:[], draw:{kg:'', yield:''}, sent:'', waste:''}; }
+function sfEmptyCell(){ return {fresh:[], lots:[], draw:{kg:'', yield:''}, sent:'', waste:'', claim:''}; }
 function sfCell(iso, pid){
   sfDraft.days[iso] = sfDraft.days[iso] || {};
   if(!sfDraft.days[iso][pid]) sfDraft.days[iso][pid] = sfEmptyCell();
@@ -11976,7 +11977,9 @@ async function sfLoadCtx_(){
       return s + Math.max(0, Number(l.qtyTotal||0) - used);
     }, 0));
   });
-  sfCtx = {from, to, prevIso, orderTotals, rawOpening, prevLeftover: {...(prev.leftoverOut||{})}, prevSince: {...(prev.leftoverSince||{})}};
+  const claims = {};
+  (await loadWasteRecords()).filter(r=>r.reason==='claim' && r.date>=from && r.date<=to).forEach(r=>{ const m = (claims[r.date] = claims[r.date]||{}); m[r.productId] = sfR((m[r.productId]||0) + Number(r.qty||0)); });
+  sfCtx = {from, to, prevIso, orderTotals, rawOpening, claims, prevLeftover: {...(prev.leftoverOut||{})}, prevSince: {...(prev.leftoverSince||{})}};
 }
 // ดึงข้อมูลที่บันทึกในระบบตอนนี้มาใส่ฟอร์ม (เฉพาะวันที่ระบุ) เป็นจุดเริ่มต้นให้แก้ต่อ
 async function sfImportDays_(dates){
@@ -11998,8 +12001,11 @@ async function sfImportDays_(dates){
       let kg = 0, y = 0;
       lots.filter(l=>l.productId===p.id).forEach(l=>(l.draws||[]).filter(dr=>dr.date===iso).forEach(dr=>{ kg += Number(dr.qtyUsed||0); y += Number(dr.sellableQty||0); }));
       c.draw = {kg: kg ? sfR(kg) : '', yield: y ? sfR(y) : ''};
-      const w = waste.filter(r=>r.productId===p.id && r.date===iso).reduce((s,r)=>s+Number(r.qty||0), 0);
+      // เคลม (ส่งชดเชยให้สาขา) กับของเสีย หักออกจากของเหลือเหมือนกันในระบบ — แยกช่องกันให้เห็นชัดว่าตัวไหนเป็นตัวไหน
+      const w = waste.filter(r=>r.productId===p.id && r.date===iso && r.reason!=='claim').reduce((s,r)=>s+Number(r.qty||0), 0);
+      const cl = waste.filter(r=>r.productId===p.id && r.date===iso && r.reason==='claim').reduce((s,r)=>s+Number(r.qty||0), 0);
       c.waste = w ? sfR(w) : '';
+      c.claim = cl ? sfR(cl) : '';
       c.sent = '';
     });
   });
@@ -12041,11 +12047,13 @@ function sfCompute_(){
       const sentFromOrders = sfN((sfCtx.orderTotals[iso]||{})[p.id]);
       const sent = sfHas(c.sent) ? sfN(c.sent) : sentFromOrders;
       const waste = sfN(c.waste);
-      const close = sfR(open + inFresh + inDraw - sent - waste);
+      // ร่างแบบเก่า (ก่อนแยกช่องเคลม) รวมเคลมไว้ในช่องเสียแล้ว — ไม่นับเคลมซ้ำอีกรอบ
+      const claim = Object.prototype.hasOwnProperty.call(c, 'claim') ? sfN(((sfCtx.claims||{})[iso]||{})[p.id]) : 0;
+      const close = sfR(open + inFresh + inDraw - sent - waste - claim);
       const rawClose = sfR(rawOpen + rawIn - drawKg);
-      if(close < -0.001) errs.push(`คงเหลือติดลบ ${close} — ของเข้าไม่พอกับที่ส่ง/เสีย`);
+      if(close < -0.001) errs.push(`คงเหลือติดลบ ${close} — ของเข้าไม่พอกับที่ส่ง/เสีย/เคลม`);
       if(rawClose < -0.001) errs.push(`วัตถุดิบล็อตไม่พอเบิก (ขาด ${sfR(-rawClose)} กก.)`);
-      (res[iso] = res[iso] || {})[p.id] = {open: sfR(open), inFresh: sfR(inFresh), freshCost, inDraw: sfR(inDraw), drawKg, sent, sentFromOrders, waste, close, rawOpen: sfR(rawOpen), rawIn: sfR(rawIn), rawClose, errors: errs};
+      (res[iso] = res[iso] || {})[p.id] = {open: sfR(open), inFresh: sfR(inFresh), freshCost, inDraw: sfR(inDraw), drawKg, sent, sentFromOrders, waste, claim, close, rawOpen: sfR(rawOpen), rawIn: sfR(rawIn), rawClose, errors: errs};
       errs.forEach(m=>errors.push({iso, pid: p.id, msg: m}));
       open = close; rawOpen = rawClose;
     });
@@ -12213,8 +12221,10 @@ function sfDayHtml_(comp){
         <input type="number" step="any" inputmode="decimal" data-sfs="${k}" value="${sfEsc(c.sent)}" placeholder="${r.sentFromOrders}" style="flex:1;padding:6px;">
         <span style="flex:none;">เสีย</span>
         <input type="number" step="any" inputmode="decimal" data-sfw="${k}" value="${sfEsc(c.waste)}" placeholder="0" style="flex:1;padding:6px;">
+        <span style="flex:none;">เคลม</span>
+        <span class="sf-claim" title="ดึงจากรายการเคลมจริง — แก้ที่หน้า Leftover &amp; Claims">${r.claim}</span>
       </div>
-      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;">ส่งสาขาว่างไว้ = ใช้ยอดออเดอร์ในระบบ (${r.sentFromOrders} ${su})</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;">ส่งสาขาว่างไว้ = ใช้ยอดออเดอร์ในระบบ (${r.sentFromOrders} ${su}) · เคลมดึงจากรายการเคลมจริง (แก้ที่หน้า Leftover &amp; Claims)</div>
       <div data-sfout="formula|${k}" style="margin-top:8px;padding:7px 9px;border-radius:8px;background:var(--surface-2);font-size:12.5px;"></div>
       <div data-sfout="err|${k}" style="color:var(--danger);font-size:12px;margin-top:4px;"></div>
     </div>`;
@@ -12223,7 +12233,7 @@ function sfDayHtml_(comp){
 }
 const SF_GRID_FIELDS = [
   ['close','คงเหลือ (คำนวณ)'], ['fresh','ซื้อสด (จำนวน)'], ['lot','ซื้อล็อต (กก.)'], ['drawkg','เบิกล็อต (กก.)'],
-  ['drawyield','ได้จากเบิก'], ['sent','ส่งสาขา'], ['waste','เสีย']
+  ['drawyield','ได้จากเบิก'], ['sent','ส่งสาขา'], ['waste','เสีย'], ['claim','เคลม (ส่งชดเชย)']
 ];
 function sfGridHtml_(comp){
   const f = sfGridField;
@@ -12245,6 +12255,7 @@ function sfGridHtml_(comp){
       else if(f==='drawkg') inner = `<input type="number" step="any" inputmode="decimal" data-sfd="${k}|kg" value="${sfEsc(c.draw.kg)}" style="width:54px;padding:4px;">`;
       else if(f==='drawyield') inner = `<input type="number" step="any" inputmode="decimal" data-sfd="${k}|yield" value="${sfEsc(c.draw.yield)}" style="width:54px;padding:4px;">`;
       else if(f==='sent') inner = `<input type="number" step="any" inputmode="decimal" data-sfs="${k}" value="${sfEsc(c.sent)}" placeholder="${r.sentFromOrders}" style="width:54px;padding:4px;">`;
+      else if(f==='claim') inner = `<span class="sf-claim">${r.claim}</span>`;
       else inner = `<input type="number" step="any" inputmode="decimal" data-sfw="${k}" value="${sfEsc(c.waste)}" style="width:54px;padding:4px;">`;
       return `<td class="num" data-sfcell="${k}" style="padding:3px;">${inner}</td>`;
     }).join('');
@@ -12315,7 +12326,7 @@ function sfRefreshOutputs_(comp){
     set('raw|'+k, `${r.rawClose}`);
     const bad = r.errors.length>0;
     set('close|'+k, `<span style="color:${bad?'var(--danger)':(r.close>0?'var(--accent)':'var(--text-dim)')};font-weight:${r.close>0?700:400};">${r.close}</span>`);
-    set('formula|'+k, `ยกมา ${r.open} + ซื้อสด ${r.inFresh}${r.inDraw?` + เบิก ${r.inDraw}`:''} − ส่ง ${r.sent}${r.waste?` − เสีย ${r.waste}`:''} = <b style="font-size:14px;color:${r.close<0?'var(--danger)':'var(--accent)'};">คงเหลือ ${r.close} ${su}</b>`);
+    set('formula|'+k, `ยกมา ${r.open} + ซื้อสด ${r.inFresh}${r.inDraw?` + เบิก ${r.inDraw}`:''} − ส่ง ${r.sent}${r.waste?` − เสีย ${r.waste}`:''}${r.claim?` − เคลม ${r.claim}`:''} = <b style="font-size:14px;color:${r.close<0?'var(--danger)':'var(--accent)'};">คงเหลือ ${r.close} ${su}</b>`);
     set('err|'+k, r.errors.map(m=>'⚠️ '+sfEsc(m)).join('<br>'));
     document.querySelectorAll(`[data-sfcell="${k}"]`).forEach(td=>{ td.style.background = bad ? 'var(--danger-soft)' : ''; });
   }));
@@ -12492,7 +12503,7 @@ async function sfBuildPlan_(){
   });
 
   // 7) ของเสีย ในช่วงนี้ให้ตรงตามฟอร์ม
-  const waste = wasteOrig.filter(r=>!inRange(r.date));
+  const waste = wasteOrig.filter(r=>!inRange(r.date) || r.reason==='claim'); // รายการเคลมคงไว้ตามเดิมเสมอ (ผูกกับรอบเบิกล็อต/บิลสาขา)
   dates.forEach(iso=>PRODUCTS.forEach(p=>{
     const w = comp.res[iso][p.id].waste;
     if(w>0){ const est = priceOnDate(p.id, iso); waste.push({id:`sfw-${iso}-${p.id}`, productId:p.id, qty:w, date:iso, note:'จากฟอร์มจดสต๊อก', estCostPerKg:est, estCost:Math.round(w*est)}); }

@@ -43,5 +43,24 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   check('Nothing but the draft is written — real data untouched', writes.length === 0 && data.purchases === 0, { writes, data });
   check('Draft is saved to its own key', await page.evaluate(() => !!window.__store.stockFormDraft));
 
+  // เคลมต้องหักออกจากสต๊อกของเหลือด้วย (แยกช่องจากของเสีย ดึงจากรายการเคลมจริง ไม่นับซ้ำ)
+  const store2 = {
+    ['day:2026-10-09']: mkDay({ leftoverOut: { p1: 3 } }),
+    ['day:' + d1]: mkDay({ orders: { '01': { p1: 2 } } }),
+    wasteRecords: [
+      { id: 'w1', productId: 'p1', qty: 0.5, date: d1, reason: 'waste' },
+      { id: 'c1', productId: 'p1', qty: 1, date: d1, reason: 'claim' },
+    ],
+  };
+  const page2 = await openApp(browser, { store: store2, date: d1, viewport: { width: 1024, height: 1200 } });
+  await page2.evaluate(async () => { localStorage.removeItem('karmto_stockform_draft'); await switchTab('stockform'); });
+  await page2.evaluate(a => { document.getElementById('sfFromNew').value = a; document.getElementById('sfToNew').value = a; document.getElementById('sfStartBtn').click(); }, d1);
+  await page2.waitForFunction(() => !!document.querySelector('#sfBody .sf-claim'), null, { timeout: 15000 });
+  const cl = await page2.evaluate(a => { const r = sfCompute_().res[a].p1; return { waste: r.waste, claim: r.claim, close: r.close, shown: document.querySelector('#sfBody [data-sfcard$="|p1"] .sf-claim').textContent, formula: document.querySelector('[data-sfout="formula|' + a + '|p1"]').textContent }; }, d1);
+  // ยกมา 3 − ส่ง 2 − เสีย 0.5 − เคลม 1 = −0.5
+  check('Claims are split from waste and both reduce stock', cl.waste === 0.5 && cl.claim === 1 && cl.close === -0.5 && cl.shown === '1' && cl.formula.includes('เคลม 1'), cl);
+  check('Claim field is read-only (comes from real claim records)', await page2.evaluate(() => !document.querySelector('#sfBody input[data-sfc]')));
+  await page2.close();
+
   await finish(browser);
 })();

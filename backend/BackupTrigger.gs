@@ -29,7 +29,7 @@ var BACKUP_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxBUioYu6BXM
 
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย — ต้องตรงกับ BACKUP_EXTRA_ROOT_KEYS ใน index.html เป๊ะๆ
 // (ถ้าแอปเพิ่ม root key ใหม่ในอนาคต ต้องมาเพิ่มในทั้งสองที่คู่กันเสมอ ไม่งั้น backup อัตโนมัติจะขาดข้อมูลส่วนใหม่ไปแบบเงียบๆ)
-var BACKUP_EXTRA_ROOT_KEYS = ['rawLots', 'lotProductBills', 'lotTransportBills', 'wasteRecords', 'activityLog', 'billingRecheckCurrent', 'billingRecheckHistory', 'supplierShortfalls', 'stockFormDraft'];
+var BACKUP_EXTRA_ROOT_KEYS = ['rawLots', 'lotProductBills', 'lotTransportBills', 'wasteRecords', 'activityLog', 'billingRecheckCurrent', 'billingRecheckHistory', 'supplierShortfalls', 'stockFormDraft','stockFormLastSync'];
 
 var BACKUP_FOLDER_NAME = 'Karmto Backups';
 var BACKUP_RETENTION_DAYS = 30; // เก็บไฟล์สำรองอัตโนมัติไว้ย้อนหลังกี่วัน เกินกว่านี้ลบทิ้งอัตโนมัติ กันพื้นที่ Drive เต็มไปเรื่อยๆ ตามอายุร้าน

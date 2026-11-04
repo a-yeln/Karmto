@@ -1,6 +1,6 @@
 const { launch, mkDay, openApp, makeChecker } = require('../helpers');
 
-// ฟอร์มจดสต๊อก (โหมดตรวจ): ดึงข้อมูลเดิมมาใส่, คำนวณยอดคงเหลือต่อเนื่อง, ตรวจจุดผิด, ดูสิ่งที่จะเปลี่ยน
+// ฟอร์มจดสต๊อก (ก่อนติ๊กกรอกครบ): ดึงข้อมูลเดิมมาใส่, คำนวณยอดคงเหลือต่อเนื่อง, ตรวจจุดผิด, ดูสิ่งที่จะเปลี่ยน
 // — และต้องไม่เขียนทับข้อมูลจริง (day:/rawLots/lotProductBills/wasteRecords) เลยแม้แต่ครั้งเดียว
 (async () => {
   const browser = await launch();
@@ -30,12 +30,12 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   check('Running balance carries over day to day', comp.o1 === 2 && comp.c1 === 1 && comp.c2 === -2, comp);
   check('Negative balance is flagged as an error', comp.errs.some(m => m.startsWith(d2) && m.includes('ติดลบ')), comp.errs);
 
-  // แก้ให้ถูก (วันที่สองซื้อเพิ่ม 3 กก.) แล้วกดตรวจ
+  // แก้ให้ถูก (วันที่สองซื้อเพิ่ม 3 กก.) แล้วกดซิงค์ — ยังไม่ติ๊ก "กรอกครบ" วันไหน จึงต้องยังไม่เขียนอะไรลงระบบ
   await page.evaluate(d => { sfCell(d, 'p1').fresh.push({ lineId: 'x1', seller: 'มนต์', qty: 3, price: 185, yield: '', extra: 0, note: '', paid: false }); sfRenderBody_(); }, d2);
   await page.evaluate(() => document.getElementById('sfCheckBtn').click());
-  await page.waitForFunction(() => /สิ่งที่จะเขียนทับ|ยังซิงค์ไม่ได้/.test(document.getElementById('sfPreview').textContent), null, { timeout: 20000 });
-  const pv = await page.evaluate(() => ({ text: document.getElementById('sfPreview').textContent, applyBtn: !!document.getElementById('sfApplyBtn'), lock: !!document.querySelector('#sfPreview .sf-lock') }));
-  check('Check shows the change preview, with sync locked (no apply button)', pv.text.includes('สิ่งที่จะเขียนทับ') && !pv.applyBtn && pv.lock, pv.text.slice(0, 160));
+  await page.waitForFunction(() => /ยังไม่มีวันที่ติ๊ก|ยังซิงค์ไม่ได้/.test(document.getElementById('sfPreview').textContent), null, { timeout: 20000 });
+  const pv = await page.evaluate(() => ({ text: document.getElementById('sfPreview').textContent, applyBtn: !!document.getElementById('sfApplyBtn') }));
+  check('Without ticking days as complete, sync offers nothing to write', pv.text.includes('ยังไม่มีวันที่ติ๊ก') && !pv.applyBtn, pv.text.slice(0, 160));
 
   await page.waitForTimeout(1800);
   const writes = await page.evaluate(() => window.__writes.map(w => w.key || '').filter(k => k !== 'stockFormDraft' && !k.startsWith('actlog:') && k !== 'dayRevs'));

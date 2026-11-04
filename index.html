@@ -865,6 +865,9 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .purch-tab.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
 .purch-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .sf-claim{flex:1;min-width:44px;padding:6px 8px;border-radius:12px;background:var(--c-pink);border:2px solid var(--b-pink);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
+.sf-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--border);color:var(--text-dim);}
+.sf-chip.ok{background:var(--c-mint, #DFF7EA);color:var(--success);}
+.sf-chip.warn{background:var(--c-lemon, #FFF6CC);color:var(--danger);}
 .sf-lock{margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--c-lemon);border:2px dashed var(--b-lemon);font-size:12.5px;font-weight:600;color:var(--text);}
 table.purch-table th{font-size:12px;font-weight:700;white-space:nowrap;}
 table.purch-table th small,table.purch-table td small{font-size:.78em;font-weight:500;color:var(--text-faint);}
@@ -6794,7 +6797,7 @@ function showBackupFallbackModal(jsonStr){
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย ไม่งั้นกู้คืนจากไฟล์สำรองแล้วสต็อกล็อต/ของเสีย/ประวัติต่างๆ
 // จะหายไปทั้งหมด (เดิม exportAllData/importAllData สำรองแค่ 3 ตัวแรกเท่านั้น) — รายชื่อนี้คือทุก root key ที่แอปใช้จริง
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
-const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft'];
+const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
 const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:'];
 async function exportAllData(){
@@ -11728,7 +11731,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.3';
+const APP_BUILD = '2026-11-05.4';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -12038,13 +12041,8 @@ function guardedClick(btnId, fn){
 }
 // ================= 📋 ฟอร์มจดสต๊อกย้อนหลัง =================
 // กรอกยอดสินค้าทุกตัวทีละวัน (หรือดูรวมหลายวัน) ระบบคำนวณยอดคงเหลือต่อเนื่องให้เอง
-// พอตรวจแล้วไม่มีจุดผิด กดซิงค์ทีเดียว ระบบจะเขียนทับข้อมูลสินค้าของทุกวันในช่วงนั้นให้ตรงตามฟอร์ม
-// (ต้นทุนซื้อ / ล็อตวัตถุดิบ + รอบเบิก / ของเหลือค้าง / ของเสีย) — กดซ้ำกี่รอบก็ได้ผลเหมือนเดิม ไม่เพิ่มรายการซ้ำ
-// เพราะทุกรายการที่ฟอร์มสร้างมีรหัสตายตัวของตัวเอง และก่อนเขียนทับจะสำรองข้อมูลเดิมไว้ให้กดย้อนกลับได้
-// ยอด "ตัดต้นทุนแล้ว" ของรอบเบิกล็อต คำนวณใหม่จากรายการต้นทุนซื้อจริงทุกครั้งที่ซิงค์ (นับจากที่เดียว ไม่หักแยกสองที่)
-// ⚠️ ตอนนี้เปิดใช้ "โหมดตรวจ" เท่านั้น: กรอก/บันทึกร่าง/คำนวณยอดคงเหลือ/ตรวจจุดผิด/ดูสิ่งที่จะเปลี่ยน — ยังไม่มีการเขียนทับข้อมูลจริง
-// เพราะตัวซิงค์เดิมลบแล้วสร้างรอบเบิกล็อตใหม่ ซึ่งในระบบปัจจุบันรอบเบิกผูกกับเคลม/ของเสีย (claimedQty, lotClaimAllocations) อยู่
-// ถ้าลบสร้างใหม่ ยอดค้างตัดต้นทุนของล็อตจะเพี้ยน — รอปรับตัวซิงค์ให้รองรับก่อนค่อยเปิด
+// ติ๊ก "กรอกวันนี้ครบแล้ว" ทีละวัน แล้วกดซิงค์ — ระบบเขียนเฉพาะวันที่ครบต่อเนื่องจากวันแรก แก้ทีละรายการ (ดูหลักการที่ sfBuildPlan_)
+// งวดยังไม่ปิดจนกว่าจะซิงค์ครบทุกวัน กลับมากรอกต่อ/ซิงค์เพิ่มได้เรื่อยๆ, ย้อนกลับการซิงค์ล่าสุดได้
 const SF_DRAFT_KEY = 'stockFormDraft';
 const SF_LS_KEY = 'karmto_stockform_draft';
 let sfDraft = null;      // {from, to, opening:{pid:qty}, days:{iso:{pid:cell}}, savedAt}
@@ -12145,6 +12143,7 @@ async function sfImportDays_(dates){
       c.waste = w ? sfR(w) : '';
       c.claim = cl ? sfR(cl) : '';
       c.sent = '';
+      c.base = {kg: sfR(kg), y: sfR(y), w: sfR(w)}; // ยอดในระบบตอนดึงมา — ไว้เช็คว่ามีใครแก้ที่อื่นหลังจากนี้ไหม (กันซิงค์ทับ)
     });
   });
 }
@@ -12252,13 +12251,18 @@ async function renderStockForm_(){
         <button class="tab ${sfView==='day'?'active':''}" data-sfview="day">ทีละวัน</button>
         <button class="tab ${sfView==='grid'?'active':''}" data-sfview="grid">รวมหลายวัน</button>
       </div>
-      <div class="hint" id="sfSaveState" style="margin-top:6px;">ร่างบันทึกอัตโนมัติ ยังไม่เขียนทับข้อมูลจริงจนกว่าจะกดซิงค์</div>
+      <div class="hint" id="sfSaveState" style="margin-top:6px;">ร่างบันทึกอัตโนมัติ — ติ๊ก "กรอกวันนี้ครบแล้ว" ทีละวัน แล้วกดซิงค์ (วันที่ยังไม่ครบไม่ถูกแตะ งวดยังไม่ปิด กรอกต่อได้)</div>
     </div>
     <div id="sfBody"></div>
     <div class="card" data-no-collapse="1">
+      <div id="sfStatus" style="margin-bottom:10px;"></div>
       <div id="sfErrors"></div>
-      <button class="btn" id="sfCheckBtn" style="margin-top:8px;">🔍 ตรวจและดูสิ่งที่จะเปลี่ยน</button>
+      <button class="btn" id="sfCheckBtn" style="margin-top:8px;">🔄 ซิงค์วันที่กรอกครบแล้ว (ดูสิ่งที่จะเปลี่ยนก่อน)</button>
       <div id="sfPreview"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn small secondary" id="sfUndoBtn" style="width:auto;display:none;">↩️ ย้อนกลับการซิงค์ล่าสุด</button>
+        <button class="btn small secondary" id="sfCloseBtn" style="width:auto;">🏁 ปิดงวด</button>
+      </div>
 
     </div>`;
   sfRenderBody_();
@@ -12270,6 +12274,10 @@ async function renderStockForm_(){
     catch(e){ showToast('ดึงข้อมูลไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง'); }
   });
   document.getElementById('sfCheckBtn').addEventListener('click', sfCheck_);
+  document.getElementById('sfUndoBtn').addEventListener('click', sfUndo_);
+  document.getElementById('sfCloseBtn').addEventListener('click', sfClosePeriod_);
+  sfRenderStatus_();
+  sfLoadUndo_().then(u=>{ const b = document.getElementById('sfUndoBtn'); if(b && u && u.from===sfDraft.from) b.style.display = ''; }).catch(()=>{});
 }
 async function sfChangeRange_(){
   const from = document.getElementById('sfFrom').value, to = document.getElementById('sfTo').value;
@@ -12277,6 +12285,7 @@ async function sfChangeRange_(){
   if(sfDates(from,to).length>62){ showToast('ช่วงยาวเกินไป (ไม่เกิน 62 วันต่อรอบ)'); return; }
   const keep = new Set(sfDates(from,to));
   Object.keys(sfDraft.days).forEach(iso=>{ if(!keep.has(iso)) delete sfDraft.days[iso]; });
+  ['done','synced'].forEach(f=>{ Object.keys(sfDraft[f]||{}).forEach(iso=>{ if(!keep.has(iso)) delete sfDraft[f][iso]; }); });
   if(from!==sfDraft.from) sfDraft.opening = {};
   const missing = [...keep].filter(iso=>!sfDraft.days[iso]);
   sfDraft.from = from; sfDraft.to = to;
@@ -12300,6 +12309,13 @@ function sfSellerOptions_(cur){
   if(cur && !list.includes(cur)) list.unshift(cur);
   return (cur ? '' : `<option value="" selected>— ไม่ระบุ —</option>`) + list.map(s=>`<option value="${sfEsc(s)}" ${s===cur?'selected':''}>${sfEsc(s)}</option>`).join('');
 }
+function sfDoneRowHtml_(iso){
+  const done = !!(sfDraft.done||{})[iso];
+  const st = sfIsSynced_(iso) ? '<span class="sf-chip ok">🔄 ซิงค์แล้ว</span>'
+    : ((sfDraft.synced||{})[iso] ? '<span class="sf-chip warn">✏️ แก้หลังซิงค์ — ซิงค์ใหม่</span>' : '<span class="sf-chip">ยังไม่ซิงค์</span>');
+  return `<label class="sf-done" style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;font-weight:600;cursor:pointer;">
+      <input type="checkbox" data-sfdone="${iso}" ${done?'checked':''} style="width:18px;height:18px;flex:none;"> กรอกวันนี้ครบแล้ว ${st}</label>`;
+}
 function sfDayHtml_(comp){
   const iso = sfDay;
   const dates = comp.dates;
@@ -12307,9 +12323,10 @@ function sfDayHtml_(comp){
   const nav = `<div class="card" data-no-collapse="1" style="padding:10px;">
     <div style="display:flex;gap:6px;align-items:center;">
       <button class="iconbtn" data-sfnav="-1" ${idx<=0?'disabled':''}>◀</button>
-      <select id="sfDaySel" style="flex:1;">${dates.map(d=>`<option value="${d}" ${d===iso?'selected':''}>${formatDDMMYYYY(d)}${comp.errors.some(e=>e.iso===d)?' ⚠️':''}</option>`).join('')}</select>
+      <select id="sfDaySel" style="flex:1;">${dates.map(d=>`<option value="${d}" ${d===iso?'selected':''}>${formatDDMMYYYY(d)}${sfIsSynced_(d)?' 🔄':((sfDraft.done||{})[d]?' ✓':'')}${comp.errors.some(e=>e.iso===d)?' ⚠️':''}</option>`).join('')}</select>
       <button class="iconbtn" data-sfnav="1" ${idx>=dates.length-1?'disabled':''}>▶</button>
     </div>
+    ${sfDoneRowHtml_(iso)}
   </div>`;
   const cards = PRODUCTS.map(p=>{
     const c = sfCell(iso, p.id);
@@ -12397,10 +12414,10 @@ function sfGridHtml_(comp){
       else inner = `<input type="number" step="any" inputmode="decimal" data-sfw="${k}" value="${sfEsc(c.waste)}" style="width:54px;padding:4px;">`;
       return `<td class="num" data-sfcell="${k}" style="padding:3px;">${inner}</td>`;
     }).join('');
-    return `<tr><td data-sfgoto="${iso}" style="cursor:pointer;color:var(--accent);white-space:nowrap;">${formatDDMMYYYY(iso).slice(0,5)}</td>${tds}</tr>`;
+    return `<tr><td data-sfgoto="${iso}" style="cursor:pointer;color:var(--accent);white-space:nowrap;">${formatDDMMYYYY(iso).slice(0,5)}${sfIsSynced_(iso)?' 🔄':''}</td><td style="text-align:center;padding:3px;"><input type="checkbox" data-sfdone="${iso}" ${(sfDraft.done||{})[iso]?'checked':''} title="กรอกวันนี้ครบแล้ว"></td>${tds}</tr>`;
   }).join('');
   return head + `<div class="card" data-no-collapse="1" style="padding:8px;"><div class="scrollx"><table class="plain">
-    <tr><th>วันที่</th>${PRODUCTS.map(p=>`<th class="num" title="${p.name}">${p.emoji}</th>`).join('')}</tr>${rows}</table></div></div>`;
+    <tr><th>วันที่</th><th title="กรอกวันนี้ครบแล้ว">ครบ</th>${PRODUCTS.map(p=>`<th class="num" title="${p.name}">${p.emoji}</th>`).join('')}</tr>${rows}</table></div></div>`;
 }
 function sfBindBody_(body){
   const onEdit = (el)=>{
@@ -12421,7 +12438,17 @@ function sfBindBody_(body){
     sfAfterEdit_();
   };
   body.addEventListener('input', e=>{ if(e.target.matches('input')) onEdit(e.target); });
-  body.addEventListener('change', e=>{ if(e.target.matches('select[data-sff],select[data-sfl]')) onEdit(e.target); });
+  body.addEventListener('change', e=>{
+    if(e.target.matches('input[data-sfdone]')){
+      const iso = e.target.getAttribute('data-sfdone');
+      sfDraft.done = sfDraft.done || {};
+      if(e.target.checked) sfDraft.done[iso] = true; else delete sfDraft.done[iso];
+      sfLastPlan = null; const pv = document.getElementById('sfPreview'); if(pv) pv.innerHTML = '';
+      sfScheduleSave_(); sfRenderStatus_();
+      return;
+    }
+    if(e.target.matches('select[data-sff],select[data-sfl]')) onEdit(e.target);
+  });
   body.addEventListener('click', e=>{
     const t = e.target.closest('[data-sfadd],[data-sfdel],[data-sfnav],[data-sfgoto],[data-sfshowlot]');
     if(!t) return;
@@ -12436,6 +12463,7 @@ function sfBindBody_(body){
       const arr = kind==='f' ? c.fresh : c.lots;
       const line = arr[Number(i)];
       if(line && line.lotId && !confirm('ลบล็อตนี้ออก? (ตอนกดซิงค์ ล็อตนี้และบิลสินค้าล็อตที่ยังไม่จ่ายของมันจะถูกลบออกจากระบบด้วย)')) return;
+      if(line){ const k2 = kind==='f' ? 'removedFresh' : 'removedLots'; c[k2] = (c[k2]||[]).concat([line.lotId || line.lineId]); }
       arr.splice(Number(i),1);
       sfAfterEdit_(); sfRenderBody_();
     }else if((a = t.getAttribute('data-sfshowlot'))!==null){
@@ -12455,6 +12483,7 @@ function sfAfterEdit_(){
   const pv = document.getElementById('sfPreview'); if(pv) pv.innerHTML = '';
   sfScheduleSave_();
   sfRefreshOutputs_(sfCompute_());
+  sfRenderStatus_();
 }
 function sfRefreshOutputs_(comp){
   const set = (key, html)=>{ document.querySelectorAll(`[data-sfout="${key}"]`).forEach(el=>{ el.innerHTML = html; }); };
@@ -12471,211 +12500,484 @@ function sfRefreshOutputs_(comp){
   const errEl = document.getElementById('sfErrors');
   if(errEl){
     errEl.innerHTML = comp.errors.length
-      ? `<div style="color:var(--danger);font-weight:600;font-size:13px;">⚠️ ต้องแก้ก่อนซิงค์ ${comp.errors.length} จุด</div>` + comp.errors.slice(0,30).map(e=>{ const p = PRODUCTS.find(x=>x.id===e.pid); return `<div data-sfjump="${e.iso}" style="cursor:pointer;font-size:12px;margin-top:3px;">• ${formatDDMMYYYY(e.iso)} ${p?p.emoji+p.name:''}: ${sfEsc(e.msg)}</div>`; }).join('')
+      ? `<div style="color:var(--danger);font-weight:600;font-size:13px;">⚠️ จุดที่ต้องแก้ ${comp.errors.length} จุด <span style="font-weight:400;font-size:11px;color:var(--text-dim);">(ขวางการซิงค์เฉพาะวันที่ติ๊กครบแล้ว)</span></div>` + comp.errors.slice(0,30).map(e=>{ const p = PRODUCTS.find(x=>x.id===e.pid); return `<div data-sfjump="${e.iso}" style="cursor:pointer;font-size:12px;margin-top:3px;">• ${formatDDMMYYYY(e.iso)} ${p?p.emoji+p.name:''}: ${sfEsc(e.msg)}</div>`; }).join('')
       : `<div style="color:var(--success);font-size:13px;">✅ ยอดทุกวันลงตัว ไม่มีจุดผิด</div>`;
     errEl.querySelectorAll('[data-sfjump]').forEach(el=>el.addEventListener('click', ()=>{ sfDay = el.getAttribute('data-sfjump'); sfView = 'day'; renderStockForm_(); }));
   }
 }
 
-// ---------- สร้างแผนซิงค์ (ยังไม่เขียนอะไร) ----------
+// ---------- ซิงค์แบบปลอดภัย (แก้ทีละรายการ ไม่ลบสร้างใหม่ทั้งก้อน) ----------
+// หลักการ:
+//  • ซิงค์เฉพาะวันที่ติ๊ก "กรอกครบแล้ว" ต่อเนื่องกันตั้งแต่วันแรกของงวด (ของเหลือยกมาต้องมาจากวันที่ครบแล้วเท่านั้น)
+//    วันที่ยังไม่ครบไม่ถูกแตะ — งวดยังไม่ปิด กลับมากรอกต่อแล้วซิงค์เพิ่มได้เรื่อยๆ
+//  • ทุกการเขียนเป็น patch ทีละรายการตามรหัส (ต้นทุนซื้อสด / ล็อต / รอบเบิก / บิลล็อต / ของเสีย / ของเหลือ) ของที่ไม่เกี่ยวไม่โดนทับ
+//  • ห้ามตัดต้นทุนเอง: รอบเบิกที่สร้างจากฟอร์มเริ่มที่ "ยังไม่ตัดต้นทุน" (costedQty 0) ต้องไปกด "✅ ตัด" เองเหมือนเดิม
+//  • รอบเบิกที่ตัดต้นทุน/เคลมไปแล้ว, ของเสียที่ผูกกับล็อต, ล็อตที่ถูกเบิกไปแล้ว (เปลี่ยนราคา), บิลที่จ่ายแล้ว → ไม่แก้ให้เอง แจ้งให้ไปแก้ที่หน้าปกติ
+//  • เคลมไม่ถูกแตะเลย (อ่านอย่างเดียว) — ออเดอร์/บิลสาขา/รายจ่ายกิจการ ไม่ถูกแตะ
+//  • ก่อนเขียนเห็นสิ่งที่จะเปลี่ยนทุกบรรทัด และย้อนกลับการซิงค์ล่าสุดได้
+const SF_UNDO_KEY = 'stockFormLastSync';
+const SF_UNDO_LS = 'karmto_stockform_lastsync';
+function sfDaySig_(iso){
+  const d = (sfDraft.days||{})[iso] || {};
+  return JSON.stringify([d, iso===sfDraft.from ? (sfDraft.opening||{}) : null]);
+}
+function sfIsSynced_(iso){ return !!(sfDraft.synced && sfDraft.synced[iso] && sfDraft.synced[iso] === sfDaySig_(iso)); }
+// วันที่ซิงค์ได้รอบนี้: ช่วงต่อเนื่องจากวันแรกที่ติ๊กครบแล้ว — เริ่มตั้งแต่วันแรกที่ยังไม่ซิงค์/แก้หลังซิงค์ (วันหลังจากนั้นต้องคิดของเหลือใหม่ด้วย)
+function sfSyncScope_(){
+  const dates = sfDates(sfDraft.from, sfDraft.to);
+  const done = sfDraft.done || {};
+  const prefix = [];
+  for(const iso of dates){ if(!done[iso]) break; prefix.push(iso); }
+  const firstDirty = prefix.findIndex(iso=>!sfIsSynced_(iso));
+  const days = firstDirty<0 ? [] : prefix.slice(firstDirty);
+  const waiting = dates.filter(iso=>done[iso] && !prefix.includes(iso)); // ติ๊กครบแล้วแต่มีวันก่อนหน้ายังไม่ครบ
+  return {dates, prefix, days, waiting};
+}
+function sfPeriodStatus_(){
+  const dates = sfDates(sfDraft.from, sfDraft.to);
+  const done = dates.filter(iso=>(sfDraft.done||{})[iso]).length;
+  const synced = dates.filter(iso=>sfIsSynced_(iso)).length;
+  const edited = dates.filter(iso=>sfDraft.synced && sfDraft.synced[iso] && !sfIsSynced_(iso)).length;
+  return {total: dates.length, done, synced, edited, closable: synced===dates.length && dates.length>0};
+}
+async function sfFreshDays_(isos){
+  const out = {};
+  if(!isos.length) return out;
+  const values = await window.bulkGetStorageImpl(isos.map(iso=>'day:'+iso));
+  isos.forEach(iso=>{
+    const raw = values ? values['day:'+iso] : undefined;
+    let d = null;
+    if(raw){ try{ d = normalizeDay_(JSON.parse(raw)); }catch(e){ d = null; } }
+    out[iso] = d || emptyDay();
+  });
+  return out;
+}
+const sfNum = v => Number(v||0);
+const sfEq = (a,b) => Math.abs(sfNum(a)-sfNum(b)) < 0.001;
+
 async function sfBuildPlan_(){
-  if(!sfCtx || sfCtx.from!==sfDraft.from || sfCtx.to!==sfDraft.to) await sfLoadCtx_();
+  rawLotsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null;
+  await sfLoadCtx_();
   const comp = sfCompute_();
-  if(comp.errors.length) return {errors: comp.errors};
-  const dates = comp.dates, from = sfDraft.from, to = sfDraft.to;
-  const inRange = iso => !!iso && iso>=from && iso<=to;
-  const listRes = await window.storage.list('day:');
-  const allIso = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
-  const dayMap = await loadDaysBulk([...new Set([...allIso, ...dates])]);
-  const lotsOrig = await loadRawLots();
-  const billsOrig = await loadLotProductBills();
-  const wasteOrig = await loadWasteRecords();
-  const lots = JSON.parse(JSON.stringify(lotsOrig));
-  const errors = []; const notes = [];
+  const scope = sfSyncScope_();
+  const days = scope.days;
+  const daySet = new Set(days);
+  const errors = comp.errors.filter(e=>daySet.has(e.iso));
   const pname = pid => { const p = PRODUCTS.find(x=>x.id===pid); return p ? p.emoji+p.name : pid; };
+  const base = {scope, days, errors, notes:[], perDay:[], ops:{rawLots:[], lotProductBills:[], wasteRecords:[], day:{}}, inv:{rawLots:[], lotProductBills:[], wasteRecords:[], day:{}}, newDraws:[], count:0};
+  if(!days.length || errors.length) return base;
 
-  // 1) ล็อตที่ซื้อในช่วงนี้ ให้ตรงตามฟอร์ม (แก้ของเดิม / เพิ่มใหม่ / ลบที่เอาออก)
-  const formLotIds = new Set(); const touchedBills = new Set();
-  dates.forEach(iso=>PRODUCTS.forEach(p=>{
-    ((sfDraft.days[iso]||{})[p.id]||sfEmptyCell()).lots.forEach(l=>{
-      if(sfN(l.qty)<=0) return;
-      const id = l.lotId || ('sfl-'+l.lineId);
-      formLotIds.add(id);
-      let lot = lots.find(x=>x.id===id);
-      if(lot){
-        if(Number(lot.qtyTotal)!==sfN(l.qty) || Number(lot.pricePerKg)!==sfN(l.price) || (lot.seller||'')!==(l.seller||'') || lot.buyDate!==iso){
-          notes.push({iso, text:`แก้ล็อต ${pname(p.id)}: ${lot.qtyTotal} → ${sfN(l.qty)} กก., ราคา ${lot.pricePerKg} → ${sfN(l.price)}/กก.`});
-        }
-        lot.qtyTotal = sfN(l.qty); lot.pricePerKg = sfN(l.price); lot.seller = l.seller||''; lot.buyDate = iso; lot.productId = p.id;
-      }else{
-        lot = {id, productId:p.id, seller:l.seller||'', sellerNote:'', buyDate:iso, qtyTotal:sfN(l.qty), pricePerKg:sfN(l.price), extra:0, note:'จากฟอร์มจดสต๊อก', draws:[], billId:id};
-        lots.push(lot);
-        notes.push({iso, text:`เพิ่มล็อต ${pname(p.id)} ${sfN(l.qty)} กก. × ${sfN(l.price)}`});
-      }
-      touchedBills.add(lot.billId||lot.id);
-    });
-  }));
-  for(let i=lots.length-1; i>=0; i--){
-    const lot = lots[i];
-    if(!inRange(lot.buyDate) || formLotIds.has(lot.id)) continue;
-    const outDraws = (lot.draws||[]).filter(d=>!inRange(d.date));
-    if(outDraws.length){ errors.push({iso: lot.buyDate, pid: lot.productId, msg:`ล็อต ${lot.qtyTotal} กก. ที่เอาออกจากฟอร์ม ยังมีรอบเบิกนอกช่วงนี้ (${outDraws.map(d=>formatDDMMYYYY(d.date)).join(', ')}) — ลบไม่ได้ ใส่ล็อตนี้กลับเข้าฟอร์ม`}); continue; }
-    touchedBills.add(lot.billId||lot.id);
-    notes.push({iso: lot.buyDate, text:`ลบล็อต ${pname(lot.productId)} ${lot.qtyTotal} กก.`});
-    lots.splice(i,1);
-  }
+  const dayMap = await sfFreshDays_(days);
+  const lots = JSON.parse(JSON.stringify(await loadRawLots()));
+  const bills = JSON.parse(JSON.stringify(await loadLotProductBills()));
+  const waste = JSON.parse(JSON.stringify(await loadWasteRecords()));
+  const P = base.ops, I = base.inv;
+  const err = (iso, pid, msg) => errors.push({iso, pid, msg});
+  const lotOf = id => lots.find(l=>l.id===id);
+  const billRows = bid => lots.filter(l=>(l.billId||l.id)===bid);
+  const billAmount = bid => Math.round(billRows(bid).reduce((s,l)=>s+sfNum(l.qtyTotal)*sfNum(l.pricePerKg),0)*100)/100;
+  const touchedBills = new Set();
+  // ทุก op มีตัวย้อนกลับคู่กันเสมอ (เก็บไว้ใช้ "ย้อนกลับการซิงค์ล่าสุด")
+  const rl = (op, inv) => { P.rawLots.push(op); I.rawLots.unshift(inv); base.count++; };
+  const wr = (op, inv) => { P.wasteRecords.push(op); I.wasteRecords.unshift(inv); base.count++; };
+  const dy = (iso, op, inv) => { (P.day[iso] = P.day[iso]||[]).push(op); (I.day[iso] = I.day[iso]||[]).unshift(inv); base.count++; };
+  const lotHeader = l => { const o = {...l}; delete o.draws; return o; };
 
-  // 2) รอบเบิกในช่วงนี้: ลบของเดิมทั้งหมด แล้วสร้างใหม่ตามฟอร์ม (ล็อตเก่าก่อน) พร้อมตัดต้นทุนในวันเดียวกันเลย
-  const removedDrawIds = new Set();
-  lots.forEach(lot=>{ lot.draws = (lot.draws||[]).filter(d=>{ if(inRange(d.date)){ removedDrawIds.add(d.id); return false; } return true; }); });
-  const avail = {};
-  lots.forEach(lot=>{ avail[lot.id] = Number(lot.qtyTotal||0) - (lot.draws||[]).filter(d=>d.date<from).reduce((s,d)=>s+Number(d.qtyUsed||0),0); });
-  const settleByDay = {};
-  dates.forEach(iso=>PRODUCTS.forEach(p=>{
-    const r = comp.res[iso][p.id];
-    if(r.drawKg<=0) return;
-    const pool = lots.filter(l=>l.productId===p.id && String(l.buyDate||'')<=iso && avail[l.id]>0.0001)
-      .sort((a,b)=>String(a.buyDate||'').localeCompare(String(b.buyDate||'')) || String(a.id).localeCompare(String(b.id)));
-    let need = r.drawKg; const parts = [];
-    for(const lot of pool){ if(need<=0.0001) break; const take = sfR(Math.min(avail[lot.id], need)); if(take<=0) continue; parts.push({lot, kg:take}); avail[lot.id] -= take; need = sfR(need-take); }
-    if(need>0.0001){ errors.push({iso, pid:p.id, msg:`วัตถุดิบล็อตไม่พอเบิก ${r.drawKg} กก. (ขาด ${need} กก.)`}); return; }
-    const prec = Number.isInteger(r.inDraw) ? 1 : 100;
-    let cumKg = 0, prevCumY = 0;
-    parts.forEach(pt=>{
-      cumKg += pt.kg;
-      const cumY = Math.round(r.inDraw*cumKg/r.drawKg*prec)/prec;
-      const y = sfR(cumY - prevCumY); prevCumY = cumY;
-      const drawId = `sfd-${iso}-${p.id}-${pt.lot.id}`;
-      const cost = Math.round(pt.kg*lotCostPerKg(pt.lot)*100)/100;
-      pt.lot.draws.push({id:drawId, date:iso, qtyUsed:pt.kg, sellableQty:y, note:'จากฟอร์มจดสต๊อก', totalCost:cost, costedQty:y});
-      (settleByDay[iso] = settleByDay[iso]||[]).push({
-        id:'sfs-'+drawId, productId:p.id, seller:pt.lot.seller||'', qty:pt.kg, price: Math.round(cost/pt.kg*10000)/10000, extra:0, sellableQty:y,
-        note:`เบิกล็อต ${formatDDMMYYYY(pt.lot.buyDate||iso)}${pt.lot.seller?' '+pt.lot.seller:''} (ฟอร์มจดสต๊อก)`,
-        paid:true, fromLot:true, lotSettle:true, lotSettleAllocations:[{lotId:pt.lot.id, drawId, qty:y, cost}]
-      });
-    });
-  }));
-  lots.forEach(lot=>{
-    const used = sfR((lot.draws||[]).reduce((s,d)=>s+Number(d.qtyUsed||0),0));
-    if(used > Number(lot.qtyTotal||0)+0.01) errors.push({iso: lot.buyDate||from, pid: lot.productId, msg:`ล็อต ${formatDDMMYYYY(lot.buyDate||from)} ${lot.seller||''} ถูกเบิกรวม ${used} กก. เกินที่ซื้อ ${lot.qtyTotal} กก. (นับรวมรอบเบิกหลังวันที่ ${formatDDMMYYYY(to)})`});
-  });
-  if(errors.length) return {errors};
-
-  // 3) แต่ละวันในช่วง: ต้นทุนซื้อสินค้า + ของเหลือ ให้ตรงตามฟอร์มทั้งหมด
-  const preDrawIds = new Set(); lots.forEach(l=>(l.draws||[]).forEach(d=>{ if(d.date<from) preDrawIds.add(d.id); }));
-  const newDays = {}; const perDay = [];
-  dates.forEach(iso=>{
-    const old = dayMap[iso] || emptyDay();
-    const d = normalizeDay_(JSON.parse(JSON.stringify(old)));
-    // คงไว้แค่รายการตัดต้นทุนของรอบเบิก "ก่อนช่วงนี้" (ของที่เบิกมาก่อนแล้วมาตัดต้นทุนวันนี้) — นอกนั้นแทนด้วยฟอร์มทั้งหมด
-    const keep = (old.purchases||[]).filter(e=>e.lotSettle && Array.isArray(e.lotSettleAllocations) && e.lotSettleAllocations.length && e.lotSettleAllocations.every(a=>preDrawIds.has(a.drawId)));
-    const fresh = [];
+  days.forEach(iso=>{
+    const items = [];
+    const old = dayMap[iso];
+    let oldCost = 0, newCost = 0;
     PRODUCTS.forEach(p=>{
-      ((sfDraft.days[iso]||{})[p.id]||sfEmptyCell()).fresh.forEach(l=>{
+      const c = (sfDraft.days[iso]||{})[p.id] || sfEmptyCell();
+      const r = comp.res[iso][p.id];
+      const su = purchaseSellUnit(p.id);
+
+      // 1) ต้นทุนซื้อสด — เทียบตามรหัสรายการ: แก้เฉพาะช่องที่เปลี่ยน / เพิ่มที่ใหม่ / ลบที่เอาออก
+      const sys = (old.purchases||[]).filter(e=>e.productId===p.id && !e.fromLot && !e.lotSettle);
+      sys.forEach(e=>{ oldCost += purchaseCostTotal(e); });
+      const formIds = new Set();
+      (c.fresh||[]).forEach(l=>{
         const q = sfN(l.qty); if(q<=0) return;
-        fresh.push({id:l.lineId, productId:p.id, seller:l.seller||'', qty:q, price:sfN(l.price), extra:sfN(l.extra), sellableQty: sfHas(l.yield) ? sfN(l.yield) : q, note: l.note || 'จากฟอร์มจดสต๊อก', paid: !!l.paid});
+        formIds.add(l.lineId);
+        const want = {seller: l.seller||'', qty: q, price: sfN(l.price), extra: sfN(l.extra), sellableQty: sfHas(l.yield) ? sfN(l.yield) : q, note: l.note||'', paid: !!l.paid};
+        newCost += q*want.price + want.extra;
+        const e = sys.find(x=>x.id===l.lineId);
+        if(e){
+          const cur = {seller: e.seller||'', qty: sfNum(e.qty), price: sfNum(e.price), extra: sfNum(e.extra), sellableQty: (e.sellableQty!=null && e.sellableQty!=='') ? sfNum(e.sellableQty) : sfNum(e.qty), note: e.note||'', paid: !!e.paid};
+          const set = {}, back = {};
+          Object.keys(want).forEach(k=>{
+            const same = typeof want[k]==='number' ? sfEq(want[k], cur[k]) : want[k]===cur[k];
+            if(!same){ set[k] = want[k]; back[k] = Object.prototype.hasOwnProperty.call(e,k) ? e[k] : null; }
+          });
+          if(Object.keys(set).length){
+            if(e.paid && (('qty' in set) || ('price' in set) || ('extra' in set))){ err(iso, p.id, `ต้นทุนซื้อสด ${e.seller||''} ${e.qty}×${e.price} จ่ายแล้ว — แก้ยอดที่หน้าต้นทุนซื้อแทน`); return; }
+            dy(iso, {arrayPath:['purchases'], matchField:'id', matchValue:e.id, set}, {arrayPath:['purchases'], matchField:'id', matchValue:e.id, set:back});
+            items.push(`แก้ซื้อสด ${pname(p.id)} ${e.qty}×${e.price} → ${q}×${want.price}`);
+          }
+        }else{
+          const rec = Object.assign({id: l.lineId, productId: p.id}, want, {note: want.note || 'จากฟอร์มจดสต๊อก'});
+          dy(iso, {arrayPath:['purchases'], push: rec}, {arrayPath:['purchases'], remove:{matchField:'id', matchValue:rec.id}});
+          items.push(`เพิ่มซื้อสด ${pname(p.id)} ${q}×${want.price}${want.seller?' ('+want.seller+')':''}`);
+        }
       });
+      sys.filter(e=>!formIds.has(e.id)).forEach(e=>{
+        if(!(c.removedFresh||[]).includes(e.id)){ newCost += purchaseCostTotal(e); base.notes.push({iso, text:`${pname(p.id)} มีรายการซื้อสด ${e.qty}×${e.price}${e.seller?' ('+e.seller+')':''} ในระบบที่ฟอร์มไม่มี — ไม่ลบให้ (ถ้าเป็นของจริง กด "ดึงข้อมูลเดิมจากระบบใหม่" ให้ฟอร์มรวมด้วย)`}); return; }
+        if(e.paid){ err(iso, p.id, `ต้นทุนซื้อสด ${e.seller||''} ${e.qty}×${e.price} จ่ายแล้ว แต่ไม่มีในฟอร์ม — ลบที่หน้าต้นทุนซื้อแทน หรือใส่กลับในฟอร์ม`); return; }
+        dy(iso, {arrayPath:['purchases'], remove:{matchField:'id', matchValue:e.id}}, {arrayPath:['purchases'], push: JSON.parse(JSON.stringify(e))});
+        items.push(`ลบซื้อสด ${pname(p.id)} ${e.qty}×${e.price}`);
+      });
+
+      // 2) ล็อตที่ซื้อวันนี้
+      const formLotIds = new Set();
+      (c.lots||[]).forEach(l=>{
+        const q = sfN(l.qty); if(q<=0) return;
+        const id = l.lotId || ('sfl-'+l.lineId);
+        formLotIds.add(id);
+        const lot = lotOf(id);
+        if(lot){
+          const set = {}, back = {};
+          if(!sfEq(lot.qtyTotal, q)){ set.qtyTotal = q; back.qtyTotal = lot.qtyTotal; }
+          if(!sfEq(lot.pricePerKg, l.price)){ set.pricePerKg = sfN(l.price); back.pricePerKg = lot.pricePerKg; }
+          if((lot.seller||'') !== (l.seller||'')){ set.seller = l.seller||''; back.seller = lot.seller||''; }
+          if(!Object.keys(set).length) return;
+          const drawn = (lot.draws||[]).reduce((s,d)=>s+sfNum(d.qtyUsed),0);
+          if('qtyTotal' in set && q < drawn-0.001){ err(iso, p.id, `ล็อต ${lot.seller||''} ถูกเบิกไปแล้ว ${sfR(drawn)} กก. ลดเหลือ ${q} กก. ไม่ได้`); return; }
+          if('pricePerKg' in set && (lot.draws||[]).length){ err(iso, p.id, `ล็อต ${lot.seller||''} ถูกเบิกไปแล้ว — เปลี่ยนราคา/กก. ที่หน้าล็อตแทน (กระทบต้นทุนรอบเบิก)`); return; }
+          const bid = lot.billId||lot.id; const b = bills.find(x=>x.billId===bid);
+          Object.assign(lot, set);
+          if(b && b.paid && !sfEq(b.amount, billAmount(bid))){ Object.assign(lot, back); err(iso, p.id, `บิลล็อต ${b.seller||''} จ่ายแล้ว ยอดจะเปลี่ยน — แก้ที่หน้าล็อตแทน`); return; }
+          rl({matchField:'id', matchValue:id, set}, {matchField:'id', matchValue:id, set:back});
+          touchedBills.add(bid);
+          items.push(`แก้ล็อต ${pname(p.id)} ${back.qtyTotal!=null?back.qtyTotal:lot.qtyTotal} → ${lot.qtyTotal} กก. × ${lot.pricePerKg}`);
+        }else{
+          const nl = {id, productId:p.id, seller:l.seller||'', sellerNote:'', buyDate:iso, qtyTotal:q, pricePerKg:sfN(l.price), extra:0, note:'จากฟอร์มจดสต๊อก', draws:[], billId:id};
+          lots.push(nl);
+          rl({push: JSON.parse(JSON.stringify(nl))}, {remove:{matchField:'id', matchValue:id}});
+          touchedBills.add(id);
+          items.push(`เพิ่มล็อต ${pname(p.id)} ${q} กก. × ${sfN(l.price)}`);
+        }
+      });
+      lots.filter(l=>l.productId===p.id && l.buyDate===iso && !formLotIds.has(l.id)).forEach(lot=>{
+        if(!(c.removedLots||[]).includes(lot.id)){ base.notes.push({iso, text:`${pname(p.id)} มีล็อต ${lot.qtyTotal} กก. ในระบบที่ฟอร์มไม่มี — ไม่ลบให้`}); return; }
+        if((lot.draws||[]).length){ err(iso, p.id, `ล็อต ${lot.qtyTotal} กก. ${lot.seller||''} ไม่มีในฟอร์มแต่ถูกเบิกไปแล้ว — ลบไม่ได้ ใส่กลับในฟอร์ม`); return; }
+        const bid = lot.billId||lot.id; const b = bills.find(x=>x.billId===bid);
+        if(b && b.paid){ err(iso, p.id, `ล็อต ${lot.qtyTotal} กก. ${lot.seller||''} บิลจ่ายแล้ว — ลบที่หน้าล็อตแทน`); return; }
+        lots.splice(lots.indexOf(lot), 1);
+        rl({remove:{matchField:'id', matchValue:lot.id}}, {push: JSON.parse(JSON.stringify(lot))});
+        touchedBills.add(bid);
+        items.push(`ลบล็อต ${pname(p.id)} ${lot.qtyTotal} กก.`);
+      });
+
+      // 3) รอบเบิกวันนี้ — ยอดตรงกันแล้วไม่แตะ; ต่างกันแก้ได้เฉพาะรอบเบิกที่ยังไม่ตัดต้นทุน/ไม่มีเคลม
+      const sysDraws = [];
+      lots.filter(l=>l.productId===p.id).forEach(l=>(l.draws||[]).forEach(d=>{ if(d.date===iso) sysDraws.push({lot:l, d}); }));
+      const sysKg = sysDraws.reduce((s,x)=>s+sfNum(x.d.qtyUsed),0), sysY = sysDraws.reduce((s,x)=>s+sfNum(x.d.sellableQty),0);
+      if(!(sfEq(sysKg, r.drawKg) && sfEq(sysY, r.inDraw))){
+        if(c.base && !(sfEq(c.base.kg, sysKg) && sfEq(c.base.y, sysY))){ err(iso, p.id, `รอบเบิกวันนี้ในระบบถูกแก้ที่อื่นหลังดึงมา (${c.base.kg} → ${sfR(sysKg)} กก.) — กด "ดึงข้อมูลเดิมจากระบบใหม่" ก่อน กันซิงค์ทับ`); }
+        else{
+        const locked = sysDraws.filter(x=>x.d.costedQty===undefined || sfNum(x.d.costedQty)>0 || sfNum(x.d.claimedQty)>0);
+        if(locked.length){
+          err(iso, p.id, `รอบเบิกวันนี้ (${sfR(sysKg)} กก.) ตัดต้นทุนหรือมีเคลมไปแล้ว — ระบบไม่แก้ให้เอง แก้ที่หน้าเบิกล็อต แล้วกด "ดึงข้อมูลเดิมจากระบบใหม่"`);
+        }else{
+          sysDraws.forEach(x=>{
+            x.lot.draws = x.lot.draws.filter(d=>d!==x.d);
+            rl({matchField:'id', matchValue:x.lot.id, nested:{field:'draws', remove:{matchField:'id', matchValue:x.d.id}}},
+               {matchField:'id', matchValue:x.lot.id, nested:{field:'draws', push: JSON.parse(JSON.stringify(x.d))}});
+          });
+          if(sysDraws.length) items.push(`ลบรอบเบิกเดิม ${pname(p.id)} ${sfR(sysKg)} กก. (ยังไม่ได้ตัดต้นทุน)`);
+          if(r.drawKg>0){
+            const pool = lots.filter(l=>l.productId===p.id && String(l.buyDate||'')<=iso)
+              .map(l=>({l, avail: sfNum(l.qtyTotal) - (l.draws||[]).reduce((s,d)=>s+sfNum(d.qtyUsed),0)}))
+              .filter(x=>x.avail>0.0001)
+              .sort((a,b)=>String(a.l.buyDate||'').localeCompare(String(b.l.buyDate||'')) || String(a.l.id).localeCompare(String(b.l.id)));
+            let need = r.drawKg; const parts = [];
+            for(const x of pool){ if(need<=0.0001) break; const take = sfR(Math.min(x.avail, need)); if(take<=0) continue; parts.push({lot:x.l, kg:take}); need = sfR(need-take); }
+            if(need>0.0001){ err(iso, p.id, `วัตถุดิบล็อตไม่พอเบิก ${r.drawKg} กก. (ขาด ${need} กก.)`); }
+            else{
+              const prec = Number.isInteger(r.inDraw) ? 1 : 100;
+              let cumKg = 0, prevCumY = 0;
+              parts.forEach(pt=>{
+                cumKg += pt.kg;
+                const cumY = Math.round(r.inDraw*cumKg/r.drawKg*prec)/prec;
+                const y = sfR(cumY - prevCumY); prevCumY = cumY;
+                const draw = {id: `sfd-${iso}-${p.id}-${pt.lot.id}`, date: iso, qtyUsed: pt.kg, sellableQty: y, note: 'จากฟอร์มจดสต๊อก', totalCost: Math.round(pt.kg*lotCostPerKg(pt.lot)*100)/100, costedQty: 0};
+                pt.lot.draws = (pt.lot.draws||[]).concat([draw]);
+                rl({matchField:'id', matchValue:pt.lot.id, nested:{field:'draws', push: draw}},
+                   {matchField:'id', matchValue:pt.lot.id, nested:{field:'draws', remove:{matchField:'id', matchValue:draw.id}}});
+                base.newDraws.push({lotId: pt.lot.id, drawId: draw.id});
+              });
+              items.push(`เบิกล็อต ${pname(p.id)} ${r.drawKg} กก. → ได้ ${r.inDraw} ${su} (ยังไม่ตัดต้นทุน — ไปกด "✅ ตัด" เอง)`);
+            }
+          }
+        }
+        }
+      }
+
+      // 4) ของเสีย (ไม่รวมเคลม) — ยอดตรงแล้วไม่แตะ; ของเสียที่ผูกกับล็อตแล้วไม่แก้ให้เอง
+      const sysW = waste.filter(x=>x.productId===p.id && x.date===iso && x.reason!=='claim');
+      const sysWQty = sysW.reduce((s,x)=>s+sfNum(x.qty),0);
+      if(!sfEq(sysWQty, r.waste)){
+        if(c.base && !sfEq(c.base.w, sysWQty)){
+          err(iso, p.id, `ของเสียวันนี้ในระบบถูกแก้ที่อื่นหลังดึงมา (${c.base.w} → ${sfR(sysWQty)}) — กด "ดึงข้อมูลเดิมจากระบบใหม่" ก่อน กันซิงค์ทับ`);
+        }else if(sysW.some(x=>Array.isArray(x.lotClaimAllocations) && x.lotClaimAllocations.length)){
+          err(iso, p.id, `ของเสียวันนี้ผูกกับล็อตแล้ว — แก้ที่หน้าของเหลือ/ของเสียแทน`);
+        }else{
+          sysW.forEach(x=>wr({remove:{matchField:'id', matchValue:x.id}}, {push: JSON.parse(JSON.stringify(x))}));
+          if(r.waste>0){
+            const est = priceOnDate(p.id, iso);
+            const rec = {id: `sfw-${iso}-${p.id}`, productId:p.id, qty:r.waste, date:iso, note:'จากฟอร์มจดสต๊อก', estCostPerKg:est, estCost:Math.round(r.waste*est), reason:'waste'};
+            wr({push: rec}, {remove:{matchField:'id', matchValue:rec.id}});
+          }
+          items.push(`ของเสีย ${pname(p.id)} ${sfR(sysWQty)} → ${r.waste}`);
+        }
+      }
     });
-    d.purchases = keep.concat(fresh, settleByDay[iso]||[]);
-    newDays[iso] = d;
-    const oldCost = (old.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
-    const newCost = d.purchases.reduce((s,e)=>s+purchaseCostTotal(e),0);
-    perDay.push({iso, oldCost, newCost, oldCount:(old.purchases||[]).length, newCount:d.purchases.length, kept:keep.length, leftover:[]});
+    base.perDay.push({iso, items, oldCost, newCost});
   });
+
+  // 5) ของเหลือปลายวัน — คิดต่อเนื่องจากวันแรกของงวด
   PRODUCTS.forEach(p=>{
     let prevSince = sfCtx.prevSince[p.id] || null;
-    dates.forEach((iso,i)=>{
-      const r = comp.res[iso][p.id]; const d = newDays[iso];
-      const oldVal = (dayMap[iso]||emptyDay()).leftoverOut[p.id];
-      d.leftoverOut[p.id] = r.close>0 ? r.close : 0;
-      if(r.close>0){ const since = r.open>0 ? (prevSince || addDaysISO(iso,-1)) : iso; d.leftoverSince[p.id] = since; prevSince = since; }
-      else { delete d.leftoverSince[p.id]; prevSince = null; }
-      if((oldVal===undefined && d.leftoverOut[p.id]>0) || (oldVal!==undefined && Math.abs(Number(oldVal)-d.leftoverOut[p.id])>0.001)) perDay[i].leftover.push(`${pname(p.id)} ${oldVal===undefined?'-':oldVal}→${d.leftoverOut[p.id]}`);
+    comp.dates.forEach(iso=>{
+      const r = comp.res[iso][p.id];
+      const want = r.close>0 ? r.close : 0;
+      const since = r.close>0 ? (r.open>0 ? (prevSince || addDaysISO(iso,-1)) : iso) : null;
+      prevSince = since;
+      if(!daySet.has(iso)) return;
+      const old = dayMap[iso];
+      const ov = (old.leftoverOut||{})[p.id], os = (old.leftoverSince||{})[p.id];
+      const hasOv = Object.prototype.hasOwnProperty.call(old.leftoverOut||{}, p.id);
+      if(!(hasOv && sfEq(ov, want)) && !(!hasOv && want===0)){
+        dy(iso, {path:['leftoverOut', p.id], value: want}, hasOv ? {path:['leftoverOut', p.id], value: ov} : {path:['leftoverOut', p.id], deleteKey:true});
+        const pd = base.perDay.find(x=>x.iso===iso); pd.items.push(`ของเหลือ ${pname(p.id)} ${hasOv?ov:'-'} → ${want}`);
+      }
+      if((os||null) !== since){
+        dy(iso, since ? {path:['leftoverSince', p.id], value: since} : {path:['leftoverSince', p.id], deleteKey:true}, os ? {path:['leftoverSince', p.id], value: os} : {path:['leftoverSince', p.id], deleteKey:true});
+      }
     });
   });
 
-  // 4) รายการตัดต้นทุนวันอื่นที่อ้างรอบเบิกในช่วงนี้ (ซึ่งตอนนี้ตัดต้นทุนในวันที่เบิกแล้ว) — ต้องลบ ไม่งั้นต้นทุนนับซ้ำ
-  const refsRemoved = e => (Array.isArray(e.lotSettleAllocations) && e.lotSettleAllocations.some(a=>removedDrawIds.has(a.drawId))) || (typeof e.fromLot==='string' && removedDrawIds.has(e.id));
-  Object.keys(dayMap).forEach(iso=>{
-    if(inRange(iso)) return;
-    const old = dayMap[iso]; if(!old || !(old.purchases||[]).some(refsRemoved)) return;
-    const d = normalizeDay_(JSON.parse(JSON.stringify(old)));
-    const n = d.purchases.filter(refsRemoved).length;
-    d.purchases = d.purchases.filter(e=>!refsRemoved(e));
-    newDays[iso] = d;
-    notes.push({iso, text:`ลบรายการตัดต้นทุนล็อต ${n} รายการ ที่อ้างรอบเบิกในช่วงที่กรอกใหม่ (กันต้นทุนนับซ้ำ)`});
+  // 6) ล็อตใช้เกินที่ซื้อไม่ได้ (นับรวมรอบเบิกทุกวัน)
+  lots.forEach(lot=>{
+    const used = sfR((lot.draws||[]).reduce((s,d)=>s+sfNum(d.qtyUsed),0));
+    if(used > sfNum(lot.qtyTotal)+0.01 && touchedBills.has(lot.billId||lot.id)) err(lot.buyDate, lot.productId, `ล็อต ${formatDDMMYYYY(lot.buyDate)} ${lot.seller||''} ถูกเบิกรวม ${used} กก. เกินที่ซื้อ ${lot.qtyTotal} กก.`);
   });
 
-  // 5) ยอด "ตัดต้นทุนแล้ว" ของทุกรอบเบิก = ผลรวมจากรายการต้นทุนซื้อจริงทุกวัน
-  const finalDays = {...dayMap, ...newDays};
-  const costed = {};
-  Object.values(finalDays).forEach(d=>((d&&d.purchases)||[]).forEach(e=>{ (Array.isArray(e.lotSettleAllocations)?e.lotSettleAllocations:[]).forEach(a=>{ costed[a.drawId] = (costed[a.drawId]||0) + Number(a.qty||0); }); }));
-  let fixed = 0;
-  lots.forEach(lot=>(lot.draws||[]).forEach(dr=>{
-    if(dr.costedQty===undefined) return; // รอบเบิกแบบเก่า (ตัดต้นทุนเต็มตั้งแต่ตอนเบิก) ไม่ยุ่ง
-    const sum = sfR(costed[dr.id]||0);
-    if(sum > Number(dr.sellableQty||0)+0.01) notes.push({iso: dr.date, text:`⚠️ รอบเบิก ${pname(lot.productId)} ${formatDDMMYYYY(dr.date)} ถูกตัดต้นทุนซ้ำ (รวม ${sum} จากที่ได้ ${dr.sellableQty}) — อยู่นอกช่วงนี้ ควรกรอกช่วงที่ครอบวันนั้นด้วย`});
-    const want = Math.min(Number(dr.sellableQty||0), sum);
-    if(Math.abs(Number(dr.costedQty||0)-want)>0.001){ dr.costedQty = want; if(!String(dr.id).startsWith('sfd-')) fixed++; }
-  }));
-  if(fixed) notes.push({iso:null, text:`แก้ยอด "ตัดต้นทุนแล้ว" ของรอบเบิกเดิม ${fixed} รอบ ให้ตรงกับรายการต้นทุนซื้อจริง`});
-
-  // 6) บิลสินค้าล็อต ให้ยอดตรงกับล็อต
-  const bills = JSON.parse(JSON.stringify(billsOrig));
+  // 7) บิลสินค้าล็อต ให้ยอดตรงกับล็อต
   touchedBills.forEach(bid=>{
-    const rows = lots.filter(l=>(l.billId||l.id)===bid);
-    const idx = bills.findIndex(b=>b.billId===bid);
+    const rows = billRows(bid);
+    const b = bills.find(x=>x.billId===bid);
+    const label = rows.map(l=>pname(l.productId)).join(' ');
     if(!rows.length){
-      if(idx>=0){ if(bills[idx].paid) notes.push({iso:bills[idx].buyDate, text:`⚠️ ลบบิลสินค้าล็อต ${bills[idx].seller||''} ${money(bills[idx].amount)} ที่ "จ่ายแล้ว" ออก`}); bills.splice(idx,1); }
+      if(b){ P.lotProductBills.push({remove:{matchField:'id', matchValue:b.id}}); I.lotProductBills.unshift({push: JSON.parse(JSON.stringify(b))}); base.count++; }
       return;
     }
-    const amount = Math.round(rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0),0)*100)/100;
-    const label = rows.map(l=>pname(l.productId)).join(' ');
-    if(idx>=0){
-      const b = bills[idx];
-      if(Math.abs(Number(b.amount||0)-amount)>0.01 && b.paid) notes.push({iso:b.buyDate, text:`⚠️ บิลล็อต ${b.seller||''} จ่ายแล้ว แต่ยอดเปลี่ยน ${money(b.amount)} → ${money(amount)} — เช็คยอดโอนอีกที`});
-      b.amount = amount; b.productLabel = label; b.seller = rows[0].seller||b.seller; b.buyDate = rows[0].buyDate||b.buyDate;
+    const amount = billAmount(bid);
+    if(b){
+      if(sfEq(b.amount, amount) && b.productLabel===label) return;
+      P.lotProductBills.push({matchField:'id', matchValue:b.id, set:{amount, productLabel:label}});
+      I.lotProductBills.unshift({matchField:'id', matchValue:b.id, set:{amount:b.amount, productLabel:b.productLabel||''}});
+      base.count++;
     }else{
-      bills.push({id:'lp'+bid, billId:bid, seller:rows[0].seller||'', sellerNote:'', buyDate:rows[0].buyDate, amount, productLabel:label, paid:false, paidDate:null});
+      const nb = {id:'lp'+bid, billId:bid, seller:rows[0].seller||'', sellerNote:'', buyDate:rows[0].buyDate, amount, productLabel:label, paid:false, paidDate:null};
+      P.lotProductBills.push({push:nb}); I.lotProductBills.unshift({remove:{matchField:'id', matchValue:nb.id}}); base.count++;
     }
   });
 
-  // 7) ของเสีย ในช่วงนี้ให้ตรงตามฟอร์ม
-  const waste = wasteOrig.filter(r=>!inRange(r.date) || r.reason==='claim'); // รายการเคลมคงไว้ตามเดิมเสมอ (ผูกกับรอบเบิกล็อต/บิลสาขา)
-  dates.forEach(iso=>PRODUCTS.forEach(p=>{
-    const w = comp.res[iso][p.id].waste;
-    if(w>0){ const est = priceOnDate(p.id, iso); waste.push({id:`sfw-${iso}-${p.id}`, productId:p.id, qty:w, date:iso, note:'จากฟอร์มจดสต๊อก', estCostPerKg:est, estCost:Math.round(w*est)}); }
-  }));
-
-  const origDays = {}; Object.keys(newDays).forEach(iso=>{ origDays[iso] = JSON.stringify(dayMap[iso]||emptyDay()); });
-  return {errors:[], from, to, newDays, origDays, lots, lotsOrig, bills, billsOrig, waste, wasteOrig, notes, perDay};
+  // ยอดส่งที่แก้เองในฟอร์ม ใช้คิดของเหลือเท่านั้น ไม่แก้ออเดอร์
+  days.forEach(iso=>PRODUCTS.forEach(p=>{ const r = comp.res[iso][p.id]; if(!sfEq(r.sent, r.sentFromOrders)) base.notes.push({iso, text:`${pname(p.id)} ยอดส่งในฟอร์ม ${r.sent} ≠ ออเดอร์ ${r.sentFromOrders} — ใช้คิดของเหลือเท่านั้น ออเดอร์ไม่ถูกแก้`}); }));
+  base.sig = JSON.stringify(base.ops);
+  return base;
 }
 
+// เขียนลงระบบ: rawLots → บิลล็อต → ของเสีย → ทีละวัน (บันทึกตัวย้อนกลับของแต่ละขั้นทันทีที่สำเร็จ)
+async function sfApplyPlan_(plan){
+  const undo = {at: new Date().toISOString(), from: sfDraft.from, to: sfDraft.to, days: plan.days, newDraws: plan.newDraws, steps: []};
+  const saveUndo = async ()=>{
+    try{ localStorage.setItem(SF_UNDO_LS, JSON.stringify(undo)); }catch(e){}
+    try{ await window.storage.set(SF_UNDO_KEY, JSON.stringify(undo)); }catch(e){}
+  };
+  const P = plan.ops, I = plan.inv;
+  if(P.rawLots.length){ await writeRootArrayOp_('rawLots', P.rawLots, arr=>{rawLotsCache_=arr;}); undo.steps.push({key:'rawLots', ops:I.rawLots}); await saveUndo(); }
+  if(P.lotProductBills.length){ await writeRootArrayOp_('lotProductBills', P.lotProductBills, arr=>{lotProductBillsCache_=arr;}); undo.steps.push({key:'lotProductBills', ops:I.lotProductBills}); await saveUndo(); }
+  if(P.wasteRecords.length){ await writeRootArrayOp_('wasteRecords', P.wasteRecords, arr=>{wasteRecordsCache_=arr;}); undo.steps.push({key:'wasteRecords', ops:I.wasteRecords}); await saveUndo(); }
+  for(const iso of Object.keys(P.day)){
+    const res = await window.storage.patchOps('day:'+iso, P.day[iso], false);
+    const fresh = normalizeDay_(JSON.parse(res.value));
+    dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate) dayData = fresh;
+    undo.steps.push({key:'day:'+iso, ops:I.day[iso]});
+    await saveUndo();
+  }
+  return undo;
+}
+// ยอดอ้างอิง "ในระบบตอนนี้" ของรอบเบิก/ของเสียต่อวัน (ใช้หลังย้อนกลับ ให้ซิงค์ใหม่ได้โดยไม่ฟ้องว่าถูกแก้ที่อื่น)
+async function sfRefreshBase_(dates){
+  if(!dates.length) return;
+  rawLotsCache_ = null; wasteRecordsCache_ = null;
+  const lots = await loadRawLots(); const waste = await loadWasteRecords();
+  dates.forEach(iso=>PRODUCTS.forEach(p=>{
+    let kg = 0, y = 0;
+    lots.filter(l=>l.productId===p.id).forEach(l=>(l.draws||[]).filter(d=>d.date===iso).forEach(d=>{ kg += sfNum(d.qtyUsed); y += sfNum(d.sellableQty); }));
+    const w = waste.filter(r=>r.productId===p.id && r.date===iso && r.reason!=='claim').reduce((s2,r)=>s2+sfNum(r.qty),0);
+    sfCell(iso, p.id).base = {kg: sfR(kg), y: sfR(y), w: sfR(w)};
+  }));
+}
+async function sfLoadUndo_(){
+  let remote = null, local = null;
+  try{ remote = JSON.parse((await window.storage.get(SF_UNDO_KEY)).value); }catch(e){}
+  try{ local = JSON.parse(localStorage.getItem(SF_UNDO_LS)||'null'); }catch(e){}
+  const pick = (remote && local) ? (String(local.at||'') > String(remote.at||'') ? local : remote) : (remote || local);
+  return pick && pick.steps && pick.steps.length ? pick : null;
+}
+async function sfUndo_(){
+  if(sfBusy) return;
+  const u = await sfLoadUndo_();
+  if(!u){ showToast('ไม่มีการซิงค์ที่ย้อนกลับได้'); return; }
+  sfBusy = true;
+  try{
+    rawLotsCache_ = null;
+    const lots = await loadRawLots();
+    const costed = (u.newDraws||[]).filter(nd=>{ const l = lots.find(x=>x.id===nd.lotId); const d = l && (l.draws||[]).find(x=>x.id===nd.drawId); return d && (sfNum(d.costedQty)>0 || sfNum(d.claimedQty)>0); });
+    if(costed.length){ showToast('ย้อนกลับไม่ได้ — รอบเบิกที่ซิงค์ไปถูกตัดต้นทุน/เคลมไปแล้ว แก้ทีละรายการที่หน้าเบิกล็อตแทน'); return; }
+    if(!confirm(`ย้อนกลับการซิงค์เมื่อ ${new Date(u.at).toLocaleString('th-TH')} (${u.days.length} วัน: ${u.days.map(d=>formatDDMMYYYY(d).slice(0,5)).join(', ')})?\nทุกอย่างที่การซิงค์รอบนั้นเปลี่ยนจะกลับเป็นค่าเดิม`)) return;
+    const ok = await acquireLotSettleLock_();
+    if(!ok){ showToast('อีกเครื่องกำลังตัดต้นทุนล็อตอยู่ รอสักครู่แล้วลองใหม่'); return; }
+    try{
+      const steps = u.steps.slice().reverse();
+      while(steps.length){
+        const s = steps[0];
+        if(s.key==='rawLots') await writeRootArrayOp_('rawLots', s.ops, arr=>{rawLotsCache_=arr;});
+        else if(s.key==='lotProductBills') await writeRootArrayOp_('lotProductBills', s.ops, arr=>{lotProductBillsCache_=arr;});
+        else if(s.key==='wasteRecords') await writeRootArrayOp_('wasteRecords', s.ops, arr=>{wasteRecordsCache_=arr;});
+        else{
+          const iso = s.key.slice(4);
+          const res = await window.storage.patchOps(s.key, s.ops, false);
+          const fresh = normalizeDay_(JSON.parse(res.value));
+          dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
+          if(iso===currentDate) dayData = fresh;
+        }
+        steps.shift();
+        u.steps = steps.slice().reverse();
+        try{ localStorage.setItem(SF_UNDO_LS, JSON.stringify(u)); }catch(e){}
+        try{ await window.storage.set(SF_UNDO_KEY, JSON.stringify(u)); }catch(e){}
+      }
+    }finally{ await releaseLotSettleLock_(); }
+    try{ localStorage.removeItem(SF_UNDO_LS); }catch(e){}
+    try{ await window.storage.set(SF_UNDO_KEY, JSON.stringify({})); }catch(e){}
+    if(sfDraft && sfDraft.synced) u.days.forEach(iso=>{ delete sfDraft.synced[iso]; });
+    if(sfDraft && sfDraft.days) await sfRefreshBase_(u.days.filter(iso=>sfDraft.days[iso]));
+    sfScheduleSave_();
+    logActivity_(`↩️ ย้อนกลับการซิงค์ฟอร์มจดสต๊อก ${u.days.length} วัน (${formatDDMMYYYY(u.days[0])} – ${formatDDMMYYYY(u.days[u.days.length-1])})`);
+    showToast('ย้อนกลับการซิงค์แล้ว');
+  }catch(e){
+    console.error('sfUndo_ failed', e);
+    showToast('ย้อนกลับไม่ครบ (เน็ตมีปัญหา?) กดย้อนกลับอีกครั้งเพื่อทำส่วนที่เหลือต่อ');
+  }finally{
+    sfBusy = false; sfCtx = null; renderStockForm_();
+  }
+}
+
+function sfPlanHtml_(plan){
+  const sc = plan.scope;
+  const fmt = d=>formatDDMMYYYY(d).slice(0,5);
+  const waitHtml = sc.waiting.length ? `<div class="hint" style="margin-top:6px;">⏳ ติ๊กครบแล้วแต่มีวันก่อนหน้ายังไม่ครบ (ยังไม่ซิงค์รอบนี้): ${sc.waiting.map(fmt).join(', ')}</div>` : '';
+  if(!plan.days.length){
+    return `<div class="sf-lock">${sc.prefix.length ? '✅ วันที่กรอกครบแล้วซิงค์ไปหมดแล้ว — กรอกวันถัดไปต่อ แล้วติ๊ก "กรอกวันนี้ครบแล้ว"' : 'ยังไม่มีวันที่ติ๊ก "กรอกวันนี้ครบแล้ว" ต่อเนื่องจากวันแรกของงวด — ติ๊กที่หัวแต่ละวันเมื่อกรอกครบ'}</div>${waitHtml}`;
+  }
+  if(plan.errors.length){
+    return `<div style="color:var(--danger);margin-top:8px;font-size:13px;">⚠️ ยังซิงค์ไม่ได้:</div>` + plan.errors.map(e=>{ const p = PRODUCTS.find(x=>x.id===e.pid); return `<div style="font-size:12px;margin-top:3px;">• ${e.iso?formatDDMMYYYY(e.iso):''} ${p?p.emoji+p.name:''}: ${sfEsc(e.msg)}</div>`; }).join('') + waitHtml;
+  }
+  const rows = plan.perDay.map(d=>`<tr><td>${fmt(d.iso)}</td><td class="num">${money(d.oldCost)}</td><td class="num">${money(d.newCost)}</td><td style="font-size:11px;">${d.items.length?d.items.map(sfEsc).join('<br>'):'— ไม่มีอะไรเปลี่ยน'}</td></tr>`).join('');
+  return `<div style="margin-top:10px;font-size:13px;font-weight:600;">สิ่งที่จะเขียนทับ ${plan.days.length} วัน (${fmt(plan.days[0])} – ${fmt(plan.days[plan.days.length-1])})</div>
+    <div class="hint">แก้เฉพาะรายการที่ต่างจากฟอร์ม ทีละรายการ — ไม่ตัดต้นทุนรอบเบิกให้เอง, ไม่แตะเคลม/ออเดอร์/บิลสาขา/รายจ่ายกิจการ, วันที่ยังไม่ครบไม่ถูกแตะ</div>
+    <div class="scrollx" style="margin-top:6px;"><table class="plain"><tr><th>วันที่</th><th class="num">ซื้อสดเดิม</th><th class="num">ซื้อสดใหม่</th><th>สิ่งที่เปลี่ยน</th></tr>${rows}</table></div>
+    ${plan.notes.length?`<div style="margin-top:8px;font-size:12px;">${plan.notes.map(n=>`<div style="margin-top:3px;">• ${n.iso?formatDDMMYYYY(n.iso)+' ':''}${sfEsc(n.text)}</div>`).join('')}</div>`:''}
+    ${waitHtml}
+    <button class="btn" id="sfApplyBtn" style="margin-top:10px;">✅ ยืนยันซิงค์ ${plan.days.length} วันนี้ลงระบบ${plan.count?` (${plan.count} รายการ)`:''}</button>`;
+}
 async function sfCheck_(){
   if(sfBusy) return;
   const pv = document.getElementById('sfPreview');
   sfBusy = true;
-  pv.innerHTML = '<div class="loading">กำลังตรวจกับข้อมูลทั้งระบบ…</div>';
+  pv.innerHTML = '<div class="loading">กำลังตรวจกับข้อมูลในระบบ…</div>';
   try{
     const plan = await sfBuildPlan_();
-    if(plan.errors.length){
-      sfLastPlan = null;
-      pv.innerHTML = `<div style="color:var(--danger);margin-top:8px;font-size:13px;">⚠️ ยังซิงค์ไม่ได้:</div>` + plan.errors.map(e=>{ const p = PRODUCTS.find(x=>x.id===e.pid); return `<div style="font-size:12px;margin-top:3px;">• ${e.iso?formatDDMMYYYY(e.iso):''} ${p?p.emoji+p.name:''}: ${sfEsc(e.msg)}</div>`; }).join('');
-      return;
-    }
-    sfLastPlan = plan;
-    const rows = plan.perDay.map(d=>`<tr><td>${formatDDMMYYYY(d.iso).slice(0,5)}</td><td class="num">${money(d.oldCost)}</td><td class="num">${money(d.newCost)}</td><td style="font-size:11px;">${d.leftover.length?sfEsc(d.leftover.join(', ')):'—'}</td></tr>`).join('');
-    const extraDays = Object.keys(plan.newDays).filter(iso=>iso<plan.from||iso>plan.to);
-    pv.innerHTML = `<div style="margin-top:10px;font-size:13px;font-weight:600;">สิ่งที่จะเขียนทับ ${formatDDMMYYYY(plan.from)} – ${formatDDMMYYYY(plan.to)}</div>
-      <div class="hint">ต้นทุนซื้อสินค้า รอบเบิกล็อต ของเหลือ และของเสียของทุกวันในช่วงนี้ จะถูกแทนด้วยตัวเลขในฟอร์มทั้งหมด (ออเดอร์ บิลสาขา รายจ่ายกิจการ ไม่ถูกแตะ)</div>
-      <div class="scrollx" style="margin-top:6px;"><table class="plain"><tr><th>วันที่</th><th class="num">ต้นทุนเดิม</th><th class="num">ต้นทุนใหม่</th><th>ของเหลือที่เปลี่ยน</th></tr>${rows}</table></div>
-      ${plan.notes.length?`<div style="margin-top:8px;font-size:12px;">${plan.notes.map(n=>`<div style="margin-top:3px;">• ${n.iso?formatDDMMYYYY(n.iso)+' ':''}${sfEsc(n.text)}</div>`).join('')}</div>`:''}
-      ${extraDays.length?`<div class="hint" style="margin-top:6px;">มีวันนอกช่วงที่ต้องแก้ด้วย ${extraDays.length} วัน: ${extraDays.map(formatDDMMYYYY).join(', ')}</div>`:''}
-      <div class="sf-lock">🔒 ปุ่มซิงค์ยังปิดไว้ — ตอนนี้ใช้ตรวจ/ดูผลเท่านั้น ยังไม่เขียนทับข้อมูลจริง (ตัวซิงค์ต้องปรับให้รองรับเคลม/ของเสียที่ผูกกับรอบเบิกล็อตก่อน)</div>`;
+    sfLastPlan = (plan.days.length && !plan.errors.length) ? plan : null;
+    pv.innerHTML = sfPlanHtml_(plan);
+    const btn = document.getElementById('sfApplyBtn');
+    if(btn) btn.addEventListener('click', sfSync_);
   }catch(e){
     console.error('sfCheck_ failed', e);
     pv.innerHTML = '<div class="empty">ตรวจไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — ยังไม่ได้เขียนอะไรลงระบบ</div>';
   }finally{ sfBusy = false; }
+}
+async function sfSync_(){
+  if(sfBusy || !sfLastPlan) return;
+  const pv = document.getElementById('sfPreview');
+  const previewed = sfLastPlan;
+  sfBusy = true;
+  let lock = false, undo = null;
+  try{
+    lock = await acquireLotSettleLock_();
+    if(!lock){ showToast('อีกเครื่องกำลังตัดต้นทุนล็อตอยู่ รอสักครู่แล้วกดซิงค์ใหม่'); return; }
+    // ตรวจกับข้อมูลสดอีกรอบภายใต้กุญแจ — ถ้ามีใครแก้อะไรระหว่างดูตัวอย่าง ให้ดูใหม่ก่อน ไม่เขียนตามแผนเก่า
+    const plan = await sfBuildPlan_();
+    if(plan.errors.length || plan.sig !== previewed.sig){
+      sfLastPlan = (plan.days.length && !plan.errors.length) ? plan : null;
+      pv.innerHTML = `<div class="hint" style="color:var(--danger);">ข้อมูลในระบบเปลี่ยนระหว่างดูตัวอย่าง — ตรวจสิ่งที่จะเปลี่ยนอีกครั้งแล้วค่อยกดยืนยัน</div>` + sfPlanHtml_(plan);
+      const btn = document.getElementById('sfApplyBtn'); if(btn) btn.addEventListener('click', sfSync_);
+      return;
+    }
+    pv.innerHTML = '<div class="loading">กำลังซิงค์…</div>';
+    undo = await sfApplyPlan_(plan);
+    const compAfter = sfCompute_();
+    plan.days.forEach(iso=>PRODUCTS.forEach(p=>{
+      const c = sfCell(iso, p.id), r = compAfter.res[iso][p.id];
+      c.base = {kg: sfR(r.drawKg), y: sfR(r.inDraw), w: sfR(r.waste)};
+    }));
+    sfDraft.synced = sfDraft.synced || {};
+    plan.days.forEach(iso=>{ sfDraft.synced[iso] = sfDaySig_(iso); });
+    sfDraft.lastSyncAt = undo.at;
+    sfScheduleSave_();
+    const nDraw = plan.newDraws.length;
+    logActivity_(`🔄 ซิงค์ฟอร์มจดสต๊อก ${plan.days.length} วัน (${formatDDMMYYYY(plan.days[0])} – ${formatDDMMYYYY(plan.days[plan.days.length-1])}) ${plan.count} รายการ${nDraw?` • รอบเบิกใหม่ ${nDraw} รอบ ยังไม่ตัดต้นทุน`:''}`);
+    showToast(`ซิงค์แล้ว ${plan.days.length} วัน${nDraw?' — รอบเบิกใหม่ยังไม่ตัดต้นทุน ไปกด "✅ ตัด" เอง':''}`);
+    sfLastPlan = null; sfCtx = null;
+    renderStockForm_();
+  }catch(e){
+    console.error('sfSync_ failed', e);
+    pv.innerHTML = `<div class="empty">ซิงค์ไม่ครบ (เน็ตมีปัญหา?) — ส่วนที่เขียนไปแล้วย้อนกลับได้ด้วยปุ่ม "↩️ ย้อนกลับการซิงค์ล่าสุด" หรือกดตรวจแล้วซิงค์ใหม่ (ระบบเทียบรายการเดิมให้ ไม่เพิ่มซ้ำ)</div>`;
+    sfLastPlan = null; sfCtx = null;
+  }finally{
+    if(lock) await releaseLotSettleLock_();
+    sfBusy = false;
+  }
+}
+async function sfClosePeriod_(){
+  const st = sfPeriodStatus_();
+  if(!st.closable){ showToast(`ยังปิดงวดไม่ได้ — ซิงค์แล้ว ${st.synced}/${st.total} วัน กรอกต่อให้ครบก่อน`); return; }
+  if(!confirm(`ปิดงวด ${formatDDMMYYYY(sfDraft.from)} – ${formatDDMMYYYY(sfDraft.to)}?\nข้อมูลทุกวันซิงค์ลงระบบแล้ว ร่างของงวดนี้จะถูกล้างเพื่อเริ่มงวดใหม่ (ข้อมูลในระบบไม่เปลี่ยน)`)) return;
+  logActivity_(`🏁 ปิดงวดฟอร์มจดสต๊อก ${formatDDMMYYYY(sfDraft.from)} – ${formatDDMMYYYY(sfDraft.to)}`);
+  sfDraft = {from:null, to:null, opening:{}, days:{}, closed:{from:sfDraft.from, to:sfDraft.to, at:new Date().toISOString()}};
+  try{ localStorage.removeItem(SF_UNDO_LS); }catch(e){}
+  try{ await window.storage.set(SF_UNDO_KEY, JSON.stringify({})); }catch(e){}
+  sfScheduleSave_();
+  sfCtx = null; sfLastPlan = null;
+  renderStockForm_();
+}
+function sfRenderStatus_(){
+  const el = document.getElementById('sfStatus');
+  if(!el || !sfDraft || !sfDraft.from) return;
+  const st = sfPeriodStatus_();
+  const pct = st.total ? Math.round(st.synced/st.total*100) : 0;
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <b style="font-size:13px;">${st.closable ? '✅ ซิงค์ครบทั้งงวดแล้ว — ปิดงวดได้' : '📝 งวดนี้ยังไม่ปิด (กรอกต่อได้เรื่อยๆ)'}</b>
+      <span style="font-size:12px;color:var(--text-dim);">กรอกครบ ${st.done}/${st.total} วัน • ซิงค์แล้ว ${st.synced}/${st.total} วัน${st.edited?` • แก้หลังซิงค์ ${st.edited} วัน`:''}</span>
+    </div>
+    <div style="height:6px;border-radius:6px;background:var(--border);margin-top:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--success);"></div></div>`;
+  const closeBtn = document.getElementById('sfCloseBtn');
+  if(closeBtn){ closeBtn.disabled = !st.closable; closeBtn.title = st.closable ? '' : 'ต้องซิงค์ครบทุกวันก่อน'; }
 }
 
 function initCollapsibleSettings(){

@@ -22,3 +22,13 @@ The resulting JSON files restore through the app's existing "นำเข้า�
 interchangeable. If the app ever adds a new root-level storage key, update
 `BACKUP_EXTRA_ROOT_KEYS` in **both** `index.html` and this file together, or
 the automated backup will silently miss it.
+
+## AuthGuard.gs
+
+Adds a passcode check to the web app API so someone who finds the `/exec` URL in the public
+page source can't read or change data. The passcode is never in `index.html`: each device
+enters it once in **ตั้งค่า → 🔐 รหัสเข้าใช้ระบบ** and keeps it locally; the server compares
+it with the `KARMTO_KEY` Script Property. Until that property is set nothing is enforced.
+Install steps are in the comment at the top of the file (set the passcode on every device
+first, then add the property and the one-line guard to `doGet`/`doPost`, then redeploy).
+`BackupTrigger.gs` sends the same key automatically.

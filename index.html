@@ -3454,8 +3454,10 @@ function matchProductFromOcrName(name){
   if(has('ตัดปาก')||has('ตัดหัว')||has('ตัด')||has('กุ้งตัด')) return 'p3';
   if(has('ปูจืด')||has('ปู')) return 'p4';
   if(has('หมึกกล้วย')||has('หมึก')) return 'p5';
-  if(has('เชอรี่')||has('เชอร์รี่')||has('หอยเชอรี่')||has('เนื้อหอยเชอรี่')) return 'p6';
+  if(has('เชอรี่')||has('เชอร์รี่')||has('หอยเชอรี่')||has('เนื้อหอยเชอรี่')||has('เซอรี่')||has('ซอรี่')||has('หอยเซ')||has('เชอรี')) return 'p6';
   if(has('นางรม')||has('หอยนางรม')||has('เนื้อหอยนางรม')) return 'p7';
+  // OCR อ่านนางรมเพี้ยนบ่อย (นาจรม/นบางรม/หอยนา…) — สินค้าเดียวที่นับเป็น "กระปุก" คือหอยนางรม ใช้หน่วยช่วยยืนยันได้
+  if(has('นาจรม')||has('นบางรม')||has('างรม')||has('หอยนา')||has('กระปุก')||has('กระปก')) return 'p7';
   return null;
 }
 function withOcrTimeout_(promise, label, ms){
@@ -3502,11 +3504,29 @@ async function getOcrWorker_(){
     // ลองซ้ำอัตโนมัติ 3 รอบ: เน็ตร้านที่เจอปัญหานี้บ่อยๆ คือหลุดแป๊บเดียว (ไม่ใช่ช้าคงที่ตลอด) "Failed to fetch"
     // รอบแรกมักหายไปเองถ้าลองใหม่อีกสัก 1-2 ครั้ง โดยไม่ต้องให้ user กดปุ่มเองซ้ำๆ
     ocrWorkerPromise_ = retryOcrOp_(
-      ()=> withOcrTimeout_(Tesseract.createWorker(['tha','eng']), 'เตรียมตัวอ่านภาพครั้งแรก', 60000),
+      // อ่านภาษาไทยอย่างเดียว — ทดสอบกับภาพออเดอร์จริงแล้วแม่นกว่า tha+eng ชัดเจน (โมเดลอังกฤษชอบแปลงคำไทยเป็นตัวละติน เช่น ปูจืด → "Uda")
+      ()=> withOcrTimeout_(Tesseract.createWorker(['tha']), 'เตรียมตัวอ่านภาพครั้งแรก', 60000),
       3
     ).catch(e=>{ ocrWorkerPromise_ = null; throw e; }); // สร้างไม่สำเร็จ อย่าค้าง promise ที่ reject ไว้ตลอดกาล ให้ลองสร้างใหม่ได้ครั้งถัดไป
   }
   return ocrWorkerPromise_;
+}
+// เตรียมภาพก่อนอ่าน: ขยาย ~3 เท่า (ตัวหนังสือไทยเล็กๆ ในภาพแคปจออ่านแม่นขึ้นมาก) + ขาวดำเพิ่มความต่างสี
+// ภาพใหญ่อยู่แล้ว (รูปถ่ายมือถือ) ไม่ขยายเกินด้านยาว 3000px กันเครื่องช้า/หน่วยความจำเต็ม — พังเมื่อไหร่ใช้ภาพเดิม
+async function prepareOrderImageForOcr_(url){
+  try{
+    const img = new Image(); img.src = url; await img.decode();
+    const long = Math.max(img.naturalWidth, img.naturalHeight) || 1;
+    const sc = Math.max(1, Math.min(3, 3000/long));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth*sc); c.height = Math.round(img.naturalHeight*sc);
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, 0, c.width, c.height);
+    const d = x.getImageData(0, 0, c.width, c.height), a = d.data;
+    for(let i=0; i<a.length; i+=4){ const g = 0.299*a[i]+0.587*a[i+1]+0.114*a[i+2]; const v = Math.max(0, Math.min(255, (g-128)*1.6+128)); a[i]=a[i+1]=a[i+2]=v; }
+    x.putImageData(d, 0, 0);
+    return c;
+  }catch(e){ return url; }
 }
 async function parseOrderImage(file){
   if(!(await ensureTesseract_())){
@@ -3522,7 +3542,9 @@ async function parseOrderImage(file){
     }
     let result;
     try{
-      result = await withOcrTimeout_(worker.recognize(imageUrl), 'อ่านภาพ', 45000);
+      const prepared = await prepareOrderImageForOcr_(imageUrl);
+      if(!worker.__karmtoParams){ try{ await worker.setParameters({tessedit_pageseg_mode: '6', preserve_interword_spaces: '1'}); }catch(_){} worker.__karmtoParams = true; }
+      result = await withOcrTimeout_(worker.recognize(prepared), 'อ่านภาพ', 45000);
     }catch(e){
       // worker อาจค้าง/พังจากปัญหาเน็ตระหว่างอ่าน — ทิ้ง worker เดิม ครั้งถัดไปจะได้สร้างใหม่สดๆ แทนที่จะค้างพังซ้ำ
       ocrWorkerPromise_ = null;
@@ -3537,7 +3559,19 @@ async function parseOrderImage(file){
 // ตัดรหัสสินค้า/แบรนด์ที่นำหน้าชื่อสินค้าในภาพออเดอร์ (เช่น "Bm9 กุ้งแช่ (กก.)") ออกก่อนค้นหาตัวเลข
 // กันบั๊ก: ถ้าไม่ตัดออก เลข "9" ใน "Bm9" จะถูกจับเป็นจำนวนสินค้าผิดๆ โดยเฉพาะตอนจำนวนจริงอยู่คนละบรรทัด
 function stripOcrSkuPrefix(line){
-  return (line||'').replace(/^[A-Za-z]{1,4}\d{1,4}\s*/,'');
+  // รหัสหน้า "Bm9" OCR มักอ่านเพี้ยนเป็น "8ทา9" / "ธิทา9" / "ธ8ทท9" — ตัดก้อนสั้นๆ ที่ลงท้ายด้วยเลขก่อนช่องว่างแรกทิ้งด้วย
+  return (line||'').replace(/^[#=*\-•·\s]*/,'').replace(/^[A-Za-z]{1,4}\d{1,4}\s*/,'').replace(/^[^\s]{1,6}\d\s+/,'');
+}
+// จำนวนอยู่ฝั่งขวาสุดของแถว ตามด้วยหน่วย (กก./กระปุก — OCR อาจอ่านหน่วยเป็น an/nn/คก.) — หาเลขที่ตามด้วยหน่วยก่อน
+// ไม่งั้นค่อยเอาเลขหลังวงเล็บปิด ")" ของชื่อหน่วย — กันจับเลข "9" ใน Bm9 ที่อ่านเพี้ยนเป็นจำนวนผิดๆ
+function ocrQtyFromLine_(line){
+  const t = String(line||'');
+  const withUnit = [...t.matchAll(/(\d+(?:\.\d+)?)\s*(?:กก|กระ|กร|ก\.|คก|kg|an|nn|aa)/gi)];
+  if(withUnit.length) return Number(withUnit[withUnit.length-1][1]);
+  const close = t.lastIndexOf(')');
+  const tail = close >= 0 ? t.slice(close+1) : '';
+  const nums = tail.match(/\d+(?:\.\d+)?/g);
+  return nums ? Number(nums[nums.length-1]) : null;
 }
 function parseOcrText(text){
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
@@ -3562,14 +3596,16 @@ function parseOcrText(text){
     const line = stripOcrSkuPrefix(lines[i]);
     const pid = matchProductFromOcrName(line);
     if(!pid) continue;
-    let numMatches = line.match(/\d+(\.\d+)?/g);
+    const q0 = ocrQtyFromLine_(line);
+    let numMatches = q0 ? [String(q0)] : null;
     // ถ้าบรรทัดนี้ไม่มีตัวเลข ลองดูบรรทัดถัดไปอีกสูงสุด 2 บรรทัด (บางทีชื่อสินค้า/หน่วย/จำนวน ถูกอ่านแยกคนละบรรทัดกันหลายชั้น
     // ไม่ใช่แค่บรรทัดติดกันบรรทัดเดียวเสมอไป — เดิมเช็คแค่บรรทัดถัดไป 1 บรรทัด พอเจอ 2 ชั้น (เช่น มีบรรทัดหน่วย "(กก.)" คั่นกลาง) จะหาจำนวนไม่เจอแล้วหายไปเงียบๆ)
     const nearbyLines = [lines[i]];
     for(let k=1; k<=2 && !numMatches; k++){
       if(!lines[i+k]) break;
       nearbyLines.push(lines[i+k]);
-      numMatches = stripOcrSkuPrefix(lines[i+k]).match(/\d+(\.\d+)?/g);
+      if(matchProductFromOcrName(stripOcrSkuPrefix(lines[i+k]))) break; // บรรทัดถัดไปเป็นสินค้าอีกตัว อย่าเอาเลขของมันมาใส่
+      { const qk = ocrQtyFromLine_(lines[i+k]) || Number((stripOcrSkuPrefix(lines[i+k]).match(/^\s*(\d+(?:\.\d+)?)\s*$/)||[])[1]||0); numMatches = qk ? [String(qk)] : null; }
     }
     if(numMatches && numMatches.length){
       const qty = Number(numMatches[numMatches.length-1]);
@@ -12163,7 +12199,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.8';
+const APP_BUILD = '2026-11-05.9';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

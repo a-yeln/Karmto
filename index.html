@@ -894,6 +894,24 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
 .actfeed-day{position:sticky;top:0;z-index:1;margin-top:10px;padding:4px 10px;border-radius:999px;background:var(--card-bg,var(--c-sky));border:1.5px solid var(--card-bd,var(--b-sky));font-size:11.5px;font-weight:700;width:fit-content;}
 .offq-badge{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom, 0px));z-index:150;padding:6px 12px;border-radius:999px;background:var(--c-lemon,#FFF6CC);border:1.5px solid var(--b-lemon,#E8D27A);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+.cmd-center{margin:0 0 12px;}
+.cmd-card{background:var(--paper,var(--surface));border:2px solid var(--card-bd,var(--b-sky,var(--border)));border-radius:18px;padding:12px 14px;}
+.cmd-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.cmd-head h3{margin:0;font-size:15px;}
+.cmd-sum{font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+.cmd-list{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+.cmd-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface-2,rgba(0,0,0,.03));border:1px solid var(--border-soft,var(--border));border-radius:12px;padding:8px 10px;cursor:pointer;}
+.cmd-row:hover{border-color:var(--accent);}
+.cmd-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.cmd-dot{flex:none;width:10px;height:10px;border-radius:50%;}
+.cmd-dot.red{background:#E0475A;} .cmd-dot.amber{background:#F2A43A;} .cmd-dot.blue{background:#4E9BE0;}
+.cmd-txt{flex:1;min-width:0;font-size:13px;line-height:1.4;}
+.cmd-txt small{display:block;color:var(--text-dim);font-size:11.5px;}
+.cmd-go{flex:none;font-size:12px;color:var(--accent);font-weight:700;}
+.cmd-ok{margin-top:6px;font-size:13px;color:var(--success);}
+.purch-margin{margin-top:8px;padding:8px 10px;border-radius:12px;font-size:12.5px;line-height:1.45;}
+.purch-margin.ok{background:rgba(62,160,110,.10);color:var(--text-dim);}
+.purch-margin.warn{background:rgba(224,71,90,.10);border:1.5px solid rgba(224,71,90,.45);color:var(--text);}
 .purch-prod-head{display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .purch-auto-next{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--text-dim);cursor:pointer;white-space:nowrap;}
 .purch-auto-next input{width:15px;height:15px;margin:0;}
@@ -1427,6 +1445,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
         </div>
 
   <div class="panel active" id="panel-dashboard">
+        <div class="cmd-center" id="cmdCenter" aria-label="ศูนย์บัญชาการวันนี้"></div>
         <div class="wf-journey" id="wfJourney" aria-label="เช็คลิสต์งานประจำวัน"></div>
         <div class="dash-wide-bento">
           <div class="dwtile hero success" data-tone="mint" id="dashProfitCardWide"><div class="dm-label">📈 กำไรวันนี้ (ประมาณการ)</div><div class="dm-value num" id="dashProfitTodayWide">฿0</div><div id="dashCostBreakdownWide" class="hint" style="margin-top:8px;"></div></div>
@@ -1603,6 +1622,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
         <div><label>ค่าใช้จ่ายเพิ่ม</label><input type="number" step="1" id="purchExtra" placeholder="0"></div>
         <div><label>จำนวนที่ทำได้ (<span id="purchSellUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchSellable" placeholder="เท่ากับจำนวนซื้อ"></div>
       </div>
+      <div id="purchMarginHint" class="purch-margin" style="display:none;"></div>
       <div class="purch-note-row">
         <div class="purch-tabs" role="group" aria-label="ตัวช่วยบิล">
           <button type="button" class="purch-tab" id="purchAddToStageBtn" title="บิลนี้มีหลายรายการ — พักรายการนี้ไว้แล้วกรอกรายการถัดไป">➕ เพิ่มในบิล</button>
@@ -9544,6 +9564,7 @@ function clearPurchFormRowFields_(){
   // เลยเหลือให้ผู้ใช้เลือกสินค้าแถวถัดไปเอง แค่ล้างตัวเลข/หมายเหตุของแถวที่เพิ่งพักไว้ให้เปล่าๆ พร้อมกรอกแถวใหม่
   document.getElementById('purchQty').value=''; document.getElementById('purchPrice').value='';
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
+  const mh = document.getElementById('purchMarginHint'); if(mh) mh.style.display = 'none';
 }
 function renderPurchStagedList(){
   const el = document.getElementById('purchStagedList');
@@ -9611,11 +9632,12 @@ function advancePurchProduct_(fromPid){
   const q = document.getElementById('purchQty'); if(q) q.placeholder = `จำนวน ${p.name}`;
   return true;
 }
-function addPurchToStage(){
+async function addPurchToStage(){
   // ระหว่างกำลังแก้ทีละแถว (เช่น รายการเบิกจากล็อต) ไม่ให้พักรวมเป็นบิลใหม่ปนกัน — ต้องกดยกเลิกก่อนถึงจะเริ่มบิลใหม่ได้
   if(purchEditingId){ showToast('กำลังแก้ไขรายการเดิมอยู่ — กด "ยกเลิก" ก่อน ถ้าจะเริ่มบันทึกบิลใหม่'); return; }
   const row = readPurchFormRow_();
   if(!row){ showToast('กรอกสินค้า จำนวนซื้อ และราคาของรายการนี้ให้ครบก่อนเพิ่มเข้าบิล'); return; }
+  if(!(await confirmPurchMargin_(row))) return;
   purchStagedRows.push(row);
   clearPurchFormRowFields_();
   renderPurchStagedList();
@@ -9715,6 +9737,7 @@ async function addPurchase(){
         if(!ok) return;
       }
     }
+    if(!(await confirmPurchMargin_(currentRow))) return;
     const fresh = await writeDayArrayOp_(iso, 'purchases', {push:Object.assign({id:uid('pu'), paid:false}, currentRow)});
     if(iso===currentDate) dayData = fresh;
     showToast('บันทึกต้นทุนซื้อแล้ว');
@@ -9739,6 +9762,7 @@ async function addPurchase(){
   }else{
     // มีรายการพักไว้อย่างน้อย 1 รายการแล้ว (กด "เพิ่มสินค้าในบิลนี้" ไว้ก่อนหน้า) — รวมกับแถวปัจจุบัน (ถ้ากรอกไว้) เป็นบิล
     // เดียวกัน ผูก billId ใหม่เดียวกันทุกรายการ ส่งเป็นคำขอ patchOps เดียว (atomic)
+    if(currentRow && !(await confirmPurchMargin_(currentRow))) return;
     const rows = currentRow ? purchStagedRows.concat([currentRow]) : purchStagedRows.slice();
     const billId = uid('bill');
     const ops = rows.map(r=>({push:Object.assign({id:uid('pu'), billId, paid:false}, r)}));
@@ -11561,6 +11585,143 @@ async function jumpToLongestOverdue(){
 }
 // ราคาซื้อสด 7 วันล่าสุดที่สูงกว่าค่าเฉลี่ย 30 วันก่อนหน้าเกิน 15% (สินค้าเดียวกัน มีข้อมูลเทียบอย่างน้อย 3 รายการ)
 const PRICE_SPIKE_PCT = 15;
+// ---- 🧭 ศูนย์บัญชาการ "วันนี้" ----
+// เปิดแอปตอนเช้าเห็นเรื่องที่ต้องจัดการทันที ไม่ต้องไล่ทีละแท็บ — ดึงจากข้อมูลที่มีอยู่แล้วทั้งหมด (อ่านอย่างเดียว ไม่เขียนอะไร)
+// 🔴 ด่วน: บิลสาขาค้างรับเลย 3 วัน / ของเหลือเกินอายุ / วันนี้ยังขาดต้นทุนซื้อ / ล็อตขายออกแล้วยังไม่ตัดต้นทุน
+// 🟡 เฝ้าดู: ของเหลือจะครบอายุพรุ่งนี้ / ราคาซื้อพุ่ง • แตะแถวแล้วพาไปหน้าที่ต้องแก้
+const CMD_OVERDUE_DAYS = 3;
+async function computeTodayCommand_(){
+  const t = todayISO(), y = addDaysISO(t, -1);
+  const listRes = await window.storage.list('day:');
+  const isos = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(i=>i<=t).sort();
+  const dayMap = await loadDaysBulk([...new Set([...isos, y, t])]);
+  const overdue = []; let unpaidTotal = 0, unpaidCount = 0;
+  isos.forEach(iso=>{
+    const d = dayMap[iso]; if(!d) return;
+    Object.entries(d.orders||{}).forEach(([code,row])=>{
+      if(!orderRowHasOrder_(row) || (d.billingPaid && d.billingPaid[code])) return;
+      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
+      if(amt <= 0) return;
+      unpaidTotal += amt; unpaidCount++;
+      const days = daysBetweenISO(iso, t);
+      if(days >= CMD_OVERDUE_DAYS) overdue.push({iso, code, amt, days});
+    });
+  });
+  overdue.sort((a,b)=>b.days-a.days || b.amt-a.amt);
+  const rawLots = await loadRawLots();
+  const lotIds = new Set(rawLots.map(l=>l.productId));
+  const todayDay = dayMap[t] || emptyDay(), yDay = dayMap[y] || emptyDay();
+  const buyGaps = Object.values(todayDay.orders||{}).some(orderRowHasOrder_) ? computeDayGaps_(t, todayDay, yDay, lotIds).filter(g=>g.type==='purchase') : [];
+  const ref = Object.keys(todayDay.leftoverOut||{}).some(k=>Number(todayDay.leftoverOut[k])>0) ? todayDay : yDay;
+  const aging = [];
+  PRODUCTS.forEach(p=>{
+    const qty = Number((ref.leftoverOut||{})[p.id]||0), since = (ref.leftoverSince||{})[p.id];
+    if(qty<=0 || !since) return;
+    const age = daysBetweenISO(since, t), limit = settings.shelfLifeDays[p.id] || DEFAULT_SHELF_LIFE_DAYS[p.id] || 2;
+    if(age >= limit - 1) aging.push({p, qty, age, limit, red: age >= limit});
+  });
+  let lotRows = [];
+  if(currentDate === t){ try{ lotRows = (await computeLotSettleRows_(rawLots)).filter(r=>r.overdueSoldQty>0.001); }catch(e){} }
+  let spikes = []; try{ spikes = await computePriceSpikes_(); }catch(e){}
+  return {t, overdue, unpaidTotal, unpaidCount, buyGaps, aging, lotRows, spikes};
+}
+let cmdSeq_ = 0;
+async function renderTodayCommand_(){
+  const el = document.getElementById('cmdCenter');
+  if(!el) return;
+  const my = ++cmdSeq_;
+  let c;
+  try{ c = await computeTodayCommand_(); }catch(e){ if(my===cmdSeq_) el.innerHTML = ''; return; }
+  if(my !== cmdSeq_) return;
+  const rows = [];
+  const bname = code => { const b = settings.branches.find(x=>x.code===code); return b ? branchDisplayName(b) : 'สาขา '+code; };
+  const od = c.overdue;
+  if(od.length){
+    const top = od.slice(0,3).map(o=>`${escapeHtml(bname(o.code))} ${money(o.amt)} (${o.days} วัน)`).join(' • ');
+    rows.push({sev:'red', go:'billing', text:`ค้างรับเลย ${CMD_OVERDUE_DAYS} วัน ${od.length} บิล รวม ${money(od.reduce((s,o)=>s+o.amt,0))}`, sub: top + (od.length>3?` • +${od.length-3} บิล`:''), act:'ทวง'});
+  }
+  c.buyGaps.forEach(g=>rows.push({sev:'red', go:'purchase', today:true, text: escapeHtml(g.text.replace('ยังไม่ได้บันทึกต้นทุนซื้อ: ','วันนี้ยังขาดต้นทุนซื้อ: ')), act:'กรอก'}));
+  c.aging.filter(a=>a.red).forEach(a=>rows.push({sev:'red', go:'leftover', today:true, text:`${a.p.emoji} ${a.p.name} ค้าง ${a.qty} ${a.p.unit} มา ${a.age} วัน (เกณฑ์ ${a.limit} วัน) — เสี่ยงเสีย`, act:'ดู'}));
+  c.lotRows.forEach(r=>rows.push({sev:'red', go:'purchase', today:true, text:`${r.p.emoji} ${r.p.name} ขายออกไปแล้ว ${r.overdueSoldQty} ${r.p.unit} แต่ยังไม่ตัดต้นทุนล็อต`, act:'ตัด'}));
+  c.aging.filter(a=>!a.red).forEach(a=>rows.push({sev:'amber', go:'leftover', today:true, text:`${a.p.emoji} ${a.p.name} ค้าง ${a.qty} ${a.p.unit} ครบอายุพรุ่งนี้ — ขายก่อน`, act:'ดู'}));
+  if(c.spikes.length){ const s0 = c.spikes[0]; rows.push({sev:'amber', go:'noti', text:`ราคาซื้อพุ่ง ${c.spikes.length} รายการ — ล่าสุด ${escapeHtml(s0.name)} +${s0.pct}%`, sub:`${formatDDMMYYYY(s0.iso)} ฿${s0.price} เทียบเฉลี่ย ฿${s0.avg}`, act:'ดู'}); }
+  const reds = rows.filter(r=>r.sev==='red').length;
+  el.innerHTML = `<div class="cmd-card">
+    <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
+      <span class="cmd-sum">ค้างรับทั้งหมด ${money(c.unpaidTotal)} (${c.unpaidCount} บิล)</span></div>
+    ${rows.length ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}</div>`
+      : `<div class="cmd-ok">✅ ไม่มีเรื่องด่วนวันนี้</div>`}
+  </div>`;
+  el.querySelectorAll('[data-cmdgo]').forEach(b=>b.addEventListener('click', async ()=>{
+    const tab = b.getAttribute('data-cmdgo');
+    if(b.getAttribute('data-cmdtoday')==='1' && currentDate !== todayISO()) await loadForDate(todayISO());
+    if(tab==='billing'){ try{ outstandingFilterMode = 'unpaid'; }catch(e){} }
+    await switchTab(tab);
+    window.scrollTo({top:0, behavior:'smooth'});
+  }));
+}
+
+// ---- 📉 แจ้งเตือนกำไรหด (ตอนกรอกต้นทุนซื้อ) ----
+// ต้นทุนต่อหน่วยขาย = (จำนวน×ราคา+ค่าใช้จ่ายเพิ่ม) ÷ จำนวนที่ทำได้ → กำไร/หน่วย = ราคาขายวันนั้น − ต้นทุน/หน่วย
+// เทียบค่าเฉลี่ย 30 วันก่อนหน้า (ต้นทุนซื้อสดของสินค้าเดียวกัน ถ่วงตามจำนวนที่ทำได้) — หดเกิน 40% หรือขาดทุน = เตือนก่อนบันทึก
+const MARGIN_DROP_PCT = 40;
+const marginBaseCache_ = {};
+async function purchaseMarginBaseline_(pid, iso){
+  const key = pid + '|' + iso;
+  if(marginBaseCache_[key]) return marginBaseCache_[key];
+  const isos = []; for(let i=1; i<=30; i++) isos.push(addDaysISO(iso, -i));
+  const map = await loadDaysBulk(isos);
+  let w = 0, sum = 0, n = 0;
+  isos.forEach(d=>((map[d]||{}).purchases||[]).forEach(e=>{
+    if(e.productId!==pid || e.fromLot || e.lotSettle) return;
+    const sq = purchaseSellableQty(e); if(sq<=0) return;
+    const m = priceOnDate(pid, d) - purchaseCostTotal(e)/sq;
+    sum += m*sq; w += sq; n++;
+  }));
+  const res = n >= 3 && w > 0 ? {avg: sum/w, n} : null;
+  marginBaseCache_[key] = res;
+  return res;
+}
+async function purchaseMarginCheck_(row, iso){
+  if(!row || !row.productId || !(Number(row.qty)>0) || !(Number(row.price)>0)) return null;
+  const sq = row.sellableQty!=null && row.sellableQty!=='' ? Number(row.sellableQty) : Number(row.qty);
+  if(!(sq>0)) return null;
+  const sale = priceOnDate(row.productId, iso);
+  const unitCost = (Number(row.qty)*Number(row.price) + Number(row.extra||0)) / sq;
+  const margin = sale - unitCost;
+  const base = await purchaseMarginBaseline_(row.productId, iso);
+  const low = margin <= 0 || (base && base.avg > 0 && margin < base.avg * (1 - MARGIN_DROP_PCT/100));
+  return {sale, unitCost, margin, base, low};
+}
+function marginMsg_(r, pid){
+  const p = PRODUCTS.find(x=>x.id===pid); const u = purchaseSellUnit(pid);
+  const f = v => (Math.round(v*100)/100).toLocaleString('th-TH');
+  const base = r.base ? ` • ปกติ ~${f(r.base.avg)}฿/${u}` : '';
+  return r.low
+    ? `📉 ${p.emoji}${p.name} กำไรเหลือ ${f(r.margin)}฿/${u}${base} — ต้นทุน ${f(r.unitCost)}฿/${u} ขาย ${f(r.sale)}฿${r.margin<=0?' (ขาดทุน!)':''}`
+    : `กำไร ${f(r.margin)}฿/${u}${base}`;
+}
+let marginHintSeq_ = 0;
+async function updatePurchMarginHint_(){
+  const el = document.getElementById('purchMarginHint');
+  if(!el) return;
+  const my = ++marginHintSeq_;
+  let row = null; try{ row = readPurchFormRow_(); }catch(e){}
+  const r = row ? await purchaseMarginCheck_(row, currentDate).catch(()=>null) : null;
+  if(my !== marginHintSeq_) return;
+  if(!r){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.className = 'purch-margin ' + (r.low ? 'warn' : 'ok');
+  el.textContent = marginMsg_(r, row.productId);
+}
+// เรียกก่อนบันทึก — คืน false ถ้าผู้ใช้กดยกเลิก (กลับไปแก้ตัวเลข)
+async function confirmPurchMargin_(row){
+  try{
+    const r = await purchaseMarginCheck_(row, currentDate);
+    if(!r || !r.low) return true;
+    return confirm(marginMsg_(r, row.productId) + '\n\nกำไรต่อหน่วยต่ำกว่าปกติมาก — เช็คจำนวน/ราคาที่กรอกอีกที\nกด OK เพื่อบันทึกต่อ หรือ ยกเลิก เพื่อกลับไปแก้');
+  }catch(e){ return true; }
+}
 async function computePriceSpikes_(){
   const t = todayISO();
   const isos = []; for(let i=0; i<37; i++) isos.push(addDaysISO(t, -i));
@@ -11761,6 +11922,7 @@ async function renderProfitDailyChart_(){
 }
 async function renderDashboard(){
   renderWorkflowJourney_();
+  renderTodayCommand_();
   const totals = computeTotals(dayData.orders);
   const feeTotals = computeFeeTotals(dayData.orders);
   const fee = computeFee(feeTotals);
@@ -12199,7 +12361,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.9';
+const APP_BUILD = '2026-11-05.10';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -13694,6 +13856,8 @@ async function init(){
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว
   // 📋 ดึงยอดออเดอร์ของสินค้านี้ของวันที่เปิดอยู่ (รวมทุกสาขา) มาใส่ — แค่เติมช่อง ยังไม่บันทึกจนกว่าจะกดบันทึกเอง
+  ['purchQty','purchPrice','purchExtra','purchSellable'].forEach(id=>{ const el = document.getElementById(id); if(el) el.addEventListener('input', ()=>updatePurchMarginHint_()); });
+  document.getElementById('purchProduct').addEventListener('change', ()=>setTimeout(updatePurchMarginHint_, 600)); // รอราคาที่เติมให้อัตโนมัติก่อน
   { const t = document.getElementById('purchAutoNext'); t.checked = purchAutoNextOn_(); t.addEventListener('change', ()=>{ try{ localStorage.setItem('karmto.purchAutoNext', t.checked ? '1' : '0'); }catch(e){} showToast(t.checked ? '➡️ เปิดรันสินค้าตัวถัดไปอัตโนมัติ' : 'ปิดรันสินค้าอัตโนมัติ — เลือกสินค้าเองทุกครั้ง'); }); }
   document.getElementById('purchFillOrderBtn').addEventListener('click', ()=>{
     const pid = document.getElementById('purchProduct').value;

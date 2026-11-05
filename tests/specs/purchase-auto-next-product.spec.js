@@ -12,8 +12,8 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   await page.evaluate(() => { const s = document.getElementById('purchProduct'); s.value = 'p1'; s.onchange(); });
 
   const seq = [];
-  await fill(5, 180); await page.evaluate(() => addPurchToStage()); seq.push(await sel());        // แช่ → ดอง
-  await fill(3, 190); await page.evaluate(() => addPurchToStage()); seq.push(await sel());        // ดอง → ปู (ข้ามกุ้งตัด)
+  await fill(5, 180); await page.evaluate(async () => { await addPurchToStage(); }); seq.push(await sel());        // แช่ → ดอง
+  await fill(3, 190); await page.evaluate(async () => { await addPurchToStage(); }); seq.push(await sel());        // ดอง → ปู (ข้ามกุ้งตัด)
   await fill(2, 150); await page.evaluate(async () => { await addPurchase(); }); seq.push(await sel()); // บันทึกบิล ปู → หมึก
   await fill(1, 140); await page.evaluate(async () => { await addPurchase(); }); seq.push(await sel()); // หมึก → นางรม (ข้ามเชอรี่)
   check('Advances within the same shop, skipping other shops\' products', JSON.stringify(seq) === '["p2","p4","p5","p7"]', seq);
@@ -26,7 +26,7 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
 
   // ปิดสวิตช์ → ไม่เลื่อน
   await page.evaluate(() => { const t = document.getElementById('purchAutoNext'); t.checked = false; t.dispatchEvent(new Event('change')); });
-  await fill(4, 27); await page.evaluate(() => addPurchToStage());
+  await fill(4, 27); await page.evaluate(async () => { await addPurchToStage(); });
   check('Switch off: product stays as chosen', await sel() === 'p7');
   await finish(browser);
 })();

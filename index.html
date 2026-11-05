@@ -894,6 +894,15 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 .noti-feed .dwtile-feed-item{font-size:13px;padding:7px 0;}
 .actfeed-day{position:sticky;top:0;z-index:1;margin-top:10px;padding:4px 10px;border-radius:999px;background:var(--card-bg,var(--c-sky));border:1.5px solid var(--card-bd,var(--b-sky));font-size:11.5px;font-weight:700;width:fit-content;}
 .offq-badge{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom, 0px));z-index:150;padding:6px 12px;border-radius:999px;background:var(--c-lemon,#FFF6CC);border:1.5px solid var(--b-lemon,#E8D27A);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+.purch-prod-head{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.purch-auto-next{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--text-dim);cursor:pointer;white-space:nowrap;}
+.purch-auto-next input{width:15px;height:15px;margin:0;}
+@keyframes purchFlash{0%{box-shadow:0 0 0 0 rgba(255,170,60,.9);}100%{box-shadow:0 0 0 10px rgba(255,170,60,0);}}
+#purchProduct.purch-advanced{animation:purchFlash .9s ease-out 2;border-color:#F5A623!important;}
+.purch-qty-wrap{position:relative;display:flex;align-items:center;}
+.purch-qty-wrap input{flex:1;min-width:0;padding-right:44px;}
+.purch-fill-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:10px;border:1.5px solid var(--card-bd,var(--border));background:var(--paper,#fff);font-size:16px;line-height:1;cursor:pointer;padding:0;}
+.purch-fill-btn:active{transform:translateY(-50%) scale(.94);}
 .actfeed-dev{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--border);font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
 .actfeed-day:first-child{margin-top:0;}
 /* ---- กล่องรูป เหลือรับเข้า ---- */
@@ -1048,7 +1057,10 @@ html[data-theme=sea][data-tmode=full] .dash-wide-nav button .dwn-ic{font-size:20
 html[data-theme=sea][data-tmode=full] .dash-wide-nav button .dwn-lbl{display:block!important;font-size:10px;max-width:70px;}
 html[data-theme=sea][data-tmode=full] .dash-wide-nav button.active{background:linear-gradient(135deg,#D9EFFC,#FFF2C4);color:#1E5F96;box-shadow:none;}
 html[data-theme=sea][data-tmode=full] .noti-badge{top:2px!important;right:8px!important;transform:none!important;}
-html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{position:relative;top:auto;z-index:auto;padding:18px 20px 60px;border:none;border-radius:0 0 44px 44px;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none!important;background:radial-gradient(circle at 78% 22%,rgba(255,255,255,.85) 0 26px,rgba(255,255,255,.35) 27px,transparent 46px),radial-gradient(circle at 90% 62%,rgba(255,255,255,.7) 0 12px,transparent 22px),radial-gradient(circle at 46% 30%,rgba(255,255,255,.6) 0 8px,transparent 16px),linear-gradient(115deg,#BDE3FB 0%,#E6F4F7 32%,#FFF1BE 62%,#FFCFDD 100%);}
+html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{position:sticky;top:0;z-index:10;padding:18px 20px 60px;border:none;border-radius:0 0 44px 44px;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none!important;background:radial-gradient(circle at 78% 22%,rgba(255,255,255,.85) 0 26px,rgba(255,255,255,.35) 27px,transparent 46px),radial-gradient(circle at 90% 62%,rgba(255,255,255,.7) 0 12px,transparent 22px),radial-gradient(circle at 46% 30%,rgba(255,255,255,.6) 0 8px,transparent 16px),linear-gradient(115deg,#BDE3FB 0%,#E6F4F7 32%,#FFF1BE 62%,#FFCFDD 100%);}
+/* ตรึงบนสุดเหมือนธีมอื่น — กด 📌 ย่อ แถบจะเตี้ยลงเหลือแค่สรุปยอด (คลื่นเล็กลง) ไม่กินจอ */
+html[data-theme=sea][data-tmode=full] body.statbar-compact .dwh-sticky-wrap{padding:8px 16px 26px;border-radius:0 0 26px 26px;}
+html[data-theme=sea][data-tmode=full] body.statbar-compact .dwh-sticky-wrap::after{height:22px;}
 html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:46px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60' preserveAspectRatio='none'%3E%3Cpath d='M0 30 C200 0 400 60 600 30 S1000 0 1200 30 V60 H0Z' fill='%23F4FBFF'/%3E%3C/svg%3E") bottom/100% 100% no-repeat;pointer-events:none;}
 html[data-theme=sea][data-tmode=full] .dash-wide-header{margin-bottom:10px;}
 html[data-theme=sea][data-tmode=full] .dwh-titles h2{font-size:26px;color:#1E3550;}
@@ -1576,7 +1588,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
       <div class="hint" style="color:var(--accent);margin-top:2px;">🧊 ซื้อวันต่อวัน (ม๊ะก๊าด/มนต์/อื่นๆ ปกติ)</div>
       <div class="hint">หอยนางรมซื้อเป็น กก. แต่กรอก "จำนวนที่ทำได้" เป็นกระปุก (เว้นว่าง = เท่ากับจำนวนซื้อ) — สินค้าอื่นปกติจำนวนที่ทำได้เท่ากับจำนวนซื้อ ช่องนี้คือจำนวนที่แปลงหน่วยได้ทั้งหมด ไม่ใช่จำนวนที่ขายได้จริงวันนั้น ถ้าทำเสร็จแล้วขายไม่หมด ส่วนที่เหลือให้ไปกรอกที่แท็บ "ของเหลือค้าง" แยกต่างหาก</div>
       <div class="purch-row2" style="margin-top:8px;">
-        <div class="field"><label>สินค้า</label><select id="purchProduct"></select></div>
+        <div class="field"><div class="purch-prod-head"><label for="purchProduct">สินค้า</label><label class="purch-auto-next" title="บันทึก/เพิ่มในบิลแล้ว เลื่อนไปสินค้าตัวถัดไปของร้านเดียวกันให้เอง"><input type="checkbox" id="purchAutoNext"> ➡️ รันตัวถัดไป</label></div><select id="purchProduct"></select></div>
         <div class="field"><label>ผู้ขาย/แหล่งซื้อ</label><select id="purchSeller"></select>
           <input type="text" id="purchSellerOther" placeholder="ชื่อร้าน/ผู้ขาย" style="display:none;margin-top:6px;">
         </div>
@@ -1584,7 +1596,7 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
       <div id="purchLeftoverHint" class="hint" style="margin-top:-4px;margin-bottom:6px;"></div>
       <div id="purchLotEditHint" class="hint" style="color:var(--accent);"></div>
       <div class="grid7">
-        <div><label>จำนวนซื้อ (<span id="purchBuyUnitLabel">กก.</span>)</label><input type="number" step="0.01" id="purchQty" placeholder="0"></div>
+        <div><label>จำนวนซื้อ (<span id="purchBuyUnitLabel">กก.</span>)</label><div class="purch-qty-wrap"><input type="number" step="0.01" id="purchQty" placeholder="0"><button type="button" class="purch-fill-btn" id="purchFillOrderBtn" title="ดึงยอดออเดอร์ของวันนี้" aria-label="ดึงยอดออเดอร์ของสินค้านี้ของวันนี้">📋</button></div></div>
         <div><label>ราคาซื้อ/หน่วย</label><input type="number" step="0.01" id="purchPrice" placeholder="0"></div>
       </div>
       <div class="grid7" style="margin-top:8px;">
@@ -9539,6 +9551,30 @@ function renderPurchStagedList(){
     cancelPurchBillEdit_();
   });
 }
+// ➡️ รันสินค้าตัวถัดไป: หลังบันทึก/เพิ่มในบิล เลื่อนช่อง "สินค้า" ไปตัวถัดไปของร้านเดียวกัน (มนต์: แช่→ดอง→ปู→หมึก→นางรม ข้ามกุ้งตัด/เชอรี่)
+// ผู้ขายคงเดิม — ปิดได้ที่สวิตช์ข้างช่องสินค้า (เคยมีเคสสลับเงียบๆ แล้วกรอกผิดสินค้า เลยต้องเห็นชัด: กระพริบกรอบ + บอกชื่อสินค้าใหม่)
+function purchAutoNextOn_(){ try{ return localStorage.getItem('karmto.purchAutoNext') !== '0'; }catch(e){ return true; } }
+function nextSameShopProduct_(pid){
+  const i = PRODUCTS.findIndex(p=>p.id===pid);
+  if(i<0) return null;
+  const shop = PRODUCTS[i].shop;
+  const nx = PRODUCTS.slice(i+1).find(p=>p.shop===shop);
+  return nx ? nx.id : null;
+}
+function advancePurchProduct_(fromPid){
+  if(!fromPid || !purchAutoNextOn_() || purchEditingId || purchBillEditingId) return false;
+  const sel = document.getElementById('purchProduct');
+  const nx = nextSameShopProduct_(fromPid);
+  if(!nx){ setTimeout(()=>showToast('✅ ครบทุกสินค้าของร้านนี้แล้ว'), 1700); return false; }
+  sel.value = nx;
+  if(typeof sel.onchange === 'function') sel.onchange();
+  sel.classList.remove('purch-advanced'); void sel.offsetWidth; sel.classList.add('purch-advanced');
+  setTimeout(()=>sel.classList.remove('purch-advanced'), 2000);
+  const p = PRODUCTS.find(x=>x.id===nx);
+  setTimeout(()=>showToast(`➡️ ต่อไป: ${p.emoji} ${p.name} — เช็คชื่อสินค้าก่อนกรอก`), 1700);
+  const q = document.getElementById('purchQty'); if(q) q.placeholder = `จำนวน ${p.name}`;
+  return true;
+}
 function addPurchToStage(){
   // ระหว่างกำลังแก้ทีละแถว (เช่น รายการเบิกจากล็อต) ไม่ให้พักรวมเป็นบิลใหม่ปนกัน — ต้องกดยกเลิกก่อนถึงจะเริ่มบิลใหม่ได้
   if(purchEditingId){ showToast('กำลังแก้ไขรายการเดิมอยู่ — กด "ยกเลิก" ก่อน ถ้าจะเริ่มบันทึกบิลใหม่'); return; }
@@ -9548,6 +9584,7 @@ function addPurchToStage(){
   clearPurchFormRowFields_();
   renderPurchStagedList();
   showToast(`เพิ่มเข้าบิลแล้ว (ตอนนี้มี ${purchStagedRows.length} รายการ) — กรอกรายการถัดไปต่อได้เลย`);
+  advancePurchProduct_(row.productId);
 }
 // ยกเลิกการแก้/การพักบิลปัจจุบันทั้งหมด กลับสู่สภาพฟอร์มเปล่าปกติ — ใช้ตอนกด "ยกเลิก" ระหว่างแก้ทั้งบิล หรือเปลี่ยนใจไม่อยาก
 // รวมบิลแล้ว (ของที่พักไว้ในรายการยังไม่เคยถูกบันทึกลงเซิร์ฟเวอร์เลยสักตัว หายไปเฉยๆ ได้อย่างปลอดภัย)
@@ -9565,6 +9602,7 @@ function cancelPurchBillEdit_(){
   if(lotEditHintEl) lotEditHintEl.textContent = '';
   renderPurchStagedList();
 }
+let purchAdvanceFrom_ = null;
 async function addPurchase(){
   const currentRow = readPurchFormRow_();
   const iso = currentDate;
@@ -9655,7 +9693,8 @@ async function addPurchase(){
     // ระบบสลับให้แบบไม่ทันสังเกต พ่วงราคาเก่าที่ระบบเติมมาเองแบบไม่รู้ตัว กลายเป็นรายการต้นทุนที่ไม่ตรงกับอะไรเลย (เจอเคสจริง
     // มาแล้ว: กุ้งตัดปากโผล่ต้นทุนซื้อที่ไม่ได้ตั้งใจกรอก) เปลี่ยนเป็นแค่ "แจ้งเตือน" อย่างเดียว ต้องกดเลือกสินค้าเองที่ช่อง
     // "สินค้า" เท่านั้นถึงจะเปลี่ยน ป้องกันไม่ให้ฟอร์มสลับสินค้า/ราคาไปเองโดยที่ผู้ใช้ไม่ได้สั่ง
-    const nextPid = await findNextUnrecordedPurchaseProduct();
+    purchAdvanceFrom_ = currentRow.productId;
+    const nextPid = purchAutoNextOn_() ? null : await findNextUnrecordedPurchaseProduct();
     if(nextPid){
       const p = PRODUCTS.find(x=>x.id===nextPid);
       const stillNeeded = await computeNeededQtyToday(nextPid);
@@ -9673,6 +9712,7 @@ async function addPurchase(){
     showToast(`บันทึกบิลแล้ว (${rows.length} รายการ)`);
     logActivity_(`เพิ่มบิลต้นทุนซื้อ (${rows.length} รายการ) — วันที่ ${formatDDMMYYYY(iso)}`);
     for(const r of rows){ await autoFillLeftoverIfNeeded(r.productId); }
+    purchAdvanceFrom_ = rows.length ? rows[rows.length-1].productId : null;
   }
   clearPurchFormRowFields_();
   // เปิดช่อง "สินค้า"/"จำนวนที่ทำได้"/"ราคา" กลับมาให้แก้ได้ปกติเสมอหลังบันทึก (เผื่อเพิ่งแก้รายการเบิกจากล็อตที่ล็อกไว้)
@@ -9684,6 +9724,7 @@ async function addPurchase(){
   renderPurchStagedList();
   renderPurchaseList();
   renderPurchaseGroups();
+  if(purchAdvanceFrom_){ const f = purchAdvanceFrom_; purchAdvanceFrom_ = null; advancePurchProduct_(f); }
 }
 // หาสินค้าตัวถัดไปที่มีออเดอร์วันนี้ (ต้องการมากกว่า 0) แต่ยังไม่มีรายการต้นทุนซื้อบันทึกไว้เลย — ใช้เด้งฟอร์มไปให้อัตโนมัติหลังบันทึกแต่ละรายการ
 async function findNextUnrecordedPurchaseProduct(){
@@ -12122,7 +12163,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.5';
+const APP_BUILD = '2026-11-05.8';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -13616,6 +13657,22 @@ async function init(){
   document.getElementById('purchAddToStageBtn').addEventListener('click', addPurchToStage);
   // ตอนแก้ไขรายการเบิกจากล็อต ช่อง "ราคา/หน่วย" ถูกล็อกไว้ (ดู startEditPurchase) ต้องคำนวณสดจาก "เงินที่จ่ายจริง ÷
   // จำนวนซื้อที่กำลังแก้" ทุกครั้งที่พิมพ์จำนวนซื้อใหม่ ไม่งั้นช่องราคาจะค้างค่าเดิมไม่ตรงกับจำนวนที่แก้แล้ว
+  // 📋 ดึงยอดออเดอร์ของสินค้านี้ของวันที่เปิดอยู่ (รวมทุกสาขา) มาใส่ — แค่เติมช่อง ยังไม่บันทึกจนกว่าจะกดบันทึกเอง
+  { const t = document.getElementById('purchAutoNext'); t.checked = purchAutoNextOn_(); t.addEventListener('change', ()=>{ try{ localStorage.setItem('karmto.purchAutoNext', t.checked ? '1' : '0'); }catch(e){} showToast(t.checked ? '➡️ เปิดรันสินค้าตัวถัดไปอัตโนมัติ' : 'ปิดรันสินค้าอัตโนมัติ — เลือกสินค้าเองทุกครั้ง'); }); }
+  document.getElementById('purchFillOrderBtn').addEventListener('click', ()=>{
+    const pid = document.getElementById('purchProduct').value;
+    const p = PRODUCTS.find(x=>x.id===pid);
+    if(!p){ showToast('เลือกสินค้าก่อน'); return; }
+    const qty = Math.round(((computeTotals((dayData && dayData.orders) || {})[pid]) || 0) * 100) / 100;
+    if(!qty){ showToast(`วันที่ ${formatDDMMYYYY(currentDate)} ยังไม่มีออเดอร์ ${p.emoji}${p.name}`); return; }
+    // ออเดอร์นับเป็นหน่วยขาย — ถ้าหน่วยซื้อไม่ใช่หน่วยเดียวกัน (เช่นซื้อเป็นกก. ได้เป็นกระปุก) เติมช่อง "จำนวนที่ทำได้" แทน
+    const sameUnit = purchaseBuyUnit(pid) === purchaseSellUnit(pid);
+    const target = document.getElementById(sameUnit ? 'purchQty' : 'purchSellable');
+    target.value = qty;
+    target.dispatchEvent(new Event('input', {bubbles:true}));
+    target.focus();
+    showToast(`ใส่ยอดออเดอร์ ${p.emoji}${p.name} ${qty} ${purchaseSellUnit(pid)}${sameUnit ? '' : ' ในช่อง "จำนวนที่ทำได้"'} — ตรวจแล้วกดบันทึกเอง`);
+  });
   document.getElementById('purchQty').addEventListener('input', ()=>{
     if(!purchEditingId) return;
     const existing = dayData.purchases.find(x=>x.id===purchEditingId);

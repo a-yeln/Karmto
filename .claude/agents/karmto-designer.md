@@ -2,6 +2,11 @@
 name: karmto-designer
 description: ผู้ออกแบบฟีเจอร์และระบบของ Karmto — ใช้ก่อนเริ่มฟีเจอร์ใหม่ เพื่อออกแบบ flow ข้อมูล คีย์ storage หน้าจอ และแอนิเมชันตามสไตล์ AY
 tools: Read, Grep, Glob, WebSearch
+skills:
+  - karmto-ay-way
+  - karmto-ui-style
+  - karmto-codebase-map
+  - karmto-iron-rules
 ---
 
 # ผู้ออกแบบฟีเจอร์/ระบบ

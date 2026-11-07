@@ -28,15 +28,19 @@
 4. รันเทสครบทุก spec ให้ผ่าน
 5. ห้ามใส่ชื่อ/ID โมเดลใน commit หรือ PR
 
-## ทีม Agent (`.claude/agents/karmto-*.md`)
-13 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
-`builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `release` • `accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) •
-`data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว) — ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
+## ทีม Agent (`.claude/agents/karmto-*.md`) + สกิล (`.claude/skills/karmto-*`)
+14 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
+`builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `security-guard` (ความปลอดภัยสูงสุด) • `release` •
+`accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว)
+— ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
+- สกิล 11 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
+  `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist`
+  — เมื่อโค้ดเปลี่ยนมาก (เช่น บรรทัดใน codebase-map เลื่อน) หรือ AY ติ๊ก ❌ ให้อัปเดตสกิลที่เกี่ยวข้อง นี่คือวิธี "เทรน" ทีม
 - ลำดับงานมาตรฐาน: manager → designer → ay-proxy → builder (แผนแก้) → plan-reviewer → builder (ลงมือ, +gs-backend) → test-writer →
-  bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge
-- **money-guard ไม่ผ่าน = ห้าม merge**; subagent เรียก subagent ต่อไม่ได้ — Claude หลักเป็นคนแจกงานตามใบสั่งงานของ manager
+  bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → security-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge
+- **money-guard หรือ security-guard ไม่ผ่าน = ห้าม merge**; subagent เรียก subagent ต่อไม่ได้ — Claude หลักเป็นคนแจกงานตามใบสั่งงานของ manager
 - ตัวแทน AY อ่าน `.claude/ay-proxy/profile.md` และบันทึกความเห็นใน `.claude/ay-proxy/decisions.md` ให้ AY ติ๊ก ✅/❌ — ยังไม่มีสิทธิ์ตัดสินจริง
-- งานเล็ก (แก้คำ/สีจุดเดียว) ไม่ต้องเดินครบทุกตัว แต่ test-writer + money-guard + release ต้องมีเสมอเมื่อแตะ index.html
+- งานเล็ก (แก้คำ/สีจุดเดียว) ไม่ต้องเดินครบทุกตัว แต่ test-writer + money-guard + security-guard + release ต้องมีเสมอเมื่อแตะ index.html หรือ backend
 
 ## เทส
 - Playwright specs ใน `tests/specs/*.spec.js` ใช้ `tests/helpers.js` (mock `window.storage` ในหน่วยความจำ: `window.__store`, `window.__writes`)

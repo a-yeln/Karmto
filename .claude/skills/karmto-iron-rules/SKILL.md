@@ -1,0 +1,36 @@
+---
+name: karmto-iron-rules
+description: กฎเหล็กเรื่องเงิน/ต้นทุน/การเขียนข้อมูลของ Karmto พร้อมตัวอย่างโค้ดถูก-ผิด — ใช้ทุกครั้งก่อนแก้หรือรีวิวโค้ดที่แตะ storage, บิล, ล็อต, ต้นทุน
+---
+# กฎเหล็ก Karmto
+
+## 1. ห้ามตัดต้นทุนอัตโนมัติ
+รอบเบิกล็อต (draw) ใหม่ต้องเริ่ม `costedQty: 0` เสมอ — ตัวเลขต้นทุนเข้าได้ทางเดียวคือ AY กด "✅ ตัด" ในการ์ด
+`renderLotSettleCards_` → `confirmLotSettle_` (index.html ~L7783/L7868)
+```js
+// ✅ ถูก
+draws.push({ id, date, qtyUsed, sellableQty, costedQty: 0, claimedQty: 0 });
+// ❌ ผิด — ระบบตัดต้นทุนเอง
+draws.push({ id, date, qtyUsed, sellableQty, costedQty: sellableQty });
+```
+
+## 2. เขียนแบบ patch ทีละรายการเท่านั้น
+ใช้ `writeDayArrayOp_(iso, field, op)`, `writeDayFieldPath_(iso, path, value)`, `writeRootArrayOp_(key, op)` หรือ `storage.patchOps`
+```js
+// ✅ ถูก
+await writeRootArrayOp_('wasteRecords', { push: rec });
+// ❌ ผิด — โหลดทั้งก้อนแล้ว set ทับ เครื่องอื่นที่แก้พร้อมกันจะหาย
+const all = await loadWasteRecords(); all.push(rec); await storage.set('wasteRecords', all);
+```
+หลายเครื่องใช้พร้อมกัน (iPhone/Android/แท็บเล็ต/คอม) — `saveDay` ทั้งก้อนใช้ได้เฉพาะจุดที่มีอยู่เดิมและผ่าน dayRevs แล้วเท่านั้น
+
+## 3. ของที่แตะเงินห้ามแก้เงียบๆ
+ลบรายการที่จ่ายแล้ว / แก้บิลที่จ่ายแล้ว / แก้รอบเบิกที่ตัดต้นทุนหรือเคลมแล้ว → บล็อกแล้วบอกให้ไปแก้หน้าปกติ หรือถามยืนยันโชว์ค่าเก่า → ใหม่
+
+## 4. เดือนที่ปิดแล้ว
+เคารพ `closedMonths` (`isMonthClosed_`, `monthLockBlocks_` ~L2485-2520) — ห้ามหาทางเลี่ยงล็อก
+
+## 5. คีย์ใหม่ต้องสำรอง
+เพิ่มใน `BACKUP_EXTRA_ROOT_KEYS` / `BACKUP_PREFIXES` (~L7183) และ `backend/BackupTrigger.gs`
+
+## 6. เทสห้ามแตะ backend จริง — ใช้ `tests/helpers.js` + `tests/sandbox.js`

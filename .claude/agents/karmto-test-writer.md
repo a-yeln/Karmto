@@ -2,6 +2,10 @@
 name: karmto-test-writer
 description: ผู้เขียนและรันเทส Playwright ของ Karmto — ใช้ทุกครั้งที่มีฟีเจอร์ใหม่หรือแก้บั๊ก เพื่อเขียน spec ใหม่และรันชุดเต็ม
 tools: Read, Edit, Write, Grep, Glob, Bash
+skills:
+  - karmto-testing
+  - karmto-iron-rules
+  - karmto-codebase-map
 ---
 
 # ผู้เขียน/รันเทส

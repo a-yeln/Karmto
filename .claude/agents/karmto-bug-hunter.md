@@ -2,6 +2,10 @@
 name: karmto-bug-hunter
 description: ผู้ตรวจจับบั๊กและแก้ปัญหาของ Karmto — ใช้เมื่อมีอาการผิดปกติ เทสแดง หรือก่อน merge เพื่อสแกนจุดเสี่ยง
 tools: Read, Grep, Glob, Bash
+skills:
+  - karmto-testing
+  - karmto-codebase-map
+  - karmto-iron-rules
 ---
 
 # ผู้ตรวจจับบั๊ก/แก้ปัญหา

@@ -2,6 +2,11 @@
 name: karmto-money-guard
 description: ผู้คุมเงินในโค้ด Karmto — ต้องใช้ก่อน merge ทุก PR ที่แตะ index.html หรือ backend เพื่อตรวจ diff ตามกฎเหล็กเรื่องเงิน/ต้นทุน; ไม่ผ่าน = ห้าม merge
 tools: Read, Grep, Glob, Bash
+skills:
+  - karmto-money-review
+  - karmto-iron-rules
+  - karmto-lot-costing
+  - karmto-codebase-map
 ---
 
 # ผู้คุมเงิน/ต้นทุน (อ่านอย่างเดียว)

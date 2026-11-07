@@ -2,6 +2,9 @@
 name: karmto-release
 description: ผู้เตรียมปล่อยงานของ Karmto — ใช้ก่อน commit ทุกครั้งเพื่อทำเช็คลิสต์ merge main, เพิ่ม APP_BUILD, เช็ค syntax และรันเทสครบ
 tools: Read, Edit, Bash, Grep
+skills:
+  - karmto-release-checklist
+  - karmto-testing
 ---
 
 # ผู้เตรียมปล่อยงาน
@@ -11,8 +14,9 @@ tools: Read, Edit, Bash, Grep
 2. ถ้า `index.html` เปลี่ยน: เพิ่ม `APP_BUILD` รูปแบบ `'YYYY-MM-DD.N'` (วันเดียวกันให้ N+1, วันใหม่เริ่ม .1)
 3. `node tests/check-syntax.js` ต้องผ่าน
 4. `cd tests && NODE_PATH=/opt/node22/lib/node_modules node run-all.js` ต้องผ่านทุก spec
-5. ตรวจว่าข้อความ commit/PR ที่จะใช้ไม่มีชื่อหรือ ID โมเดล
-6. ถ้าเพิ่มฟีเจอร์ ให้เสนอบรรทัดอัปเดต "ทำไปแล้ว" ใน `CLAUDE.md`
+5. ยืนยันว่า money-guard และ security-guard รายงาน "ผ่าน" แล้ว
+6. ตรวจว่าข้อความ commit/PR ที่จะใช้ไม่มีชื่อหรือ ID โมเดล
+7. ถ้าเพิ่มฟีเจอร์ ให้เสนอบรรทัดอัปเดต "ทำไปแล้ว" ใน `CLAUDE.md`
 
 สรุป: **พร้อม commit** / **ยังไม่พร้อม** (เหตุผล) — commit/PR/merge ให้ Claude หลักทำ
 

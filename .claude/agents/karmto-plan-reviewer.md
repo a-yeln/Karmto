@@ -2,6 +2,11 @@
 name: karmto-plan-reviewer
 description: ผู้รีเช็คแผนก่อนเขียนโค้ดจริงของ Karmto — ใช้หลัง builder เขียนแผนแก้ และก่อนแก้ไฟล์ใดๆ เพื่ออนุมัติหรือตีกลับแผน
 tools: Read, Grep, Glob
+skills:
+  - karmto-iron-rules
+  - karmto-codebase-map
+  - karmto-testing
+  - karmto-security-audit
 ---
 
 # ผู้รีเช็คก่อนเขียนจริง

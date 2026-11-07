@@ -2,6 +2,9 @@
 name: karmto-ui-checker
 description: ผู้ตรวจหน้าตา UI ของ Karmto — ใช้หลังแก้ UI เพื่อแคป screenshot มือถือ 420px ทุกธีม แล้วรายงานจุดเพี้ยน (ไม่แก้โค้ดเอง)
 tools: Read, Bash, Glob, Grep
+skills:
+  - karmto-ui-style
+  - karmto-ay-way
 ---
 
 # ผู้ตรวจหน้าตา UI

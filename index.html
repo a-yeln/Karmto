@@ -840,7 +840,10 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .pl-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;}
 .pl-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .pl-two > .pl-panel{margin-bottom:12px;}
-@media (max-width:1023px){ .pl-two{grid-template-columns:1fr;gap:0;} }
+@media (max-width:1023px){ .pl-two{grid-template-columns:minmax(0,1fr);gap:0;} }
+/* การ์ดในกริด P&L ห้ามดันจอให้กว้างกว่าหน้าจอ (มือถือ) — ชื่อแถวยาวๆ ตัดขึ้นบรรทัดใหม่ ตารางกว้างเลื่อนในกล่องตัวเอง */
+.pl-two > *, .pl-panel{min-width:0;}
+.pl-table td:not(.num){white-space:normal;overflow-wrap:anywhere;}
 .pl-table td{padding:6px 2px;border-bottom:1px dashed var(--border-soft);}
 .pl-table tr:last-child td{border-bottom:none;}
 .pl-table td.num{text-align:right;white-space:nowrap;}
@@ -3211,6 +3214,8 @@ function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrder
 function buildOrderTicketHTML(code, iso, row, cardId){
   const branchObj = branchByCode(code);
   const branchAreaLabel = code==='00' ? 'ธงหมูกระทะ' : (branchObj ? (branchObj.label || branchObj.area) : branchName(code));
+  // ตั้ง "ป้ายชื่อกำหนดเอง" ไว้ = ใช้ชื่อนั้นแทนชื่อสาขาทั้งก้อน (เช่น ลูกค้าทั่วไปรหัส KT ใส่ชื่อลูกค้า) เลยไม่ขึ้นคำว่า "สาขา" นำหน้า
+  const showSaxaKicker = !(branchObj && branchObj.label);
   const items = PRODUCTS.map(p=>({emoji:p.emoji, name:p.name, qty:Number(row[p.id]||0), unit:p.unit}));
   (row.custom||[]).forEach(it=>{ if(Number(it.qty||0)>0) items.push({emoji:'📦', name:it.name, qty:Number(it.qty||0), unit:''}); });
   const rowsHtml = items.map(it=>{
@@ -3236,7 +3241,7 @@ function buildOrderTicketHTML(code, iso, row, cardId){
        </div>`
     : `<div class="orderticket-numhead">
          <div class="orderticket-left">
-           <div class="orderticket-saxa">สาขา</div>
+           ${showSaxaKicker ? '<div class="orderticket-saxa">สาขา</div>' : ''}
            <div class="orderticket-name">${escapeHtml(branchAreaLabel)}</div>
          </div>
          <div class="orderticket-code">${escapeHtml(code)}</div>
@@ -12361,7 +12366,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.10';
+const APP_BUILD = '2026-11-07.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

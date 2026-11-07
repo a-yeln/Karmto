@@ -1,0 +1,63 @@
+# Karmto (ก้ามโต) — คู่มือสำหรับ Claude
+
+เว็บแอปสั่งอาหารทะเลรายวัน ออกบิลสาขา ต้นทุนซื้อ สต๊อก/ล็อต เคลม และค่า Brand fee ของทวีโชคหมูกะทะ
+ไฟล์แอปมีไฟล์เดียวคือ `index.html` deploy จาก `main` ขึ้น GitHub Pages (https://a-yeln.github.io/Karmto/)
+ข้อมูลจริงเก็บใน Google Apps Script (Sheets) — โค้ดฝั่งนั้นที่อยู่ใน repo มีแค่ `backend/*.gs` บางไฟล์ (Code.gs หลักไม่อยู่ใน repo)
+
+## กฎเหล็ก (ห้ามฝ่าฝืนไม่ว่ากรณีใด)
+- **อย่ามากระทบต้นทุนจริง อย่ามามั่ว** — ตัวเลขต้นทุน/บิล/สต๊อกต้องตรงของจริงเสมอ
+- **ห้ามเอาจำนวนเบิกเข้ามาในรายการต้นทุนเองเด็ดขาดถ้าเจ้าของไม่ยืนยัน** — รอบเบิกล็อตใหม่ต้องเริ่มที่ `costedQty: 0`
+  แล้วให้ผู้ใช้กด "✅ ตัด" เองในการ์ดตัดต้นทุนสต็อกล็อต ระบบห้ามตัดต้นทุนอัตโนมัติ
+- เขียนข้อมูลแบบ patch ทีละรายการเท่านั้น (`writeDayArrayOp_`, `writeRootArrayOp_`, `writeDayFieldPath_`, `storage.patchOps`)
+  ห้ามโหลดทั้งก้อนแล้ว `set` ทับ — หลายเครื่องใช้พร้อมกัน (iPhone / Android / แท็บเล็ต / คอม)
+- ของที่แตะเงิน (ลบรายการจ่ายแล้ว, แก้บิลที่จ่ายแล้ว, แก้รอบเบิกที่ตัดต้นทุน/เคลมแล้ว) ห้ามแก้เงียบๆ — ให้บล็อกแล้วบอกให้ไปแก้ที่หน้าปกติ
+  หรือถามยืนยันพร้อมโชว์ค่าเก่า/ใหม่
+
+## วิธีทำงานกับเจ้าของ
+- ตอบเป็นภาษาไทย สั้น ตรง บอกผลจริง (ผ่าน/ไม่ผ่าน/ยังไม่ได้ลองกับข้อมูลจริง)
+- **เสนอและเพิ่มสิ่งที่ควรมีได้เลยไม่ต้องรอสั่ง** อันไหนไม่โอเคเจ้าของจะบอกเอง — แต่ถ้าเสี่ยงกับเงิน/ข้อมูลจริง ให้ถามก่อน
+- **แนะนำทางที่ดีกว่าเสมอโดยไม่ต้องรอถาม** — รวมถึง **บอกให้ขึ้นเซสชันใหม่** เมื่อแชทยาวจนเริ่มถูกย่อความ (compact)
+  หรือเปลี่ยนหัวข้องานใหญ่ พร้อมสรุปข้อความเปิดเซสชันใหม่ให้
+- ถ้าคำสั่งกำกวม (เช่น "จัดไป" / "ทำ" ที่อาจหมายถึงหลายเรื่อง) ให้ทวนสั้นๆ ว่าจะทำอะไรก่อนลงมือ
+- งานแต่ละรอบ: ทำ → เทส → commit → PR → squash merge เอง (เจ้าของอนุญาตไว้แล้ว) บน branch ที่เซสชันกำหนด
+
+## ก่อน commit ทุกครั้ง
+1. `git fetch origin main && git merge origin/main --no-edit`
+2. เพิ่ม `APP_BUILD` ใน `index.html` (รูปแบบ `'YYYY-MM-DD.N'`) — มือถือใช้ค่านี้เช็คว่ามีเวอร์ชันใหม่แล้วรีโหลดเอง
+3. เช็ค syntax ของ inline scripts (node `vm.Script` ทุก `<script>` ที่ไม่มี src)
+4. รันเทสครบทุก spec ให้ผ่าน
+5. ห้ามใส่ชื่อ/ID โมเดลใน commit หรือ PR
+
+## เทส
+- Playwright specs ใน `tests/specs/*.spec.js` ใช้ `tests/helpers.js` (mock `window.storage` ในหน่วยความจำ: `window.__store`, `window.__writes`)
+  และ `tests/sandbox.js` (บล็อก backend จริงเสมอ — ห้ามให้เทสแตะข้อมูลจริง)
+- รันทั้งชุด: `cd tests && NODE_PATH=/opt/node22/lib/node_modules node run-all.js` (เปิดเซิร์ฟเวอร์ให้เอง)
+- รันทีละไฟล์: เปิด `cd /home/user/Karmto && python3 -m http.server 8765 &` ก่อน แล้ว
+  `cd tests && NODE_PATH=/opt/node22/lib/node_modules PW_CHROMIUM_PATH=/opt/pw-browsers/chromium node specs/X.spec.js`
+  (เซิร์ฟเวอร์มักโดนปิดเมื่อเครื่องว่าง — ถ้าเจอ ERR_CONNECTION_REFUSED ให้เปิดใหม่)
+- เทสที่อิง "วันนี้" ต้องตรึงนาฬิกา: `await page.clock.setFixedTime(new Date('YYYY-MM-DDT10:00:00+07:00'))`
+- ฟีเจอร์ใหม่ต้องมี spec ใหม่เสมอ และเช็คหน้าตาด้วย screenshot บนจอมือถือ (420px) อย่างน้อย 1 ธีม
+
+## โครงสร้างสำคัญใน index.html
+- `window.storage` (get/set/list/delete/patchField/patchOps) → Apps Script; ถูกห่อด้วย `wrapStorageForDayRevs_` ซึ่งทำ:
+  ป้าย `dayRevs` ต่อวัน (ซิงค์ข้ามเครื่อง), เตือนขนาดคีย์ใกล้ 50,000 ตัวอักษร, ล็อกปิดเดือน (`closedMonths`),
+  คิวบันทึกออฟไลน์ (`karmto_offline_queue`), แคชรายชื่อคีย์ 60 วินาที
+- ข้อมูลรายวัน `day:YYYY-MM-DD` (orders, purchases, expenses, leftoverOut/leftoverSince, billingPaid, billExtra ...)
+- คีย์รวม: `rawLots` (ล็อต + draws: qtyUsed/sellableQty/costedQty/claimedQty), `lotProductBills`, `lotTransportBills`,
+  `wasteRecords` (reason 'waste'|'claim', lotClaimAllocations), `settings`, `actlog:YYYY-MM-DD`, `rchkm:*`/`rchk:*`, `productImage:*`
+- สินค้า `PRODUCTS` p1–p7 มี `shop` (monk=มนต์, mahkard=ม๊ะก๊าด, phat=พัฒน์); หอยนางรม (p7) ซื้อเป็น กก. ขายเป็นกระปุก
+- ธีม: `data-theme` (mermaid/sea/neon, ไม่มี = macaron), `data-tmode` (full/color), `data-bill` — เช็คทุกธีมเมื่อแก้ UI
+- ถ้าเพิ่มคีย์ใหม่ที่ต้องสำรอง ให้เพิ่มใน `BACKUP_EXTRA_ROOT_KEYS` / `BACKUP_PREFIXES` และ `backend/BackupTrigger.gs`
+
+## ทำไปแล้ว (ไม่ต้องทำซ้ำ)
+ธีม Mermaid/Sea/Neon • หน้า Notifications • ฟอร์มจดสต๊อก + ซิงค์ทีละวัน/ปิดงวด • ล็อกปิดเดือน • คิวบันทึกออฟไลน์ •
+รหัสเข้าใช้ระบบ (`backend/AuthGuard.gs`) • คาดการณ์ยอดสั่ง 🔮 • กำไรแยกสินค้า/สาขาใน P&L • เตือนราคาซื้อพุ่ง •
+ชื่อเครื่องในรายการกิจกรรม • ปุ่ม 📋 ดึงยอดออเดอร์ + รันสินค้าถัดไปในการ์ดซื้อ • อ่านรูปออเดอร์ (OCR ไทยล้วน + ขยายภาพ) •
+🧭 ศูนย์บัญชาการ "วันนี้" บนแดชบอร์ด • เตือนกำไรหดตอนกรอกซื้อ
+
+## ค้างฝั่งเจ้าของ
+- ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)
+
+## แผนถัดไป
+จาก artifact แผน (https://claude.ai/artifact/7CpfLeZ2MnjqXHZNE6U91y) ช่อง "ทำต่อ":
+จัดอันดับสาขา • เฝ้าราคาผู้ขายแต่ละราย • แนะนำจำนวนซื้อล่วงหน้า (ต่อยอดการ์ด 🔮) • แจ้งเตือนนอกแอปผ่าน LINE

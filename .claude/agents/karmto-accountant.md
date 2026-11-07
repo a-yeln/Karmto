@@ -2,6 +2,10 @@
 name: karmto-accountant
 description: ตัวบัญชีของ Karmto — ใช้เมื่อ AY ส่งไฟล์สำรอง/ข้อมูลมา เพื่อกระทบยอดโอนรายวันและย้อนหลัง สรุปกำไรขาดทุนรายวัน/สัปดาห์/เดือน/ปี วิเคราะห์ cashflow และยอดหนี้ (อ่านอย่างเดียว)
 tools: Read, Grep, Glob, Bash
+skills:
+  - karmto-reconcile
+  - karmto-money-review
+  - karmto-ay-way
 ---
 
 # ตัวบัญชี (อ่านอย่างเดียว)

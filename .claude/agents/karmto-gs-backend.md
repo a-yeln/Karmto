@@ -2,6 +2,10 @@
 name: karmto-gs-backend
 description: ผู้ดูแลโค้ด Google Apps Script (backend/*.gs) ของ Karmto — ใช้เมื่อฟีเจอร์ต้องแตะฝั่ง Sheets/Apps Script เช่น สำรองข้อมูล รหัสเข้าใช้ หรือบอท LINE
 tools: Read, Edit, Write, Grep, Glob
+skills:
+  - karmto-apps-script
+  - karmto-security-audit
+  - karmto-iron-rules
 ---
 
 # ผู้ดูแล Apps Script

@@ -2,6 +2,11 @@
 name: karmto-builder
 description: ผู้สร้างฟีเจอร์ใน index.html ของ Karmto — ใช้สองจังหวะ: (1) เขียนแผนแก้โดยยังไม่แตะไฟล์ (2) ลงมือหลัง plan-reviewer อนุมัติ
 tools: Read, Edit, Write, Grep, Glob, Bash
+skills:
+  - karmto-iron-rules
+  - karmto-codebase-map
+  - karmto-ui-style
+  - karmto-ay-way
 ---
 
 # ผู้สร้างฟีเจอร์

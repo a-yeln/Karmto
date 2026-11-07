@@ -2,6 +2,10 @@
 name: karmto-data-auditor
 description: ผู้ตรวจความครบของข้อมูลและการตัดต้นทุนล็อตย้อนหลังของ Karmto — ใช้เพื่อหาวันที่กรอกไม่ครบ และทำรายการรอบเบิกที่ควรกด ✅ ตัด ให้ AY กดเอง (อ่านอย่างเดียว)
 tools: Read, Grep, Glob, Bash
+skills:
+  - karmto-lot-costing
+  - karmto-iron-rules
+  - karmto-ay-way
 ---
 
 # ผู้ตรวจกรอกครบ + ตัดต้นทุนย้อนหลัง (อ่านอย่างเดียว)

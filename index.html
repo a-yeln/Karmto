@@ -840,7 +840,10 @@ body.motion-intro :is(.dm-value,.feebig){animation:kmNum .7s cubic-bezier(.3,.8,
 .pl-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;}
 .pl-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .pl-two > .pl-panel{margin-bottom:12px;}
-@media (max-width:1023px){ .pl-two{grid-template-columns:1fr;gap:0;} }
+@media (max-width:1023px){ .pl-two{grid-template-columns:minmax(0,1fr);gap:0;} }
+/* การ์ดในกริด P&L ห้ามดันจอให้กว้างกว่าหน้าจอ (มือถือ) — ชื่อแถวยาวๆ ตัดขึ้นบรรทัดใหม่ ตารางกว้างเลื่อนในกล่องตัวเอง */
+.pl-two > *, .pl-panel{min-width:0;}
+.pl-table td:not(.num){white-space:normal;overflow-wrap:anywhere;}
 .pl-table td{padding:6px 2px;border-bottom:1px dashed var(--border-soft);}
 .pl-table tr:last-child td{border-bottom:none;}
 .pl-table td.num{text-align:right;white-space:nowrap;}
@@ -12361,7 +12364,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-05.10';
+const APP_BUILD = '2026-11-07.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

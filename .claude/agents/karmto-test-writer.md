@@ -6,6 +6,7 @@ skills:
   - karmto-testing
   - karmto-iron-rules
   - karmto-codebase-map
+  - karmto-order-ocr
 ---
 
 # ผู้เขียน/รันเทส

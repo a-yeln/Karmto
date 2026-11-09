@@ -7,6 +7,7 @@ skills:
   - karmto-codebase-map
   - karmto-ui-style
   - karmto-ay-way
+  - karmto-order-ocr
 ---
 
 # ผู้สร้างฟีเจอร์

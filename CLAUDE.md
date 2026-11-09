@@ -33,8 +33,9 @@
 `builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `security-guard` (ความปลอดภัยสูงสุด) • `release` •
 `accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว)
 — ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
-- สกิล 11 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
-  `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist`
+- สกิล 12 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
+  `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist` •
+  `karmto-order-ocr` (อ่านรูปออเดอร์) — สคริปต์ตรวจล้นจอทุกธีม/แคปจอ/วัด OCR อยู่ใน `.claude/skills/karmto-testing/scripts/`
   — เมื่อโค้ดเปลี่ยนมาก (เช่น บรรทัดใน codebase-map เลื่อน) หรือ AY ติ๊ก ❌ ให้อัปเดตสกิลที่เกี่ยวข้อง นี่คือวิธี "เทรน" ทีม
 - ลำดับงานมาตรฐาน: manager → designer → ay-proxy → builder (แผนแก้) → plan-reviewer → builder (ลงมือ, +gs-backend) → test-writer →
   bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → security-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge

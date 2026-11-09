@@ -24,9 +24,23 @@
 ## ก่อน commit ทุกครั้ง
 1. `git fetch origin main && git merge origin/main --no-edit`
 2. เพิ่ม `APP_BUILD` ใน `index.html` (รูปแบบ `'YYYY-MM-DD.N'`) — มือถือใช้ค่านี้เช็คว่ามีเวอร์ชันใหม่แล้วรีโหลดเอง
-3. เช็ค syntax ของ inline scripts (node `vm.Script` ทุก `<script>` ที่ไม่มี src)
+3. เช็ค syntax ของ inline scripts: `node tests/check-syntax.js`
 4. รันเทสครบทุก spec ให้ผ่าน
 5. ห้ามใส่ชื่อ/ID โมเดลใน commit หรือ PR
+
+## ทีม Agent (`.claude/agents/karmto-*.md`) + สกิล (`.claude/skills/karmto-*`)
+14 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
+`builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `security-guard` (ความปลอดภัยสูงสุด) • `release` •
+`accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว)
+— ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
+- สกิล 11 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
+  `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist`
+  — เมื่อโค้ดเปลี่ยนมาก (เช่น บรรทัดใน codebase-map เลื่อน) หรือ AY ติ๊ก ❌ ให้อัปเดตสกิลที่เกี่ยวข้อง นี่คือวิธี "เทรน" ทีม
+- ลำดับงานมาตรฐาน: manager → designer → ay-proxy → builder (แผนแก้) → plan-reviewer → builder (ลงมือ, +gs-backend) → test-writer →
+  bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → security-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge
+- **money-guard หรือ security-guard ไม่ผ่าน = ห้าม merge**; subagent เรียก subagent ต่อไม่ได้ — Claude หลักเป็นคนแจกงานตามใบสั่งงานของ manager
+- ตัวแทน AY อ่าน `.claude/ay-proxy/profile.md` และบันทึกความเห็นใน `.claude/ay-proxy/decisions.md` ให้ AY ติ๊ก ✅/❌ — ยังไม่มีสิทธิ์ตัดสินจริง
+- งานเล็ก (แก้คำ/สีจุดเดียว) ไม่ต้องเดินครบทุกตัว แต่ test-writer + money-guard + security-guard + release ต้องมีเสมอเมื่อแตะ index.html หรือ backend
 
 ## เทส
 - Playwright specs ใน `tests/specs/*.spec.js` ใช้ `tests/helpers.js` (mock `window.storage` ในหน่วยความจำ: `window.__store`, `window.__writes`)
@@ -58,6 +72,16 @@
 ## ค้างฝั่งเจ้าของ
 - ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)
 
-## แผนถัดไป
-จาก artifact แผน (https://claude.ai/artifact/7CpfLeZ2MnjqXHZNE6U91y) ช่อง "ทำต่อ":
-จัดอันดับสาขา • เฝ้าราคาผู้ขายแต่ละราย • แนะนำจำนวนซื้อล่วงหน้า (ต่อยอดการ์ด 🔮) • แจ้งเตือนนอกแอปผ่าน LINE
+## แผนถัดไป (AY ยืนยันก่อนเริ่มแต่ละตัว)
+1. ✅ เช็คลิสต์ "กรอกครบวันนี้" + วันย้อนหลังที่ขาด (บนศูนย์บัญชาการ 🧭)
+2. 🧮 ผู้ช่วยตัดต้นทุนล็อตย้อนหลัง — แสดงรอบที่ยังไม่ตัด/ตัวเลขชวนสงสัย ให้ AY กด ✅ ตัด เอง
+3. 💰 บัญชีในแอป: กระทบยอดโอน, P&L สัปดาห์/ปี, cashflow, หนี้
+4. 🎬 อินโฟกราฟิกเคลื่อนไหว (สมจริง ไม่ใช่ตัวอักษรขยับ) อธิบายฟอร์มแทนข้อความยาว
+5. 🤖 AI ที่ปรึกษาในแอป (ต้องมี LLM key ผ่าน Apps Script — ถาม AY เรื่อง key/ค่าใช้จ่าย)
+6. 💬 บอท LINE ฝังในกลุ่มแบบเงียบ (Messaging API → `backend/LineBot.gs` web app แยก) — ไม่ตอบ/ไม่ส่งอะไรในกลุ่ม; ปกติกลุ่มส่งแต่รูป
+   - รูปสลิป → อ่านยอด/วันที่/ผู้โอน (OCR) ลง `lineInbox:YYYY-MM-DD` ให้ AY จับคู่กระทบยอดกับบิลในแอปเอง — ไม่เช็ค QR, ไม่ใช้บริการตรวจสลิปเสียเงิน
+   - รูปออเดอร์ → อ่านแล้วร่างไว้ในหน้าออเดอร์ (ใช้ตัวอ่านรูปออเดอร์เดิม) ให้ AY กดยืนยันเอง — ห้ามบันทึกเอง
+   - รูปบิล → ข้าม ไม่เก็บ (AY ส่งบิลจากแอปเองอยู่แล้ว)
+   - มีคนพิมพ์ข้อความในกลุ่ม → แจ้ง AY ทันทีทางแชทส่วนตัว + หน้า Notifications
+   - ไม่ตัดยอดจ่าย/บันทึกเงินเอง; ถาม AY เรื่องงบ LINE OA (โควตา push) ก่อนเริ่ม
+- ตัดออกแล้ว (AY ว่าไม่จำเป็น): จัดอันดับสาขา • เฝ้าราคาผู้ขาย • แนะนำจำนวนซื้อ

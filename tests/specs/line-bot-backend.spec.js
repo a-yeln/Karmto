@@ -35,6 +35,7 @@ function makeEnv(propsInit, opts = {}){
       }
       if(url.indexOf('/member/') >= 0) return opts.memberCode ? { getResponseCode: () => opts.memberCode, getContentText: () => '' } : { getResponseCode: () => 200, getContentText: () => JSON.stringify({ displayName: 'สาขา 5' }) };
       if(url.indexOf('/push') >= 0) return { getResponseCode: () => 200, getContentText: () => '{}' };
+      if(url.indexOf('?action=get') >= 0) return { getResponseCode: () => 200, getContentText: () => JSON.stringify(opts.existing ? { key: 'x', value: JSON.stringify(opts.existing) } : { error: 'Key not found' }) };
       return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ key: 'x', value: '[]' }) };
     } },
     Drive: { Files: { insert: () => ({ id: 'doc1' }), remove: id => removed.push(id) } },
@@ -131,7 +132,7 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   const env = makeEnv(BASE_PROPS, { ocrText });
   post(env, TOK, [ev('image'), ev('text', { id: '5005', text: 'พรุ่งนี้ขอกุ้งเพิ่ม' })]);
   env.ctx.processKarmtoLineQueue();
-  const apiCalls = env.fetches.filter(f => f.url === 'https://karmto.example/exec').map(f => JSON.parse(f.o.payload));
+  const apiCalls = env.fetches.filter(f => f.url === 'https://karmto.example/exec' && f.o.payload).map(f => JSON.parse(f.o.payload));
   check('เขียน 2 ครั้ง (สลิป + ข้อความ) เป็น patchOps: ลบ id เดิม + push ทีละรายการ (กันซ้ำตอนลองใหม่)', apiCalls.length === 2 && apiCalls.every(c => c.action === 'patchOps' && c.rootIsArray === true && c.ops.length === 2 && c.ops[0].remove && c.ops[0].remove.matchField === 'id' && c.ops[0].remove.matchValue === c.ops[1].push.id && c.ops[1].push && c.ops.every(o => Array.isArray(o.arrayPath) && o.arrayPath.length === 0)), apiCalls.map(c => c.ops));
   apiCalls.forEach(c => { c.ops = [c.ops[1]]; });
   const slip = apiCalls[0];
@@ -144,7 +145,12 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   check('ไม่มีการ reply และไม่ push (ยังไม่ตั้ง LINE_NOTIFY_USER_ID)', !env.fetches.some(f => /\/reply|\/push|\/broadcast|\/multicast/.test(f.url)));
   check('คิวว่างหลังทำเสร็จ', queue(env).length === 0);
   env.ctx.processKarmtoLineQueue();
-  check('รันซ้ำไม่เขียนซ้ำ', env.fetches.filter(f => f.url === 'https://karmto.example/exec').length === 2);
+  check('รันซ้ำไม่เขียนซ้ำ', env.fetches.filter(f => f.url === 'https://karmto.example/exec' && f.o.payload).length === 2);
+  check('อ่านคีย์ก่อนเขียน (กันทับป้าย)', env.fetches.some(f => f.url.indexOf('https://karmto.example/exec?action=get&key=lineInbox%3A') === 0));
+  const envHas = makeEnv(BASE_PROPS, { ocrText, existing: [{ id: 'L5001', type: 'slip', matched: { iso: '2026-11-10', code: '02' } }] });
+  post(envHas, TOK, [ev('image')]);
+  envHas.ctx.processKarmtoLineQueue();
+  check('มี id นี้แล้ว (เช่น AY จับคู่ไปแล้ว) → ไม่เขียนทับ', !envHas.fetches.some(f => f.url === 'https://karmto.example/exec' && f.o.payload) && queue(envHas).length === 0);
 
   const envN = makeEnv(Object.assign({}, BASE_PROPS, { LINE_NOTIFY_USER_ID: 'U' + 'a'.repeat(32) }), { ocrText });
   post(envN, TOK, [ev('text', { id: '6001', text: 'ของมาไม่ครบ' })]);
@@ -156,32 +162,32 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   const envFake = makeEnv(BASE_PROPS, { ocrText, memberCode: 404 });
   post(envFake, TOK, [ev('text', { id: '6100', text: 'โอนไปบัญชีนี้แทน' })]);
   envFake.ctx.processKarmtoLineQueue();
-  check('ข้อความจากคนที่ไม่ใช่สมาชิกจริง (LINE ไม่รู้จัก) → ทิ้ง ไม่เก็บ', !envFake.fetches.some(f => f.url === 'https://karmto.example/exec'));
+  check('ข้อความจากคนที่ไม่ใช่สมาชิกจริง (LINE ไม่รู้จัก) → ทิ้ง ไม่เก็บ', !envFake.fetches.some(f => f.url === 'https://karmto.example/exec' && f.o.payload));
   const envPdf = makeEnv(BASE_PROPS, { ocrText, ctype: 'application/pdf' });
   post(envPdf, TOK, [ev('image', { id: '6200' })]);
   envPdf.ctx.processKarmtoLineQueue();
-  check('ไฟล์ที่ไม่ใช่รูป → ข้าม', !envPdf.fetches.some(f => f.url === 'https://karmto.example/exec'));
+  check('ไฟล์ที่ไม่ใช่รูป → ข้าม', !envPdf.fetches.some(f => f.url === 'https://karmto.example/exec' && f.o.payload));
   check('ไฟล์ OCR ถูกลบถาวร', env.removed.length >= 1);
   const envAcct = makeEnv(BASE_PROPS, { ocrText: ocrText + '\nบัญชี 1234567890' });
   post(envAcct, TOK, [ev('image', { id: '6300' })]);
   envAcct.ctx.processKarmtoLineQueue();
-  const acctTxt = JSON.parse(envAcct.fetches.find(f => f.url === 'https://karmto.example/exec').o.payload).ops[1].push.text;
+  const acctTxt = JSON.parse(envAcct.fetches.find(f => f.url === 'https://karmto.example/exec' && f.o.payload).o.payload).ops[1].push.text;
   check('ข้อความดิบปิดเลขยาวเหลือ 4 ตัวท้าย', /xxxxxx7890/.test(acctTxt) && !/1234567890/.test(acctTxt), acctTxt);
 
   const envBill = makeEnv(BASE_PROPS, { ocrText: 'ใบแจ้งหนี้\nรวม 1,250 บาท' });
   post(envBill, TOK, [ev('image', { id: '7001' })]);
   envBill.ctx.processKarmtoLineQueue();
-  check('รูปบิล/ออเดอร์ → ข้าม ไม่เขียนอะไร', !envBill.fetches.some(f => f.url === 'https://karmto.example/exec') && queue(envBill).length === 0);
+  check('รูปบิล/ออเดอร์ → ข้าม ไม่เขียนอะไร', !envBill.fetches.some(f => f.url === 'https://karmto.example/exec' && f.o.payload) && queue(envBill).length === 0);
 
   const envGone = makeEnv(BASE_PROPS, { contentCode: 404, ocrText });
   post(envGone, TOK, [ev('image', { id: '8001' })]);
   envGone.ctx.processKarmtoLineQueue();
-  check('messageId ที่ LINE ไม่รู้จัก (ปลอม) → ไม่เขียนอะไร', !envGone.fetches.some(f => f.url === 'https://karmto.example/exec') && queue(envGone).length === 0);
+  check('messageId ที่ LINE ไม่รู้จัก (ปลอม) → ไม่เขียนอะไร', !envGone.fetches.some(f => f.url === 'https://karmto.example/exec' && f.o.payload) && queue(envGone).length === 0);
 
   const envKey = makeEnv(Object.assign({}, BASE_PROPS, { KARMTO_KEY: 'pass1' }), { ocrText });
   post(envKey, TOK, [ev('image', { id: '9001' })]);
   envKey.ctx.processKarmtoLineQueue();
-  const kc = envKey.fetches.find(f => f.url === 'https://karmto.example/exec');
+  const kc = envKey.fetches.find(f => f.url === 'https://karmto.example/exec' && f.o.payload);
   check('แนบ KARMTO_KEY ไปกับคำขอ', kc && JSON.parse(kc.o.payload).k === 'pass1');
 
   const envT = makeEnv(BASE_PROPS);

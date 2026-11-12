@@ -98,6 +98,15 @@ const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y
   await page.waitForTimeout(600);
   check('พิมพ์ยอดใหม่ → เลิกผูกกับสลิป', await page.evaluate(() => slipMatchDraft_.inbox === null && !document.querySelector('[data-slipchip="L5"]').classList.contains('on')));
 
+  // แตะชิปที่อาจซ้ำ → เลือกบิล → คำเตือนยังอยู่ในแผงยืนยัน
+  await page.click('[data-slipchip="L5"]');
+  await page.waitForTimeout(700);
+  await page.click('#slipMatchResults [data-slipkind=exact]');
+  await page.waitForTimeout(400);
+  check('ชิปอาจซ้ำ: คำเตือนอยู่ในแผงยืนยันด้วย', !!(await page.$('[data-slippanel] [data-slipdupwarn]')));
+  await page.click('[data-slipcancel]');
+  await page.fill('#slipMatchAmount', '');
+  await page.waitForTimeout(400);
   // ซ่อนสลิป
   await page.evaluate(() => { window.__writes = []; });
   await page.click('[data-slipchipx="L5"]');

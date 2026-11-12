@@ -222,6 +222,8 @@ function karmtoInboxPush_(day, item) {
   var props = PropertiesService.getScriptProperties();
   var url = props.getProperty('KARMTO_API_URL');
   if (!url) throw new Error('ยังไม่ได้ตั้ง KARMTO_API_URL');
+  // มี id นี้อยู่แล้ว (รอบก่อนเขียนสำเร็จแต่เราไม่รู้) → ข้าม ไม่ทับป้าย matched/dismissed ที่ AY ติดไว้
+  if (karmtoInboxHas_(url, props.getProperty('KARMTO_KEY'), day, item.id)) return;
   // ลบ id เดิม (ถ้ามี) แล้ว push ในคำขอเดียว — ลองใหม่หลังเน็ตหลุดกี่ครั้งก็ไม่เกิดรายการซ้ำ
   var body = { action: 'patchOps', key: 'lineInbox:' + day, ops: [{ arrayPath: [], remove: { matchField: 'id', matchValue: item.id } }, { arrayPath: [], push: item }], rootIsArray: true };
   var key = props.getProperty('KARMTO_KEY');
@@ -231,6 +233,18 @@ function karmtoInboxPush_(day, item) {
   if (code < 200 || code >= 300) throw new Error('บันทึก lineInbox ไม่ได้ HTTP ' + code);
   var data = JSON.parse(res.getContentText());
   if (data && data.error) throw new Error('บันทึก lineInbox ไม่ได้: ' + data.error);
+}
+
+// อ่านอย่างเดียว: คีย์วันนี้มีรายการ id นี้หรือยัง (อ่านไม่ได้/ไม่มีคีย์ = ถือว่ายังไม่มี)
+function karmtoInboxHas_(url, key, day, id) {
+  try {
+    var q = '?action=get&key=' + encodeURIComponent('lineInbox:' + day) + (key ? '&k=' + encodeURIComponent(key) : '');
+    var r = UrlFetchApp.fetch(url + q, { method: 'get', muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return false;
+    var data = JSON.parse(r.getContentText());
+    var arr = data && typeof data.value === 'string' ? JSON.parse(data.value) : null;
+    return Array.isArray(arr) && arr.some(function (x) { return x && x.id === id; });
+  } catch (e) { return false; }
 }
 
 // ============ ตัวอ่านข้อความสลิป (ฟังก์ชันล้วน — เทสได้ใน Node) ============

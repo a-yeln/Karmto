@@ -1307,6 +1307,35 @@ table.fee-ledger tr.fee-total-row td:last-child{border-radius:0 10px 10px 0;}
 .sp-tag{font-family:'Mitr','IBM Plex Sans Thai',sans-serif;font-size:clamp(16px,3.6vw,26px);color:#22343B;opacity:0;animation:spUp .6s ease-out 1.05s both}
 @keyframes spUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .sp-skip{position:absolute;bottom:calc(28px + env(safe-area-inset-bottom,0px));font-size:12.5px;color:#7B919B;opacity:0;animation:spUp .5s ease-out 1.3s both}
+/* ---- หัวจอแน่น: ลดช่องว่างส่วนหัวทุกธีมให้เนื้อหาได้พื้นที่เต็มจอขึ้น (เขียนท้ายสุดเพื่อทับค่าเดิม) ---- */
+.dash-wide-header{margin-bottom:4px;row-gap:4px;}
+.dwh-titles h2{line-height:1.35;margin:0;}
+.dwh-titles p{margin:0;line-height:1.2;}
+.statbar{margin-bottom:2px;}
+.statbar-headrow{padding:2px 0;}
+html[data-theme=sea][data-tmode=full] .dash-wide-header{margin-bottom:4px;}
+html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{padding:10px 20px 34px;}
+html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
+@media (max-width:767px){
+  .dwh-datenav{padding:2px 6px;}
+  html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap{padding:8px 16px 30px;}
+  html[data-theme=mermaid][data-tmode=full] .dash-wide-header{justify-content:flex-start;text-align:left;}
+  html[data-theme=mermaid][data-tmode=full] .dwh-titles{flex:1 1 0;min-width:0;}
+  html[data-theme=mermaid][data-tmode=full] .dwh-titles h2{font-size:20px;}
+}
+/* จอกว้าง: ปุ่ม KARMTO/เพิ่มรายจ่าย/วันที่ อยู่บรรทัดเดียวกับชื่อหน้าเสมอ — ชื่อหน้ายาว (เช่น Billing & Transfers) ให้ย่อด้วย … แทนการดันปุ่มตกบรรทัด */
+@media (min-width:768px){
+  .dash-wide-header{flex-wrap:nowrap;}
+  .dwh-titles{min-width:0;flex:1 1 auto;}
+  .dwh-titles h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dwh-datenav,.dwh-addexp-btn,.dwh-idchip,.dwh-menu-btn{flex:none;}
+  .dwh-idchip{white-space:nowrap;}
+  html[data-theme=mermaid][data-tmode=full] .dwh-titles{flex:1 1 auto;text-align:left;}
+}
+/* ป้าย "✓ บันทึกแล้ว" เด้งตรงปุ่ม/ช่องที่เพิ่งกด เมื่อข้อมูลขึ้นเซิร์ฟเวอร์สำเร็จจริง */
+.save-pop{position:fixed;z-index:9999;pointer-events:none;background:#1F9D6B;color:#fff;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.22);white-space:nowrap;transform:translate(-50%,0);animation:savePop 1.6s ease-out forwards;}
+@keyframes savePop{0%{opacity:0;transform:translate(-50%,8px) scale(.8)}14%{opacity:1;transform:translate(-50%,0) scale(1.06)}24%{transform:translate(-50%,0) scale(1)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px)}}
+@media (prefers-reduced-motion:reduce){.save-pop{animation-duration:1.6s;animation-timing-function:step-end}}
 </style>
 </head>
 <body>
@@ -2306,6 +2335,35 @@ function bahtText(amount){
 
 function showToast(msg){ if(Date.now() < monthLockToastUntil_ && !String(msg).startsWith('🔒')) return; const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1600); }
 
+// ---- ป้าย "✓ บันทึกแล้ว" ----
+// หลายฟอร์มกดบันทึกแล้วหน้าจอไม่เปลี่ยน เลยไม่รู้ว่าบันทึกไปหรือยัง — จำปุ่ม/ช่องที่เพิ่งแตะไว้ พอ window.storage เขียนสำเร็จจริง
+// (wrapStorageForDayRevs_ ยิง 'karmto-saved') ค่อยเด้งป้ายตรงจุดนั้น เขียนไม่สำเร็จ/ล็อกเดือน/เข้าคิวออฟไลน์ = ไม่เด้ง
+let savePending_ = null;
+const SAVE_POP_WINDOW = 15000;
+const SAVE_POP_SKIP_KEYS = /^(dayRevs$|actlog:|activityLog$|stockFormDraft$)/;
+function saveNoteTarget_(e){
+  const el = e.target && e.target.closest ? e.target.closest('button, .btn, input, select, textarea, label, [role=button]') : null;
+  if(!el || el.closest('#toast')) return;
+  const r = el.getBoundingClientRect();
+  // ปุ่มที่มองไม่เห็น (อยู่ในกล่องที่พับอยู่) ไม่มีตำแหน่ง — เด้งกลางจอด้านล่างแทน
+  savePending_ = (r.width || r.height) ? {x: r.left + r.width/2, top: r.top, bottom: r.bottom, at: Date.now()} : {x: window.innerWidth/2, top: window.innerHeight - 90, bottom: window.innerHeight - 60, at: Date.now()};
+}
+document.addEventListener('click', saveNoteTarget_, true);
+document.addEventListener('change', saveNoteTarget_, true);
+window.addEventListener('karmto-saved', e=>{
+  const p = savePending_;
+  if(!p || Date.now() - p.at > SAVE_POP_WINDOW) return;
+  if(SAVE_POP_SKIP_KEYS.test(String(e.detail && e.detail.key))) return;
+  savePending_ = null; // เด้งครั้งเดียวต่อการกดหนึ่งครั้ง แม้การกดนั้นเขียนหลายคีย์
+  const pop = document.createElement('div');
+  pop.className = 'save-pop'; pop.textContent = '✓ บันทึกแล้ว'; pop.setAttribute('role', 'status');
+  const x = Math.min(Math.max(p.x, 64), window.innerWidth - 64);
+  const y = p.top > 44 && p.top < window.innerHeight ? p.top - 34 : Math.min(Math.max(p.bottom + 6, 8), window.innerHeight - 40);
+  pop.style.left = x + 'px'; pop.style.top = y + 'px';
+  document.body.appendChild(pop);
+  setTimeout(()=>pop.remove(), 1700);
+});
+
 async function loadSettings(){
   try{
     const r = await window.storage.get('settings');
@@ -2661,6 +2719,8 @@ function wrapStorageForDayRevs_(raw){
       }
       if(isOffline_() && !offlineFlushing_){ const e = new Error('Offline: ออฟไลน์อยู่ — ต่อเน็ตก่อนแล้วลองใหม่'); e.offline = true; throw e; }
       const res = await raw[m](key, ...rest); stamp(key); noteStorageSize_(key, res && res.value);
+      // ไม่ยิงตอนกำลังระบายคิวออฟไลน์ — รายการเก่าในคิวสำเร็จ ไม่ได้แปลว่าปุ่มที่เพิ่งกดบันทึกแล้ว (มี toast แยกบอกอยู่)
+      if(!offlineFlushing_){ try{ window.dispatchEvent(new CustomEvent('karmto-saved', {detail:{key, op:m}})); }catch(e){} }
       if(w.__noteKey) w.__noteKey(key, m === 'delete');
       return res;
     };
@@ -12368,7 +12428,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.1';
+const APP_BUILD = '2026-11-12.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

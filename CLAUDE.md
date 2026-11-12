@@ -29,9 +29,10 @@
 5. ห้ามใส่ชื่อ/ID โมเดลใน commit หรือ PR
 
 ## ทีม Agent (`.claude/agents/karmto-*.md`) + สกิล (`.claude/skills/karmto-*`)
-14 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
+15 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
 `builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `security-guard` (ความปลอดภัยสูงสุด) • `release` •
-`accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว)
+`accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว) •
+`perf-guard` (ความเร็ว/จำนวนคำขอ/ขนาดคีย์, อ่านอย่างเดียว)
 — ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
 - สกิล 12 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
   `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist` •
@@ -41,7 +42,10 @@
   bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → security-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge
 - **money-guard หรือ security-guard ไม่ผ่าน = ห้าม merge**; subagent เรียก subagent ต่อไม่ได้ — Claude หลักเป็นคนแจกงานตามใบสั่งงานของ manager
 - ตัวแทน AY อ่าน `.claude/ay-proxy/profile.md` และบันทึกความเห็นใน `.claude/ay-proxy/decisions.md` ให้ AY ติ๊ก ✅/❌ — ยังไม่มีสิทธิ์ตัดสินจริง
-- งานเล็ก (แก้คำ/สีจุดเดียว) ไม่ต้องเดินครบทุกตัว แต่ test-writer + money-guard + security-guard + release ต้องมีเสมอเมื่อแตะ index.html หรือ backend
+- **รางเร็ว** (งานไม่แตะเงิน/ข้อมูล เช่น หน้าตา ข้อความ ป้ายแจ้ง): builder → test-writer → money-guard + security-guard (รันคู่กัน) → release
+  **รางเต็ม** (แตะเงิน ต้นทุน บิล สต๊อก ล็อต หรือโครงข้อมูล): เดินครบตามลำดับมาตรฐานข้างบน + perf-guard เมื่อแก้การโหลดข้อมูล
+- test-writer + money-guard + security-guard + release ต้องมีเสมอเมื่อแตะ index.html หรือ backend
+- ตัวช่วยอัตโนมัติ: `.github/workflows/tests.yml` รันเทสทุก PR; `.claude/hooks/pre-commit-check.sh` บล็อก commit ถ้า syntax พังหรือลืมเพิ่ม `APP_BUILD`
 
 ## เทส
 - Playwright specs ใน `tests/specs/*.spec.js` ใช้ `tests/helpers.js` (mock `window.storage` ในหน่วยความจำ: `window.__store`, `window.__writes`)
@@ -68,7 +72,9 @@
 ธีม Mermaid/Sea/Neon • หน้า Notifications • ฟอร์มจดสต๊อก + ซิงค์ทีละวัน/ปิดงวด • ล็อกปิดเดือน • คิวบันทึกออฟไลน์ •
 รหัสเข้าใช้ระบบ (`backend/AuthGuard.gs`) • คาดการณ์ยอดสั่ง 🔮 • กำไรแยกสินค้า/สาขาใน P&L • เตือนราคาซื้อพุ่ง •
 ชื่อเครื่องในรายการกิจกรรม • ปุ่ม 📋 ดึงยอดออเดอร์ + รันสินค้าถัดไปในการ์ดซื้อ • อ่านรูปออเดอร์ (OCR ไทยล้วน + ขยายภาพ) •
-🧭 ศูนย์บัญชาการ "วันนี้" บนแดชบอร์ด • เตือนกำไรหดตอนกรอกซื้อ
+🧭 ศูนย์บัญชาการ "วันนี้" บนแดชบอร์ด • เตือนกำไรหดตอนกรอกซื้อ •
+เช็คลิสต์ขั้น 2 = "สั่งของ" (ติ๊กเมื่อคัดลอกข้อความสั่งม๊ะก๊าด) • ป้าย "✓ บันทึกแล้ว" เด้งตรงปุ่มเมื่อเขียนสำเร็จ (`karmto-saved`) •
+หัวจอแน่น + ปุ่มหัวจออยู่บรรทัดเดียว • เทสอัตโนมัติบน GitHub Actions
 
 ## ค้างฝั่งเจ้าของ
 - ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)

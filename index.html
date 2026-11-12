@@ -3870,6 +3870,7 @@ async function renderMessages(){
   document.getElementById('copyAllMsgBtn').addEventListener('click', async (e)=>{
     const btn = e.currentTarget;
     logActivity_(`คัดลอกข้อความส่งทั้งหมด — วันที่ ${formatDDMMYYYY(currentDate)}`);
+    markWorkflow_('supplierMsgAt'); // ขั้น "สั่งของ" ของเช็คลิสต์วันนี้ — คัดลอกทั้งหมดรวมข้อความสั่งม๊ะก๊าดอยู่แล้ว
     try{ await navigator.clipboard.writeText(copyAllText); }
     catch(err){ const ta=document.createElement('textarea'); ta.value=copyAllText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
     const original = `📋 คัดลอกทั้งหมด (${blocks.length} ส่วน)`;
@@ -3881,6 +3882,7 @@ async function renderMessages(){
       e.stopPropagation(); // ปุ่มนี้อยู่ในแถวหัวข้อที่มี toggle พับ/กางผูกอยู่ทั้งแถว (data-msgblocktoggle) — กันไม่ให้กดคัดลอกแล้วพับ/กางไปด้วย
       const idx = Number(btn.getAttribute('data-copy'));
       logActivity_(`คัดลอกข้อความส่ง (${blocks[idx].tag||'ส่วนที่ '+(idx+1)}) — วันที่ ${formatDDMMYYYY(currentDate)}`);
+      if(blocks[idx].tag==='mahkard') markWorkflow_('supplierMsgAt'); // ขั้น "สั่งของ" ติ๊กเมื่อคัดลอกข้อความสั่งม๊ะก๊าด
       try{ await navigator.clipboard.writeText(blocks[idx].text); }
       catch(err){ const ta=document.createElement('textarea'); ta.value=blocks[idx].text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
       const original = btn.textContent;
@@ -11789,10 +11791,10 @@ function setDashDual_(id, value, isHTML){
   if(b){ if(isHTML) b.innerHTML = value; else b.textContent = value; }
 }
 // ---- เช็คลิสต์งานประจำวัน 7 ขั้น (ติ๊กเองอัตโนมัติจากข้อมูลจริงของวันนั้น) ----
-// 2 (PeriPage) กับ 6 (บิลเป็นรูป) ติ๊กตอนกด "บันทึกทุกภาพ" ของวันนั้น · 7 ติ๊กเมื่อมีบิลของวันนั้นเปลี่ยนเป็นโอนแล้ว
+// 2 (สั่งของ) ติ๊กตอนคัดลอกข้อความสั่งม๊ะก๊าด/คัดลอกทั้งหมด · 6 (บิลเป็นรูป) ติ๊กตอนกด "บันทึกทุกภาพ" ของวันนั้น · 7 ติ๊กเมื่อมีบิลของวันนั้นเปลี่ยนเป็นโอนแล้ว
 const WF_STEPS = [
   {k:'order', ic:'📝', label:'ออเดอร์', tab:'order'},
-  {k:'peri',  ic:'🏷️', label:'ป้าย PeriPage', tab:'order'},
+  {k:'sup',   ic:'🦐', label:'สั่งของ', tab:'order', scrollTo:'messagesArea'},
   {k:'buy',   ic:'🛒', label:'ต้นทุนซื้อ', tab:'purchase'},
   {k:'left',  ic:'📦', label:'ของเหลือ', tab:'leftover'},
   {k:'exp',   ic:'💸', label:'รายจ่ายกิจการ', action:'expense'},
@@ -11832,7 +11834,7 @@ async function renderWorkflowJourney_(){
   const paidCount = entries.filter(([c])=>d.billingPaid && d.billingPaid[c]).length;
   const state = {
     order: [entries.length>0, entries.length ? `${entries.length} สาขา` : 'ยังไม่มี'],
-    peri:  [!!wf.peripageAt, wf.peripageAt ? hhmm(wf.peripageAt) : 'ยังไม่บันทึกภาพ'],
+    sup:   [!!wf.supplierMsgAt, wf.supplierMsgAt ? 'คัดลอกแล้ว '+hhmm(wf.supplierMsgAt) : 'ยังไม่คัดลอกข้อความสั่ง'],
     buy:   [buyDone, buySub],
     left:  [leftDone, leftDone ? 'บันทึกแล้ว' : 'ยังไม่บันทึก'],
     exp:   [(d.expenses||[]).length>0, expTotal ? money(expTotal) : 'ยังไม่ลง'],
@@ -11849,7 +11851,7 @@ async function renderWorkflowJourney_(){
     <div class="wf-count"><b class="num">${done}/7</b><span>ขั้นเสร็จวันนี้</span></div>`;
   el.querySelectorAll('[data-wfstep]').forEach(b=>b.addEventListener('click', ()=>{
     const st = WF_STEPS.find(x=>x.k===b.getAttribute('data-wfstep'));
-    if(st.action==='expense') openDashExpenseModal_(); else switchTab(st.tab);
+    if(st.action==='expense') openDashExpenseModal_(); else Promise.resolve(switchTab(st.tab)).then(()=>{ const t = st.scrollTo && document.getElementById(st.scrollTo); if(t) t.scrollIntoView({behavior:'smooth', block:'start'}); });
   }));
 }
 // ---- กราฟกำไรรายวัน (แท่ง = กำไรสุทธิ, เส้น = เฉลี่ย 7 วัน) เลื่อนซ้าย-ขวาต่อเนื่องข้ามเดือน ----
@@ -12366,7 +12368,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-07.2';
+const APP_BUILD = '2026-11-12.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

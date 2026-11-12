@@ -81,7 +81,7 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   const wf = await page.evaluate(() => ({ n: document.querySelectorAll('#wfJourney .wf-step').length, done: document.querySelector('#wfJourney .wf-step[data-wfstep="order"]').classList.contains('done'), count: document.querySelector('#wfJourney .wf-count b').textContent }));
   check('Daily checklist shows 7 steps and ticks orders', wf.n === 7 && wf.done && /\/7$/.test(wf.count), wf);
   await page.evaluate(async () => { await markWorkflow_('peripageAt'); });
-  check('Pressing save-all PeriPage ticks step 2', await page.evaluate(() => document.querySelector('#wfJourney .wf-step[data-wfstep="peri"]').classList.contains('done')));
+  check('PeriPage is no longer a checklist step', await page.evaluate(() => !document.querySelector('#wfJourney .wf-step[data-wfstep="peri"]') && !document.querySelector('#wfJourney .wf-step[data-wfstep="sup"]').classList.contains('done')));
   const pd = await page.evaluate(() => ({ bars: document.querySelectorAll('#profitDailyChart .pd-bar').length, line: !!document.querySelector('#profitDailyChart polyline'), scroll: !!document.getElementById('pdScroll') }));
   check('Daily profit chart renders bars + 7-day line in a horizontal scroller', pd.bars >= 1 && pd.line && pd.scroll, pd);
 

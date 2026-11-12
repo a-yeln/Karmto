@@ -32,3 +32,13 @@ it with the `KARMTO_KEY` Script Property. Until that property is set nothing is 
 Install steps are in the comment at the top of the file (set the passcode on every device
 first, then add the property and the one-line guard to `doGet`/`doPost`, then redeploy).
 `BackupTrigger.gs` sends the same key automatically.
+
+## LineBot.gs
+
+A **separate** Apps Script web app (not the Code.gs project) that sits silently in the branches' LINE group.
+Slip images are OCR'd with Google Drive's free OCR and appended (patchOps push, one item at a time) to
+`lineInbox:YYYY-MM-DD` through the same API the app uses. In the app, the "จับคู่ยอดโอน" card shows them as chips:
+tapping one only fills the amount — choosing the bill and confirming stays manual. The bot never replies or posts
+to the group and never writes money fields. Install steps (Thai) are at the top of the file.
+Apps Script can't read request headers, so `X-Line-Signature` can't be verified; the webhook is guarded by a secret
+`?t=` token, a single allowed `LINE_GROUP_ID`, and images are fetched from LINE with our own token (forged message ids 404).

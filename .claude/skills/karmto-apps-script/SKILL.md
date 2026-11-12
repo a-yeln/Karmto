@@ -10,7 +10,11 @@ description: แพทเทิร์นเขียน Google Apps Script (back
 - เขียน Sheets แบบ patch ทีละคีย์; คีย์ใหม่ใส่ใน `backend/BackupTrigger.gs`
 
 ## บอท LINE กลุ่ม (แผนข้อ 6) — เงียบ
-- `doPost` ตรวจ `X-Line-Signature` (HMAC-SHA256 ด้วย channel secret) ก่อนทำอะไร
+- Apps Script อ่าน header ไม่ได้ → ตรวจ `X-Line-Signature` ไม่ได้ ใช้แทน: รหัส `?t=` (LINE_WEBHOOK_TOKEN) + `LINE_GROUP_ID` + ดึงรูปจาก LINE ด้วย token ตัวเอง (messageId ปลอม = 404 ไม่บันทึก)
+- `doPost` แค่ใส่คิว (Script Properties `LINE_QUEUE`) แล้วตอบทันที; งานหนัก (ดึงรูป/OCR/เขียน) อยู่ใน `processKarmtoLineQueue` (trigger ทุก 1 นาที)
+- OCR = Drive advanced service (`Drive.Files.insert` v2 หรือ `create` v3 + ocrLanguage th) → ตัวอ่าน `parseSlipText_` ไม่เดา: หลายยอด → amount null
+- เขียนผ่าน API ของแอป: `patchOps` key `lineInbox:YYYY-MM-DD`, `[{arrayPath:[], push:item}]`, rootIsArray true
+- เทส: `tests/specs/line-bot-backend.spec.js` (vm + mock บริการ Apps Script)
 - ห้าม reply/push ในกลุ่ม
 - รูปสลิป → OCR ยอด/วันที่/ผู้โอน → `lineInbox:YYYY-MM-DD` (ไม่เช็ค QR)
 - รูปออเดอร์ → ร่างไว้ให้หน้าออเดอร์ (AY กดยืนยันเอง)

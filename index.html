@@ -140,6 +140,8 @@
   --accent:#0E7C93; --accent-text:#FFFFFF; --accent-soft:#D6EFF5;
   --danger:#E26C80; --danger-soft:#FFE0E6;
   --success:#27A77B; --success-soft:#D5F4E7;
+  /* สีตัวอักษรเขียว/ชมพูที่อ่านชัดบนพื้นสว่าง (คอนทราสต์ ≥ 4.5) — ใช้กับ "ตัวหนังสือ" ส่วน --success/--danger ใช้กับพื้น/เส้น */
+  --success-ink:#14714F; --danger-ink:#B3344D;
   --mahkard:#3E7CB1; --mahkard-soft:#C9E6F8;
   --monk:#2E9A9A; --monk-soft:#D3F4E1;
   --phat:#9757B8; --phat-soft:#EBD6F8;
@@ -954,7 +956,7 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 html[data-theme=mermaid]{
   --bg:#FBF3FB; --surface:#FFFFFF; --surface-2:#FFFFFF; --surface-3:#F4E8F8; --border:#E8D3F0; --border-soft:#F0E1F5;
   --text:#3A2A48; --text-dim:#6F5A80; --text-faint:#9A88A8; --accent:#9B5CC7; --accent-soft:#F0E2FA;
-  --danger:#E0609A; --danger-soft:#FFE0EE; --success:#2FA597; --success-soft:#DDF5F1; --ocean:#5B8FD6; --ocean-soft:#E2EEFC; --sunset:#E9789F; --sunset-soft:#FFE6EF;
+  --danger:#E0609A; --danger-soft:#FFE0EE; --success:#2FA597; --success-soft:#DDF5F1; --success-ink:#12695F; --danger-ink:#AD2B66; --ocean:#5B8FD6; --ocean-soft:#E2EEFC; --sunset:#E9789F; --sunset-soft:#FFE6EF;
   --c-sky:#E5F1FD; --b-sky:#BBD8F3; --c-mint:#E2F6F4; --b-mint:#AFE0D9; --c-peach:#FFE7F0; --b-peach:#F6BED4;
   --c-lav:#F0E5FD; --b-lav:#D2BBF3; --c-lemon:#FDF0FA; --b-lemon:#EEC6E5; --c-pink:#FFE1EF; --b-pink:#F4B3D2;
   --c-aqua:#E0F3FA; --b-aqua:#A6D9EC; --c-lime:#F4EAFF; --b-lime:#D8C1F7; --field-bd:#E4CDEF;
@@ -964,7 +966,7 @@ html[data-theme=mermaid]{
 html[data-theme=sea]{
   --bg:#EDF8FE; --surface-3:#E2F1FA; --border:#C6E2F3; --border-soft:#D9ECF7;
   --text:#1E3550; --text-dim:#4E6680; --text-faint:#7D93A8; --accent:#2E8BD0; --accent-soft:#DAEEFB;
-  --danger:#EF6F93; --danger-soft:#FFE3EC; --success:#21A58C; --sunset:#F2B22F; --sunset-soft:#FFF2CC; --ocean:#2E8BD0; --ocean-soft:#DAEEFB;
+  --danger:#EF6F93; --danger-soft:#FFE3EC; --success:#21A58C; --success-ink:#0F6B59; --danger-ink:#B82657; --sunset:#F2B22F; --sunset-soft:#FFF2CC; --ocean:#2E8BD0; --ocean-soft:#DAEEFB;
   --c-sky:#DDF0FD; --b-sky:#A7D4F2; --c-mint:#DCF5F4; --b-mint:#A2DDD8; --c-peach:#FFF2D1; --b-peach:#F4D57F;
   --c-lav:#E7EDFD; --b-lav:#BFCCF4; --c-lemon:#FFF8DB; --b-lemon:#F3E199; --c-pink:#FFE5EE; --b-pink:#F7BBD0;
   --c-aqua:#D9F4FA; --b-aqua:#9ED9E9; --c-lime:#FFF0E0; --b-lime:#F6CFA0; --field-bd:#BFDDF1;
@@ -975,7 +977,7 @@ html[data-theme=neon]{
   color-scheme:dark;
   --bg:#0B0A1A; --surface:#15142B; --surface-2:#17162E; --surface-3:#1F1D3A; --border:#2D2A55; --border-soft:#26244A;
   --text:#EEEDFF; --text-dim:#B6B2DC; --text-faint:#8783B5; --accent:#22E4FF; --accent-text:#0B0A1A; --accent-soft:rgba(34,228,255,.14);
-  --danger:#FF4FA3; --danger-soft:rgba(255,79,163,.16); --success:#5CFF9D; --success-soft:rgba(92,255,157,.13);
+  --danger:#FF4FA3; --danger-soft:rgba(255,79,163,.16); --success:#5CFF9D; --success-soft:rgba(92,255,157,.13); --success-ink:#5CFF9D; --danger-ink:#FF8CC6;
   --ocean:#22E4FF; --ocean-soft:rgba(34,228,255,.14); --sunset:#FFB84D; --sunset-soft:rgba(255,184,77,.15);
   --mahkard:#7DB7FF; --mahkard-soft:rgba(125,183,255,.14);
   --c-sky:#102338; --b-sky:#1FA9C9; --c-mint:#0F2A22; --b-mint:#2BD483; --c-peach:#2A1C12; --b-peach:#FF9F43;
@@ -1398,7 +1400,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .lot-tank{display:flex;flex-direction:column-reverse;width:64px;height:84px;flex:none;padding:0;margin:0;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);overflow:hidden;cursor:pointer;position:relative;font:inherit;-webkit-tap-highlight-color:transparent;}
 .lot-tank:focus-visible,.lot-hold:focus-visible,.slip-match:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .lot-tank i{display:block;flex:0 0 0;min-height:4%;position:relative;}
-.lot-tank .lt-cost{background:var(--success);opacity:.85;}
+.lot-tank .lt-cost{background:var(--success);}
 .lot-tank .lt-pend{background:var(--accent);}
 .lot-tank .lt-pend::before{content:"";position:absolute;left:-50%;top:-4px;width:200%;height:9px;border-radius:45%;background:var(--accent);animation:lotWave 4s linear 3;}
 .lot-tank .lt-claim{background:repeating-linear-gradient(45deg,var(--text-faint) 0 3px,transparent 3px 7px);}
@@ -1407,12 +1409,12 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .lot-legend{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;font-size:11px;color:var(--text-dim);}
 .lot-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
 .lot-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;flex:none;}
-.lot-legend i.c{background:var(--success);opacity:.85;}
+.lot-legend i.c{background:var(--success);}
 .lot-legend i.p{background:var(--accent);}
 .lot-legend i.k{background:repeating-linear-gradient(45deg,var(--text-faint) 0 2px,transparent 2px 4px);border:1px solid var(--border);}
 .lot-legend em{font-style:normal;color:var(--text-faint);flex-basis:100%;}
 .lot-draws{margin-top:6px;padding:6px 8px;border:1px dashed var(--border);border-radius:10px;font-size:11.5px;color:var(--text-dim);line-height:1.5;overflow-wrap:anywhere;}
-.lot-hold{position:relative;overflow:hidden;flex:1 1 0;min-width:0;min-height:44px;display:flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:12px;border:1.5px solid var(--success);background:transparent;color:var(--success);font-family:inherit;font-size:13.5px;font-weight:700;line-height:1.25;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+.lot-hold{position:relative;overflow:hidden;flex:1 1 0;min-width:0;min-height:44px;display:flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:12px;border:1.5px solid var(--success);background:transparent;color:var(--success-ink);font-family:inherit;font-size:13.5px;font-weight:700;line-height:1.25;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
 .lot-hold u{position:absolute;inset:0;background:var(--success);opacity:.25;transform:scaleX(0);transform-origin:left;text-decoration:none;pointer-events:none;}
 .lot-hold.go u{transform:scaleX(1);transition:transform 1s linear;}
 .lot-hold span{position:relative;pointer-events:none;}
@@ -1427,7 +1429,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .slip-match > b{flex:none;white-space:nowrap;}
 .slip-match small{display:block;color:var(--text-dim);font-size:11.5px;font-weight:400;}
 .slip-match.best{border-color:var(--success);border-width:1.5px;}
-.slip-match.best small{color:var(--success);font-weight:600;}
+.slip-match.best small{color:var(--success-ink);font-weight:600;}
 .slip-match.picked{box-shadow:inset 4px 0 0 var(--success);}
 .slip-confirm{margin-top:8px;padding:10px 12px;border:1.5px solid var(--success);border-radius:12px;min-width:0;}
 .slip-kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;min-width:0;}
@@ -1438,7 +1440,21 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .slip-actions{display:flex;gap:8px;margin-top:10px;}
 .slip-actions .btn{min-height:44px;min-width:0;}
 .slip-note{margin-top:8px;font-size:12px;color:var(--text-dim);}
-.slip-warn{margin-top:8px;font-size:12.5px;color:var(--danger);font-weight:600;overflow-wrap:anywhere;}
+.slip-inbox{margin:0 0 10px;min-width:0;}
+.slip-inbox-head{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;}
+.slip-inbox-head i{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 0 0 var(--success);animation:slipPing 2s ease-out 3;}
+@keyframes slipPing{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.slip-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
+.slip-chip{position:relative;flex:none;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:118px;max-width:180px;min-height:52px;padding:8px 30px 8px 12px;border-radius:14px;border:1.5px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;text-align:left;cursor:pointer;}
+.slip-chip b{font-size:16px;line-height:1.15;}
+.slip-chip small{font-size:11px;color:var(--text-dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.slip-chip.on{border-color:var(--success);box-shadow:inset 0 0 0 1px var(--success);}
+.slip-chip.dup{border-style:dashed;border-color:var(--danger);}
+.slip-chip.dup small{color:var(--danger-ink);font-weight:600;}
+.slip-chip.unread b{font-size:13px;color:var(--danger-ink);}
+.slip-chip-x{position:absolute;top:2px;right:2px;width:28px;height:28px;border:none;background:none;color:var(--text-faint);font-size:15px;cursor:pointer;border-radius:50%;font-family:inherit;}
+@media (prefers-reduced-motion:reduce){.slip-inbox-head i{animation:none;}}
+.slip-warn{margin-top:8px;font-size:12.5px;color:var(--danger-ink);font-weight:600;overflow-wrap:anywhere;}
 @media (prefers-reduced-motion:reduce){.lot-tank .lt-pend::before{animation:none;}.lot-hold.go u{transition:transform 1s steps(4,end);}}
 </style>
 </head>
@@ -4779,7 +4795,7 @@ async function renderBillingSummaryTiles(){
 // AY พิมพ์ยอดโอนเอง → ระบบแค่ "เสนอ" บิลค้างโอนที่ยอดตรง ให้ AY เลือกเองแล้วกดยืนยันเอง ระบบไม่ติ๊กจ่ายให้เด็ดขาด
 // ทุกฟังก์ชันในชุดนี้อ่านอย่างเดียว ยกเว้น confirmSlipMatch_ ซึ่งเขียนผ่าน writeBillingPaid_ (patchField ทีละบิล) จุดเดียว
 // ยอดบิลใช้สูตรเดิมของแอป (branchBillAmount + billExtra) ไม่มีสูตรใหม่; ร่างที่พิมพ์ค้างอยู่ในหน่วยความจำเท่านั้น ไม่มีคีย์ storage ใหม่
-let slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null};
+let slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null, inbox:null};
 let slipMatchCands_ = null, slipMatchCandsAt_ = 0, slipMatchSeq_ = 0, slipMatchTimer_ = null, slipMatchBusy_ = false;
 const SLIP_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 function parseSlipAmount_(str){
@@ -4831,7 +4847,14 @@ async function computeSlipMatches_(amount){
   return {exact, near: near.slice(0,5)};
 }
 function slipDateWarnText_(paidDate, billIso){
-  return (SLIP_ISO_RE.test(String(paidDate)) && String(paidDate) < String(billIso)) ? `วันที่โอน ${formatDDMMYYYY(paidDate)} อยู่ก่อนวันที่บิล ${formatDDMMYYYY(billIso)} — ตรวจอีกครั้ง (ยังยืนยันได้)` : '';
+  const p = String(paidDate);
+  if(!SLIP_ISO_RE.test(p)) return '';
+  if(p < String(billIso)) return `วันที่โอน ${formatDDMMYYYY(p)} อยู่ก่อนวันที่บิล ${formatDDMMYYYY(billIso)} — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  // วันที่จากสลิป (OCR) อาจสลับวัน/เดือน — แค่เตือน ไม่บล็อก
+  const today = todayISO();
+  if(p > today) return `วันที่โอน ${formatDDMMYYYY(p)} เป็นวันในอนาคต — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  if(p < addDaysISO(today, -7)) return `วันที่โอน ${formatDDMMYYYY(p)} เก่ากว่า 7 วัน — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  return '';
 }
 function renderSlipMatchCard_(){
   const wrap = document.getElementById('slipMatchCard');
@@ -4840,6 +4863,7 @@ function renderSlipMatchCard_(){
     // โครงสร้างครั้งเดียว — ช่องกรอกไม่ถูกสร้างใหม่ตอนเรนเดอร์ผล โฟกัส/ค่าที่พิมพ์เลยไม่หาย
     wrap.innerHTML = `<div class="card dash-wide-card" style="margin-bottom:16px;">
       <h3 style="margin:0 0 8px;">จับคู่ยอดโอน <span class="subhint">(พิมพ์ยอดจากสลิป แล้วเลือกบิลเอง)</span></h3>
+      <div id="slipInbox" class="slip-inbox" style="display:none;"></div>
       <div class="slip-box">
         <input type="text" inputmode="decimal" id="slipMatchAmount" autocomplete="off" placeholder="ยอดโอน เช่น 1250" aria-label="ยอดโอนจากสลิป">
         <button type="button" class="btn secondary small" data-slipclear>ล้าง</button>
@@ -4856,7 +4880,8 @@ function renderSlipMatchCard_(){
       const t = e.target;
       if(t && t.id === 'slipMatchAmount'){
         slipMatchDraft_.amountStr = t.value;
-        slipMatchDraft_.pick = null; slipMatchDraft_.paidDate = ''; slipMatchDraft_.note = null; slipMatchDraft_.nearMsg = null;
+        slipMatchDraft_.pick = null; slipMatchDraft_.paidDate = ''; slipMatchDraft_.note = null; slipMatchDraft_.nearMsg = null; slipMatchDraft_.inbox = null;
+        markSlipChips_();
         clearTimeout(slipMatchTimer_);
         slipMatchTimer_ = setTimeout(()=>{ renderSlipMatchResults_(); }, 250);
       }else if(t && t.id === 'slipMatchPaidDate'){
@@ -4866,11 +4891,17 @@ function renderSlipMatchCard_(){
       }
     });
     wrap.addEventListener('click', e=>{
-      const el = e.target && e.target.closest ? e.target.closest('[data-slipclear],[data-slipconfirm],[data-slipcancel],[data-slipiso]') : null;
+      const el = e.target && e.target.closest ? e.target.closest('[data-slipclear],[data-slipconfirm],[data-slipcancel],[data-slipiso],[data-slipchipx],[data-slipchip]') : null;
       if(!el || !wrap.contains(el)) return;
-      if(el.hasAttribute('data-slipclear')){
+      if(el.hasAttribute('data-slipchipx')){
+        dismissSlipInbox_(el.getAttribute('data-slipchipx'), el.getAttribute('data-slipday'));
+      }else if(el.hasAttribute('data-slipchip')){
+        if(slipMatchBusy_) return;
+        pickSlipInbox_(el.getAttribute('data-slipchip'), el.getAttribute('data-slipday'));
+      }else if(el.hasAttribute('data-slipclear')){
         clearTimeout(slipMatchTimer_);
-        slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null};
+        slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null, inbox:null};
+        markSlipChips_();
         const i = document.getElementById('slipMatchAmount');
         if(i){ i.value = ''; i.focus(); }
         renderSlipMatchResults_();
@@ -4884,7 +4915,7 @@ function renderSlipMatchCard_(){
         const iso = el.getAttribute('data-slipiso'), code = el.getAttribute('data-slipcode');
         slipMatchDraft_.note = null;
         if(el.getAttribute('data-slipkind') === 'exact'){
-          slipMatchDraft_.pick = {iso, code}; slipMatchDraft_.paidDate = ''; slipMatchDraft_.nearMsg = null;
+          slipMatchDraft_.pick = {iso, code}; slipMatchDraft_.paidDate = (slipMatchDraft_.inbox && slipMatchDraft_.inbox.slipDate) || ''; slipMatchDraft_.nearMsg = null;
         }else{
           // ยอดไม่ตรง: ไม่ตั้ง pick ไม่มีปุ่มยืนยัน — บอกให้ไปติ๊กที่แถวบิลปกติเท่านั้น
           slipMatchDraft_.pick = null; slipMatchDraft_.nearMsg = {iso, code};
@@ -4894,6 +4925,96 @@ function renderSlipMatchCard_(){
     });
   }
   if(slipMatchDraft_.amountStr) renderSlipMatchResults_();
+  renderSlipInbox_();
+}
+// ---- สลิปจากบอท LINE (lineInbox:YYYY-MM-DD เขียนโดย backend/LineBot.gs) ----
+// แค่ "เติมยอดให้" ในช่องพิมพ์ — ทุกอย่างหลังจากนั้นเหมือน AY พิมพ์เอง (เลือกบิลเอง กดยืนยันเอง) ไม่มีการติ๊กจ่ายอัตโนมัติ
+// เขียนเฉพาะป้ายของสลิปเอง (matched/dismissed) ในคีย์ lineInbox ผ่าน writeRootArrayOp_ ทีละรายการ — ไม่แตะเงิน/บิล
+const LINE_INBOX_PREFIX = 'lineInbox:';
+const SLIP_INBOX_DAYS = 3;
+let slipInbox_ = [], slipInboxAt_ = 0, slipInboxSeq_ = 0;
+async function loadSlipInbox_(force){
+  if(!force && slipInboxAt_ && Date.now() - slipInboxAt_ < 30000) return slipInbox_;
+  const days = Array.from({length: SLIP_INBOX_DAYS}, (_, n)=>addDaysISO(todayISO(), -n));
+  const vals = await window.bulkGetStorageImpl(days.map(d=>LINE_INBOX_PREFIX+d));
+  const all = [], out = [];
+  days.forEach(d=>{
+    let arr = null;
+    try{ arr = JSON.parse(vals[LINE_INBOX_PREFIX+d]); }catch(e){}
+    if(!Array.isArray(arr)) return;
+    arr.forEach(x=>{
+      if(!x || x.type !== 'slip' || typeof x.id !== 'string') return;
+      const amount = (typeof x.amount === 'number' && isFinite(x.amount) && x.amount > 0) ? Math.round(x.amount*100)/100 : null;
+      all.push({id:x.id, day:d, at:String(x.at||''), amount, slipDate: SLIP_ISO_RE.test(String(x.slipDate)) ? x.slipDate : null,
+        slipTime: /^\d{2}:\d{2}$/.test(String(x.slipTime)) ? x.slipTime : null, sender: x.sender ? String(x.sender) : '', postedBy: x.postedBy ? String(x.postedBy) : '',
+        ref: x.ref ? String(x.ref) : '', used: !!(x.matched || x.dismissed)});
+    });
+  });
+  all.sort((a,b)=> a.at.localeCompare(b.at)); // เก่าก่อน: ใบแรกที่เห็นคือตัวจริง ใบหลังที่หน้าตาเหมือนกัน = อาจซ้ำ
+  // คนในกลุ่มมักส่งรูปสลิปเดิมซ้ำ (คนละ messageId) — ไม่ซ่อนเอง แค่ติดป้าย "อาจซ้ำ" ให้ AY ตัดสิน
+  const sig = x => x.ref ? 'r:'+x.ref : (x.amount!=null && x.slipDate && x.slipTime ? ['s', x.amount, x.slipDate, x.slipTime, x.sender].join('|') : '');
+  const seenId = new Set(), seenSig = new Set();
+  all.forEach(x=>{
+    const k = x.day+'|'+x.id;
+    if(seenId.has(k)) return; // id เดียวกันซ้ำในคีย์ (เผื่อบอทเขียนซ้ำ) → นับใบเดียว
+    seenId.add(k);
+    const s = sig(x);
+    const dup = !!s && seenSig.has(s);
+    if(s) seenSig.add(s);
+    if(!x.used) out.push(Object.assign({}, x, {dup}));
+  });
+  out.sort((a,b)=> b.at.localeCompare(a.at));
+  slipInbox_ = out; slipInboxAt_ = Date.now();
+  return out;
+}
+async function renderSlipInbox_(force){
+  const box = document.getElementById('slipInbox');
+  if(!box) return;
+  const seq = ++slipInboxSeq_;
+  let items;
+  try{ items = await loadSlipInbox_(force); }catch(e){ return; } // อ่านไม่ได้ = ไม่โชว์ ไม่กระทบการ์ด
+  if(seq !== slipInboxSeq_) return;
+  if(!items.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = `<div class="slip-inbox-head"><i></i>สลิปจาก LINE ${items.length} ใบ <span style="font-weight:400;">· แตะเพื่อเติมยอด</span></div>
+    <div class="slip-chips">${items.map(x=>{
+      const who = x.sender || x.postedBy;
+      const sub = [x.dup ? '⚠️ อาจซ้ำ' : '', x.slipTime || (x.at.slice(11,16)), who].filter(Boolean).join(' · ');
+      const attrs = `data-slipday="${escapeHtml(x.day)}"`;
+      return `<div style="position:relative;flex:none;"><button type="button" class="slip-chip${x.amount==null?' unread':''}${x.dup?' dup':''}" data-slipchip="${escapeHtml(x.id)}" ${attrs} aria-label="${escapeHtml('สลิป '+(x.amount==null?'อ่านยอดไม่ได้':slipMoney_(x.amount))+' '+sub)}">
+        <b class="num">${x.amount==null ? 'อ่านยอดไม่ได้' : escapeHtml(slipMoney_(x.amount))}</b><small>${escapeHtml(sub || formatDDMMYYYY(x.day))}</small></button>
+        <button type="button" class="slip-chip-x" data-slipchipx="${escapeHtml(x.id)}" ${attrs} aria-label="ซ่อนสลิปนี้">×</button></div>`;
+    }).join('')}</div>`;
+  markSlipChips_();
+}
+function markSlipChips_(){
+  const inb = slipMatchDraft_.inbox;
+  document.querySelectorAll('#slipInbox [data-slipchip]').forEach(b=>{
+    b.classList.toggle('on', !!inb && b.getAttribute('data-slipchip')===inb.id && b.getAttribute('data-slipday')===inb.day);
+  });
+}
+function pickSlipInbox_(id, day){
+  const x = slipInbox_.find(v=>v.id===id && v.day===day);
+  if(!x) return;
+  if(x.amount==null){ showToast('อ่านยอดจากสลิปนี้ไม่ได้ — ดูรูปใน LINE แล้วพิมพ์ยอดเอง'); return; }
+  clearTimeout(slipMatchTimer_);
+  const amountStr = String(x.amount);
+  slipMatchDraft_ = {amountStr, pick:null, paidDate:'', nearMsg:null, inbox:{id:x.id, day:x.day, amount:x.amount, slipDate:x.slipDate, dup:!!x.dup},
+    note: x.dup ? 'สลิปนี้หน้าตาเหมือนใบที่ส่งมาก่อน (ยอด/วันที่/เวลา หรือเลขอ้างอิงตรงกัน) — อาจเป็นเงินก้อนเดิม ตรวจในแอปธนาคารก่อนติ๊กจ่าย' : null};
+  const inp = document.getElementById('slipMatchAmount');
+  if(inp) inp.value = amountStr;
+  markSlipChips_();
+  renderSlipMatchResults_();
+}
+async function dismissSlipInbox_(id, day){
+  if(!SLIP_ISO_RE.test(String(day)) || !id) return;
+  if(isOffline_()){ showToast('ต้องต่อเน็ตก่อน'); return; }
+  try{
+    await writeRootArrayOp_(LINE_INBOX_PREFIX+day, {matchField:'id', matchValue:id, set:{dismissed:true, dismissedAt:new Date().toISOString()}}, ()=>{});
+  }catch(e){ showToast('ซ่อนสลิปไม่สำเร็จ ลองใหม่อีกครั้ง'); return; }
+  if(slipMatchDraft_.inbox && slipMatchDraft_.inbox.id===id) slipMatchDraft_.inbox = null;
+  slipInbox_ = slipInbox_.filter(v=>!(v.id===id && v.day===day));
+  renderSlipInbox_();
 }
 // เติม #slipMatchResults เท่านั้น — อ่านอย่างเดียว ไม่เขียนข้อมูล
 async function renderSlipMatchResults_(){
@@ -4916,20 +5037,19 @@ async function renderSlipMatchResults_(){
   const btnHtml = (x, kind, tag)=>`<button type="button" class="slip-match${kind==='exact'?' best':''}${pick && kind==='exact' && pick.iso===x.iso && pick.code===x.code ? ' picked' : ''}" data-slipiso="${escapeHtml(x.iso)}" data-slipcode="${escapeHtml(x.code)}" data-slipkind="${kind}">
       <span>${escapeHtml(x.code)} ${escapeHtml(branchName(x.code))} · ${escapeHtml(formatDDMMYYYY(x.iso))}<small>${escapeHtml(tag)}</small></span><b class="num">${escapeHtml(slipMoney_(x.amt))}</b></button>`;
   let html = noteHtml;
-  if(m.exact.length){
-    html += `<div class="slip-head">บิลที่ยอดตรง</div>` + m.exact.map((x,i)=>btnHtml(x, 'exact', i===0 ? 'ยอดตรงเป๊ะ' : 'ยอดตรง แต่เก่ากว่า')).join('');
-  }
+  let panelHtml = '';
   if(pick){
     const blocked = isOffline_() || readOfflineQueue_().length>0;
     const paidDate = SLIP_ISO_RE.test(String(D.paidDate)) ? D.paidDate : todayISO();
     const warn = slipDateWarnText_(paidDate, pick.iso);
-    html += `<div class="slip-confirm" data-slippanel>
+    panelHtml = `<div class="slip-confirm" data-slippanel>
       <div class="slip-kv"><span>สาขา</span><b>${escapeHtml(pick.code)} ${escapeHtml(branchName(pick.code))}</b></div>
       <div class="slip-kv"><span>วันที่บิล</span><b>${escapeHtml(formatDDMMYYYY(pick.iso))}</b></div>
       <div class="slip-kv"><span>ยอดบิล</span><b class="num">${escapeHtml(slipMoney_(pick.amt))}</b></div>
       <div class="slip-kv"><span>ยอดโอน</span><b class="num">${escapeHtml(slipMoney_(typed))}</b></div>
       <div class="slip-kv"><span>ส่วนต่าง</span><b class="num">${escapeHtml(slipMoney_(0))}</b></div>
-      <label class="slip-date" for="slipMatchPaidDate">วันที่โอน <input type="date" id="slipMatchPaidDate" value="${escapeHtml(paidDate)}"></label>
+      <label class="slip-date" for="slipMatchPaidDate">${D.inbox && D.inbox.slipDate && D.inbox.slipDate===paidDate ? 'วันที่โอน <small style="font-weight:400;color:var(--text-dim);">(อ่านจากสลิป ตรวจก่อน)</small>' : 'วันที่โอน'} <input type="date" id="slipMatchPaidDate" value="${escapeHtml(paidDate)}"></label>
+      ${D.inbox && D.inbox.dup ? `<div class="slip-warn" data-slipdupwarn>⚠️ สลิปนี้อาจซ้ำกับใบที่ส่งมาก่อน — ตรวจในแอปธนาคารก่อนติ๊กจ่าย</div>` : ''}
       <div class="slip-warn" id="slipMatchDateWarn" style="display:${warn?'':'none'};">${escapeHtml(warn)}</div>
       ${isMonthClosed_(pick.iso) ? `<div class="slip-note" data-slipclosed>เดือนของบิลปิดแล้ว (ติ๊กจ่ายได้ตามปกติ)</div>` : ''}
       ${blocked ? `<div class="slip-warn" data-slipoffline>ต้องต่อเน็ตก่อนจับคู่</div>` : ''}
@@ -4939,10 +5059,14 @@ async function renderSlipMatchResults_(){
       </div>
     </div>`;
   }
+  // แผงยืนยันอยู่ใต้บิลที่เลือกทันที (เดิมอยู่ท้ายรายการ ต้องเลื่อนหา)
+  if(m.exact.length){
+    html += `<div class="slip-head">บิลที่ยอดตรง</div>` + m.exact.map((x,i)=>btnHtml(x, 'exact', i===0 ? 'ยอดตรงเป๊ะ' : 'ยอดตรง แต่เก่ากว่า') + (pick && pick.iso===x.iso && pick.code===x.code ? panelHtml : '')).join('');
+  }
   if(m.near.length){
-    html += `<div class="slip-head">ยอดใกล้เคียง (ไม่ตรง — ติ๊กจ่ายจากการ์ดนี้ไม่ได้)</div>` + m.near.map(x=>btnHtml(x, 'near', (x.diff>0 ? 'บิลมากกว่ายอดโอน ' : 'บิลน้อยกว่ายอดโอน ') + slipMoney_(Math.abs(x.diff)))).join('');
     const nm = D.nearMsg ? m.near.find(x=>x.iso===D.nearMsg.iso && x.code===D.nearMsg.code) : null;
-    if(nm) html += `<div class="slip-warn" data-slipnearmsg>ยอดไม่ตรง (ส่วนต่าง ${escapeHtml(slipMoney_(Math.abs(nm.diff)))}) — ติ๊กจ่ายจากการ์ดนี้ไม่ได้ ไปที่แถวบิลวันที่ ${escapeHtml(formatDDMMYYYY(nm.iso))} แล้วกรอกช่อง 'โอนจริง' เอง</div>`;
+    const nmHtml = nm ? `<div class="slip-warn" data-slipnearmsg>ยอดไม่ตรง (ส่วนต่าง ${escapeHtml(slipMoney_(Math.abs(nm.diff)))}) — ติ๊กจ่ายจากการ์ดนี้ไม่ได้ ไปที่แถวบิลวันที่ ${escapeHtml(formatDDMMYYYY(nm.iso))} แล้วกรอกช่อง 'โอนจริง' เอง</div>` : '';
+    html += `<div class="slip-head">ยอดใกล้เคียง (ไม่ตรง — ติ๊กจ่ายจากการ์ดนี้ไม่ได้)</div>` + m.near.map(x=>btnHtml(x, 'near', (x.diff>0 ? 'บิลมากกว่ายอดโอน ' : 'บิลน้อยกว่ายอดโอน ') + slipMoney_(Math.abs(x.diff))) + (nm && nm===x ? nmHtml : '')).join('');
   }
   box.innerHTML = html;
 }
@@ -4997,9 +5121,16 @@ async function confirmSlipMatch_(btn){
     }
     slipMatchCands_ = null;
     if(iso===currentDate) dayData = saved;
-    // เน็ตหลุดระหว่างเขียน → รายการเข้าคิวออฟไลน์ ยังไม่ถึงเซิร์ฟเวอร์ ห้ามบอกว่าสำเร็จ
+    // เน็ตหลุดระหว่างเขียนบิล → รายการเข้าคิวออฟไลน์ (เช็คก่อนเขียนป้ายสลิป ไม่งั้นป้ายที่เข้าคิวทำให้แจ้งผิด)
     const queued = readOfflineQueue_().length>0;
-    slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', nearMsg:null, note: queued ? `ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง — บิล ${code} วันที่ ${formatDDMMYYYY(iso)} จะถูกติ๊กจ่ายเมื่อเน็ตกลับมา (ตรวจอีกครั้งหลังต่อเน็ต)` : null};
+    // สลิปจาก LINE ที่ใช้เติมยอดนี้ → ติดป้ายว่าจับคู่แล้ว (ป้ายของสลิปเท่านั้น ไม่ใช่เงิน) — พังก็ไม่กระทบการติ๊กจ่ายที่สำเร็จไปแล้ว
+    const inb = D.inbox;
+    if(inb && Math.round(Number(inb.amount)*100) === Math.round(typed*100) && !queued){
+      try{ await writeRootArrayOp_(LINE_INBOX_PREFIX+inb.day, {matchField:'id', matchValue:inb.id, set:{matched:{iso, code, at:new Date().toISOString()}}}, ()=>{}); }catch(e){}
+      slipInbox_ = slipInbox_.filter(v=>!(v.id===inb.id && v.day===inb.day));
+      renderSlipInbox_();
+    }
+    slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', nearMsg:null, inbox:null, note: queued ? `ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง — บิล ${code} วันที่ ${formatDDMMYYYY(iso)} จะถูกติ๊กจ่ายเมื่อเน็ตกลับมา (ตรวจอีกครั้งหลังต่อเน็ต)` : null};
     const amtInp = document.getElementById('slipMatchAmount');
     if(amtInp) amtInp.value = '';
     if(queued) showToast('ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง');
@@ -7605,7 +7736,7 @@ function showBackupFallbackModal(jsonStr){
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
 const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
-const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:'];
+const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:'];
 async function exportAllData(){
   let payload;
   try{
@@ -8273,7 +8404,7 @@ async function renderLotSettleCards_(){
       <div class="lot-row">
         <div class="lot-row-top">
           ${tankHtml}
-          <div class="lot-row-txt">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.normalPendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div>${r.overdueSoldQty>0.001?`<div style="color:var(--danger);font-size:11px;">⚠️ ขายออกไปแล้วแต่ยังไม่ตัดต้นทุนอีก ${r.overdueSoldQty} ${r.p.unit}</div>`:''}${tankHtml ? lotTankLegendHtml_(r) : ''}</div>
+          <div class="lot-row-txt">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.normalPendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div>${r.overdueSoldQty>0.001?`<div style="color:var(--danger-ink);font-size:11px;">⚠️ ขายออกไปแล้วแต่ยังไม่ตัดต้นทุนอีก ${r.overdueSoldQty} ${r.p.unit}</div>`:''}${tankHtml ? lotTankLegendHtml_(r) : ''}</div>
         </div>
         ${tankHtml ? `<div class="lot-draws" data-lottankdraws="${pidAttr}" style="display:${lotTankOpen_[r.pid]?'':'none'};">${lotTankDrawsHtml_(r)}</div>` : ''}
         <div class="lot-row-act">
@@ -12803,7 +12934,7 @@ async function switchTab(name){
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
     if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); renderShortfallList(await loadShortfalls()); }
     if(name==='stockform') await renderStockForm_();
-    if(name==='billing'){ slipMatchCands_ = null; renderSlipMatchCard_(); renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
+    if(name==='billing'){ slipMatchCands_ = null; slipInboxAt_ = 0; renderSlipMatchCard_(); renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
     if(name==='noti'){ activityLogCache_ = null; await loadActivityLog(); renderActivityFeed_(); await renderDataGaps(); }
@@ -13120,7 +13251,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.5';
+const APP_BUILD = '2026-11-12.8';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

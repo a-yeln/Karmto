@@ -77,7 +77,9 @@
 หัวจอแน่น + ปุ่มหัวจออยู่บรรทัดเดียว • เทสอัตโนมัติบน GitHub Actions •
 แถบล่างมือถือ 4 ช่อง + ⚡ (`#mNav`, ธีม Sea/Mermaid/Neon ซ่อนเมนูของตัวเองบนมือถือ) • ⚡ ค้นหา/สั่งงาน (`cmdKItems_`, Ctrl+K) •
 ตารางสาขาแตะครั้งเดียวในหน้าออเดอร์ (`renderBranchGrid_`, `openBranchForm_`) •
-แถบอายุค้างรับ 0–3/4–7/เกิน 7 วัน บนศูนย์บัญชาการ (`buildReceivableAging_`) • กราฟขั้นบันไดกำไรใน P&L (`buildProfitWaterfall_`)
+แถบอายุค้างรับ 0–3/4–7/เกิน 7 วัน บนศูนย์บัญชาการ (`buildReceivableAging_`) • กราฟขั้นบันไดกำไรใน P&L (`buildProfitWaterfall_`) •
+ถังล็อต + ปุ่มกดค้าง 1 วินาทีในการ์ดตัดต้นทุนสต็อกล็อต (`lotTankStats_`, `wireLotHold_` — `confirmLotSettle_` ไม่เปลี่ยน) •
+การ์ดจับคู่ยอดโอนกับบิลแบบพิมพ์ยอดเองในแท็บบิล (`computeSlipMatches_`, `confirmSlipMatch_` — ยอดไม่ตรงเป๊ะติ๊กจ่ายจากการ์ดนี้ไม่ได้)
 
 ## ค้างฝั่งเจ้าของ
 - ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)

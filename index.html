@@ -1389,6 +1389,57 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .save-pop{position:fixed;z-index:9999;pointer-events:none;background:#1F9D6B;color:#fff;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;box-shadow:0 6px 16px rgba(0,0,0,.22);white-space:nowrap;transform:translate(-50%,0);animation:savePop 1.6s ease-out forwards;}
 @keyframes savePop{0%{opacity:0;transform:translate(-50%,8px) scale(.8)}14%{opacity:1;transform:translate(-50%,0) scale(1.06)}24%{transform:translate(-50%,0) scale(1)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px)}}
 @media (prefers-reduced-motion:reduce){.save-pop{animation-duration:1.6s;animation-timing-function:step-end}}
+/* ถังล็อต + ปุ่มกดค้างในการ์ด "ตัดต้นทุนสต็อกล็อต" — ถังเป็นภาพอ่านอย่างเดียว ตัวเลขอยู่นอกถัง */
+.lot-row{padding:8px 0;border-top:1px solid var(--border);min-width:0;}
+.lot-row-top{display:flex;align-items:flex-start;gap:8px;min-width:0;}
+.lot-row-txt{flex:1 1 auto;min-width:0;font-size:13px;overflow-wrap:anywhere;}
+.lot-row-act{display:flex;align-items:stretch;gap:8px;margin-top:8px;min-width:0;}
+.lot-row-act input{width:76px;flex:none;min-width:0;}
+.lot-tank{display:flex;flex-direction:column-reverse;width:64px;height:84px;flex:none;padding:0;margin:0;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);overflow:hidden;cursor:pointer;position:relative;font:inherit;-webkit-tap-highlight-color:transparent;}
+.lot-tank:focus-visible,.lot-hold:focus-visible,.slip-match:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.lot-tank i{display:block;flex:0 0 0;min-height:4%;position:relative;}
+.lot-tank .lt-cost{background:var(--success);opacity:.85;}
+.lot-tank .lt-pend{background:var(--accent);}
+.lot-tank .lt-pend::before{content:"";position:absolute;left:-50%;top:-4px;width:200%;height:9px;border-radius:45%;background:var(--accent);animation:lotWave 4s linear 3;}
+.lot-tank .lt-claim{background:repeating-linear-gradient(45deg,var(--text-faint) 0 3px,transparent 3px 7px);}
+.lot-tank .lt-over{position:absolute;left:0;right:0;top:0;display:block;z-index:1;background:repeating-linear-gradient(-45deg,var(--danger) 0 3px,transparent 3px 7px);}
+@keyframes lotWave{to{transform:translateX(25%)}}
+.lot-legend{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;font-size:11px;color:var(--text-dim);}
+.lot-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.lot-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;flex:none;}
+.lot-legend i.c{background:var(--success);opacity:.85;}
+.lot-legend i.p{background:var(--accent);}
+.lot-legend i.k{background:repeating-linear-gradient(45deg,var(--text-faint) 0 2px,transparent 2px 4px);border:1px solid var(--border);}
+.lot-legend em{font-style:normal;color:var(--text-faint);flex-basis:100%;}
+.lot-draws{margin-top:6px;padding:6px 8px;border:1px dashed var(--border);border-radius:10px;font-size:11.5px;color:var(--text-dim);line-height:1.5;overflow-wrap:anywhere;}
+.lot-hold{position:relative;overflow:hidden;flex:1 1 0;min-width:0;min-height:44px;display:flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:12px;border:1.5px solid var(--success);background:transparent;color:var(--success);font-family:inherit;font-size:13.5px;font-weight:700;line-height:1.25;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+.lot-hold u{position:absolute;inset:0;background:var(--success);opacity:.25;transform:scaleX(0);transform-origin:left;text-decoration:none;pointer-events:none;}
+.lot-hold.go u{transform:scaleX(1);transition:transform 1s linear;}
+.lot-hold span{position:relative;pointer-events:none;}
+.lot-hold[disabled]{opacity:.55;cursor:default;}
+/* การ์ด "จับคู่ยอดโอน" */
+.slip-box{display:flex;align-items:center;gap:8px;border:1px dashed var(--accent);border-radius:14px;padding:10px;min-width:0;}
+.slip-box input{flex:1 1 auto;min-width:0;min-height:44px;font-size:16px;}
+.slip-box button{flex:none;width:auto;min-height:44px;}
+.slip-head{margin-top:10px;font-size:12px;font-weight:700;color:var(--text-dim);}
+.slip-match{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-width:0;min-height:44px;margin-top:6px;text-align:left;padding:9px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13.5px;cursor:pointer;}
+.slip-match > span{min-width:0;overflow-wrap:anywhere;}
+.slip-match > b{flex:none;white-space:nowrap;}
+.slip-match small{display:block;color:var(--text-dim);font-size:11.5px;font-weight:400;}
+.slip-match.best{border-color:var(--success);border-width:1.5px;}
+.slip-match.best small{color:var(--success);font-weight:600;}
+.slip-match.picked{box-shadow:inset 4px 0 0 var(--success);}
+.slip-confirm{margin-top:8px;padding:10px 12px;border:1.5px solid var(--success);border-radius:12px;min-width:0;}
+.slip-kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;min-width:0;}
+.slip-kv > span{color:var(--text-dim);flex:none;}
+.slip-kv > b{min-width:0;text-align:right;overflow-wrap:anywhere;}
+.slip-date{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;font-weight:700;color:var(--text);}
+.slip-date input{flex:0 1 170px;min-width:0;min-height:44px;font-size:15px;}
+.slip-actions{display:flex;gap:8px;margin-top:10px;}
+.slip-actions .btn{min-height:44px;min-width:0;}
+.slip-note{margin-top:8px;font-size:12px;color:var(--text-dim);}
+.slip-warn{margin-top:8px;font-size:12.5px;color:var(--danger);font-weight:600;overflow-wrap:anywhere;}
+@media (prefers-reduced-motion:reduce){.lot-tank .lt-pend::before{animation:none;}.lot-hold.go u{transition:transform 1s steps(4,end);}}
 </style>
 </head>
 <body>
@@ -1854,6 +1905,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 
   <div class="panel" id="panel-billing">
     <div class="dash-grid" id="billingSummaryGrid" style="margin-bottom:16px;"></div>
+    <div id="slipMatchCard"></div>
     <div class="card dash-wide-card">
       <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
       <div class="statrow" id="billingTodayStats" style="margin-bottom:10px;"></div>
@@ -4722,6 +4774,240 @@ async function renderBillingSummaryTiles(){
     <div class="dash-metric success"><div class="dm-label">✅ โอนเข้าแล้ววันนี้</div><div class="dm-value num">${money(paidTodayTotal)}</div></div>
     <div class="dash-metric danger"><div class="dm-label">📤 รอจ่ายทั้งหมด</div><div class="dm-value num">${money(payables.total)}</div></div>
     <div class="dash-metric danger"><div class="dm-label">⏳ บิลค้างโอน</div><div class="dm-value num">${totalUnpaidCount} บิล</div></div>`;
+}
+// ---- การ์ด "จับคู่ยอดโอน" (#slipMatchCard) ----
+// AY พิมพ์ยอดโอนเอง → ระบบแค่ "เสนอ" บิลค้างโอนที่ยอดตรง ให้ AY เลือกเองแล้วกดยืนยันเอง ระบบไม่ติ๊กจ่ายให้เด็ดขาด
+// ทุกฟังก์ชันในชุดนี้อ่านอย่างเดียว ยกเว้น confirmSlipMatch_ ซึ่งเขียนผ่าน writeBillingPaid_ (patchField ทีละบิล) จุดเดียว
+// ยอดบิลใช้สูตรเดิมของแอป (branchBillAmount + billExtra) ไม่มีสูตรใหม่; ร่างที่พิมพ์ค้างอยู่ในหน่วยความจำเท่านั้น ไม่มีคีย์ storage ใหม่
+let slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null};
+let slipMatchCands_ = null, slipMatchCandsAt_ = 0, slipMatchSeq_ = 0, slipMatchTimer_ = null, slipMatchBusy_ = false;
+const SLIP_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+function parseSlipAmount_(str){
+  // ไม่เดา: รับเฉพาะตัวเลขล้วน (ตัด , ฿ ช่องว่าง) ทศนิยมไม่เกิน 2 ตำแหน่ง และมากกว่า 0 — นอกนั้นคืน null
+  const t = String(str==null ? '' : str).replace(/[,฿\s]/g, '');
+  if(!/^(\d+\.?\d{0,2}|\.\d{1,2})$/.test(t)) return null;
+  const n = Number(t);
+  return (isFinite(n) && n>0) ? n : null;
+}
+function slipMoney_(n){
+  // แสดงผลอย่างเดียว: money() ปัดเป็นบาท แต่การ์ดนี้เทียบถึงสตางค์ — ยอดที่มีสตางค์ต้องโชว์ 2 ตำแหน่ง ไม่งั้น "ตรงเป๊ะ" จะดูไม่ตรง
+  const c = Math.round(Number(n||0)*100);
+  if(c % 100 === 0) return money(c/100);
+  return (c<0 ? '-' : '') + '฿' + (Math.abs(c)/100).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+// บิลค้างโอนทั้งหมด ตามนิยามเดียวกับหน้า "ค้างโอน" (renderOutstanding): ยอดบิล > 0 และยังไม่มี billingPaid — ไม่ใช้ตัวกรองหน้าจอ
+async function loadSlipCandidates_(force){
+  if(!force && slipMatchCands_ && Date.now() - slipMatchCandsAt_ < 30000) return slipMatchCands_;
+  const listRes = await window.storage.list('day:');
+  const isoList = ((listRes && listRes.keys) || []).map(k=>String(k).slice(4)).filter(iso=>SLIP_ISO_RE.test(iso));
+  const dayMap = await loadDaysBulk(isoList);
+  const out = [];
+  for(const iso of isoList){
+    const d = dayMap[iso];
+    if(!d) continue;
+    Object.entries(d.orders||{}).forEach(([code,row])=>{
+      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
+      if(!(amt>0)) return;
+      if((d.billingPaid||{})[code]) return;
+      out.push({iso, code, amt});
+    });
+  }
+  slipMatchCands_ = out; slipMatchCandsAt_ = Date.now();
+  return out;
+}
+async function computeSlipMatches_(amount){
+  const typedC = Math.round(Number(amount)*100);
+  const exact = [], near = [];
+  if(!(typedC>0)) return {exact, near};
+  const cands = await loadSlipCandidates_();
+  cands.forEach(c=>{
+    const diff = Math.round(c.amt*100) - typedC; // สตางค์: >0 = บิลมากกว่ายอดโอน
+    if(diff===0) exact.push({iso:c.iso, code:c.code, amt:c.amt});
+    else if(Math.abs(diff)<=10000) near.push({iso:c.iso, code:c.code, amt:c.amt, diff: diff/100});
+  });
+  const newest = (a,b)=> String(b.iso).localeCompare(String(a.iso)) || String(a.code).localeCompare(String(b.code));
+  exact.sort(newest);
+  near.sort((a,b)=> Math.abs(a.diff)-Math.abs(b.diff) || newest(a,b));
+  return {exact, near: near.slice(0,5)};
+}
+function slipDateWarnText_(paidDate, billIso){
+  return (SLIP_ISO_RE.test(String(paidDate)) && String(paidDate) < String(billIso)) ? `วันที่โอน ${formatDDMMYYYY(paidDate)} อยู่ก่อนวันที่บิล ${formatDDMMYYYY(billIso)} — ตรวจอีกครั้ง (ยังยืนยันได้)` : '';
+}
+function renderSlipMatchCard_(){
+  const wrap = document.getElementById('slipMatchCard');
+  if(!wrap) return;
+  if(!wrap.firstElementChild){
+    // โครงสร้างครั้งเดียว — ช่องกรอกไม่ถูกสร้างใหม่ตอนเรนเดอร์ผล โฟกัส/ค่าที่พิมพ์เลยไม่หาย
+    wrap.innerHTML = `<div class="card dash-wide-card" style="margin-bottom:16px;">
+      <h3 style="margin:0 0 8px;">จับคู่ยอดโอน <span class="subhint">(พิมพ์ยอดจากสลิป แล้วเลือกบิลเอง)</span></h3>
+      <div class="slip-box">
+        <input type="text" inputmode="decimal" id="slipMatchAmount" autocomplete="off" placeholder="ยอดโอน เช่น 1250" aria-label="ยอดโอนจากสลิป">
+        <button type="button" class="btn secondary small" data-slipclear>ล้าง</button>
+      </div>
+      <div id="slipMatchResults" aria-live="polite"></div>
+      <div class="slip-note">เลือกเองทุกครั้ง ระบบไม่ติ๊กจ่ายให้</div>
+    </div>`;
+  }
+  const inp = document.getElementById('slipMatchAmount');
+  if(inp && inp.value !== slipMatchDraft_.amountStr) inp.value = slipMatchDraft_.amountStr;
+  if(!wrap.__wired){
+    wrap.__wired = true;
+    wrap.addEventListener('input', e=>{
+      const t = e.target;
+      if(t && t.id === 'slipMatchAmount'){
+        slipMatchDraft_.amountStr = t.value;
+        slipMatchDraft_.pick = null; slipMatchDraft_.paidDate = ''; slipMatchDraft_.note = null; slipMatchDraft_.nearMsg = null;
+        clearTimeout(slipMatchTimer_);
+        slipMatchTimer_ = setTimeout(()=>{ renderSlipMatchResults_(); }, 250);
+      }else if(t && t.id === 'slipMatchPaidDate'){
+        slipMatchDraft_.paidDate = t.value;
+        const w = document.getElementById('slipMatchDateWarn');
+        if(w && slipMatchDraft_.pick){ const msg = slipDateWarnText_(t.value, slipMatchDraft_.pick.iso); w.textContent = msg; w.style.display = msg ? '' : 'none'; }
+      }
+    });
+    wrap.addEventListener('click', e=>{
+      const el = e.target && e.target.closest ? e.target.closest('[data-slipclear],[data-slipconfirm],[data-slipcancel],[data-slipiso]') : null;
+      if(!el || !wrap.contains(el)) return;
+      if(el.hasAttribute('data-slipclear')){
+        clearTimeout(slipMatchTimer_);
+        slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null};
+        const i = document.getElementById('slipMatchAmount');
+        if(i){ i.value = ''; i.focus(); }
+        renderSlipMatchResults_();
+      }else if(el.hasAttribute('data-slipconfirm')){
+        confirmSlipMatch_(el);
+      }else if(el.hasAttribute('data-slipcancel')){
+        slipMatchDraft_.pick = null; slipMatchDraft_.paidDate = '';
+        renderSlipMatchResults_();
+      }else{
+        if(slipMatchBusy_) return;
+        const iso = el.getAttribute('data-slipiso'), code = el.getAttribute('data-slipcode');
+        slipMatchDraft_.note = null;
+        if(el.getAttribute('data-slipkind') === 'exact'){
+          slipMatchDraft_.pick = {iso, code}; slipMatchDraft_.paidDate = ''; slipMatchDraft_.nearMsg = null;
+        }else{
+          // ยอดไม่ตรง: ไม่ตั้ง pick ไม่มีปุ่มยืนยัน — บอกให้ไปติ๊กที่แถวบิลปกติเท่านั้น
+          slipMatchDraft_.pick = null; slipMatchDraft_.nearMsg = {iso, code};
+        }
+        renderSlipMatchResults_();
+      }
+    });
+  }
+  if(slipMatchDraft_.amountStr) renderSlipMatchResults_();
+}
+// เติม #slipMatchResults เท่านั้น — อ่านอย่างเดียว ไม่เขียนข้อมูล
+async function renderSlipMatchResults_(){
+  const box = document.getElementById('slipMatchResults');
+  if(!box) return;
+  const seq = ++slipMatchSeq_;
+  const D = slipMatchDraft_;
+  const noteHtml = D.note ? `<div class="slip-warn" data-slipnote>${escapeHtml(D.note)}</div>` : '';
+  if(!String(D.amountStr||'').trim()){ box.innerHTML = noteHtml; return; }
+  const typed = parseSlipAmount_(D.amountStr);
+  if(typed==null){ box.innerHTML = noteHtml + `<div class="slip-note" data-slipbad>กรอกยอดโอนเป็นตัวเลข</div>`; return; }
+  let m;
+  try{ m = await computeSlipMatches_(typed); }
+  catch(e){ if(seq===slipMatchSeq_) box.innerHTML = noteHtml + `<div class="slip-warn">โหลดรายการบิลไม่ได้ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง</div>`; return; }
+  if(seq !== slipMatchSeq_) return; // มีผลของยอดที่พิมพ์ใหม่กว่ามาแล้ว ทิ้งผลเก่า
+  // pick ต้องเป็นบิล "ยอดตรงเป๊ะ" ในผลชุดนี้เท่านั้น ไม่งั้นทิ้ง (กันยืนยันบิลที่ยอดไม่ตรงแล้ว)
+  let pick = D.pick ? m.exact.find(x=>x.iso===D.pick.iso && x.code===D.pick.code) : null;
+  D.pick = pick ? {iso:pick.iso, code:pick.code, amt:pick.amt} : null;
+  if(m.exact.length===0 && m.near.length===0){ box.innerHTML = noteHtml + `<div class="slip-note" data-slipempty>ไม่พบบิลค้างโอนที่ยอดใกล้เคียง</div>`; return; }
+  const btnHtml = (x, kind, tag)=>`<button type="button" class="slip-match${kind==='exact'?' best':''}${pick && kind==='exact' && pick.iso===x.iso && pick.code===x.code ? ' picked' : ''}" data-slipiso="${escapeHtml(x.iso)}" data-slipcode="${escapeHtml(x.code)}" data-slipkind="${kind}">
+      <span>${escapeHtml(x.code)} ${escapeHtml(branchName(x.code))} · ${escapeHtml(formatDDMMYYYY(x.iso))}<small>${escapeHtml(tag)}</small></span><b class="num">${escapeHtml(slipMoney_(x.amt))}</b></button>`;
+  let html = noteHtml;
+  if(m.exact.length){
+    html += `<div class="slip-head">บิลที่ยอดตรง</div>` + m.exact.map((x,i)=>btnHtml(x, 'exact', i===0 ? 'ยอดตรงเป๊ะ' : 'ยอดตรง แต่เก่ากว่า')).join('');
+  }
+  if(pick){
+    const blocked = isOffline_() || readOfflineQueue_().length>0;
+    const paidDate = SLIP_ISO_RE.test(String(D.paidDate)) ? D.paidDate : todayISO();
+    const warn = slipDateWarnText_(paidDate, pick.iso);
+    html += `<div class="slip-confirm" data-slippanel>
+      <div class="slip-kv"><span>สาขา</span><b>${escapeHtml(pick.code)} ${escapeHtml(branchName(pick.code))}</b></div>
+      <div class="slip-kv"><span>วันที่บิล</span><b>${escapeHtml(formatDDMMYYYY(pick.iso))}</b></div>
+      <div class="slip-kv"><span>ยอดบิล</span><b class="num">${escapeHtml(slipMoney_(pick.amt))}</b></div>
+      <div class="slip-kv"><span>ยอดโอน</span><b class="num">${escapeHtml(slipMoney_(typed))}</b></div>
+      <div class="slip-kv"><span>ส่วนต่าง</span><b class="num">${escapeHtml(slipMoney_(0))}</b></div>
+      <label class="slip-date" for="slipMatchPaidDate">วันที่โอน <input type="date" id="slipMatchPaidDate" value="${escapeHtml(paidDate)}"></label>
+      <div class="slip-warn" id="slipMatchDateWarn" style="display:${warn?'':'none'};">${escapeHtml(warn)}</div>
+      ${isMonthClosed_(pick.iso) ? `<div class="slip-note" data-slipclosed>เดือนของบิลปิดแล้ว (ติ๊กจ่ายได้ตามปกติ)</div>` : ''}
+      ${blocked ? `<div class="slip-warn" data-slipoffline>ต้องต่อเน็ตก่อนจับคู่</div>` : ''}
+      <div class="slip-actions">
+        <button type="button" class="btn" data-slipconfirm${blocked ? ' disabled' : ''}>ยืนยันติ๊กจ่าย</button>
+        <button type="button" class="btn secondary" data-slipcancel>ยกเลิก</button>
+      </div>
+    </div>`;
+  }
+  if(m.near.length){
+    html += `<div class="slip-head">ยอดใกล้เคียง (ไม่ตรง — ติ๊กจ่ายจากการ์ดนี้ไม่ได้)</div>` + m.near.map(x=>btnHtml(x, 'near', (x.diff>0 ? 'บิลมากกว่ายอดโอน ' : 'บิลน้อยกว่ายอดโอน ') + slipMoney_(Math.abs(x.diff)))).join('');
+    const nm = D.nearMsg ? m.near.find(x=>x.iso===D.nearMsg.iso && x.code===D.nearMsg.code) : null;
+    if(nm) html += `<div class="slip-warn" data-slipnearmsg>ยอดไม่ตรง (ส่วนต่าง ${escapeHtml(slipMoney_(Math.abs(nm.diff)))}) — ติ๊กจ่ายจากการ์ดนี้ไม่ได้ ไปที่แถวบิลวันที่ ${escapeHtml(formatDDMMYYYY(nm.iso))} แล้วกรอกช่อง 'โอนจริง' เอง</div>`;
+  }
+  box.innerHTML = html;
+}
+// จุดเขียนจุดเดียวของการ์ดจับคู่: AY กด "ยืนยันติ๊กจ่าย" เอง → เช็คข้อมูลสดจากเซิร์ฟเวอร์ → writeBillingPaid_ ครั้งเดียว
+async function confirmSlipMatch_(btn){
+  const D = slipMatchDraft_;
+  const pick = D.pick, typed = parseSlipAmount_(D.amountStr);
+  if(!pick || typed==null){ showToast('เลือกบิลที่ยอดตรงก่อน'); return; }
+  if(!SLIP_ISO_RE.test(String(pick.iso||'')) || !(pick.amt>0)){ showToast('เลือกบิลที่ยอดตรงก่อน'); return; }
+  if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อนจับคู่'); return; }
+  if(slipMatchBusy_) return;
+  slipMatchBusy_ = true;
+  const btnText = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'กำลังเช็คข้อมูลล่าสุด…'; }
+  const reopen = ()=>{ if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btnText; } };
+  const iso = pick.iso, code = pick.code;
+  const dateEl = document.getElementById('slipMatchPaidDate');
+  const paidDate = (dateEl && SLIP_ISO_RE.test(dateEl.value)) ? dateEl.value : todayISO();
+  // ถูกบล็อก = ไม่เขียนอะไร; ถ้าได้ของสดมา อัปเดตแคชให้ตรงของจริง (3 จุดแบบเดียวกับ confirmLotSettle_) แล้ววาดรายการใหม่
+  const block = async (msg, fresh)=>{
+    if(fresh){
+      dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
+      if(iso===currentDate){ dayData = fresh; renderBillingList(); renderStats(); }
+    }
+    slipMatchCands_ = null; D.pick = null; D.note = msg;
+    showToast(msg);
+    await renderSlipMatchResults_();
+    if(fresh){ try{ await renderOutstanding(); }catch(e){} }
+  };
+  try{
+    let fresh = null;
+    try{
+      // อ่านตรงจากเซิร์ฟเวอร์ ไม่ผ่าน loadDay() (วันเก่ากว่า 3 วัน loadDay คืนแคชในเครื่อง เช็คของจริงไม่ได้)
+      const r = await window.storage.get('day:'+iso);
+      fresh = normalizeDay_(JSON.parse(r.value));
+    }catch(e){ await block('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ติ๊กจ่าย', null); return; }
+    if(!fresh.orders[code]){ await block('ไม่พบออเดอร์ของบิลนี้แล้ว ยังไม่ได้ติ๊กจ่าย', fresh); return; }
+    if(fresh.billingPaid[code]){ await block('บิลนี้ถูกติ๊กจ่ายแล้ว ไม่ได้บันทึกซ้ำ', fresh); return; }
+    const freshAmt = branchBillAmount(fresh.orders[code], iso) + Number((fresh.billExtra||{})[code]||0);
+    const freshC = Math.round(freshAmt*100);
+    if(freshC !== Math.round(Number(pick.amt)*100) || freshC !== Math.round(typed*100)){
+      await block(`ยอดบิลเปลี่ยน ${slipMoney_(pick.amt)} → ${slipMoney_(freshAmt)} ยังไม่ได้ติ๊กจ่าย`, fresh); return;
+    }
+    // เช็คซ้ำก่อนเขียน: ถ้าเน็ตหลุดตรงนี้ wrapper จะเอาเข้าคิวออฟไลน์ (เขียนโดยไม่ได้เช็คสด) — ไม่ยอมให้เกิด
+    if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อนจับคู่ ยังไม่ได้ติ๊กจ่าย'); reopen(); return; }
+    if(btn) btn.textContent = 'กำลังบันทึก…';
+    let saved;
+    try{
+      saved = await writeBillingPaid_(iso, code, {paid:true, paidDate, transferAmount: typed, billedAmount: freshAmt});
+    }catch(e){
+      showToast('ยังไม่แน่ใจว่าบันทึกหรือไม่ (เน็ตมีปัญหา?) ตรวจที่แถวบิลก่อนกดซ้ำ'); reopen(); return;
+    }
+    slipMatchCands_ = null;
+    if(iso===currentDate) dayData = saved;
+    // เน็ตหลุดระหว่างเขียน → รายการเข้าคิวออฟไลน์ ยังไม่ถึงเซิร์ฟเวอร์ ห้ามบอกว่าสำเร็จ
+    const queued = readOfflineQueue_().length>0;
+    slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', nearMsg:null, note: queued ? `ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง — บิล ${code} วันที่ ${formatDDMMYYYY(iso)} จะถูกติ๊กจ่ายเมื่อเน็ตกลับมา (ตรวจอีกครั้งหลังต่อเน็ต)` : null};
+    const amtInp = document.getElementById('slipMatchAmount');
+    if(amtInp) amtInp.value = '';
+    if(queued) showToast('ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง');
+    else showToast(`ติ๊กจ่ายแล้ว ${code} ${branchName(code)} ${slipMoney_(freshAmt)}`);
+    await renderSlipMatchResults_();
+    renderBillingList(); renderStats();
+    await renderOutstanding(); await renderBillingSummaryTiles();
+  }finally{ slipMatchBusy_ = false; }
 }
 // สถิติสรุปของ "บิลรายสาขา — วันที่เลือก" (สาขาที่สั่งวันนี้/ชำระแล้วกี่สาขา/ยอดรวมออเดอร์/ยอดที่โอนเข้าจริงแล้ว) — คนละเรื่องกับ
 // #billingSummaryGrid ด้านบนสุด (renderBillingSummaryTiles) ซึ่งเป็นยอดสะสมข้ามวันทั้งร้าน ตัวนี้ผูกกับวันที่กำลังดูอยู่วันเดียว
@@ -7806,6 +8092,27 @@ async function lotPendingStock_(productId, preloadedLots, asOfDate){
   items.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.drawId).localeCompare(String(b.drawId)));
   return {qty: Math.round(qty*100)/100, avgCostPerUnit: qty>0 ? costSum/qty : 0, items};
 }
+// ตัวเลขสำหรับ "ภาพถังล็อต" ในการ์ดตัดต้นทุน — อ่านอย่างเดียว ไม่โหลด/ไม่เขียนอะไร (ต้องส่ง lots ที่โหลดแล้วเข้ามา)
+// ใช้ลูป/ตัวกรองชุดเดียวกับ lotPendingStock_ ข้างบนเป๊ะ (นับเฉพาะรอบเบิกถึง asOfDate ที่ยังค้างตัด) และ "ค้าง" มาจาก
+// drawPendingQty_ เท่านั้น ไม่มีสูตรลบของตัวเอง — ผลรวม pend จึงต้องเท่ากับ lotPendingStock_().qty เสมอ
+function lotTankStats_(productId, lots, asOfDate){
+  let sellable = 0, costed = 0, claimed = 0, pendSum = 0;
+  const draws = [];
+  for(const lot of (lots||[])){
+    if(lot.productId!==productId) continue;
+    for(const d of (lot.draws||[])){
+      if(asOfDate && String(d.date) > String(asOfDate)) continue;
+      const pend = drawPendingQty_(d);
+      if(pend<=0.001) continue;
+      const sq = Number(d.sellableQty||0), cq = Number(d.costedQty||0), kq = Number(d.claimedQty||0);
+      sellable += sq; costed += cq; claimed += kq; pendSum += pend;
+      draws.push({id:d.id, date:d.date, sellableQty:sq, costedQty:cq, claimedQty:kq, pend});
+    }
+  }
+  draws.sort((a,b)=> String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+  const r2 = x=>Math.round(x*100)/100;
+  return {sellable:r2(sellable), costed:r2(costed), claimed:r2(claimed), pend:r2(pendSum), draws};
+}
 // เวลาเคลม/ตัดของเสียของสินค้าที่มีล็อตวัตถุดิบ (rawLots) ต้องหักจำนวนที่เคลมออกจาก "ค้างตัดต้นทุน" ด้วย ไม่งั้นค้างตัดต้นทุน
 // จะไม่ตรงกับของที่เหลือขายได้จริง — ใช้ FIFO ตัดจากรอบเบิกเก่าสุดก่อน เหมือนกับตอนตัดต้นทุนปกติ (lotPendingStock_ เรียงมาให้
 // เก่าสุดก่อนอยู่แล้ว) ฟังก์ชันนี้แค่คำนวณว่าควรหักรอบเบิกไหนเท่าไหร่ ไม่เขียนอะไรลงข้อมูลเอง (ให้ผู้เรียกจัดการเขียนเอง)
@@ -7877,6 +8184,11 @@ async function renderPendingStockValueCard_(){
 // "ยังไม่ได้บันทึกต้นทุนซื้อ" ที่การ์ดแจ้งเตือนใช้) โชว์เฉพาะสินค้าที่วันนี้ยังต้องการเพิ่ม และมีสต็อกให้ตัดได้จริงเท่านั้น
 let lotSettleCardOpen = true; // พับทั้งการ์ดได้ (แยกจาก lotSettleFoldOpen ที่พับแค่กลุ่ม "ถึง order วันนี้แล้ว" ข้างใน) — คงค่าไว้ข้ามการ re-render
 let lotSettleCardsSeq_ = 0;
+let lotTankOpen_ = {};      // ถังของสินค้าไหนกางรายการรอบเบิกอยู่ — คงค่าไว้ข้ามการ re-render (หน่วยความจำเท่านั้น)
+let lotHold_ = null;        // การกดค้างที่กำลังนับเวลาอยู่ {btn, pid, input, pointerId, pointerType, iso, timer}
+let lotHoldBusy_ = false;   // กำลังเรียก confirmLotSettle_ จากการกดค้างอยู่ (กันเริ่มค้างซ้ำ/ค้างสองแถวพร้อมกัน)
+let lotHoldFiredAt_ = 0, lotHoldHintAt_ = 0;
+const LOT_HOLD_MS = 1000;
 async function computeLotSettleRows_(lots){
   const productIdsWithLots = Array.from(new Set(lots.map(l=>l.productId)));
   // ใช้ "ยอดออเดอร์ดิบของวันนี้" ตรงๆ ไม่ใช่ computeNeededQtyToday() (ที่หักลบของเหลือยกมาออกไปด้วย) — เพราะของเหลือที่ถูกหักไปนั้น
@@ -7913,9 +8225,31 @@ async function computeLotSettleRows_(lots){
     // (แถวนี้เอง + การ์ดแดชบอร์ด/แบนเนอร์หน้าต้นทุนซื้อ) แต่ต้องกดตัดเองเสมอ ผู้ใช้จะได้รู้ตัวชัดเจนว่ากำลังตัดของเก่าอยู่
     const suggested = remainingNeedToday>0 ? (sellableUnitIsWhole_(pid) ? Math.round(Math.min(pendingQty, remainingNeedToday)) : Math.round(Math.min(pendingQty, remainingNeedToday)*100)/100) : 0;
     const matched = remainingNeedToday<=0;
-    rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched});
+    rows.push({pid, p, pendingQty, normalPendingQty, overdueSoldQty, avgCostPerUnit, suggested, matched, tank: lotTankStats_(pid, lots, currentDate)});
   }
   return rows;
+}
+// ภาพถังของสินค้า 1 แถว (อ่านอย่างเดียว) — ล่างขึ้นบน: ตัดแล้ว / รอตัด / เคลม สัดส่วนต่อ "ขายได้" ของรอบเบิกที่ยังค้างตัด
+// กันมั่ว: ถ้าตัวเลขถังไม่ตรงกับยอดค้างของแถว (หรือไม่มีขายได้) ไม่วาดถังเลย แถวจะแสดงข้อความเดิมอย่างเดียว
+function lotTankHtml_(r){
+  const t = r.tank;
+  if(!t || !(t.sellable>0) || Math.abs(t.pend - r.pendingQty) > 0.011) return '';
+  const grow = v=>(Math.max(0, Number(v)||0) / t.sellable * 100).toFixed(2);
+  const overPct = (r.overdueSoldQty>0.001 && r.pendingQty>0) ? Math.min(100, Number(r.overdueSoldQty)/Number(r.pendingQty)*100) : 0;
+  const layer = (cls, v, inner)=> Number(v)>0 ? `<i class="${cls}" style="flex-grow:${grow(v)};">${inner||''}</i>` : '';
+  const label = `ถัง ${r.p.name} เฉพาะรอบที่ยังค้างตัด: ขายได้ ${Number(t.sellable)} ตัดแล้ว ${Number(t.costed)} รอตัด ${Number(t.pend)} เคลม ${Number(t.claimed)} ${r.p.unit} — แตะเพื่อดูรอบเบิก`;
+  return `<button type="button" class="lot-tank" data-lottanktoggle="${escapeHtml(r.pid)}" aria-expanded="${lotTankOpen_[r.pid]?'true':'false'}" aria-label="${escapeHtml(label)}">${layer('lt-cost', t.costed)}${layer('lt-pend', t.pend, overPct>0 ? `<b class="lt-over" style="height:${overPct.toFixed(2)}%;"></b>` : '')}${layer('lt-claim', t.claimed)}</button>`;
+}
+function lotTankLegendHtml_(r){
+  const t = r.tank, u = escapeHtml(r.p.unit);
+  return `<div class="lot-legend"><span>ขายได้ ${Number(t.sellable)} ${u}</span><span><i class="c"></i>ตัดแล้ว ${Number(t.costed)}</span><span><i class="p"></i>รอตัด ${Number(t.pend)}</span>${t.claimed>0 ? `<span><i class="k"></i>เคลม ${Number(t.claimed)}</span>` : ''}<em>เฉพาะรอบที่ยังค้างตัด</em></div>`;
+}
+function lotTankDrawsHtml_(r){
+  const u = escapeHtml(r.p.unit);
+  return (r.tank.draws||[]).map(d=>{
+    const dm = /^\d{4}-\d{2}-\d{2}$/.test(String(d.date)) ? formatDDMMYYYY(String(d.date)).slice(0,5) : String(d.date||'-');
+    return `<div>เบิก ${escapeHtml(dm)} — ขายได้ ${Number(d.sellableQty)} · ตัดแล้ว ${Number(d.costedQty)} · รอ ${Number(d.pend)} ${u}${d.claimedQty>0 ? ` · เคลม ${Number(d.claimedQty)}` : ''}</div>`;
+  }).join('');
 }
 async function renderLotSettleCards_(){
   const wrap = document.getElementById('lotSettleCards');
@@ -7932,19 +8266,29 @@ async function renderLotSettleCards_(){
   if(rows.length===0){ wrap.innerHTML=''; return; }
   const activeRows = rows.filter(r=>!r.matched);
   const matchedRows = rows.filter(r=>r.matched);
-  const rowHtml = (r)=>`
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);">
-        <div style="flex:1 1 150px;min-width:120px;font-size:13px;">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.normalPendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div>${r.overdueSoldQty>0.001?`<div style="color:var(--danger);font-size:11px;">⚠️ ขายออกไปแล้วแต่ยังไม่ตัดต้นทุนอีก ${r.overdueSoldQty} ${r.p.unit}</div>`:''}</div>
-        <input type="number" min="0" step="${sellableUnitIsWhole_(r.pid)?'1':'0.1'}" inputmode="decimal" data-lotsettleqty="${r.pid}" value="${r.suggested||''}" placeholder="0" style="width:70px;flex:none;">
-        <button class="btn small" data-lotsettleconfirm="${r.pid}" style="width:auto;flex:none;padding:6px 10px;">✅ ตัด</button>
+  const rowHtml = (r)=>{
+    const pidAttr = escapeHtml(r.pid);
+    const tankHtml = lotTankHtml_(r);
+    return `
+      <div class="lot-row">
+        <div class="lot-row-top">
+          ${tankHtml}
+          <div class="lot-row-txt">${r.p.emoji} ${r.p.name}<div style="color:var(--text-dim);font-size:11px;">ค้าง ${r.normalPendingQty} ${r.p.unit} • ~${money(r.avgCostPerUnit)}/${r.p.unit}</div>${r.overdueSoldQty>0.001?`<div style="color:var(--danger);font-size:11px;">⚠️ ขายออกไปแล้วแต่ยังไม่ตัดต้นทุนอีก ${r.overdueSoldQty} ${r.p.unit}</div>`:''}${tankHtml ? lotTankLegendHtml_(r) : ''}</div>
+        </div>
+        ${tankHtml ? `<div class="lot-draws" data-lottankdraws="${pidAttr}" style="display:${lotTankOpen_[r.pid]?'':'none'};">${lotTankDrawsHtml_(r)}</div>` : ''}
+        <div class="lot-row-act">
+          <input type="number" min="0" step="${sellableUnitIsWhole_(r.pid)?'1':'0.1'}" inputmode="decimal" data-lotsettleqty="${pidAttr}" value="${r.suggested||''}" placeholder="0">
+          <button type="button" class="lot-hold" data-lotsettleconfirm="${pidAttr}" aria-label="${escapeHtml('กดค้าง 1 วินาทีเพื่อตัดต้นทุน '+r.p.name)}"><u></u><span data-lotholdlabel>กดค้างเพื่อตัด</span></button>
+        </div>
       </div>`;
+  };
   wrap.innerHTML = `<div class="card dash-wide-card">
     <div id="lotSettleToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
       <h3 style="margin:0;">📦 ตัดต้นทุนสต็อกล็อต</h3>
       <span id="lotSettleChevron" style="font-size:14px;color:var(--accent);flex:none;">${lotSettleCardOpen?'▾':'▸'}</span>
     </div>
     <div id="lotSettleBody" style="display:${lotSettleCardOpen?'':'none'};">
-    <div class="hint">ตัวเลขในช่องกรอกเป็นแค่ค่าแนะนำ (เท่าที่ใช้จริงวันนี้ตามออเดอร์) — ระบบไม่ตัดต้นทุนให้เองเด็ดขาด ต้องตรวจสอบจำนวนแล้วกด "✅ ตัด" เองทุกครั้ง</div>
+    <div class="hint">ตัวเลขในช่องกรอกเป็นแค่ค่าแนะนำ (เท่าที่ใช้จริงวันนี้ตามออเดอร์) — ระบบไม่ตัดต้นทุนให้เองเด็ดขาด ต้องตรวจสอบจำนวนแล้วกดค้างปุ่มตัด 1 วินาทีเองทุกครั้ง</div>
     ${currentDate!==todayISO() ? `<div class="hint" style="color:var(--danger);margin-top:4px;">📅 กำลังดูวันที่ ${formatDDMMYYYY(currentDate)} — ตัวเลข "ค้าง" ด้านล่างนับเฉพาะของที่เบิกมาถึงวันนี้เท่านั้น ไม่รวมรอบเบิกของวันหลังจากนี้ที่ยังไม่ตัดต้นทุน (ดูยอดค้างตัดต้นทุนรวมทั้งหมดปัจจุบันได้ที่การ์ด "เงินค้างสต็อก" ด้านบนแทน หรือสลับไปวันปัจจุบันเพื่อตัดต้นทุนรอบเบิกใหม่กว่านี้)</div>` : ''}
     ${activeRows.length ? `<div style="margin-top:6px;">${activeRows.map(rowHtml).join('')}</div>` : `<div class="hint" style="margin-top:6px;">✅ วันนี้ไม่มีสินค้าที่ต้องตัดต้นทุนเพิ่มแล้ว</div>`}
     ${matchedRows.length ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
@@ -7956,7 +8300,17 @@ async function renderLotSettleCards_(){
     </div>` : ''}
     </div>
   </div>`;
-  wrap.querySelectorAll('[data-lotsettleconfirm]').forEach(btn=>btn.addEventListener('click', ()=>confirmLotSettle_(btn.getAttribute('data-lotsettleconfirm'))));
+  // ปุ่มตัด = กดค้าง 1 วินาที (กันนิ้วลั่น) — click/แตะสั้นไม่ตัด; ครบเวลาแล้วเรียก confirmLotSettle_(pid) เหมือนเดิมทุกอย่าง
+  wireLotHold_(wrap);
+  wrap.querySelectorAll('[data-lottanktoggle]').forEach(tk=>tk.addEventListener('click', ()=>{
+    const pid = tk.getAttribute('data-lottanktoggle');
+    lotTankOpen_[pid] = !lotTankOpen_[pid];
+    tk.setAttribute('aria-expanded', lotTankOpen_[pid] ? 'true' : 'false');
+    const row = tk.closest('.lot-row'), box = row && row.querySelector('[data-lottankdraws]');
+    if(box) box.style.display = lotTankOpen_[pid] ? '' : 'none';
+  }));
+  wrap.querySelectorAll('[data-lotsettleqty]').forEach(inp=>inp.addEventListener('input', ()=>lotHoldLabelSync_(inp.getAttribute('data-lotsettleqty'))));
+  lotHoldLabelSyncAll_();
   const cardToggle = document.getElementById('lotSettleToggle');
   if(cardToggle){
     cardToggle.addEventListener('click', ()=>{
@@ -7974,6 +8328,138 @@ async function renderLotSettleCards_(){
       body.style.display = opening ? '' : 'none';
       if(chevron) chevron.textContent = opening ? '▴' : '▾';
     });
+  }
+}
+// ---- ปุ่มกดค้าง 1 วินาทีเพื่อตัดต้นทุน ----
+// เปลี่ยนแค่ "วิธีเรียก" confirmLotSettle_ (จาก click เป็นค้างครบ 1 วิ) ตรรกะตัดต้นทุน/กุญแจ/rollback อยู่ใน confirmLotSettle_ เดิมทั้งหมด
+// จำนวนที่จะตัด = ค่าในช่อง data-lotsettleqty ตัวเดิม (confirmLotSettle_ อ่านเอง) ฟังก์ชันชุดนี้ไม่เขียนข้อมูลใดๆ เอง
+function lotHoldQty_(pid, input){
+  // ปัดแบบเดียวกับที่ confirmLotSettle_ จะตัดจริง (สินค้าขายเป็นกระปุก = จำนวนเต็ม) — 0.4 กระปุก = 0 = ไม่เริ่ม
+  let n = Number(input && input.value);
+  if(sellableUnitIsWhole_(pid)) n = Math.round(n);
+  else n = Math.round(n*100)/100; // ป้ายปุ่มตรงกับ costedQty ที่ปัด 2 ตำแหน่งตอนตัดจริง
+  return n>0 ? n : 0;
+}
+function lotHoldEls_(pid){
+  let btn = null, input = null;
+  document.querySelectorAll('[data-lotsettleconfirm]').forEach(b=>{ if(!btn && b.getAttribute('data-lotsettleconfirm')===pid) btn = b; });
+  document.querySelectorAll('[data-lotsettleqty]').forEach(i=>{ if(!input && i.getAttribute('data-lotsettleqty')===pid) input = i; });
+  return {btn, input};
+}
+function lotHoldLabelSync_(pid){
+  const {btn, input} = lotHoldEls_(pid);
+  const lab = btn && btn.querySelector('[data-lotholdlabel]');
+  if(!lab) return;
+  const n = lotHoldQty_(pid, input);
+  const p = PRODUCTS.find(x=>x.id===pid);
+  lab.textContent = n>0 ? `กดค้างเพื่อตัด ${n} ${p ? p.unit : ''}`.trim() : 'กดค้างเพื่อตัด';
+}
+function lotHoldLabelSyncAll_(){
+  document.querySelectorAll('[data-lotsettleconfirm]').forEach(b=>lotHoldLabelSync_(b.getAttribute('data-lotsettleconfirm')));
+}
+function lotHoldRestore_(h){
+  clearTimeout(h.timer);
+  h.btn.classList.remove('go');
+  if(h.input) h.input.readOnly = false;
+  if(h.pointerId!=null){ try{ h.btn.releasePointerCapture(h.pointerId); }catch(e){} }
+}
+function lotHoldStart_(btn, pointerId, pointerType){
+  if(lotHoldBusy_ || lotHold_ || btn.disabled) return false;
+  const pid = btn.getAttribute('data-lotsettleconfirm');
+  const input = lotHoldEls_(pid).input;
+  if(!(lotHoldQty_(pid, input)>0)){
+    showToast('กรอกจำนวนที่จะตัดก่อน'); lotHoldHintAt_ = Date.now();
+    if(input) setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 0);
+    return false;
+  }
+  if(input) input.readOnly = true; // ระหว่างค้าง ห้ามจำนวนเปลี่ยน — ตัวเลขบนปุ่มต้องเท่ากับที่จะตัดจริง
+  btn.classList.add('go');
+  // จำวันที่ที่กำลังดูไว้ด้วย: ถ้าครบ 1 วิแล้ววันที่เปลี่ยน (สลับวันพอดี) ต้องไม่ตัด
+  lotHold_ = {btn, pid, input, pointerId: pointerId==null ? null : pointerId, pointerType: pointerType||'', iso: currentDate, timer: setTimeout(lotHoldFire_, LOT_HOLD_MS)};
+  return true;
+}
+function lotHoldCancel_(withHint){
+  const h = lotHold_;
+  if(!h) return;
+  lotHold_ = null;
+  lotHoldRestore_(h);
+  if(withHint){ showToast('กดค้าง 1 วินาทีเพื่อตัด'); lotHoldHintAt_ = Date.now(); }
+}
+async function lotHoldFire_(){
+  const h = lotHold_;
+  if(!h) return;
+  lotHold_ = null;
+  // ปุ่มหลุดจากหน้าจอ (การ์ดเรนเดอร์ใหม่กลางคัน) / สลับวันไปแล้ว / จำนวนกลายเป็น 0 → ไม่เรียกอะไรทั้งนั้น
+  if(lotHoldBusy_ || !h.btn.isConnected || h.iso !== currentDate || !(lotHoldQty_(h.pid, h.input)>0)){ lotHoldRestore_(h); return; }
+  lotHoldBusy_ = true; lotHoldFiredAt_ = Date.now();
+  const rect = h.btn.getBoundingClientRect();
+  document.querySelectorAll('[data-lotsettleconfirm]').forEach(b=>{ b.disabled = true; b.setAttribute('aria-busy', 'true'); });
+  const lab = h.btn.querySelector('[data-lotholdlabel]');
+  if(lab) lab.textContent = 'กำลังตัด…';
+  let res = null;
+  try{
+    // ป้าย "✓ บันทึกแล้ว" ห้ามเด้งตอนเขียนกุญแจ lotSettleLock (ก่อนตัดจริง) — ล้างเป้าไว้ก่อน แล้วเด้งเองข้างล่างเมื่อผลคืน ok:true เท่านั้น
+    savePending_ = null;
+    res = await confirmLotSettle_(h.pid);
+  }finally{
+    lotHoldBusy_ = false; lotHoldFiredAt_ = Date.now();
+    lotHoldRestore_(h);
+    document.querySelectorAll('[data-lotsettleconfirm]').forEach(b=>{ b.disabled = false; b.removeAttribute('aria-busy'); b.classList.remove('go'); });
+    document.querySelectorAll('[data-lotsettleqty]').forEach(i=>{ i.readOnly = false; });
+    lotHoldLabelSyncAll_();
+  }
+  if(res && res.ok){
+    savePending_ = (rect.width || rect.height) ? {x: rect.left + rect.width/2, top: rect.top, bottom: rect.bottom, at: Date.now()} : {x: window.innerWidth/2, top: window.innerHeight - 90, bottom: window.innerHeight - 60, at: Date.now()};
+    try{ window.dispatchEvent(new CustomEvent('karmto-saved', {detail:{key:'rawLots', op:'lotHold'}})); }catch(e){}
+  }
+}
+function wireLotHold_(wrap){
+  wrap.querySelectorAll('[data-lotsettleconfirm]').forEach(btn=>{
+    const mine = ()=> !!(lotHold_ && lotHold_.btn === btn);
+    btn.addEventListener('pointerdown', e=>{
+      if(e.button !== 0) return;
+      if(!lotHoldStart_(btn, e.pointerId, e.pointerType)) return;
+      try{ btn.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    btn.addEventListener('pointerup', ()=>{ if(mine()) lotHoldCancel_(true); });
+    btn.addEventListener('pointercancel', ()=>{ if(mine()) lotHoldCancel_(false); });
+    btn.addEventListener('lostpointercapture', ()=>{ if(mine()) lotHoldCancel_(false); });
+    btn.addEventListener('blur', ()=>{ if(mine()) lotHoldCancel_(false); });
+    btn.addEventListener('pointermove', e=>{
+      if(!mine() || lotHold_.pointerId !== e.pointerId) return;
+      const r = btn.getBoundingClientRect();
+      if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) lotHoldCancel_(true);
+    });
+    btn.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      // นิ้วกดค้างบนจอสัมผัสจะยิง contextmenu เองราวครึ่งวินาที — ถ้ายกเลิกตรงนี้ มือถือจะกดค้างไม่มีวันครบ เลยแค่กันเมนูเด้ง
+      // ส่วนเมาส์/คีย์บอร์ด (คลิกขวา/ปุ่มเมนู) ยกเลิกตามปกติ
+      if(mine() && lotHold_.pointerType !== 'touch') lotHoldCancel_(false);
+    });
+    btn.addEventListener('click', e=>{
+      // click ไม่ตัดต้นทุนเด็ดขาด (รวม click จากสคริปต์/ตัวช่วยอ่านจอ) — ต้องค้างครบ 1 วิเท่านั้น
+      e.preventDefault();
+      // click ที่ตามหลังการค้างครบ (ปล่อยนิ้ว) หรือเพิ่งขึ้นคำแนะนำไปแล้ว ต้องเงียบ ไม่ทับ toast ผลจริงของการตัด
+      if(lotHoldBusy_ || mine() || Date.now() - lotHoldFiredAt_ < 1500 || Date.now() - lotHoldHintAt_ < 600) return;
+      const pid = btn.getAttribute('data-lotsettleconfirm');
+      showToast(lotHoldQty_(pid, lotHoldEls_(pid).input)>0 ? 'กดค้าง 1 วินาทีเพื่อตัด' : 'กรอกจำนวนที่จะตัดก่อน');
+      lotHoldHintAt_ = Date.now();
+    });
+    btn.addEventListener('keydown', e=>{
+      if(e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      e.preventDefault();
+      if(e.repeat) return;
+      lotHoldStart_(btn, null, 'key');
+    });
+    btn.addEventListener('keyup', e=>{
+      if(e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      e.preventDefault(); // กัน click จากการปล่อย Space
+      if(mine()) lotHoldCancel_(true);
+    });
+  });
+  if(!wireLotHold_.docWired){
+    wireLotHold_.docWired = true;
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden) lotHoldCancel_(false); });
   }
 }
 let lotSettleInFlight_ = false;
@@ -12243,6 +12729,7 @@ function cmdKItems_(q){
   });
   items.push({label:'➕ เพิ่มรายจ่ายกิจการ', kind:'งาน', keys:'รายจ่าย expense จ่าย', run: ()=>openDashExpenseModal_()});
   items.push({label:'💬 ข้อความสั่งของ (ม๊ะก๊าด / มนต์ / พี่พัฒน์)', kind:'งาน', keys:'สั่งของ สั่งกุ้ง ข้อความ คัดลอก ม๊ะก๊าด มนต์ พัฒน์', run: async ()=>{ await switchTab('order'); openMsgCard_(); }});
+  items.push({label:'จับคู่ยอดโอนกับบิล', kind:'งาน', keys:'จับคู่ สลิป โอน ยอดโอน กระทบยอด slip', run: async ()=>{ await switchTab('billing'); const i = document.getElementById('slipMatchAmount'); if(i){ i.scrollIntoView({block:'center'}); i.focus(); } }});
   items.push({label:'📅 ไปวันนี้', kind:'วันที่', keys:'วันนี้ today', run: ()=>{ const iso = todayISO(); if(iso !== currentDate) return loadForDate(iso); }});
   settings.branches.forEach(b=>items.push({label: `🏪 ${branchDisplayName(b)}`, kind: orderRowHasOrder_((dayData.orders||{})[b.code]) ? 'ออเดอร์ • บันทึกแล้ว' : 'ออเดอร์', keys: `${b.code} สาขา ${b.area||''}`, run: async ()=>{ await switchTab('order'); openBranchForm_(b.code); }}));
   const iso = cmdKParseDate_(q);
@@ -12316,7 +12803,7 @@ async function switchTab(name){
     if(name==='fee'){ renderFeeToday(); await renderMonthFee(); }
     if(name==='purchase'){ renderLotForm(); await renderLotList(); await renderLotSettleCards_(); await renderPendingStockValueCard_(); await renderLotProductBillList(); await renderLotTransportList(); renderPurchaseForm(); renderPurchaseList(); renderPurchaseGroups(); renderExpenseCategorySelect(); renderExpenseList(); await renderPurchMonthSummary(); await renderAllExpenseList(); renderShortfallList(await loadShortfalls()); }
     if(name==='stockform') await renderStockForm_();
-    if(name==='billing'){ renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
+    if(name==='billing'){ slipMatchCands_ = null; renderSlipMatchCard_(); renderBillingList(); await renderOutstanding(); await renderRecheckRoundSummary_(); await renderRecheckHistory_(); await renderBillingSummaryTiles(); }
     if(name==='debts'){ renderDebtOwnerSelect(); renderDebtTypeSelect(); await renderDebts(); }
     if(name==='personal'){ renderPersonalCategorySelects(); renderPersonalLists(); await renderPersonalMonthSummary(); }
     if(name==='noti'){ activityLogCache_ = null; await loadActivityLog(); renderActivityFeed_(); await renderDataGaps(); }
@@ -12633,7 +13120,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.4';
+const APP_BUILD = '2026-11-12.5';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

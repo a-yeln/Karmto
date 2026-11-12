@@ -6,7 +6,7 @@ description: กฎเหล็กเรื่องเงิน/ต้นทุ
 
 ## 1. ห้ามตัดต้นทุนอัตโนมัติ
 รอบเบิกล็อต (draw) ใหม่ต้องเริ่ม `costedQty: 0` เสมอ — ตัวเลขต้นทุนเข้าได้ทางเดียวคือ AY กด "✅ ตัด" ในการ์ด
-`renderLotSettleCards_` → `confirmLotSettle_` (index.html ~L7783/L7868)
+`renderLotSettleCards_` → `confirmLotSettle_` (index.html ~L8254/L8491)
 ```js
 // ✅ ถูก
 draws.push({ id, date, qtyUsed, sellableQty, costedQty: 0, claimedQty: 0 });

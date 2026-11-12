@@ -1332,6 +1332,24 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
   .dwh-idchip{white-space:nowrap;}
   html[data-theme=mermaid][data-tmode=full] .dwh-titles{flex:1 1 auto;text-align:left;}
 }
+/* ---- แถบอายุค้างรับ + กราฟขั้นบันไดกำไร ---- */
+.age-wrap{display:block;width:100%;border:none;background:none;padding:0;margin:8px 0 2px;cursor:pointer;font-family:inherit;color:inherit;text-align:left;}
+.age-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2);}
+.age-bar i,.age-legend i{display:block;}
+.age-wrap i.ok{background:#3DBE8B;}.age-wrap i.warn{background:#F2B33D;}.age-wrap i.bad{background:#E0475A;}
+.age-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:11.5px;color:var(--text-dim);}
+.age-legend span{display:inline-flex;align-items:center;gap:4px;}
+.age-legend i{width:8px;height:8px;border-radius:2px;}
+.wfall{display:flex;gap:6px;align-items:stretch;padding-top:22px;}
+.wfall-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.wfall-track{position:relative;height:150px;}
+.wfall-track i{position:absolute;left:8%;right:8%;border-radius:5px;transform-origin:bottom;animation:wfGrow .6s cubic-bezier(.3,1.3,.5,1) backwards;}
+.wfall-track i.rev{background:#F28AB3;}.wfall-track i.cut{background:#B9C2CC;}.wfall-track i.net{background:#3DBE8B;}.wfall-track i.loss{background:#E0475A;}
+.wfall-track u{position:absolute;left:0;right:0;border-top:1px dashed var(--border);}
+.wfall-val{position:absolute;left:0;right:0;text-align:center;font-size:10.5px;font-weight:700;white-space:nowrap;}
+.wfall-lbl{font-size:10.5px;color:var(--text-dim);text-align:center;line-height:1.2;}
+@keyframes wfGrow{from{transform:scaleY(0)}}
+@media (prefers-reduced-motion:reduce){.wfall-track i{animation:none;}}
 /* ---- ตารางสาขาแตะครั้งเดียว (หน้าออเดอร์) ---- */
 .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:6px;}
 .bg-chip{min-height:42px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:2px;transition:transform .12s ease,background .2s ease;}
@@ -5834,6 +5852,7 @@ async function renderMonthPL(){
         </div>
         ${buildTrendLineSVG(r.daily, monthVal)}
       </div>
+      ${buildProfitWaterfall_(r)}
       <div class="pl-two">
         <div class="pl-panel">
           <div class="pl-panel-h">งบกำไร-ขาดทุน</div>
@@ -11719,6 +11738,7 @@ async function computeTodayCommand_(){
   const isos = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(i=>i<=t).sort();
   const dayMap = await loadDaysBulk([...new Set([...isos, y, t])]);
   const overdue = []; let unpaidTotal = 0, unpaidCount = 0;
+  const ageBuckets = [0, 0, 0]; // ค้างรับแยกอายุ: ยังไม่ถึงเกณฑ์ทวง / ถึงเกณฑ์–7 วัน / เกิน 7 วัน
   isos.forEach(iso=>{
     const d = dayMap[iso]; if(!d) return;
     Object.entries(d.orders||{}).forEach(([code,row])=>{
@@ -11727,6 +11747,7 @@ async function computeTodayCommand_(){
       if(amt <= 0) return;
       unpaidTotal += amt; unpaidCount++;
       const days = daysBetweenISO(iso, t);
+      ageBuckets[days < CMD_OVERDUE_DAYS ? 0 : days <= 7 ? 1 : 2] += amt; // ขอบแรกใช้เกณฑ์เดียวกับแถว "ค้างรับเลย N วัน" สีจะได้ไม่ขัดกัน
       if(days >= CMD_OVERDUE_DAYS) overdue.push({iso, code, amt, days});
     });
   });
@@ -11746,8 +11767,36 @@ async function computeTodayCommand_(){
   let lotRows = [];
   if(currentDate === t){ try{ lotRows = (await computeLotSettleRows_(rawLots)).filter(r=>r.overdueSoldQty>0.001); }catch(e){} }
   let spikes = []; try{ spikes = await computePriceSpikes_(); }catch(e){}
-  return {t, overdue, unpaidTotal, unpaidCount, buyGaps, aging, lotRows, spikes};
+  return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes};
 }
+// ---- แถบอายุค้างรับ (บนศูนย์บัญชาการ): ยอดที่สาขายังไม่โอน แยกตามจำนวนวันที่ค้าง — แสดงอย่างเดียว ใช้ยอดเดียวกับ "ค้างรับทั้งหมด" ----
+function buildReceivableAging_(raw){
+  const b = [0,1,2].map(i=>Number((raw||[])[i]) || 0);
+  const total = b.reduce((s,v)=>s+v,0);
+  if(!(total > 0)) return '';
+  const parts = [[`0–${CMD_OVERDUE_DAYS-1} วัน`,'ok',b[0]],[`${CMD_OVERDUE_DAYS}–7 วัน`,'warn',b[1]],['เกิน 7 วัน','bad',b[2]]];
+  return `<button type="button" class="age-wrap" data-cmdgo="billing" data-cmdtoday="0" aria-label="อายุค้างรับ กดเพื่อไปหน้าบิล">
+    <span class="age-bar">${parts.filter(p=>p[2]>0).map(p=>`<i class="${p[1]}" style="flex:${p[2]}"></i>`).join('')}</span>
+    <span class="age-legend">${parts.map(p=>`<span><i class="${p[1]}"></i>${p[0]} <b class="num">${money(p[2])}</b></span>`).join('')}</span>
+  </button>`;
+}
+// ---- กราฟขั้นบันไดกำไร: ยอดขาย → หักต้นทุน/รายจ่าย/Brand fee/ของเสีย → กำไรสุทธิ ใช้ตัวเลขชุดเดียวกับตารางงบกำไร-ขาดทุน ----
+function buildProfitWaterfall_(r){
+  if(![r.revenue, r.cogsTotal, r.expenseTotal, r.feeTotal, r.wasteTotal].some(v=>Number(v) > 0)) return '';
+  const steps = [['ต้นทุนซื้อ', r.cogsTotal], ['รายจ่ายกิจการ', r.expenseTotal], ['Brand fee', r.feeTotal], ['ของเสีย/เคลม', r.wasteTotal]];
+  let run = r.revenue; const marks = [0, r.revenue];
+  const bars = [{label:'ยอดขาย', from:0, to:r.revenue, cls:'rev', text:money(r.revenue)}];
+  steps.forEach(([label, v])=>{ const next = run - v; bars.push({label, from:run, to:next, cls:'cut', text:'-' + money(v)}); marks.push(next); run = next; });
+  bars.push({label:'กำไรสุทธิ', from:0, to:run, cls: run >= 0 ? 'net' : 'loss', text:money(run)});
+  const lo = Math.min(...marks), hi = Math.max(...marks), span = (hi - lo) || 1;
+  const pos = v => (v - lo) / span * 100;
+  return `<div class="pl-panel"><div class="pl-panel-h">🪜 ยอดขายกลายเป็นกำไรอย่างไร</div>
+    <div class="wfall">${bars.map((b,i)=>{
+      const a = pos(Math.min(b.from, b.to)), h = Math.max(Math.abs(pos(b.from) - pos(b.to)), 0.8);
+      return `<div class="wfall-col"><div class="wfall-track"><span class="wfall-val num" style="bottom:calc(${a + h}% + 2px)">${b.text}</span><i class="${b.cls}" style="bottom:${a}%;height:${h}%;animation-delay:${i*90}ms"></i>${lo < 0 ? `<u style="bottom:${pos(0)}%"></u>` : ''}</div><div class="wfall-lbl">${b.label}</div></div>`;
+    }).join('')}</div></div>`;
+}
+
 let cmdSeq_ = 0;
 async function renderTodayCommand_(){
   const el = document.getElementById('cmdCenter');
@@ -11772,6 +11821,7 @@ async function renderTodayCommand_(){
   el.innerHTML = `<div class="cmd-card">
     <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
       <span class="cmd-sum">ค้างรับทั้งหมด ${money(c.unpaidTotal)} (${c.unpaidCount} บิล)</span></div>
+    ${buildReceivableAging_(c.ageBuckets)}
     ${rows.length ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}</div>`
       : `<div class="cmd-ok">✅ ไม่มีเรื่องด่วนวันนี้</div>`}
   </div>`;
@@ -12583,7 +12633,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.3';
+const APP_BUILD = '2026-11-12.4';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

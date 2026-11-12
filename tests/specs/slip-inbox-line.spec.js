@@ -19,6 +19,7 @@ function seedStore(){
       { id: 'L4', type: 'slip', at: TODAY + 'T08:00:00', amount: 900, slipDate: TODAY, matched: { iso: TODAY, code: '03' } },
     ],
     ['lineInbox:2026-11-11']: [{ id: 'L5', type: 'slip', at: '2026-11-11T18:00:00', amount: 1300, slipDate: '2026-11-11', slipTime: '18:00', sender: 'นาง ปลา', postedBy: '' }],
+    ['lineInbox:2026-11-10']: [{ id: 'L6', type: 'slip', at: '2026-11-10T09:00:00', amount: 1300, slipDate: '2026-11-11', slipTime: '18:00', sender: 'นาง ปลา', matched: { iso: '2026-11-10', code: '05' } }],
     ['lineInbox:2026-11-05']: [{ id: 'L9', type: 'slip', at: '2026-11-05T18:00:00', amount: 777, slipDate: '2026-11-05' }],
   };
 }
@@ -43,6 +44,10 @@ const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y
   const chips = await page.evaluate(() => Array.from(document.querySelectorAll('#slipInbox [data-slipchip]')).map(b => b.dataset.slipchip + '|' + b.textContent.replace(/\s+/g, ' ').trim()));
   check('โชว์เฉพาะสลิป 3 วันล่าสุด ที่ยังไม่จับคู่/ไม่ซ่อน เรียงใหม่สุดก่อน', chips.map(c => c.split('|')[0]).join(',') === 'L2,L1,L5', chips);
   check('สลิปที่อ่านยอดไม่ได้ขึ้นว่า "อ่านยอดไม่ได้" (ไม่เดายอด)', /อ่านยอดไม่ได้/.test(chips[0]));
+  check('สลิปหน้าตาเหมือนใบที่จับคู่ไปแล้ว (ยอด/วันที่/เวลา/ผู้โอน) → ติดป้ายอาจซ้ำ', /อาจซ้ำ/.test(chips[2]) && await page.evaluate(() => document.querySelector('[data-slipchip="L5"]').classList.contains('dup')), chips[2]);
+  check('ใบที่ไม่ซ้ำไม่มีป้าย', !/อาจซ้ำ/.test(chips[1]));
+  check('id ซ้ำในคีย์เดียวกันนับใบเดียว', await page.evaluate(async () => { window.__store['lineInbox:2026-11-12'].push(Object.assign({}, window.__store['lineInbox:2026-11-12'][0])); const r = await loadSlipInbox_(true); window.__store['lineInbox:2026-11-12'].pop(); await loadSlipInbox_(true); return r.filter(x => x.id === 'L1').length === 1; }));
+  check('เตือนวันที่โอนในอนาคต/เก่ากว่า 7 วัน (ไม่บล็อก)', await page.evaluate(() => /อนาคต/.test(slipDateWarnText_('2026-11-20', '2026-11-10')) && /เก่ากว่า 7 วัน/.test(slipDateWarnText_('2026-11-01', '2026-10-30')) && slipDateWarnText_('2026-11-11', '2026-11-10') === ''));
   check('ชิปโชว์ยอด + เวลา + ผู้โอน', /฿1,250/.test(chips[1]) && /10:21/.test(chips[1]) && /สมชาย/.test(chips[1]), chips[1]);
 
   await page.click('[data-slipchip="L2"]');

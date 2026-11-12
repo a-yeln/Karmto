@@ -1449,6 +1449,8 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .slip-chip b{font-size:16px;line-height:1.15;}
 .slip-chip small{font-size:11px;color:var(--text-dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .slip-chip.on{border-color:var(--success);box-shadow:inset 0 0 0 1px var(--success);}
+.slip-chip.dup{border-style:dashed;border-color:var(--danger);}
+.slip-chip.dup small{color:var(--danger-ink);font-weight:600;}
 .slip-chip.unread b{font-size:13px;color:var(--danger-ink);}
 .slip-chip-x{position:absolute;top:2px;right:2px;width:28px;height:28px;border:none;background:none;color:var(--text-faint);font-size:15px;cursor:pointer;border-radius:50%;font-family:inherit;}
 @media (prefers-reduced-motion:reduce){.slip-inbox-head i{animation:none;}}
@@ -4845,7 +4847,14 @@ async function computeSlipMatches_(amount){
   return {exact, near: near.slice(0,5)};
 }
 function slipDateWarnText_(paidDate, billIso){
-  return (SLIP_ISO_RE.test(String(paidDate)) && String(paidDate) < String(billIso)) ? `วันที่โอน ${formatDDMMYYYY(paidDate)} อยู่ก่อนวันที่บิล ${formatDDMMYYYY(billIso)} — ตรวจอีกครั้ง (ยังยืนยันได้)` : '';
+  const p = String(paidDate);
+  if(!SLIP_ISO_RE.test(p)) return '';
+  if(p < String(billIso)) return `วันที่โอน ${formatDDMMYYYY(p)} อยู่ก่อนวันที่บิล ${formatDDMMYYYY(billIso)} — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  // วันที่จากสลิป (OCR) อาจสลับวัน/เดือน — แค่เตือน ไม่บล็อก
+  const today = todayISO();
+  if(p > today) return `วันที่โอน ${formatDDMMYYYY(p)} เป็นวันในอนาคต — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  if(p < addDaysISO(today, -7)) return `วันที่โอน ${formatDDMMYYYY(p)} เก่ากว่า 7 วัน — ตรวจอีกครั้ง (ยังยืนยันได้)`;
+  return '';
 }
 function renderSlipMatchCard_(){
   const wrap = document.getElementById('slipMatchCard');
@@ -4928,17 +4937,31 @@ async function loadSlipInbox_(force){
   if(!force && slipInboxAt_ && Date.now() - slipInboxAt_ < 30000) return slipInbox_;
   const days = Array.from({length: SLIP_INBOX_DAYS}, (_, n)=>addDaysISO(todayISO(), -n));
   const vals = await window.bulkGetStorageImpl(days.map(d=>LINE_INBOX_PREFIX+d));
-  const out = [];
+  const all = [], out = [];
   days.forEach(d=>{
     let arr = null;
     try{ arr = JSON.parse(vals[LINE_INBOX_PREFIX+d]); }catch(e){}
     if(!Array.isArray(arr)) return;
     arr.forEach(x=>{
-      if(!x || x.type !== 'slip' || typeof x.id !== 'string' || x.matched || x.dismissed) return;
+      if(!x || x.type !== 'slip' || typeof x.id !== 'string') return;
       const amount = (typeof x.amount === 'number' && isFinite(x.amount) && x.amount > 0) ? Math.round(x.amount*100)/100 : null;
-      out.push({id:x.id, day:d, at:String(x.at||''), amount, slipDate: SLIP_ISO_RE.test(String(x.slipDate)) ? x.slipDate : null,
-        slipTime: /^\d{2}:\d{2}$/.test(String(x.slipTime)) ? x.slipTime : null, sender: x.sender ? String(x.sender) : '', postedBy: x.postedBy ? String(x.postedBy) : ''});
+      all.push({id:x.id, day:d, at:String(x.at||''), amount, slipDate: SLIP_ISO_RE.test(String(x.slipDate)) ? x.slipDate : null,
+        slipTime: /^\d{2}:\d{2}$/.test(String(x.slipTime)) ? x.slipTime : null, sender: x.sender ? String(x.sender) : '', postedBy: x.postedBy ? String(x.postedBy) : '',
+        ref: x.ref ? String(x.ref) : '', used: !!(x.matched || x.dismissed)});
     });
+  });
+  all.sort((a,b)=> a.at.localeCompare(b.at)); // เก่าก่อน: ใบแรกที่เห็นคือตัวจริง ใบหลังที่หน้าตาเหมือนกัน = อาจซ้ำ
+  // คนในกลุ่มมักส่งรูปสลิปเดิมซ้ำ (คนละ messageId) — ไม่ซ่อนเอง แค่ติดป้าย "อาจซ้ำ" ให้ AY ตัดสิน
+  const sig = x => x.ref ? 'r:'+x.ref : (x.amount!=null && x.slipDate && x.slipTime ? ['s', x.amount, x.slipDate, x.slipTime, x.sender].join('|') : '');
+  const seenId = new Set(), seenSig = new Set();
+  all.forEach(x=>{
+    const k = x.day+'|'+x.id;
+    if(seenId.has(k)) return; // id เดียวกันซ้ำในคีย์ (เผื่อบอทเขียนซ้ำ) → นับใบเดียว
+    seenId.add(k);
+    const s = sig(x);
+    const dup = !!s && seenSig.has(s);
+    if(s) seenSig.add(s);
+    if(!x.used) out.push(Object.assign({}, x, {dup}));
   });
   out.sort((a,b)=> b.at.localeCompare(a.at));
   slipInbox_ = out; slipInboxAt_ = Date.now();
@@ -4956,9 +4979,9 @@ async function renderSlipInbox_(force){
   box.innerHTML = `<div class="slip-inbox-head"><i></i>สลิปจาก LINE ${items.length} ใบ <span style="font-weight:400;">· แตะเพื่อเติมยอด</span></div>
     <div class="slip-chips">${items.map(x=>{
       const who = x.sender || x.postedBy;
-      const sub = [x.slipTime || (x.at.slice(11,16)), who].filter(Boolean).join(' · ');
+      const sub = [x.dup ? '⚠️ อาจซ้ำ' : '', x.slipTime || (x.at.slice(11,16)), who].filter(Boolean).join(' · ');
       const attrs = `data-slipday="${escapeHtml(x.day)}"`;
-      return `<div style="position:relative;flex:none;"><button type="button" class="slip-chip${x.amount==null?' unread':''}" data-slipchip="${escapeHtml(x.id)}" ${attrs} aria-label="${escapeHtml('สลิป '+(x.amount==null?'อ่านยอดไม่ได้':slipMoney_(x.amount))+' '+sub)}">
+      return `<div style="position:relative;flex:none;"><button type="button" class="slip-chip${x.amount==null?' unread':''}${x.dup?' dup':''}" data-slipchip="${escapeHtml(x.id)}" ${attrs} aria-label="${escapeHtml('สลิป '+(x.amount==null?'อ่านยอดไม่ได้':slipMoney_(x.amount))+' '+sub)}">
         <b class="num">${x.amount==null ? 'อ่านยอดไม่ได้' : escapeHtml(slipMoney_(x.amount))}</b><small>${escapeHtml(sub || formatDDMMYYYY(x.day))}</small></button>
         <button type="button" class="slip-chip-x" data-slipchipx="${escapeHtml(x.id)}" ${attrs} aria-label="ซ่อนสลิปนี้">×</button></div>`;
     }).join('')}</div>`;
@@ -4976,7 +4999,8 @@ function pickSlipInbox_(id, day){
   if(x.amount==null){ showToast('อ่านยอดจากสลิปนี้ไม่ได้ — ดูรูปใน LINE แล้วพิมพ์ยอดเอง'); return; }
   clearTimeout(slipMatchTimer_);
   const amountStr = String(x.amount);
-  slipMatchDraft_ = {amountStr, pick:null, paidDate:'', note:null, nearMsg:null, inbox:{id:x.id, day:x.day, amount:x.amount, slipDate:x.slipDate}};
+  slipMatchDraft_ = {amountStr, pick:null, paidDate:'', nearMsg:null, inbox:{id:x.id, day:x.day, amount:x.amount, slipDate:x.slipDate},
+    note: x.dup ? 'สลิปนี้หน้าตาเหมือนใบที่ส่งมาก่อน (ยอด/วันที่/เวลา หรือเลขอ้างอิงตรงกัน) — อาจเป็นเงินก้อนเดิม ตรวจในแอปธนาคารก่อนติ๊กจ่าย' : null};
   const inp = document.getElementById('slipMatchAmount');
   if(inp) inp.value = amountStr;
   markSlipChips_();
@@ -5024,7 +5048,7 @@ async function renderSlipMatchResults_(){
       <div class="slip-kv"><span>ยอดบิล</span><b class="num">${escapeHtml(slipMoney_(pick.amt))}</b></div>
       <div class="slip-kv"><span>ยอดโอน</span><b class="num">${escapeHtml(slipMoney_(typed))}</b></div>
       <div class="slip-kv"><span>ส่วนต่าง</span><b class="num">${escapeHtml(slipMoney_(0))}</b></div>
-      <label class="slip-date" for="slipMatchPaidDate">วันที่โอน <input type="date" id="slipMatchPaidDate" value="${escapeHtml(paidDate)}"></label>
+      <label class="slip-date" for="slipMatchPaidDate">${D.inbox && D.inbox.slipDate && D.inbox.slipDate===paidDate ? 'วันที่โอน <small style="font-weight:400;color:var(--text-dim);">(อ่านจากสลิป ตรวจก่อน)</small>' : 'วันที่โอน'} <input type="date" id="slipMatchPaidDate" value="${escapeHtml(paidDate)}"></label>
       <div class="slip-warn" id="slipMatchDateWarn" style="display:${warn?'':'none'};">${escapeHtml(warn)}</div>
       ${isMonthClosed_(pick.iso) ? `<div class="slip-note" data-slipclosed>เดือนของบิลปิดแล้ว (ติ๊กจ่ายได้ตามปกติ)</div>` : ''}
       ${blocked ? `<div class="slip-warn" data-slipoffline>ต้องต่อเน็ตก่อนจับคู่</div>` : ''}
@@ -5096,15 +5120,15 @@ async function confirmSlipMatch_(btn){
     }
     slipMatchCands_ = null;
     if(iso===currentDate) dayData = saved;
+    // เน็ตหลุดระหว่างเขียนบิล → รายการเข้าคิวออฟไลน์ (เช็คก่อนเขียนป้ายสลิป ไม่งั้นป้ายที่เข้าคิวทำให้แจ้งผิด)
+    const queued = readOfflineQueue_().length>0;
     // สลิปจาก LINE ที่ใช้เติมยอดนี้ → ติดป้ายว่าจับคู่แล้ว (ป้ายของสลิปเท่านั้น ไม่ใช่เงิน) — พังก็ไม่กระทบการติ๊กจ่ายที่สำเร็จไปแล้ว
     const inb = D.inbox;
-    if(inb && Math.round(Number(inb.amount)*100) === Math.round(typed*100) && !readOfflineQueue_().length){
+    if(inb && Math.round(Number(inb.amount)*100) === Math.round(typed*100) && !queued){
       try{ await writeRootArrayOp_(LINE_INBOX_PREFIX+inb.day, {matchField:'id', matchValue:inb.id, set:{matched:{iso, code, at:new Date().toISOString()}}}, ()=>{}); }catch(e){}
       slipInbox_ = slipInbox_.filter(v=>!(v.id===inb.id && v.day===inb.day));
       renderSlipInbox_();
     }
-    // เน็ตหลุดระหว่างเขียน → รายการเข้าคิวออฟไลน์ ยังไม่ถึงเซิร์ฟเวอร์ ห้ามบอกว่าสำเร็จ
-    const queued = readOfflineQueue_().length>0;
     slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', nearMsg:null, inbox:null, note: queued ? `ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง — บิล ${code} วันที่ ${formatDDMMYYYY(iso)} จะถูกติ๊กจ่ายเมื่อเน็ตกลับมา (ตรวจอีกครั้งหลังต่อเน็ต)` : null};
     const amtInp = document.getElementById('slipMatchAmount');
     if(amtInp) amtInp.value = '';
@@ -13226,7 +13250,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.6';
+const APP_BUILD = '2026-11-12.7';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

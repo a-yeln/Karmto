@@ -17,7 +17,7 @@
  *  3) เมนูซ้าย Services (+) → เพิ่ม "Drive API" (ใช้ OCR อ่านสลิปฟรี) → Add
  *  4) Project Settings → Script Properties → เพิ่ม:
  *       LINE_CHANNEL_ACCESS_TOKEN = token จากข้อ 1
- *       LINE_WEBHOOK_TOKEN        = รหัสสุ่มยาวๆ ตั้งเอง (เช่น กดสุ่ม 32 ตัวจากเว็บสุ่มรหัส) ห้ามบอกใคร
+ *       LINE_WEBHOOK_TOKEN        = รหัสสุ่มยาวอย่างน้อย 24 ตัว (ตัวอักษร+ตัวเลข) ตั้งเอง ห้ามบอกใคร — สั้นกว่านี้บอทไม่รับอะไรเลย
  *       KARMTO_API_URL            = ลิงก์ /exec ของเว็บแอป Karmto ตัวเดิม (ค่าเดียวกับ SHEET_API_URL ใน index.html)
  *       KARMTO_KEY                = รหัสเข้าใช้ระบบ (ถ้าตั้งไว้ตาม AuthGuard.gs — ไม่ได้ตั้งก็ไม่ต้องใส่)
  *  5) Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone → Deploy → อนุญาตสิทธิ์ → คัดลอกลิงก์ /exec
@@ -25,7 +25,7 @@
  *       เช่น https://script.google.com/macros/s/xxxx/exec?t=รหัสสุ่ม  → เปิด Use webhook
  *     (ปุ่ม Verify อาจขึ้น error เพราะ Apps Script ตอบกลับแบบ redirect — ไม่เป็นไร ข้อความจริงยังเข้า)
  *  7) ในโปรแกรมแก้สคริปต์ เลือกฟังก์ชัน installKarmtoLineBot → Run ครั้งเดียว (ตั้งตัวประมวลผลทุก 1 นาที)
- *  8) เชิญบอทเข้ากลุ่ม LINE → ส่งรูปอะไรก็ได้ 1 รูป → รัน showKarmtoLineGroups ดู Group ID ใน Execution log
+ *  8) เชิญบอทเข้ากลุ่ม LINE → ส่งรูปอะไรก็ได้ 1 รูป → รัน showKarmtoLineGroups ดู Group ID ใน Execution log (เลือกตัวท้ายสุดที่เพิ่งขึ้นหลังส่งรูป)
  *     → เพิ่ม Script Property  LINE_GROUP_ID = Group ID นั้น (หลังตั้งแล้วบอทรับเฉพาะกลุ่มนี้กลุ่มเดียว)
  *  ไม่บังคับ: LINE_NOTIFY_USER_ID = User ID ของ AY (LINE Developers → Basic settings → Your user ID)
  *     ตั้งแล้วบอทจะส่งแจ้งทางแชทส่วนตัวเมื่อมีคนพิมพ์ข้อความในกลุ่ม (ใช้โควตา push ของแพ็กเกจ LINE OA — ไม่ตั้ง = ไม่ส่ง)
@@ -47,7 +47,7 @@ function doPost(e) {
   var props = PropertiesService.getScriptProperties();
   var want = props.getProperty('LINE_WEBHOOK_TOKEN');
   var got = (e && e.parameter && e.parameter.t) || '';
-  if (!want || got !== want) return lineOk_(); // ไม่บอกผู้เรียกว่าผิดอะไร
+  if (!want || want.length < 24 || got !== want) return lineOk_(); // ไม่บอกผู้เรียกว่าผิดอะไร; รหัสสั้นเกิน = ไม่รับเลย
   var body;
   try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (err) { return lineOk_(); }
   var allowGroup = props.getProperty('LINE_GROUP_ID') || '';
@@ -55,12 +55,15 @@ function doPost(e) {
   (body.events || []).forEach(function (ev) {
     if (!ev || ev.type !== 'message' || !ev.message || !ev.source || ev.source.type !== 'group') return;
     var gid = String(ev.source.groupId || '');
-    if (!gid) return;
+    if (!/^C[0-9a-f]{32}$/.test(gid)) return;
+    var uid = String(ev.source.userId || '');
+    if (uid && !/^U[0-9a-f]{32}$/.test(uid)) return;
     if (!allowGroup) { lineRememberGroup_(props, gid); return; } // ยังไม่ตั้งกลุ่ม: จำ ID ไว้ให้ AY ดู ไม่เก็บอะไร
     if (gid !== allowGroup) return;
     var mid = String(ev.message.id || '');
     if (!/^\d{1,30}$/.test(mid)) return;
-    var base = { mid: mid, ts: Number(ev.timestamp) || Date.now(), uid: String(ev.source.userId || ''), gid: gid, tries: 0 };
+    // ใช้เวลาที่รับจริง ไม่เชื่อ timestamp ใน event (ผู้ยิงกำหนดเองได้)
+    var base = { mid: mid, ts: Date.now(), uid: uid, gid: gid, tries: 0 };
     if (ev.message.type === 'image') { base.kind = 'image'; items.push(base); }
     else if (ev.message.type === 'text') { base.kind = 'text'; base.text = String(ev.message.text || '').slice(0, 300); items.push(base); }
   });
@@ -90,7 +93,7 @@ function lineQueuePush_(items) {
     q.forEach(function (x) { have[x.mid] = 1; });
     items.forEach(function (x) { if (!have[x.mid]) q.push(x); });
     if (q.length > LINE_QUEUE_MAX) q = q.slice(q.length - LINE_QUEUE_MAX);
-    lineQueueWrite_(props, q);
+    try { lineQueueWrite_(props, q); } catch (err) { Logger.log('Karmto LINE: เขียนคิวไม่ได้ ' + (err && err.message)); }
   } finally { lock.releaseLock(); }
 }
 function lineQueueWrite_(props, q) {
@@ -149,9 +152,15 @@ function lineHandleItem_(it, props) {
   var at = Utilities.formatDate(new Date(it.ts), LINE_TZ, "yyyy-MM-dd'T'HH:mm:ss");
   var who = lineMemberName_(token, it.gid, it.uid);
   if (it.kind === 'text') {
+    // ข้อความไม่มีของให้ดึงยืนยันจาก LINE — ต้องเป็นสมาชิกจริงของกลุ่ม (LINE ตอบชื่อได้) ไม่งั้นทิ้ง ไม่เก็บ ไม่แจ้ง
+    if (!who) return;
     karmtoInboxPush_(day, { id: 'L' + it.mid, type: 'text', at: at, postedBy: who, text: String(it.text || '').slice(0, 500) });
     var notifyTo = props.getProperty('LINE_NOTIFY_USER_ID');
-    if (notifyTo) linePushToOwner_(token, notifyTo, '💬 ' + (who || 'มีคน') + ' พิมพ์ในกลุ่ม: ' + String(it.text || '').slice(0, 300));
+    var cache = CacheService.getScriptCache();
+    if (notifyTo && !cache.get('notified:' + it.mid)) {
+      cache.put('notified:' + it.mid, '1', 21600);
+      linePushToOwner_(token, notifyTo, '💬 ' + who + ' พิมพ์ในกลุ่ม (อย่าโอนเงินตามข้อความนี้ ดูในกลุ่มเอง): ' + String(it.text || '').slice(0, 300));
+    }
     return;
   }
   var res = UrlFetchApp.fetch('https://api-data.line.me/v2/bot/message/' + encodeURIComponent(it.mid) + '/content', {
@@ -160,14 +169,16 @@ function lineHandleItem_(it, props) {
   var code = res.getResponseCode();
   if (code === 404 || code === 410) return; // ไม่มีรูปนี้ (หมดอายุ/ปลอม) — จบ ไม่เก็บอะไร
   if (code < 200 || code >= 300) throw new Error('ดึงรูปไม่ได้ HTTP ' + code);
-  var text = lineOcr_(res.getBlob());
+  var blob = res.getBlob();
+  if (!/^image\//.test(String(blob.getContentType())) || blob.getBytes().length > 10 * 1024 * 1024) return; // ไม่ใช่รูป/ใหญ่เกิน → ข้าม
+  var text = lineOcr_(blob);
   var slip = parseSlipText_(text);
   if (!slip.isSlip) return; // รูปออเดอร์/บิล/อื่นๆ → ข้าม
   karmtoInboxPush_(day, {
     id: 'L' + it.mid, type: 'slip', at: at, postedBy: who,
     amount: slip.amount, amountCands: slip.amountCands, slipDate: slip.date, slipTime: slip.time,
     sender: slip.sender, receiver: slip.receiver, bank: slip.bank, ref: slip.ref,
-    text: String(text || '').replace(/\s+/g, ' ').slice(0, LINE_RAW_TEXT_MAX),
+    text: String(text || '').replace(/\s+/g, ' ').replace(/\d{6,}/g, function (d) { return 'x'.repeat(d.length - 4) + d.slice(-4); }).slice(0, LINE_RAW_TEXT_MAX), // ปิดเลขบัญชี/เลขยาว
   });
 }
 
@@ -181,7 +192,9 @@ function lineOcr_(blob) {
     id = Drive.Files.create({ name: blob.getName(), mimeType: 'application/vnd.google-apps.document' }, blob, { ocrLanguage: 'th' }).id;
   }
   try { return DocumentApp.openById(id).getBody().getText() || ''; }
-  finally { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {} }
+  finally { // ลบถาวร (ไม่ค้างถังขยะ 30 วัน)
+    try { Drive.Files.remove(id); } catch (e) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e2) {} }
+  }
 }
 
 function lineMemberName_(token, gid, uid) {
@@ -209,7 +222,8 @@ function karmtoInboxPush_(day, item) {
   var props = PropertiesService.getScriptProperties();
   var url = props.getProperty('KARMTO_API_URL');
   if (!url) throw new Error('ยังไม่ได้ตั้ง KARMTO_API_URL');
-  var body = { action: 'patchOps', key: 'lineInbox:' + day, ops: [{ arrayPath: [], push: item }], rootIsArray: true };
+  // ลบ id เดิม (ถ้ามี) แล้ว push ในคำขอเดียว — ลองใหม่หลังเน็ตหลุดกี่ครั้งก็ไม่เกิดรายการซ้ำ
+  var body = { action: 'patchOps', key: 'lineInbox:' + day, ops: [{ arrayPath: [], remove: { matchField: 'id', matchValue: item.id } }, { arrayPath: [], push: item }], rootIsArray: true };
   var key = props.getProperty('KARMTO_KEY');
   if (key) body.k = key;
   var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify(body), muteHttpExceptions: true });

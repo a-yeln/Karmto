@@ -46,6 +46,17 @@
  *     ตั้งแล้วบอทจะส่งแจ้งทางแชทส่วนตัวเมื่อมีคนพิมพ์ข้อความในกลุ่ม (ใช้โควตา push ของแพ็กเกจ LINE OA — ไม่ตั้ง = ไม่ส่ง)
  *  แก้โค้ดภายหลัง: Deploy → Manage deployments → แก้ deployment เดิม → Version: New version (ลิงก์ไม่เปลี่ยน)
  *
+ * ทางรับรูปจากภายนอก (ใช้เมื่อบอทเราเข้ากลุ่มไม่ได้เพราะกลุ่มมีบัญชีทางการของคนอื่นอยู่แล้ว) — "intake"
+ *  - ใครส่ง: (ก) เซิร์ฟเวอร์ของบอทที่อยู่ในกลุ่ม ส่งสำเนารูปมาให้ (ดู docs/line-relay-for-it.md)
+ *            (ข) โปรแกรมเฝ้าโฟลเดอร์บนคอมของ AY (tools/line-watcher/)
+ *  - วิธีเปิดใช้: ทำข้อ ข.4–9 ให้เสร็จ (ไม่ต้องมี LINE OA ก็ได้ — ข้าม LINE_CHANNEL_ACCESS_TOKEN ได้ถ้าใช้ทางนี้อย่างเดียว)
+ *    → รัน showKarmtoIntakeUrl → ได้ลิงก์ลงท้าย /exec?a=intake&t=… (รหัสลับคนละตัวกับ webhook — ยกเลิกแยกกันได้โดยลบ KARMTO_INTAKE_TOKEN)
+ *  - รูปแบบคำขอ: POST JSON { image: "<base64 ของไฟล์ JPEG/PNG>", sender: "ชื่อผู้ส่งในกลุ่ม (ไม่บังคับ)", sentAt: "เวลาส่ง (ไม่บังคับ)" }
+ *    ตอบ { ok:true, id } / { ok:true, dup:true } (รูปเดิมเคยส่งแล้ว) / { ok:false, error }
+ *  - รูปถูกพักในโฟลเดอร์ Drive "Karmto LINE Intake" แล้วตัวประมวลผลทุก 1 นาทีอ่านต่อ → ลบไฟล์ถาวรเมื่อเสร็จ
+ *  - รูปออเดอร์ (มีคำว่า สาขา/ธง + ตัวเลข และไม่มีคำเรื่องเงิน) → เก็บข้อความที่อ่านได้ลง lineOrders:YYYY-MM-DD เป็น "ร่าง"
+ *    ให้ AY แตะเติมฟอร์มในหน้าออเดอร์แล้วกดบันทึกเอง — บอทไม่บันทึกออเดอร์ ไม่ติ๊กจ่าย ไม่แตะต้นทุน
+ *
  * ความปลอดภัย: Apps Script อ่าน header X-Line-Signature ไม่ได้ (ข้อจำกัดของ Google) จึงกันด้วย
  *  (ก) รหัสลับ ?t= ในลิงก์ webhook (ข) รับเฉพาะ LINE_GROUP_ID และคนใน LINE_DIRECT_USER_IDS (ค) รูปดึงจากเซิร์ฟเวอร์ LINE ด้วย token ของเราเองเท่านั้น
  *  ใครปลอมคำขอมาก็ได้แค่ messageId ที่ LINE ไม่รู้จัก → ดึงรูปไม่ได้ → ไม่มีอะไรถูกบันทึก
@@ -57,10 +68,17 @@ var LINE_QUEUE_MAX_BYTES = 8500; // ค่าใน Script Properties ได้�
 var LINE_MAX_TRIES = 3;
 var LINE_RAW_TEXT_MAX = 300;
 var LINE_TZ = 'Asia/Bangkok';
+var LINE_INTAKE_FOLDER = 'Karmto LINE Intake';
+var LINE_INTAKE_MAX_BYTES = 5 * 1024 * 1024;
+var LINE_INTAKE_MAX_PER_DAY = 1500; // กันคนยิงถล่ม — เกินนี้ต่อวันไม่รับ
+var LINE_ORDER_TEXT_MAX = 900;
+var LINE_INBOX_MAX_ITEMS = 80;  // สลิป+ข้อความ ต่อวัน
+var LINE_ORDERS_MAX_ITEMS = 45; // ร่างออเดอร์ ต่อวัน
 
 // ============ webhook: รับเร็ว ใส่คิว ตอบ 200 — ไม่ประมวลผลหนักตรงนี้ ============
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
+  if (e && e.parameter && e.parameter.a === 'intake') return lineIntake_(e, props);
   var want = props.getProperty('LINE_WEBHOOK_TOKEN');
   var got = (e && e.parameter && e.parameter.t) || '';
   if (!want || want.length < 24 || got !== want) return lineOk_(); // ไม่บอกผู้เรียกว่าผิดอะไร; รหัสสั้นเกิน = ไม่รับเลย
@@ -103,6 +121,119 @@ function doGet() { return lineOk_(); }
 function lineOk_() {
   return ContentService.createTextOutput('{"ok":true}').setMimeType(ContentService.MimeType.JSON);
 }
+function lineJson_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============ ทางรับรูปจากภายนอก (intake): ตรวจรหัส/ขนาด/ชนิด → พักไฟล์ใน Drive → ตัวประมวลผลอ่านต่อ ============
+function lineIntake_(e, props) {
+  var want = props.getProperty('KARMTO_INTAKE_TOKEN');
+  var got = (e.parameter && e.parameter.t) || '';
+  if (!want || want.length < 24 || got !== want) return lineOk_(); // รหัสผิด: ตอบเหมือนปกติ ไม่บอกอะไร ไม่เก็บอะไร
+  var body;
+  try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (err) { return lineJson_({ ok: false, error: 'bad_json' }); }
+  var b64 = String((body && body.image) || '').replace(/^data:[^,]{0,80},/, '').replace(/\s+/g, '');
+  if (!b64) return lineJson_({ ok: false, error: 'no_image' });
+  if (b64.length > LINE_INTAKE_MAX_BYTES * 1.4) return lineJson_({ ok: false, error: 'too_big' });
+  var bytes;
+  try { bytes = Utilities.base64Decode(b64); } catch (err2) { return lineJson_({ ok: false, error: 'bad_image' }); }
+  if (!bytes || bytes.length < 200 || bytes.length > LINE_INTAKE_MAX_BYTES) return lineJson_({ ok: false, error: 'too_big' });
+  var mime = lineImageMime_(bytes);
+  if (!mime) return lineJson_({ ok: false, error: 'not_image' }); // รับเฉพาะ JPEG/PNG (ดูจากหัวไฟล์จริง ไม่เชื่อชนิดที่ผู้ส่งบอก)
+  var id = 'H' + lineHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes)).slice(0, 24);
+  var cache = CacheService.getScriptCache();
+  if (cache.get('done:' + id)) return lineJson_({ ok: true, dup: true });
+  var capKey = 'intake:' + Utilities.formatDate(new Date(), LINE_TZ, 'yyyy-MM-dd');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var n = Number(cache.get(capKey) || 0); // อ่าน+เพิ่มใน lock เดียวกัน (คำขอพร้อมกันไม่ทะลุเพดาน)
+    if (n >= LINE_INTAKE_MAX_PER_DAY) return lineJson_({ ok: false, error: 'daily_limit' });
+    var folder = lineIntakeFolder_(true);
+    var same = folder.getFilesByName(id);
+    while (same.hasNext()) { if (!same.next().isTrashed()) return lineJson_({ ok: true, dup: true }); }
+    var file = folder.createFile(Utilities.newBlob(bytes, mime, id));
+    file.setDescription(JSON.stringify({ sender: lineCleanLabel_(body.sender, 60), sentAt: lineCleanLabel_(body.sentAt, 40), ts: Date.now(), tries: 0 }));
+    cache.put(capKey, String(n + 1), 21600);
+  } finally { lock.releaseLock(); }
+  return lineJson_({ ok: true, id: id });
+}
+function lineImageMime_(bytes) {
+  var b = function (i) { return bytes[i] & 255; };
+  if (b(0) === 0xFF && b(1) === 0xD8 && b(2) === 0xFF) return 'image/jpeg';
+  if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47) return 'image/png';
+  return null;
+}
+function lineHex_(bytes) {
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += ('0' + (bytes[i] & 255).toString(16)).slice(-2);
+  return s;
+}
+function lineCleanLabel_(v, max) {
+  return String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+// โฟลเดอร์พักรูป: จำด้วย ID ที่เราสร้างเองเท่านั้น (ไม่หาด้วยชื่อ — คนอื่นแชร์โฟลเดอร์ชื่อเดียวกันมาให้ก็ไม่ถูกอ่าน)
+function lineIntakeFolder_(create) {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('KARMTO_INTAKE_FOLDER_ID');
+  if (id) {
+    try { var f = DriveApp.getFolderById(id); if (f && !f.isTrashed()) return f; } catch (e) {}
+  }
+  if (!create) return null;
+  var nf = DriveApp.createFolder(LINE_INTAKE_FOLDER);
+  props.setProperty('KARMTO_INTAKE_FOLDER_ID', nf.getId());
+  return nf;
+}
+function lineDeleteFile_(file) { // ลบถาวร (ไม่ค้างถังขยะ 30 วัน)
+  try { Drive.Files.remove(file.getId()); } catch (e) { try { file.setTrashed(true); } catch (e2) {} }
+}
+/** รันหลัง Deploy: สร้างรหัสลับทางรับรูป (ถ้ายังไม่มี) แล้วพิมพ์ลิงก์ที่ให้ไอทีของบอทในกลุ่ม / โปรแกรมเฝ้าโฟลเดอร์ใช้ส่งรูปมา */
+function showKarmtoIntakeUrl() {
+  var props = PropertiesService.getScriptProperties();
+  var tok = props.getProperty('KARMTO_INTAKE_TOKEN');
+  if (!tok || tok.length < 24) {
+    tok = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+    props.setProperty('KARMTO_INTAKE_TOKEN', tok);
+  }
+  var url = ScriptApp.getService().getUrl();
+  var tail = '?a=intake&t=' + tok;
+  if (!url || !/\/exec$/.test(url)) {
+    Logger.log('ไปที่ Deploy → Manage deployments คัดลอก Web app URL (ลงท้าย /exec) แล้วต่อท้ายด้วย:\n' + tail);
+    return tail;
+  }
+  Logger.log('ลิงก์รับรูป (ให้เฉพาะคนที่ต้องส่งรูปมา ห้ามโพสต์ที่อื่น — ถ้าหลุด: ลบ KARMTO_INTAKE_TOKEN แล้วรันฟังก์ชันนี้ใหม่):\n' + url + tail);
+  return url + tail;
+}
+// ตัวประมวลผลรูปที่พักไว้ — เรียกจาก processKarmtoLineQueue (ใช้ lock/งบเวลาเดียวกัน)
+function lineProcessIntake_(cache, started) {
+  var folder = lineIntakeFolder_(false);
+  if (!folder) return;
+  var files = folder.getFiles();
+  while (files.hasNext() && Date.now() - started < 4 * 60 * 1000) {
+    var f = files.next();
+    if (f.isTrashed()) continue;
+    var id = String(f.getName());
+    if (!/^H[0-9a-f]{24}$/.test(id)) { lineDeleteFile_(f); continue; } // ไฟล์แปลกปลอมในโฟลเดอร์ → ทิ้ง
+    var meta = {};
+    try { meta = JSON.parse(f.getDescription() || '{}') || {}; } catch (e) { meta = {}; }
+    try {
+      if (!cache.get('done:' + id)) {
+        if (f.getSize() > LINE_INTAKE_MAX_BYTES) { lineDeleteFile_(f); continue; } // ตรวจซ้ำ: ไฟล์ที่ไม่ได้เข้าทางด่านรับ
+        var blob = f.getBlob();
+        if (!lineImageMime_(blob.getBytes())) { lineDeleteFile_(f); continue; }
+        lineHandleBlob_(blob, { id: id, ts: Number(meta.ts) || Date.now(), who: lineCleanLabel_(meta.sender, 60), via: 'intake', sentAt: lineCleanLabel_(meta.sentAt, 40) });
+        cache.put('done:' + id, '1', 21600);
+      }
+      lineDeleteFile_(f);
+    } catch (err) {
+      Logger.log('Karmto LINE intake: ' + id + ' ' + (err && err.message));
+      meta.tries = (Number(meta.tries) || 0) + 1;
+      if (meta.tries >= LINE_MAX_TRIES) lineDeleteFile_(f); else f.setDescription(JSON.stringify(meta));
+      break; // พังแล้วพักไว้รอบหน้า (เน็ต/โควตา)
+    }
+  }
+}
+
 function lineRememberGroup_(props, gid) {
   var seen = (props.getProperty('LINE_SEEN_GROUP_IDS') || '').split(',').filter(String);
   if (seen.indexOf(gid) < 0) { seen.push(gid); props.setProperty('LINE_SEEN_GROUP_IDS', seen.slice(-10).join(',')); }
@@ -199,6 +330,7 @@ function processKarmtoLineQueue() {
       lineQueueWrite_(props, q);
       if (!ok) break; // พังแล้วพักไว้รอบหน้า (เน็ต/โควตา)
     }
+    try { lineProcessIntake_(cache, started); } catch (err2) { Logger.log('Karmto LINE intake: ' + (err2 && err2.message)); } // ทางรับรูปพังต้องไม่กระทบคิว LINE
   } finally { lock.releaseLock(); }
 }
 
@@ -228,15 +360,39 @@ function lineHandleItem_(it, props) {
   if (code < 200 || code >= 300) throw new Error('ดึงรูปไม่ได้ HTTP ' + code);
   var blob = res.getBlob();
   if (!/^image\//.test(String(blob.getContentType())) || blob.getBytes().length > 10 * 1024 * 1024) return; // ไม่ใช่รูป/ใหญ่เกิน → ข้าม
+  lineHandleBlob_(blob, { id: 'L' + it.mid, ts: it.ts, who: who, via: it.direct ? 'direct' : 'group' });
+}
+
+// อ่านรูป 1 ใบ → สลิป: ลง lineInbox | ออเดอร์: ลง lineOrders (ร่าง) | อย่างอื่น (บิล/รูปทั่วไป): ข้าม ไม่เก็บ
+// ทุกทางเข้าใช้ตัวนี้ตัวเดียว (กลุ่ม / แชทบอท / intake) — แค่ "วางไว้ให้ AY ดู" ไม่ติ๊กจ่าย ไม่บันทึกออเดอร์
+function lineHandleBlob_(blob, m) {
+  var day = Utilities.formatDate(new Date(m.ts), LINE_TZ, 'yyyy-MM-dd');
+  var at = Utilities.formatDate(new Date(m.ts), LINE_TZ, "yyyy-MM-dd'T'HH:mm:ss");
   var text = lineOcr_(blob);
   var slip = parseSlipText_(text);
-  if (!slip.isSlip) return; // รูปออเดอร์/บิล/อื่นๆ → ข้าม
-  karmtoInboxPush_(day, {
-    id: 'L' + it.mid, type: 'slip', at: at, postedBy: who, via: it.direct ? 'direct' : 'group',
-    amount: slip.amount, amountCands: slip.amountCands, slipDate: slip.date, slipTime: slip.time,
-    sender: slip.sender, receiver: slip.receiver, bank: slip.bank, ref: slip.ref,
-    text: String(text || '').replace(/\s+/g, ' ').replace(/\d{6,}/g, function (d) { return 'x'.repeat(d.length - 4) + d.slice(-4); }).slice(0, LINE_RAW_TEXT_MAX), // ปิดเลขบัญชี/เลขยาว
-  });
+  if (slip.isSlip) {
+    var item = {
+      id: m.id, type: 'slip', at: at, postedBy: m.who, via: m.via,
+      amount: slip.amount, amountCands: slip.amountCands, slipDate: slip.date, slipTime: slip.time,
+      sender: slip.sender, receiver: slip.receiver, bank: slip.bank, ref: slip.ref,
+      text: lineMaskDigits_(String(text || '').replace(/\s+/g, ' ')).slice(0, LINE_RAW_TEXT_MAX), // ปิดเลขบัญชี/เลขยาว
+    };
+    if (slip.senderAcct) item.senderAcct = slip.senderAcct; // เลขบัญชีแบบที่ธนาคารปิดบางหลักไว้แล้วบนสลิป (ไม่ใช่เลขเต็ม)
+    if (m.sentAt) item.sentAt = m.sentAt;
+    karmtoKeyPush_('lineInbox:' + day, item);
+    return 'slip';
+  }
+  var ord = orderDraftText_(text);
+  if (ord) {
+    var o = { id: m.id, type: 'order', at: at, postedBy: m.who, via: m.via, text: ord };
+    if (m.sentAt) o.sentAt = m.sentAt;
+    karmtoKeyPush_('lineOrders:' + day, o);
+    return 'order';
+  }
+  return 'skip';
+}
+function lineMaskDigits_(s) {
+  return String(s).replace(/\d{6,}/g, function (d) { return 'x'.repeat(d.length - 4) + d.slice(-4); });
 }
 
 // OCR ฟรีของ Google Drive: อัปโหลดรูปแบบแปลงเป็น Google Docs (ภาษาไทย) → อ่านข้อความ → ทิ้งไฟล์
@@ -285,33 +441,41 @@ function linePushToOwner_(token, userId, text) {
 }
 
 // เขียนแบบ patch ทีละรายการ (push เข้าอาเรย์ของคีย์วัน) ผ่าน API เดียวกับที่แอปใช้ — ไม่โหลดทั้งก้อนแล้วเขียนทับ
-function karmtoInboxPush_(day, item) {
+function karmtoInboxPush_(day, item) { karmtoKeyPush_('lineInbox:' + day, item); }
+function karmtoKeyPush_(storeKey, item) {
+  if (!/^(lineInbox|lineOrders):\d{4}-\d{2}-\d{2}$/.test(storeKey)) throw new Error('คีย์ไม่ถูกต้อง'); // บอทเขียนได้แค่ 2 คีย์นี้ ไม่แตะคีย์เงิน/ออเดอร์จริง
   var props = PropertiesService.getScriptProperties();
   var url = props.getProperty('KARMTO_API_URL');
   if (!url) throw new Error('ยังไม่ได้ตั้ง KARMTO_API_URL');
   // มี id นี้อยู่แล้ว (รอบก่อนเขียนสำเร็จแต่เราไม่รู้) → ข้าม ไม่ทับป้าย matched/dismissed ที่ AY ติดไว้
-  if (karmtoInboxHas_(url, props.getProperty('KARMTO_KEY'), day, item.id)) return;
+  var st = karmtoKeyState_(url, props.getProperty('KARMTO_KEY'), storeKey, item.id);
+  if (st.has) return;
+  // เพดานรายการต่อคีย์ต่อวัน (ช่องเก็บรับได้ราว 5 หมื่นตัวอักษร) — เต็มแล้วไม่เขียนเพิ่ม กันถูกถล่มจนของจริงบันทึกไม่ได้
+  if (st.n >= (/^lineOrders:/.test(storeKey) ? LINE_ORDERS_MAX_ITEMS : LINE_INBOX_MAX_ITEMS)) { Logger.log('Karmto LINE: ' + storeKey + ' เต็ม ไม่เก็บ ' + item.id); return; }
   // ลบ id เดิม (ถ้ามี) แล้ว push ในคำขอเดียว — ลองใหม่หลังเน็ตหลุดกี่ครั้งก็ไม่เกิดรายการซ้ำ
-  var body = { action: 'patchOps', key: 'lineInbox:' + day, ops: [{ arrayPath: [], remove: { matchField: 'id', matchValue: item.id } }, { arrayPath: [], push: item }], rootIsArray: true };
+  var body = { action: 'patchOps', key: storeKey, ops: [{ arrayPath: [], remove: { matchField: 'id', matchValue: item.id } }, { arrayPath: [], push: item }], rootIsArray: true };
   var key = props.getProperty('KARMTO_KEY');
   if (key) body.k = key;
   var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify(body), muteHttpExceptions: true });
   var code = res.getResponseCode();
-  if (code < 200 || code >= 300) throw new Error('บันทึก lineInbox ไม่ได้ HTTP ' + code);
+  if (code < 200 || code >= 300) throw new Error('บันทึก ' + storeKey + ' ไม่ได้ HTTP ' + code);
   var data = JSON.parse(res.getContentText());
-  if (data && data.error) throw new Error('บันทึก lineInbox ไม่ได้: ' + data.error);
+  if (data && data.error) throw new Error('บันทึก ' + storeKey + ' ไม่ได้: ' + data.error);
 }
 
 // อ่านอย่างเดียว: คีย์วันนี้มีรายการ id นี้หรือยัง (อ่านไม่ได้/ไม่มีคีย์ = ถือว่ายังไม่มี)
-function karmtoInboxHas_(url, key, day, id) {
+function karmtoInboxHas_(url, key, day, id) { return karmtoKeyHas_(url, key, 'lineInbox:' + day, id); }
+function karmtoKeyHas_(url, key, storeKey, id) { return karmtoKeyState_(url, key, storeKey, id).has; }
+function karmtoKeyState_(url, key, storeKey, id) {
   try {
-    var q = '?action=get&key=' + encodeURIComponent('lineInbox:' + day) + (key ? '&k=' + encodeURIComponent(key) : '');
+    var q = '?action=get&key=' + encodeURIComponent(storeKey) + (key ? '&k=' + encodeURIComponent(key) : '');
     var r = UrlFetchApp.fetch(url + q, { method: 'get', muteHttpExceptions: true });
-    if (r.getResponseCode() !== 200) return false;
+    if (r.getResponseCode() !== 200) return { has: false, n: 0 };
     var data = JSON.parse(r.getContentText());
     var arr = data && typeof data.value === 'string' ? JSON.parse(data.value) : null;
-    return Array.isArray(arr) && arr.some(function (x) { return x && x.id === id; });
-  } catch (e) { return false; }
+    if (!Array.isArray(arr)) return { has: false, n: 0 };
+    return { has: arr.some(function (x) { return x && x.id === id; }), n: arr.length };
+  } catch (e) { return { has: false, n: 0 }; }
 }
 
 // ============ ตัวอ่านข้อความสลิป (ฟังก์ชันล้วน — เทสได้ใน Node) ============
@@ -328,7 +492,7 @@ var SLIP_BANKS = [
 function parseSlipText_(raw) {
   var text = String(raw || '').replace(/\r/g, '').replace(/[ \t ]+/g, ' ');
   var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(String);
-  var out = { isSlip: false, amount: null, amountCands: [], date: null, time: null, sender: null, receiver: null, bank: null, ref: null };
+  var out = { isSlip: false, amount: null, amountCands: [], date: null, time: null, sender: null, receiver: null, bank: null, ref: null, senderAcct: null, receiverAcct: null };
   var looksSlip = /(โอนเงินสำเร็จ|โอนเงิน|ชำระเงินสำเร็จ|รายการสำเร็จ|ทำรายการสำเร็จ|จ่ายบิลสำเร็จ|เลขที่รายการ|รหัสอ้างอิง|หมายเลขอ้างอิง|Transaction|Transfer|Ref\.?\s?No|พร้อมเพย์|PromptPay)/i.test(text);
 
   var NUM = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
@@ -377,8 +541,36 @@ function parseSlipText_(raw) {
   var r = text.match(/(?:เลขที่รายการ|รหัสอ้างอิง|หมายเลขอ้างอิง|Ref\.?\s?No\.?|Transaction ID)\s*:?\s*([A-Za-z0-9]{6,40})/i);
   if (r) out.ref = r[1];
 
+  // เลขบัญชีแบบปิดบางหลัก (เช่น xxx-x-x1234-x) — ต้องมีทั้งตัวปิด (x/*) และเลข ≥ 3 ตัว; ตัวแรก = ผู้โอน ตัวที่สอง = ผู้รับ
+  // ใช้ช่วยจำว่าผู้โอนคนนี้คือสาขาไหน (AY ยืนยันเองในแอป) — ไม่ใช้ตัดสินเรื่องเงิน
+  var accts = [];
+  lines.forEach(function (l) {
+    var re = /(?:^|[^A-Za-z0-9*-])((?:[xX*\d]{1,7}-){1,5}[xX*\d]{1,7}|[xX*]{2,}\d{3,6}[xX*]{0,3})(?![A-Za-z0-9*-])/g, am;
+    while ((am = re.exec(l))) {
+      var tok = am[1];
+      if (/[xX*]/.test(tok) && (tok.match(/\d/g) || []).length >= 3) accts.push(tok.replace(/[X*]/g, 'x').slice(0, 24));
+    }
+  });
+  if (accts[0]) out.senderAcct = accts[0];
+  if (accts[1]) out.receiverAcct = accts[1];
+
   out.isSlip = looksSlip && uniq.length > 0;
   return out;
+}
+
+// ============ ตัวคัดรูปออเดอร์ (ฟังก์ชันล้วน) ============
+// ไม่เดา: ต้องมีคำว่า สาขา+เลข หรือ ธง, มีบรรทัดอื่นที่มีตัวเลข และต้องไม่มีคำเรื่องเงิน (รูปบิลที่ AY ส่งเองจะไม่ถูกเก็บ)
+// คืนข้อความที่ตัดสั้นแล้ว (เก็บขึ้นบรรทัดใหม่ไว้ให้ตัวอ่านออเดอร์ในแอปใช้) หรือ null = ไม่ใช่ออเดอร์
+function orderDraftText_(raw) {
+  var lines = String(raw || '').replace(/\r/g, '').split('\n').map(function (l) { return l.replace(/[ \t\u00a0]+/g, ' ').trim(); }).filter(String);
+  var joined = lines.join('\n');
+  var br = -1;
+  for (var i = 0; i < lines.length; i++) { if (/สาขา\s*\d+/.test(lines[i]) || /ธง/.test(lines[i])) { br = i; break; } }
+  if (br < 0) return null;
+  if (/(บาท|฿|THB|ราคา|ยอดรวม|รวมทั้งสิ้น|ยอดชำระ|ค้างชำระ|โอนเงิน|บัญชี)/i.test(joined)) return null;
+  var hasQty = lines.some(function (l, k) { return k !== br && /\d/.test(l); });
+  if (!hasQty) return null;
+  return lineMaskDigits_(lines.slice(0, 30).map(function (l) { return l.slice(0, 60); }).join('\n')).slice(0, LINE_ORDER_TEXT_MAX);
 }
 function slipIso_(dd, mm, yy) {
   var y = Number(yy);

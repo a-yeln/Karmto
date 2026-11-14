@@ -42,3 +42,10 @@ tapping one only fills the amount — choosing the bill and confirming stays man
 to the group and never writes money fields. Install steps (Thai) are at the top of the file.
 Apps Script can't read request headers, so `X-Line-Signature` can't be verified; the webhook is guarded by a secret
 `?t=` token, a single allowed `LINE_GROUP_ID`, and images are fetched from LINE with our own token (forged message ids 404).
+
+**Intake endpoint** (`POST …/exec?a=intake&t=<KARMTO_INTAKE_TOKEN>`): for groups our bot cannot join (LINE allows one
+official account per group). The server of the bot that *is* in the group (see `docs/line-relay-for-it.md`) or the
+folder watcher on the owner's PC (`tools/line-watcher/`) posts `{image: base64, sender, sentAt}`. Images are checked
+(real JPEG/PNG header, ≤ 5 MB, ≤ 1,500/day, MD5 de-dup), parked in the Drive folder "Karmto LINE Intake", processed by
+the same 1-minute trigger and then permanently deleted. Slips go to `lineInbox:`; order photos become text drafts in
+`lineOrders:YYYY-MM-DD` that the app turns into chips on the order page (tap = fill the form only, the owner saves).

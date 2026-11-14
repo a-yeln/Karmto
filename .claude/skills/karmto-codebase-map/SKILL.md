@@ -25,7 +25,7 @@ OCR รูปออเดอร์ (Tesseract): `getOcrWorker_` L3523, `parseOrd
 
 ## ล็อต / ตัดต้นทุน / เคลม
 `loadRawLots` L7549, `drawPendingQty_` L7640 (= sellable − costed − claimed), `allocateClaimToDrawsFIFO_` L7675,
-การ์ดตัด `computeLotSettleRows_` L8192 / `renderLotSettleCards_` L8254 / `confirmLotSettle_` L8491 (มี lock + rollback), ถังล็อต `lotTankStats_` L8098 + ปุ่มกดค้าง `wireLotHold_` L8416, จับคู่ยอดโอน `confirmSlipMatch_` L4950,
+การ์ดตัด `computeLotSettleRows_` L8192 / `renderLotSettleCards_` L8254 / `confirmLotSettle_` L8491 (มี lock + rollback), ถังล็อต `lotTankStats_` L8098 + ปุ่มกดค้าง `wireLotHold_` L8416, จับคู่ยอดโอน `confirmSlipMatch_` L5205, จำผู้โอน↔สาขา `slipPayerHints_`/`rememberSlipPayer_` L5114 (คีย์ `slipPayers`, จดหลัง AY ยืนยันเท่านั้น แค่ติดป้าย), ร่างออเดอร์จาก LINE `loadLineOrderDrafts_`/`applyLineOrderDraft_` L3914 (คีย์ `lineOrders:วัน`, เติมฟอร์มผ่าน `fillOrderFormFromParsed_` ไม่บันทึก),
 เคลม/ทิ้ง ใน `renderLeftover` (push wasteRecords ~L4233), ตรวจ `computeLotCostedQtyAudit_` L11319, `computeDayGaps_` L11186
 
 ## P&L / Brand fee

@@ -88,7 +88,7 @@ const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y
   check('ยืนยัน = เขียนบิลจุดเดียว billingPaid/02 ของวันบิล', dayW.length === 1 && dayW[0].key === 'day:2026-11-10' && JSON.stringify(dayW[0].path) === '["billingPaid","02"]', after.writes);
   check('บันทึกยอดโอน + วันที่โอนจากสลิป', after.paid && after.paid.paid === true && after.paid.transferAmount === 1250 && after.paid.paidDate === '2026-11-11', after.paid);
   check('สลิปถูกติดป้ายจับคู่แล้ว (ที่คีย์ lineInbox เท่านั้น)', after.inbox.matched && after.inbox.matched.iso === '2026-11-10' && after.inbox.matched.code === '02', after.inbox);
-  check('เขียนแค่ 2 คีย์: วันบิล + lineInbox (+ log กิจกรรม)', after.writes.every(w => /^(day:2026-11-10|lineInbox:2026-11-12|actlog:|activityLog|dayRevs)/.test(w.key)), after.writes.map(w => w.key));
+  check('เขียนแค่ 2 คีย์: วันบิล + lineInbox (+ log กิจกรรม + ความจำผู้โอน slipPayers)', after.writes.every(w => /^(day:2026-11-10|lineInbox:2026-11-12|actlog:|activityLog|dayRevs|slipPayers$)/.test(w.key)), after.writes.map(w => w.key));
   check('สลิปที่จับคู่แล้วหายจากแถบ', after.chips.join(',') === 'L2,L5', after.chips);
 
   // พิมพ์ยอดเองหลังแตะสลิป → ไม่ผูกกับสลิป (ไม่ติดป้ายผิดใบ)

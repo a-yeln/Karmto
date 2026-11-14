@@ -23,7 +23,7 @@ function makeEnv(propsInit, opts = {}){
     LockService: { getScriptLock: () => ({ waitLock(){}, tryLock(){ return true; }, releaseLock(){} }) },
     CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: t => ({ setMimeType(){ return { text: t }; } }) },
-    Utilities: { formatDate: (d, tz, f) => {
+    Utilities: { getUuid: () => '12345678-1234-1234-1234-' + String(Math.random()).slice(2, 14).padEnd(12, '0'), formatDate: (d, tz, f) => {
       const b = new Date(d.getTime() + 7 * 3600 * 1000).toISOString();
       return f === 'yyyy-MM-dd' ? b.slice(0, 10) : b.slice(0, 19);
     } },
@@ -41,7 +41,7 @@ function makeEnv(propsInit, opts = {}){
     Drive: { Files: { insert: () => ({ id: 'doc1' }), remove: id => removed.push(id) } },
     DocumentApp: { openById: () => ({ getBody: () => ({ getText: () => opts.ocrText || '' }) }) },
     DriveApp: { getFileById: () => ({ setTrashed(){} }) },
-    ScriptApp: { getProjectTriggers: () => [], deleteTrigger(){}, newTrigger: fn => ({ timeBased: () => ({ everyMinutes: n => ({ create: () => triggers.push({ fn, n }) }) }) }) },
+    ScriptApp: { getService: () => ({ getUrl: () => opts.execUrl || null }), getProjectTriggers: () => [], deleteTrigger(){}, newTrigger: fn => ({ timeBased: () => ({ everyMinutes: n => ({ create: () => triggers.push({ fn, n }) }) }) }) },
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
@@ -195,6 +195,17 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   check('ติดตั้ง trigger ทุก 1 นาที', envT.triggers.length === 1 && envT.triggers[0].fn === 'processKarmtoLineQueue' && envT.triggers[0].n === 1);
 }
 
+{
+  const env = makeEnv({}, { execUrl: 'https://script.google.com/macros/s/abc/exec' });
+  const url = env.ctx.showKarmtoWebhookUrl();
+  const tok = env.props.LINE_WEBHOOK_TOKEN;
+  check('showKarmtoWebhookUrl: สร้างรหัสยาว ≥24 + ลิงก์ ?t=', tok && tok.length >= 24 && url === 'https://script.google.com/macros/s/abc/exec?t=' + tok, url);
+  check('รันซ้ำได้รหัสเดิม (ลิงก์ใน LINE ไม่เสีย)', env.ctx.showKarmtoWebhookUrl() === url);
+  const envDev = makeEnv({}, { execUrl: 'https://script.google.com/macros/s/abc/dev' });
+  check('ได้ลิงก์ /dev → ไม่ส่งลิงก์ผิดให้ แค่รหัส ?t= พร้อมบอกวิธี', /^\?t=[0-9a-f]{24,}$/.test(envDev.ctx.showKarmtoWebhookUrl()));
+  const env2 = makeEnv({});
+  check('ยังไม่ Deploy → ไม่คืนลิงก์', env2.ctx.showKarmtoWebhookUrl() === '');
+}
 // ไม่มีโค้ด reply ในไฟล์เลย
 check('ไฟล์ไม่มี endpoint reply/broadcast/multicast', !/\/reply|broadcast|multicast/.test(SRC.replace(/\/\*[\s\S]*?\*\//g, '')));
 

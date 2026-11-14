@@ -8,27 +8,40 @@
  *  - รูปที่ไม่ใช่สลิป (ออเดอร์/บิล) → ข้าม ไม่เก็บ
  *  - ไม่ตอบ/ไม่ส่งอะไรในกลุ่มเด็ดขาด (ไม่มีการเรียก reply และไม่ push เข้ากลุ่ม)
  *
- * ขั้นตอนติดตั้งสำหรับ AY (ทำครั้งเดียว):
- *  1) LINE Developers (developers.line.biz) → สร้าง Provider → สร้าง Messaging API channel (ผูกกับ LINE OA ใหม่หรือของเดิม)
- *     - แท็บ Messaging API: กด Issue "Channel access token (long-lived)" → คัดลอกไว้
- *     - LINE Official Account Manager → ตั้งค่า → การตอบกลับ: ปิด "ข้อความตอบกลับอัตโนมัติ" และ "ข้อความทักทาย"
- *       เปิด "Webhook" และเปิด "อนุญาตให้บอทเข้าร่วมกลุ่ม"
- *  2) script.google.com → New project → ตั้งชื่อ "Karmto LINE Bot" → วางไฟล์นี้ทั้งไฟล์แทน Code.gs เปล่า
- *  3) เมนูซ้าย Services (+) → เพิ่ม "Drive API" (ใช้ OCR อ่านสลิปฟรี) → Add
- *  4) Project Settings → Script Properties → เพิ่ม:
- *       LINE_CHANNEL_ACCESS_TOKEN = token จากข้อ 1
- *       LINE_WEBHOOK_TOKEN        = รหัสสุ่มยาวอย่างน้อย 24 ตัว (ตัวอักษร+ตัวเลข) ตั้งเอง ห้ามบอกใคร — สั้นกว่านี้บอทไม่รับอะไรเลย
- *       KARMTO_API_URL            = ลิงก์ /exec ของเว็บแอป Karmto ตัวเดิม (ค่าเดียวกับ SHEET_API_URL ใน index.html)
- *       KARMTO_KEY                = รหัสเข้าใช้ระบบ (ถ้าตั้งไว้ตาม AuthGuard.gs — ไม่ได้ตั้งก็ไม่ต้องใส่)
- *  5) Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone → Deploy → อนุญาตสิทธิ์ → คัดลอกลิงก์ /exec
- *  6) กลับไป LINE Developers → Messaging API → Webhook URL = ลิงก์ /exec จากข้อ 5 ต่อท้ายด้วย ?t=รหัสจากข้อ 4
- *       เช่น https://script.google.com/macros/s/xxxx/exec?t=รหัสสุ่ม  → เปิด Use webhook
- *     (ปุ่ม Verify อาจขึ้น error เพราะ Apps Script ตอบกลับแบบ redirect — ไม่เป็นไร ข้อความจริงยังเข้า)
- *  7) ในโปรแกรมแก้สคริปต์ เลือกฟังก์ชัน installKarmtoLineBot → Run ครั้งเดียว (ตั้งตัวประมวลผลทุก 1 นาที)
- *  8) เชิญบอทเข้ากลุ่ม LINE → ส่งรูปอะไรก็ได้ 1 รูป → รัน showKarmtoLineGroups ดู Group ID ใน Execution log (เลือกตัวท้ายสุดที่เพิ่งขึ้นหลังส่งรูป)
- *     → เพิ่ม Script Property  LINE_GROUP_ID = Group ID นั้น (หลังตั้งแล้วบอทรับเฉพาะกลุ่มนี้กลุ่มเดียว)
- *  ไม่บังคับ: LINE_NOTIFY_USER_ID = User ID ของ AY (LINE Developers → Basic settings → Your user ID)
+ * ขั้นตอนติดตั้งสำหรับ AY (ทำครั้งเดียว ~30 นาที, ใช้คอม/แท็บเล็ตผ่านเว็บได้)
+ *  ก. สร้าง LINE Official Account (ใช้อีเมลสมัครได้ ไม่ต้องใช้แอป LINE)
+ *   1) entry.line.biz/start/th → สร้างบัญชี LINE Official Account ฟรี → เลือก "สมัครด้วยอีเมล" → ยืนยันอีเมล → กรอกฟอร์ม
+ *   2) manager.line.biz → เลือกบัญชี → ตั้งค่า (มุมขวาบน)
+ *      - Messaging API → เปิดใช้ Messaging API → สร้าง Provider ใหม่ (ชื่อ เช่น Karmto; เปลี่ยนทีหลังไม่ได้) → ตกลง
+ *      - การตั้งค่าการตอบกลับ: ปิด "ข้อความตอบกลับอัตโนมัติ" + "ข้อความทักทาย", เปิด "Webhook"
+ *      - การตั้งค่าบัญชี: เปิด "อนุญาตให้บัญชีเข้าร่วมแชทกลุ่มและแชทที่มีผู้ใช้หลายคน"
+ *   3) developers.line.biz/console → เข้าด้วยบัญชีเดียวกับข้อ 1 → เลือก Provider → channel ของบัญชีนี้ → แท็บ Messaging API
+ *      - "Allow bot to join group chats" = Enabled (ถ้ามีปุ่ม Edit ให้กดเปิด)
+ *      - ล่างสุด Channel access token (long-lived) → Issue → คัดลอกเก็บไว้ (ห้ามส่งให้ใคร)
+ *  ข. ตั้งบอทใน Google Apps Script (บัญชี Google เดียวกับที่ดูแลชีต Karmto)
+ *   4) script.google.com → New project → ตั้งชื่อ "Karmto LINE Bot" → ลบโค้ดเปล่าทิ้ง → วางไฟล์นี้ทั้งไฟล์ → Save
+ *   5) เมนูซ้าย Services (+) → เลือก "Drive API" → Add (ใช้ OCR อ่านสลิปฟรี)
+ *   6) Project Settings (รูปเฟือง) → Script Properties → Add property:
+ *        LINE_CHANNEL_ACCESS_TOKEN = token จากข้อ 3
+ *        KARMTO_API_URL            = ลิงก์ /exec ของเว็บแอป Karmto ตัวเดิม (ค่าเดียวกับ SHEET_API_URL ใน index.html)
+ *        KARMTO_KEY                = รหัสเข้าใช้ระบบ (ถ้าตั้งไว้ตาม AuthGuard.gs — ไม่ได้ตั้งก็ไม่ต้องใส่)
+ *      (LINE_WEBHOOK_TOKEN ไม่ต้องตั้งเอง — ข้อ 8 สร้างให้)
+ *   7) Deploy → New deployment → รูปเฟือง เลือก Web app → Execute as: Me, Who has access: Anyone → Deploy
+ *      → Authorize access → เลือกบัญชี → Advanced → Go to Karmto LINE Bot (unsafe) → Allow
+ *   8) ด้านบนเลือกฟังก์ชัน showKarmtoWebhookUrl → Run → ดู Execution log จะได้ลิงก์ webhook (ต้องลงท้าย /exec?t=…) คัดลอกไว้
+ *      ห้ามแคปจอ/ส่งลิงก์นี้ให้ใคร — ถ้าเผลอส่ง: ลบ LINE_WEBHOOK_TOKEN แล้วรันข้อ 8 ใหม่ + วางลิงก์ใหม่ในข้อ 10
+ *   9) เลือกฟังก์ชัน installKarmtoLineBot → Run ครั้งเดียว (ตั้งตัวประมวลผลทุก 1 นาที)
+ *  ค. ต่อ LINE กับบอท
+ *  10) developers.line.biz → แท็บ Messaging API → Webhook URL → Edit → วางลิงก์จากข้อ 8 → Update → เปิด Use webhook
+ *      (ปุ่ม Verify อาจขึ้น error เพราะ Apps Script ตอบกลับแบบ redirect — ไม่เป็นไร ข้อความจริงยังเข้า)
+ *  11) คนที่อยู่ในกลุ่มสาขา (ใครก็ได้) เพิ่มเพื่อนบัญชี OA นี้ (สแกน QR ใน manager.line.biz) → เข้ากลุ่ม → เชิญ → เลือกบัญชี OA
+ *      (1 กลุ่มใส่ OA ได้ 1 บัญชี ถ้าเชิญไม่ได้ ให้เปิด "แชท" ในการตั้งค่าการตอบกลับเพิ่ม โดยยังเปิด Webhook ไว้)
+ *  12) ส่งรูปอะไรก็ได้ 1 รูปในกลุ่ม → รอ 1 นาที → รัน showKarmtoLineGroups → ดู Group ID (ตัวท้ายสุด) ใน Execution log
+ *      → Script Properties เพิ่ม LINE_GROUP_ID = Group ID นั้น (หลังตั้งแล้วบอทรับเฉพาะกลุ่มนี้กลุ่มเดียว)
+ *  13) ทดสอบ: ส่งรูปสลิปจริง 1 ใบ → รอ 1–2 นาที → เปิดแอป Karmto แท็บบิล → การ์ด "จับคู่ยอดโอน" ต้องมีชิป "สลิปจาก LINE"
+ *  ไม่บังคับ: LINE_NOTIFY_USER_ID = User ID ของ AY (developers.line.biz → Basic settings → Your user ID)
  *     ตั้งแล้วบอทจะส่งแจ้งทางแชทส่วนตัวเมื่อมีคนพิมพ์ข้อความในกลุ่ม (ใช้โควตา push ของแพ็กเกจ LINE OA — ไม่ตั้ง = ไม่ส่ง)
+ *  แก้โค้ดภายหลัง: Deploy → Manage deployments → แก้ deployment เดิม → Version: New version (ลิงก์ไม่เปลี่ยน)
  *
  * ความปลอดภัย: Apps Script อ่าน header X-Line-Signature ไม่ได้ (ข้อจำกัดของ Google) จึงกันด้วย
  *  (ก) รหัสลับ ?t= ในลิงก์ webhook (ข) รับเฉพาะ LINE_GROUP_ID (ค) รูปดึงจากเซิร์ฟเวอร์ LINE ด้วย token ของเราเองเท่านั้น
@@ -77,6 +90,24 @@ function lineOk_() {
 function lineRememberGroup_(props, gid) {
   var seen = (props.getProperty('LINE_SEEN_GROUP_IDS') || '').split(',').filter(String);
   if (seen.indexOf(gid) < 0) { seen.push(gid); props.setProperty('LINE_SEEN_GROUP_IDS', seen.slice(-10).join(',')); }
+}
+/** รันหลัง Deploy: สร้างรหัสลับ webhook (ถ้ายังไม่มี) แล้วพิมพ์ลิงก์ webhook ที่ต้องวางใน LINE Developers */
+function showKarmtoWebhookUrl() {
+  var props = PropertiesService.getScriptProperties();
+  var tok = props.getProperty('LINE_WEBHOOK_TOKEN');
+  if (!tok || tok.length < 24) {
+    tok = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+    props.setProperty('LINE_WEBHOOK_TOKEN', tok);
+  }
+  var url = ScriptApp.getService().getUrl();
+  if (!url) { Logger.log('ยังไม่ได้ Deploy เป็น Web app — ทำขั้นตอนที่ 7 ก่อน'); return ''; }
+  if (!/\/exec$/.test(url)) { // บางครั้งได้ลิงก์ทดสอบ /dev ซึ่ง LINE เรียกไม่ได้
+    Logger.log('ได้ลิงก์ที่ไม่ใช่ /exec — ไปที่ Deploy → Manage deployments คัดลอก Web app URL (ลงท้าย /exec) แล้วต่อท้ายด้วย:\n?t=' + tok);
+    return '?t=' + tok;
+  }
+  var full = url + '?t=' + tok;
+  Logger.log('ลิงก์ Webhook (วางใน LINE Developers → Messaging API → Webhook URL):\n' + full);
+  return full;
 }
 /** รันเองหลังเชิญบอทเข้ากลุ่ม → ดู Group ID ใน Execution log */
 function showKarmtoLineGroups() {

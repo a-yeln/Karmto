@@ -1649,6 +1649,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div class="hint">อ่านฟรีในเครื่อง (ไม่เสียเงิน ไม่ต้องเน็ตเร็ว) แต่อาจอ่านตัวเลข/ชื่อสินค้าผิดบ้าง ต้องตรวจทานทุกครั้งก่อนบันทึก — เลือกรูปเดียวจะเติมลงฟอร์มให้ตรวจก่อนบันทึกเอง ถ้าเลือกหลายรูปพร้อมกันระบบจะอ่านแล้วบันทึกให้ทุกสาขาทันที (ควรไล่เช็คตัวเลขแต่ละสาขาที่ "สาขาที่บันทึกแล้ว" เทียบกับภาพอีกรอบ)</div>
       <input type="file" accept="image/*" id="orderImageInput" multiple style="margin-top:8px;">
       <div id="orderImageStatus" class="hint" style="margin-top:6px;"></div>
+      <div id="lineOrderDrafts" class="slip-inbox" style="display:none;margin-top:10px;"></div>
     </div>
     <div class="card dash-wide-card" data-no-collapse="1" id="branchGridCard">
       <h3 style="margin:0 0 8px;">🗂️ สาขาวันนี้ <span class="subhint" id="branchGridCount"></span></h3>
@@ -3861,13 +3862,22 @@ async function readOrderImage(file){
   statusEl.textContent = 'กำลังอ่านภาพ (ใช้เวลาสักครู่)…';
   try{
     const parsed = await parseOrderImage(file);
+    fillOrderFormFromParsed_(parsed, statusEl, false);
+  }catch(e){
+    console.error('readOrderImage failed', e);
+    statusEl.textContent = `อ่านภาพไม่สำเร็จ: ${(e&&e.message)?e.message:'ไม่ทราบสาเหตุ'} — ลองใหม่อีกครั้ง หรือกรอกเองแทน`;
+  }
+}
+// เติมผลอ่านลง "ฟอร์ม" เท่านั้น (ไม่บันทึก) — ใช้ร่วมกันระหว่างอ่านรูปในเครื่อง กับร่างออเดอร์จาก LINE; AY ต้องกด "บันทึกสาขานี้" เองทุกครั้ง
+function fillOrderFormFromParsed_(parsed, statusEl, fromLine){
+  {
     const branch = findBranchFromOcr(parsed.branchCode, parsed.branchArea);
     if(!branch){
       statusEl.textContent = `อ่านได้แต่หาสาขาไม่เจอ (อ่านว่า "${parsed.branchArea||parsed.branchCode||'-'}") กรุณาเลือกสาขาเอง แล้วกรอกจำนวนจากภาพด้วยตัวเอง`;
-      return;
+      return false;
     }
     editingCode = branch.code;
-    document.getElementById('branchSelect').value = branch.code;
+    { const sel = document.getElementById('branchSelect'); if(![...sel.options].some(o=>o.value===branch.code)) renderBranchSelect(); sel.value = branch.code; }
     renderProductInputs();
     const row = {};
     (parsed.items||[]).forEach(it=>{
@@ -3883,19 +3893,96 @@ async function readOrderImage(file){
         ...PRODUCTS.filter(p=>Number(existing[p.id]||0)>0).map(p=>`${p.emoji}${p.name} ${existing[p.id]}`),
         ...(existing.custom||[]).map(it=>`📦${it.name} ${it.qty}`),
       ].join(', ');
-      statusEl.innerHTML = `⚠️ <b style="color:var(--danger);">สาขา ${escapeHtml(branchDisplayName(branch))} มีออเดอร์บันทึกไว้แล้วในวันที่ ${formatDDMMYYYY(currentDate)} (${existingText}) — ถ้ากด "บันทึกสาขานี้" ตอนนี้จะเขียนทับของเดิมทันที เช็คให้ชัวร์ก่อนว่ารูปที่อ่านนี้เป็นของวันที่ ${formatDDMMYYYY(currentDate)} จริงๆ (ไม่ใช่วันอื่น) ก่อนบันทึก</b>${escapeHtml(unmatchedMsg)}`;
+      statusEl.innerHTML = `⚠️ <b style="color:var(--danger);">สาขา ${escapeHtml(branchDisplayName(branch))} มีออเดอร์บันทึกไว้แล้วในวันที่ ${formatDDMMYYYY(currentDate)} (${escapeHtml(existingText)}) — ถ้ากด "บันทึกสาขานี้" ตอนนี้จะเขียนทับของเดิมทันที เช็คให้ชัวร์ก่อนว่ารูปที่อ่านนี้เป็นของวันที่ ${formatDDMMYYYY(currentDate)} จริงๆ (ไม่ใช่วันอื่น) ก่อนบันทึก</b>${escapeHtml(unmatchedMsg)}`;
     }else{
-      statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — เป็นการอ่านแบบฟรีในเครื่อง อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง (กำลังจะบันทึกเข้าวันที่ ${formatDDMMYYYY(currentDate)})${unmatchedMsg}`;
+      statusEl.textContent = `อ่านได้: ${branchDisplayName(branch)} — ${fromLine ? 'ร่างจาก LINE (บอทอ่านจากรูปในกลุ่ม)' : 'เป็นการอ่านแบบฟรีในเครื่อง'} อาจพลาดบ้าง กรุณาตรวจสอบตัวเลขให้ตรงกับภาพก่อนกดบันทึกสาขานี้ทุกครั้ง (กำลังจะบันทึกเข้าวันที่ ${formatDDMMYYYY(currentDate)})${unmatchedMsg}`;
     }
     Object.entries(row).forEach(([pid,qty])=>{
       const input = document.querySelector(`.prodinput[data-pid="${pid}"]`);
       if(input) input.value = qty;
     });
     window.scrollTo({top:0, behavior:'smooth'});
-  }catch(e){
-    console.error('readOrderImage failed', e);
-    statusEl.textContent = `อ่านภาพไม่สำเร็จ: ${(e&&e.message)?e.message:'ไม่ทราบสาเหตุ'} — ลองใหม่อีกครั้ง หรือกรอกเองแทน`;
+    return true;
   }
+}
+// ---- ร่างออเดอร์จาก LINE (lineOrders:YYYY-MM-DD เขียนโดย backend/LineBot.gs) ----
+// บอทเก็บแค่ "ข้อความที่อ่านได้จากรูป" — แอปแปลด้วย parseOcrText ตัวเดิม แล้วโชว์เป็นชิป; แตะ = เติมฟอร์มเท่านั้น ไม่บันทึกออเดอร์
+// เขียนได้อย่างเดียวคือป้าย dismissed ของร่างเอง (ปุ่ม ×) ผ่าน writeRootArrayOp_ ทีละรายการ — ไม่แตะคีย์วัน/เงิน
+const LINE_ORDERS_PREFIX = 'lineOrders:';
+const LINE_ORDER_DAYS = 2;
+let lineOrderDrafts_ = [], lineOrderDraftsAt_ = 0, lineOrderSeq_ = 0;
+async function loadLineOrderDrafts_(force){
+  if(!force && lineOrderDraftsAt_ && Date.now() - lineOrderDraftsAt_ < 30000) return lineOrderDrafts_;
+  const days = Array.from({length: LINE_ORDER_DAYS}, (_, n)=>addDaysISO(todayISO(), -n));
+  const vals = await window.bulkGetStorageImpl(days.map(d=>LINE_ORDERS_PREFIX+d));
+  const out = [], seen = new Set();
+  days.forEach(d=>{
+    let arr = null;
+    try{ arr = JSON.parse(vals[LINE_ORDERS_PREFIX+d]); }catch(e){}
+    if(!Array.isArray(arr)) return;
+    arr.forEach(x=>{
+      if(!x || x.type !== 'order' || typeof x.id !== 'string' || typeof x.text !== 'string' || x.dismissed) return;
+      if(seen.has(d+'|'+x.id)) return;
+      seen.add(d+'|'+x.id);
+      let parsed;
+      try{ parsed = parseOcrText(x.text.slice(0, 1200)); }catch(e){ return; }
+      const branch = findBranchFromOcr(parsed.branchCode, parsed.branchArea);
+      const row = {};
+      (parsed.items||[]).forEach(it=>{ const pid = matchProductFromOcrName(it.name); if(pid) row[pid] = Number(it.qty)||0; });
+      const n = Object.keys(row).length;
+      if(!branch && !n) return; // อ่านไม่ได้ทั้งสาขาและสินค้า = ไม่ใช่ออเดอร์ที่ใช้ได้ ไม่โชว์
+      out.push({id:x.id, day:d, at:String(x.at||''), postedBy: x.postedBy ? String(x.postedBy) : '', parsed, code: branch ? branch.code : '', label: branch ? branchDisplayName(branch) : '', n});
+    });
+  });
+  out.sort((a,b)=> b.at.localeCompare(a.at));
+  lineOrderDrafts_ = out; lineOrderDraftsAt_ = Date.now();
+  return out;
+}
+async function renderLineOrderDrafts_(force){
+  const box = document.getElementById('lineOrderDrafts');
+  if(!box) return;
+  if(!box.__wired){
+    box.__wired = true;
+    box.addEventListener('click', e=>{
+      const el = e.target && e.target.closest ? e.target.closest('[data-lodx],[data-lod]') : null;
+      if(!el || !box.contains(el)) return;
+      if(el.hasAttribute('data-lodx')) dismissLineOrderDraft_(el.getAttribute('data-lodx'), el.getAttribute('data-lodday'));
+      else applyLineOrderDraft_(el.getAttribute('data-lod'), el.getAttribute('data-lodday'));
+    });
+  }
+  const seq = ++lineOrderSeq_;
+  let items;
+  try{ items = await loadLineOrderDrafts_(force); }catch(e){ return; } // อ่านไม่ได้ = ไม่โชว์ ไม่กระทบหน้าออเดอร์
+  if(seq !== lineOrderSeq_) return;
+  if(!items.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  const orders = dayData.orders || {};
+  box.style.display = '';
+  box.innerHTML = `<div class="slip-inbox-head"><i></i>ร่างออเดอร์จาก LINE ${items.length} ใบ <span style="font-weight:400;">· แตะเพื่อเติมฟอร์ม (ยังไม่บันทึก)</span></div>
+    <div class="slip-chips">${items.map(x=>{
+      const has = x.code && orderRowHasOrder_(orders[x.code]);
+      // ร่างที่รับมาคนละวันกับวันที่เปิดอยู่ → โชว์วันที่รับ กันเอาออเดอร์เมื่อวานลงวันนี้โดยไม่รู้ตัว
+      const sub = [has ? '✓ มีออเดอร์แล้ว' : '', x.day !== currentDate ? 'รับ '+formatDDMMYYYY(x.day) : '', x.n ? x.n+' รายการ' : 'อ่านสินค้าไม่ได้', x.at.slice(11,16), x.postedBy].filter(Boolean).join(' · ');
+      const attrs = `data-lodday="${escapeHtml(x.day)}"`;
+      return `<div style="position:relative;flex:none;"><button type="button" class="slip-chip${x.code?'':' unread'}" data-lod="${escapeHtml(x.id)}" ${attrs} style="${has?'opacity:.6;':''}" aria-label="${escapeHtml('ร่างออเดอร์ '+(x.label||'หาสาขาไม่เจอ')+' '+sub)}">
+        <b style="font-size:13px;">${escapeHtml(x.label || 'หาสาขาไม่เจอ')}</b><small>${escapeHtml(sub)}</small></button>
+        <button type="button" class="slip-chip-x" data-lodx="${escapeHtml(x.id)}" ${attrs} aria-label="ซ่อนร่างนี้">×</button></div>`;
+    }).join('')}</div>`;
+}
+function applyLineOrderDraft_(id, day){
+  const x = lineOrderDrafts_.find(v=>v.id===id && v.day===day);
+  const statusEl = document.getElementById('orderImageStatus');
+  if(!x || !statusEl) return;
+  fillOrderFormFromParsed_(x.parsed, statusEl, true);
+}
+async function dismissLineOrderDraft_(id, day){
+  if(!SLIP_ISO_RE.test(String(day)) || !id) return;
+  if(isOffline_()){ showToast('ต้องต่อเน็ตก่อน'); return; }
+  try{
+    await writeRootArrayOp_(LINE_ORDERS_PREFIX+day, {matchField:'id', matchValue:id, set:{dismissed:true, dismissedAt:new Date().toISOString()}}, ()=>{});
+  }catch(e){ showToast('ซ่อนร่างไม่สำเร็จ ลองใหม่อีกครั้ง'); return; }
+  lineOrderDrafts_ = lineOrderDrafts_.filter(v=>!(v.id===id && v.day===day));
+  lineOrderDraftsAt_ = Date.now();
+  renderLineOrderDrafts_();
 }
 async function readOrderImages(fileList){
   const files = Array.from(fileList);
@@ -4947,7 +5034,7 @@ async function loadSlipInbox_(force){
       const amount = (typeof x.amount === 'number' && isFinite(x.amount) && x.amount > 0) ? Math.round(x.amount*100)/100 : null;
       all.push({id:x.id, day:d, at:String(x.at||''), amount, slipDate: SLIP_ISO_RE.test(String(x.slipDate)) ? x.slipDate : null,
         slipTime: /^\d{2}:\d{2}$/.test(String(x.slipTime)) ? x.slipTime : null, sender: x.sender ? String(x.sender) : '', postedBy: x.postedBy ? String(x.postedBy) : '',
-        ref: x.ref ? String(x.ref) : '', used: !!(x.matched || x.dismissed)});
+        ref: x.ref ? String(x.ref) : '', senderAcct: x.senderAcct ? String(x.senderAcct).slice(0,24) : '', used: !!(x.matched || x.dismissed)});
     });
   });
   all.sort((a,b)=> a.at.localeCompare(b.at)); // เก่าก่อน: ใบแรกที่เห็นคือตัวจริง ใบหลังที่หน้าตาเหมือนกัน = อาจซ้ำ
@@ -4999,12 +5086,60 @@ function pickSlipInbox_(id, day){
   if(x.amount==null){ showToast('อ่านยอดจากสลิปนี้ไม่ได้ — ดูรูปใน LINE แล้วพิมพ์ยอดเอง'); return; }
   clearTimeout(slipMatchTimer_);
   const amountStr = String(x.amount);
-  slipMatchDraft_ = {amountStr, pick:null, paidDate:'', nearMsg:null, inbox:{id:x.id, day:x.day, amount:x.amount, slipDate:x.slipDate, dup:!!x.dup},
+  slipMatchDraft_ = {amountStr, pick:null, paidDate:'', nearMsg:null, inbox:{id:x.id, day:x.day, amount:x.amount, slipDate:x.slipDate, dup:!!x.dup, sender:x.sender, senderAcct:x.senderAcct},
     note: x.dup ? 'สลิปนี้หน้าตาเหมือนใบที่ส่งมาก่อน (ยอด/วันที่/เวลา หรือเลขอ้างอิงตรงกัน) — อาจเป็นเงินก้อนเดิม ตรวจในแอปธนาคารก่อนติ๊กจ่าย' : null};
   const inp = document.getElementById('slipMatchAmount');
   if(inp) inp.value = amountStr;
   markSlipChips_();
   renderSlipMatchResults_();
+}
+// ---- จำผู้โอน ↔ สาขา (คีย์ slipPayers) ----
+// จดเฉพาะตอน AY กด "ยืนยันติ๊กจ่าย" สำเร็จจากสลิป LINE (ชื่อผู้โอน/เลขบัญชีแบบปิดบางหลักบนสลิป → สาขาของบิลที่ AY เลือกเอง)
+// ใช้แค่ "ติดป้ายบอก" บนปุ่มบิลในครั้งถัดไป — ไม่เลือกบิลให้ ไม่ติ๊กจ่ายให้ ไม่เปลี่ยนลำดับ/ยอด; เขียนแบบ patch ทีละรายการ
+const SLIP_PAYERS_MAX = 400;
+let slipPayersCache_ = null;
+function slipPayerSig_(sender, acct){
+  const n = String(sender||'').replace(/\s+/g,' ').trim().toLowerCase().slice(0,60);
+  const a = String(acct||'').replace(/[^0-9]/g,'');
+  if(!n && a.length<3) return '';
+  return (n||'-') + '|' + (a.length>=3 ? a : '-');
+}
+async function loadSlipPayers_(){
+  if(slipPayersCache_) return slipPayersCache_;
+  let arr = [];
+  try{ const r = await window.storage.get('slipPayers'); arr = JSON.parse(r.value); }
+  catch(e){
+    // ยังไม่มีคีย์ = ว่างจริง จำได้; อ่านพลาดเพราะเน็ต = ไม่แคช (ไม่งั้นป้ายหายทั้งเซสชัน และตัวนับถูกเขียนทับเป็น 1)
+    if(!(e && e.message && e.message.indexOf('Key not found') === 0)) throw e;
+    arr = [];
+  }
+  slipPayersCache_ = Array.isArray(arr) ? arr : [];
+  return slipPayersCache_;
+}
+// คืน map: รหัสสาขา → จำนวนครั้งที่ผู้โอนของสลิปนี้เคยถูกยืนยันกับสาขานั้น
+async function slipPayerHints_(inb){
+  const sig = inb ? slipPayerSig_(inb.sender, inb.senderAcct) : '';
+  const out = {};
+  if(!sig) return out;
+  let arr;
+  try{ arr = await loadSlipPayers_(); }catch(e){ return out; }
+  arr.forEach(p=>{ if(p && p.sig===sig && typeof p.code==='string') out[p.code] = (out[p.code]||0) + (Number(p.count)||1); });
+  return out;
+}
+async function rememberSlipPayer_(inb, code){
+  const sig = slipPayerSig_(inb.sender, inb.senderAcct);
+  if(!sig || !code) return;
+  const arr = await loadSlipPayers_();
+  const id = sig + '>' + code;
+  const prev = arr.find(p=>p && p.id===id);
+  const entry = {id, sig, name:String(inb.sender||'').slice(0,60), acct:String(inb.senderAcct||'').slice(0,24), code, count:(prev ? Number(prev.count)||0 : 0)+1, lastAt:new Date().toISOString()};
+  const ops = [{remove:{matchField:'id', matchValue:id}}, {push:entry}];
+  // เกินเพดาน → ทิ้งรายการที่ไม่ได้ใช้นานสุด 1 ตัว (กันคีย์โตไม่จบ)
+  if(!prev && arr.length >= SLIP_PAYERS_MAX){
+    const oldest = arr.slice().sort((a,b)=>String(a.lastAt||'').localeCompare(String(b.lastAt||'')))[0];
+    if(oldest && oldest.id) ops.unshift({remove:{matchField:'id', matchValue:oldest.id}});
+  }
+  await writeRootArrayOp_('slipPayers', ops, a=>{ slipPayersCache_ = a; });
 }
 async function dismissSlipInbox_(id, day){
   if(!SLIP_ISO_RE.test(String(day)) || !id) return;
@@ -5030,12 +5165,14 @@ async function renderSlipMatchResults_(){
   try{ m = await computeSlipMatches_(typed); }
   catch(e){ if(seq===slipMatchSeq_) box.innerHTML = noteHtml + `<div class="slip-warn">โหลดรายการบิลไม่ได้ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง</div>`; return; }
   if(seq !== slipMatchSeq_) return; // มีผลของยอดที่พิมพ์ใหม่กว่ามาแล้ว ทิ้งผลเก่า
+  const hints = await slipPayerHints_(D.inbox); // ป้ายบอกเฉยๆ ว่าผู้โอนนี้เคยจ่ายสาขาไหน (อ่านอย่างเดียว)
+  if(seq !== slipMatchSeq_) return;
   // pick ต้องเป็นบิล "ยอดตรงเป๊ะ" ในผลชุดนี้เท่านั้น ไม่งั้นทิ้ง (กันยืนยันบิลที่ยอดไม่ตรงแล้ว)
   let pick = D.pick ? m.exact.find(x=>x.iso===D.pick.iso && x.code===D.pick.code) : null;
   D.pick = pick ? {iso:pick.iso, code:pick.code, amt:pick.amt} : null;
   if(m.exact.length===0 && m.near.length===0){ box.innerHTML = noteHtml + `<div class="slip-note" data-slipempty>ไม่พบบิลค้างโอนที่ยอดใกล้เคียง</div>`; return; }
   const btnHtml = (x, kind, tag)=>`<button type="button" class="slip-match${kind==='exact'?' best':''}${pick && kind==='exact' && pick.iso===x.iso && pick.code===x.code ? ' picked' : ''}" data-slipiso="${escapeHtml(x.iso)}" data-slipcode="${escapeHtml(x.code)}" data-slipkind="${kind}">
-      <span>${escapeHtml(x.code)} ${escapeHtml(branchName(x.code))} · ${escapeHtml(formatDDMMYYYY(x.iso))}<small>${escapeHtml(tag)}</small></span><b class="num">${escapeHtml(slipMoney_(x.amt))}</b></button>`;
+      <span>${escapeHtml(x.code)} ${escapeHtml(branchName(x.code))} · ${escapeHtml(formatDDMMYYYY(x.iso))}<small>${escapeHtml(tag)}</small>${hints[x.code] ? `<small data-sliphint style="color:var(--success-ink);font-weight:700;">⭐ ผู้โอนนี้เคยจ่ายสาขานี้ ${Number(hints[x.code])} ครั้ง</small>` : ''}</span><b class="num">${escapeHtml(slipMoney_(x.amt))}</b></button>`;
   let html = noteHtml;
   let panelHtml = '';
   if(pick){
@@ -5125,10 +5262,12 @@ async function confirmSlipMatch_(btn){
     const queued = readOfflineQueue_().length>0;
     // สลิปจาก LINE ที่ใช้เติมยอดนี้ → ติดป้ายว่าจับคู่แล้ว (ป้ายของสลิปเท่านั้น ไม่ใช่เงิน) — พังก็ไม่กระทบการติ๊กจ่ายที่สำเร็จไปแล้ว
     const inb = D.inbox;
+    let rememberInb = null;
     if(inb && Math.round(Number(inb.amount)*100) === Math.round(typed*100) && !queued){
       try{ await writeRootArrayOp_(LINE_INBOX_PREFIX+inb.day, {matchField:'id', matchValue:inb.id, set:{matched:{iso, code, at:new Date().toISOString()}}}, ()=>{}); }catch(e){}
       slipInbox_ = slipInbox_.filter(v=>!(v.id===inb.id && v.day===inb.day));
       renderSlipInbox_();
+      rememberInb = inb;
     }
     slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', nearMsg:null, inbox:null, note: queued ? `ยังไม่ถึงเซิร์ฟเวอร์ รอส่ง — บิล ${code} วันที่ ${formatDDMMYYYY(iso)} จะถูกติ๊กจ่ายเมื่อเน็ตกลับมา (ตรวจอีกครั้งหลังต่อเน็ต)` : null};
     const amtInp = document.getElementById('slipMatchAmount');
@@ -5138,6 +5277,8 @@ async function confirmSlipMatch_(btn){
     await renderSlipMatchResults_();
     renderBillingList(); renderStats();
     await renderOutstanding(); await renderBillingSummaryTiles();
+    // จำว่าผู้โอนของสลิปนี้ = สาขาที่ AY เพิ่งยืนยันเอง (ความจำช่วยติดป้ายครั้งหน้า ไม่ใช่เงิน) — ทำท้ายสุดหลังแจ้งผลแล้ว พังก็ไม่กระทบการติ๊กจ่าย
+    if(rememberInb){ try{ await rememberSlipPayer_(rememberInb, code); }catch(e){} }
   }finally{ slipMatchBusy_ = false; }
 }
 // สถิติสรุปของ "บิลรายสาขา — วันที่เลือก" (สาขาที่สั่งวันนี้/ชำระแล้วกี่สาขา/ยอดรวมออเดอร์/ยอดที่โอนเข้าจริงแล้ว) — คนละเรื่องกับ
@@ -7734,7 +7875,7 @@ function showBackupFallbackModal(jsonStr){
 // root key อื่นๆ นอกจาก settings/days/debts ที่ต้องสำรองด้วย ไม่งั้นกู้คืนจากไฟล์สำรองแล้วสต็อกล็อต/ของเสีย/ประวัติต่างๆ
 // จะหายไปทั้งหมด (เดิม exportAllData/importAllData สำรองแค่ 3 ตัวแรกเท่านั้น) — รายชื่อนี้คือทุก root key ที่แอปใช้จริง
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
-const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths'];
+const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths','slipPayers'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
 const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:'];
 async function exportAllData(){
@@ -12821,6 +12962,7 @@ function openBranchForm_(code){
   return true;
 }
 function renderBranchGrid_(){
+  renderLineOrderDrafts_();
   const el = document.getElementById('branchGrid');
   if(!el) return;
   const orders = dayData.orders || {};
@@ -13251,7 +13393,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-12.8';
+const APP_BUILD = '2026-11-14.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

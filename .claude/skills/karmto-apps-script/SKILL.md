@@ -21,3 +21,9 @@ description: แพทเทิร์นเขียน Google Apps Script (back
 - รูปบิล → ข้าม
 - ข้อความตัวอักษร → push แจ้ง AY ส่วนตัวทันที + ลง Notifications
 - ห้ามบันทึกเงิน/ตัดยอดจ่ายเอง
+- ทางรับรูปจากภายนอก `doPost?a=intake&t=` (`lineIntake_`, รหัส `KARMTO_INTAKE_TOKEN` แยกจาก webhook): ใช้เมื่อบอทเราเข้ากลุ่มไม่ได้ (LINE ให้ 1 กลุ่ม 1 บัญชีทางการ)
+  ผู้ส่ง = เซิร์ฟเวอร์ของบอทที่อยู่ในกลุ่ม (`docs/line-relay-for-it.md`) หรือโปรแกรมเฝ้าโฟลเดอร์บนคอม AY (`tools/line-watcher/`)
+  ตรวจ: หัวไฟล์ JPEG/PNG จริง, ≤ 5MB, ≤ 1,500 รูป/วัน, กันซ้ำด้วย MD5 → พักไฟล์ใน Drive โฟลเดอร์ "Karmto LINE Intake" (คิว = โฟลเดอร์ ไม่ใช้ Script Properties เพราะจำกัด 9KB) → `lineProcessIntake_` อ่านแล้วลบถาวร
+- ทุกทางเข้าใช้ `lineHandleBlob_` ตัวเดียว: สลิป → `lineInbox:` (+ `senderAcct` เลขบัญชีแบบปิดบางหลัก) | ออเดอร์ (`orderDraftText_`: มี สาขา/ธง + ตัวเลข และไม่มีคำเรื่องเงิน) → `lineOrders:YYYY-MM-DD` เป็นข้อความร่าง | อื่นๆ → ข้าม
+- `karmtoKeyPush_` เขียนได้แค่คีย์ `lineInbox:`/`lineOrders:` (regex บังคับ) — ห้ามขยายไปคีย์วัน/เงิน
+- เทส: `tests/specs/line-intake-backend.spec.js`

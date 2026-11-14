@@ -63,7 +63,7 @@
   คิวบันทึกออฟไลน์ (`karmto_offline_queue`), แคชรายชื่อคีย์ 60 วินาที
 - ข้อมูลรายวัน `day:YYYY-MM-DD` (orders, purchases, expenses, leftoverOut/leftoverSince, billingPaid, billExtra ...)
 - คีย์รวม: `rawLots` (ล็อต + draws: qtyUsed/sellableQty/costedQty/claimedQty), `lotProductBills`, `lotTransportBills`,
-  `wasteRecords` (reason 'waste'|'claim', lotClaimAllocations), `settings`, `actlog:YYYY-MM-DD`, `rchkm:*`/`rchk:*`, `productImage:*`
+  `wasteRecords` (reason 'waste'|'claim', lotClaimAllocations), `settings`, `actlog:YYYY-MM-DD`, `rchkm:*`/`rchk:*`, `productImage:*`, `lineInbox:YYYY-MM-DD` (สลิป), `lineOrders:YYYY-MM-DD` (ร่างออเดอร์ ไม่สำรอง), `slipPayers`
 - สินค้า `PRODUCTS` p1–p7 มี `shop` (monk=มนต์, mahkard=ม๊ะก๊าด, phat=พัฒน์); หอยนางรม (p7) ซื้อเป็น กก. ขายเป็นกระปุก
 - ธีม: `data-theme` (mermaid/sea/neon, ไม่มี = macaron), `data-tmode` (full/color), `data-bill` — เช็คทุกธีมเมื่อแก้ UI
 - ถ้าเพิ่มคีย์ใหม่ที่ต้องสำรอง ให้เพิ่มใน `BACKUP_EXTRA_ROOT_KEYS` / `BACKUP_PREFIXES` และ `backend/BackupTrigger.gs`
@@ -81,11 +81,17 @@
 ถังล็อต + ปุ่มกดค้าง 1 วินาทีในการ์ดตัดต้นทุนสต็อกล็อต (`lotTankStats_`, `wireLotHold_` — `confirmLotSettle_` ไม่เปลี่ยน) •
 การ์ดจับคู่ยอดโอนกับบิลแบบพิมพ์ยอดเองในแท็บบิล (`computeSlipMatches_`, `confirmSlipMatch_` — ยอดไม่ตรงเป๊ะติ๊กจ่ายจากการ์ดนี้ไม่ได้) •
 สีตัวอักษร `--success-ink`/`--danger-ink` (ใช้กับตัวหนังสือบนธีมสว่าง; `--success`/`--danger` ใช้กับพื้น/เส้น) • แผงยืนยันจับคู่อยู่ใต้บิลที่เลือก •
-บอท LINE เงียบ `backend/LineBot.gs` (คิว + OCR Drive → `lineInbox:YYYY-MM-DD`) + แถบชิป "สลิปจาก LINE" ในการ์ดจับคู่ (`loadSlipInbox_`, `pickSlipInbox_` แค่เติมยอด)
+บอท LINE เงียบ `backend/LineBot.gs` (คิว + OCR Drive → `lineInbox:YYYY-MM-DD`) + แถบชิป "สลิปจาก LINE" ในการ์ดจับคู่ (`loadSlipInbox_`, `pickSlipInbox_` แค่เติมยอด) •
+ทางรับรูปจากภายนอก `?a=intake` ใน `backend/LineBot.gs` (`lineIntake_`; ใช้เมื่อบอทเราเข้ากลุ่มไม่ได้ — ผู้ส่ง = เซิร์ฟเวอร์บอทของลูกค้า `docs/line-relay-for-it.md` หรือคอม AY `tools/line-watcher/`) •
+ร่างออเดอร์จาก LINE ในหน้าออเดอร์ (`lineOrders:YYYY-MM-DD`, `loadLineOrderDrafts_`, แตะ = เติมฟอร์มเท่านั้น) •
+จำผู้โอน↔สาขา (`slipPayers`, `rememberSlipPayer_` จดหลัง AY กดยืนยันติ๊กจ่ายเท่านั้น; `slipPayerHints_` แค่ติดป้ายบนปุ่มบิล)
 
 ## ค้างฝั่งเจ้าของ
 - ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)
 - ติดตั้งบอท LINE ตามขั้นตอนหัวไฟล์ `backend/LineBot.gs` (ต้องมี LINE OA + Messaging API channel; ยังไม่ติดตั้ง = แถบสลิปไม่โชว์)
+- กลุ่ม LINE สาขา (55 คน) มีบอทของบริษัทลูกค้าอยู่แล้ว บอทเราเข้าไม่ได้ และ AY ต้องการอัตโนมัติในกลุ่มเดิม → รอ 2 อย่าง:
+  (ก) AY ส่ง `docs/line-relay-for-it.md` ขอไอทีลูกค้าส่งสำเนารูปมา (ข) AY ลง LINE บนคอม Asus แล้วรัน `tools/line-watcher/check-line.bat` ส่งผลกลับ
+  — ทางรับรูป/โปรแกรมเฝ้ายังไม่ได้ลองกับ LINE/Windows จริง
 
 ## แผนถัดไป (AY ยืนยันก่อนเริ่มแต่ละตัว)
 1. ✅ เช็คลิสต์ "กรอกครบวันนี้" + วันย้อนหลังที่ขาด (บนศูนย์บัญชาการ 🧭)

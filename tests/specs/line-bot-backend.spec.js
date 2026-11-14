@@ -50,7 +50,7 @@ function makeEnv(propsInit, opts = {}){
 }
 const TOK = 'tok123tok123tok123tok123';
 const G = 'C' + '1'.repeat(32), G2 = 'C' + '2'.repeat(32), UA = 'U' + 'b'.repeat(32);
-const BASE_PROPS = { LINE_WEBHOOK_TOKEN: 'tok123tok123tok123tok123', LINE_CHANNEL_ACCESS_TOKEN: 'chan', KARMTO_API_URL: 'https://karmto.example/exec', LINE_GROUP_ID: G };
+const BASE_PROPS = { LINE_WEBHOOK_TOKEN: 'tok123tok123tok123tok123', LINE_CHANNEL_ACCESS_TOKEN: 'chan', KARMTO_API_URL: 'https://karmto.example/exec', LINE_GROUP_ID: G, LINE_DIRECT_USER_IDS: UA };
 const ev = (type, extra = {}) => Object.assign({ type: 'message', timestamp: Date.parse('2026-11-12T03:21:00Z'), source: { type: 'group', groupId: G, userId: UA }, message: Object.assign({ id: '5001', type }, extra) });
 const post = (env, t, events) => env.ctx.doPost({ parameter: { t }, postData: { contents: JSON.stringify({ destination: 'Ubot', events }) } });
 const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
@@ -218,6 +218,12 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   const w = env.fetches.filter(f => f.url === 'https://karmto.example/exec' && f.o.payload).map(f => JSON.parse(f.o.payload).ops[1].push);
   check('แชทส่วนตัว: อ่านสลิป 2,460 + ชื่อผู้ส่งจากโปรไฟล์ + via direct', w.length === 1 && w[0].amount === 2460 && w[0].slipDate === '2026-11-14' && w[0].slipTime === '10:55' && w[0].postedBy === 'พนักงานเอ' && w[0].via === 'direct', w);
   check('แชทส่วนตัว: ไม่ตอบกลับ/ไม่ push', !env.fetches.some(f => /\/reply|\/push/.test(f.url)));
+  const envNone = makeEnv(Object.assign({}, BASE_PROPS, { LINE_DIRECT_USER_IDS: '' }), { ocrText });
+  post(envNone, TOK, [dm()]);
+  check('ยังไม่ตั้ง LINE_DIRECT_USER_IDS → ไม่รับสลิปจากแชทส่วนตัว แต่จำ ID ไว้ให้เลือก', queue(envNone).length === 0 && envNone.props.LINE_SEEN_USER_IDS === UA);
+  const logs = []; envNone.ctx.Logger.log = m => logs.push(String(m));
+  envNone.ctx.showKarmtoLineGroups();
+  check('showKarmtoLineGroups แสดงชื่อ + User ID ที่ส่งมา', logs.some(l => l.indexOf('พนักงานเอ ' + UA) >= 0), logs);
   const envAllow = makeEnv(Object.assign({}, BASE_PROPS, { LINE_DIRECT_USER_IDS: 'U' + 'c'.repeat(32) }), { ocrText });
   post(envAllow, TOK, [dm()]);
   check('ตั้ง LINE_DIRECT_USER_IDS แล้ว คนนอกรายชื่อส่งมา → ไม่รับ', queue(envAllow).length === 0);

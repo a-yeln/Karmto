@@ -7,8 +7,8 @@
  *  - ข้อความตัวอักษรในกลุ่ม → เก็บลง lineInbox (type 'text') + ถ้าตั้ง LINE_NOTIFY_USER_ID จะส่งแจ้ง AY ทางแชทส่วนตัว
  *  - รูปที่ไม่ใช่สลิป (ออเดอร์/บิล) → ข้าม ไม่เก็บ
  *  - ส่งต่อ (Forward) รูปสลิปเข้าแชทส่วนตัวของบัญชีบอท → อ่านแบบเดียวกัน (ใช้เมื่อเอาบอทเข้ากลุ่มไม่ได้
- *    เช่น กลุ่มมีบัญชีทางการตัวอื่นอยู่แล้ว) — ไม่ต้องตั้ง LINE_GROUP_ID; ตั้ง LINE_DIRECT_USER_IDS (User ID คั่นด้วย ,)
- *    เพื่อรับเฉพาะคนในทีม ไม่ตั้ง = รับจากทุกคนที่แอดบอท (ยอดเป็นแค่ "ข้อเสนอ" AY ยังต้องจับคู่และยืนยันเองทุกครั้ง)
+ *    เช่น กลุ่มมีบัญชีทางการตัวอื่นอยู่แล้ว) — รับเฉพาะคนใน LINE_DIRECT_USER_IDS (User ID คั่นด้วย ,)
+ *    วิธีหา ID: ให้คนในทีมส่งรูป 1 รูปเข้าแชทบอท → รัน showKarmtoLineGroups → คัดลอก ID ตามชื่อไปใส่
  *  - ไม่ตอบ/ไม่ส่งอะไรในกลุ่มเด็ดขาด (ไม่มีการเรียก reply และไม่ push เข้ากลุ่ม)
  *
  * ขั้นตอนติดตั้งสำหรับ AY (ทำครั้งเดียว ~30 นาที, ใช้คอม/แท็บเล็ตผ่านเว็บได้)
@@ -47,7 +47,7 @@
  *  แก้โค้ดภายหลัง: Deploy → Manage deployments → แก้ deployment เดิม → Version: New version (ลิงก์ไม่เปลี่ยน)
  *
  * ความปลอดภัย: Apps Script อ่าน header X-Line-Signature ไม่ได้ (ข้อจำกัดของ Google) จึงกันด้วย
- *  (ก) รหัสลับ ?t= ในลิงก์ webhook (ข) รับเฉพาะ LINE_GROUP_ID (ค) รูปดึงจากเซิร์ฟเวอร์ LINE ด้วย token ของเราเองเท่านั้น
+ *  (ก) รหัสลับ ?t= ในลิงก์ webhook (ข) รับเฉพาะ LINE_GROUP_ID และคนใน LINE_DIRECT_USER_IDS (ค) รูปดึงจากเซิร์ฟเวอร์ LINE ด้วย token ของเราเองเท่านั้น
  *  ใครปลอมคำขอมาก็ได้แค่ messageId ที่ LINE ไม่รู้จัก → ดึงรูปไม่ได้ → ไม่มีอะไรถูกบันทึก
  */
 
@@ -75,7 +75,8 @@ function doPost(e) {
     if (ev.source.type === 'user') {
       var duid = String(ev.source.userId || '');
       if (!/^U[0-9a-f]{32}$/.test(duid)) return;
-      if (allowUsers.length && allowUsers.indexOf(duid) < 0) return; // ตั้งรายชื่อไว้ = รับเฉพาะคนในรายชื่อ
+      // รับเฉพาะคนใน LINE_DIRECT_USER_IDS — ยังไม่ตั้ง/ไม่อยู่ในรายชื่อ = จำ ID ไว้ให้ AY เลือก ไม่เก็บสลิป (กันคนนอกส่งสลิปปลอม)
+      if (allowUsers.indexOf(duid) < 0) { lineRememberUser_(props, duid); return; }
       var dmid = String(ev.message.id || '');
       if (ev.message.type !== 'image' || !/^\d{1,30}$/.test(dmid)) return;
       items.push({ mid: dmid, ts: Date.now(), uid: duid, gid: '', direct: true, kind: 'image', tries: 0 });
@@ -124,9 +125,19 @@ function showKarmtoWebhookUrl() {
   Logger.log('ลิงก์ Webhook (วางใน LINE Developers → Messaging API → Webhook URL):\n' + full);
   return full;
 }
-/** รันเองหลังเชิญบอทเข้ากลุ่ม → ดู Group ID ใน Execution log */
+function lineRememberUser_(props, uid) {
+  var seen = (props.getProperty('LINE_SEEN_USER_IDS') || '').split(',').filter(String);
+  if (seen.indexOf(uid) < 0) { seen.push(uid); props.setProperty('LINE_SEEN_USER_IDS', seen.slice(-10).join(',')); }
+}
+/** รันเองหลังเชิญบอทเข้ากลุ่ม / หลังมีคนส่งรูปเข้าแชทบอท → ดู Group ID และ User ID (พร้อมชื่อ) ใน Execution log */
 function showKarmtoLineGroups() {
-  Logger.log('Group ID ที่บอทเห็น: ' + (PropertiesService.getScriptProperties().getProperty('LINE_SEEN_GROUP_IDS') || '(ยังไม่มี — ส่งรูปในกลุ่มก่อน 1 รูป)'));
+  var props = PropertiesService.getScriptProperties();
+  Logger.log('Group ID ที่บอทเห็น: ' + (props.getProperty('LINE_SEEN_GROUP_IDS') || '(ยังไม่มี — ส่งรูปในกลุ่มก่อน 1 รูป)'));
+  var users = (props.getProperty('LINE_SEEN_USER_IDS') || '').split(',').filter(String);
+  if (!users.length) { Logger.log('คนที่ส่งรูปเข้าแชทบอท (ยังไม่อยู่ในรายชื่อ): ยังไม่มี'); return; }
+  var token = props.getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  Logger.log('คนที่ส่งรูปเข้าแชทบอท (ยังไม่อยู่ในรายชื่อ) — คัดลอก ID คนในทีมไปใส่ LINE_DIRECT_USER_IDS คั่นด้วย , :\n' +
+    users.map(function (u) { return (token ? (lineProfileName_(token, u) || '(ไม่ทราบชื่อ)') : '') + ' ' + u; }).join('\n'));
 }
 
 function lineQueuePush_(items) {

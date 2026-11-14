@@ -33,6 +33,7 @@ function makeEnv(propsInit, opts = {}){
         if(opts.contentCode) return { getResponseCode: () => opts.contentCode, getBlob: () => null, getContentText: () => '' };
         return { getResponseCode: () => 200, getBlob: () => ({ setName(){}, getName: () => 'x.jpg', getContentType: () => opts.ctype || 'image/jpeg', getBytes: () => ({ length: opts.size || 50000 }) }) };
       }
+      if(url.indexOf('/v2/bot/profile/') >= 0) return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ displayName: 'พนักงานเอ' }) };
       if(url.indexOf('/member/') >= 0) return opts.memberCode ? { getResponseCode: () => opts.memberCode, getContentText: () => '' } : { getResponseCode: () => 200, getContentText: () => JSON.stringify({ displayName: 'สาขา 5' }) };
       if(url.indexOf('/push') >= 0) return { getResponseCode: () => 200, getContentText: () => '{}' };
       if(url.indexOf('?action=get') >= 0) return { getResponseCode: () => 200, getContentText: () => JSON.stringify(opts.existing ? { key: 'x', value: JSON.stringify(opts.existing) } : { error: 'Key not found' }) };
@@ -97,9 +98,9 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
 
   post(env, TOK, [ev('image'), Object.assign(ev('image', { id: '5002' }), { source: { type: 'group', groupId: G2, userId: UA } }), Object.assign(ev('image', { id: '5003' }), { source: { type: 'user', userId: UA } }), ev('sticker', { id: '5004' }), ev('text', { id: '5005', text: 'พรุ่งนี้ขอกุ้งเพิ่ม' })]);
   const q = queue(env);
-  check('รับเฉพาะกลุ่มที่ตั้งไว้ + เฉพาะรูป/ข้อความ', q.map(x => x.mid).join(',') === '5001,5005', q.map(x => x.mid));
+  check('รับเฉพาะกลุ่มที่ตั้งไว้ (รูป/ข้อความ) + รูปจากแชทส่วนตัว; กลุ่มอื่น/สติกเกอร์ไม่รับ', q.map(x => x.mid).join(',') === '5001,5003,5005' && q.find(x => x.mid === '5003').direct === true, q.map(x => x.mid));
   post(env, TOK, [ev('image')]);
-  check('LINE ส่งซ้ำ (messageId เดิม) → ไม่เข้าคิวซ้ำ', queue(env).length === 2);
+  check('LINE ส่งซ้ำ (messageId เดิม) → ไม่เข้าคิวซ้ำ', queue(env).length === 3);
   check('webhook ไม่เรียกเน็ตเลย (ตอบเร็ว)', env.fetches.length === 0);
 
   // ความปลอดภัยเพิ่ม
@@ -205,6 +206,27 @@ const queue = env => JSON.parse(env.props.LINE_QUEUE || '[]');
   check('ได้ลิงก์ /dev → ไม่ส่งลิงก์ผิดให้ แค่รหัส ?t= พร้อมบอกวิธี', /^\?t=[0-9a-f]{24,}$/.test(envDev.ctx.showKarmtoWebhookUrl()));
   const env2 = makeEnv({});
   check('ยังไม่ Deploy → ไม่คืนลิงก์', env2.ctx.showKarmtoWebhookUrl() === '');
+}
+{
+  // ส่งต่อสลิปเข้าแชทส่วนตัวของบอท
+  const ocrText = 'โอนเงินสำเร็จ\n14 พ.ย. 69 10:55 น.\nบจก. ทานได้ไม่\nจำนวนเงิน\n2,460.00 บาท\nค่าธรรมเนียม\n0.00 บาท';
+  const dm = (extra = {}) => ({ type: 'message', timestamp: Date.now(), source: { type: 'user', userId: UA }, message: Object.assign({ id: '7700', type: 'image' }, extra) });
+  const env = makeEnv(BASE_PROPS, { ocrText });
+  post(env, TOK, [dm(), dm({ id: '7701', type: 'text', text: 'สวัสดี' }), Object.assign(dm({ id: '7702' }), { source: { type: 'user', userId: 'Ubad' } })]);
+  check('แชทส่วนตัว: รับเฉพาะรูป จาก userId รูปแบบถูก', queue(env).map(x => x.mid).join(',') === '7700', queue(env));
+  env.ctx.processKarmtoLineQueue();
+  const w = env.fetches.filter(f => f.url === 'https://karmto.example/exec' && f.o.payload).map(f => JSON.parse(f.o.payload).ops[1].push);
+  check('แชทส่วนตัว: อ่านสลิป 2,460 + ชื่อผู้ส่งจากโปรไฟล์ + via direct', w.length === 1 && w[0].amount === 2460 && w[0].slipDate === '2026-11-14' && w[0].slipTime === '10:55' && w[0].postedBy === 'พนักงานเอ' && w[0].via === 'direct', w);
+  check('แชทส่วนตัว: ไม่ตอบกลับ/ไม่ push', !env.fetches.some(f => /\/reply|\/push/.test(f.url)));
+  const envAllow = makeEnv(Object.assign({}, BASE_PROPS, { LINE_DIRECT_USER_IDS: 'U' + 'c'.repeat(32) }), { ocrText });
+  post(envAllow, TOK, [dm()]);
+  check('ตั้ง LINE_DIRECT_USER_IDS แล้ว คนนอกรายชื่อส่งมา → ไม่รับ', queue(envAllow).length === 0);
+  const envAllow2 = makeEnv(Object.assign({}, BASE_PROPS, { LINE_DIRECT_USER_IDS: 'U' + 'c'.repeat(32) + ', ' + UA }), { ocrText });
+  post(envAllow2, TOK, [dm()]);
+  check('คนในรายชื่อส่งมา → รับ', queue(envAllow2).length === 1);
+  const envNoTok = makeEnv(BASE_PROPS, { ocrText });
+  post(envNoTok, 'wrong', [dm()]);
+  check('แชทส่วนตัวก็ต้องมีรหัส ?t= ถูก', queue(envNoTok).length === 0);
 }
 // ไม่มีโค้ด reply ในไฟล์เลย
 check('ไฟล์ไม่มี endpoint reply/broadcast/multicast', !/\/reply|broadcast|multicast/.test(SRC.replace(/\/\*[\s\S]*?\*\//g, '')));

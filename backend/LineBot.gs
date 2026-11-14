@@ -6,6 +6,9 @@
  *    ให้แอปโชว์ในการ์ด "จับคู่ยอดโอน" (แท็บบิล) — AY เลือกบิลและกดยืนยันเองทุกครั้ง บอทไม่ติ๊กจ่าย/ไม่บันทึกเงิน
  *  - ข้อความตัวอักษรในกลุ่ม → เก็บลง lineInbox (type 'text') + ถ้าตั้ง LINE_NOTIFY_USER_ID จะส่งแจ้ง AY ทางแชทส่วนตัว
  *  - รูปที่ไม่ใช่สลิป (ออเดอร์/บิล) → ข้าม ไม่เก็บ
+ *  - ส่งต่อ (Forward) รูปสลิปเข้าแชทส่วนตัวของบัญชีบอท → อ่านแบบเดียวกัน (ใช้เมื่อเอาบอทเข้ากลุ่มไม่ได้
+ *    เช่น กลุ่มมีบัญชีทางการตัวอื่นอยู่แล้ว) — ไม่ต้องตั้ง LINE_GROUP_ID; ตั้ง LINE_DIRECT_USER_IDS (User ID คั่นด้วย ,)
+ *    เพื่อรับเฉพาะคนในทีม ไม่ตั้ง = รับจากทุกคนที่แอดบอท (ยอดเป็นแค่ "ข้อเสนอ" AY ยังต้องจับคู่และยืนยันเองทุกครั้ง)
  *  - ไม่ตอบ/ไม่ส่งอะไรในกลุ่มเด็ดขาด (ไม่มีการเรียก reply และไม่ push เข้ากลุ่ม)
  *
  * ขั้นตอนติดตั้งสำหรับ AY (ทำครั้งเดียว ~30 นาที, ใช้คอม/แท็บเล็ตผ่านเว็บได้)
@@ -65,8 +68,20 @@ function doPost(e) {
   try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (err) { return lineOk_(); }
   var allowGroup = props.getProperty('LINE_GROUP_ID') || '';
   var items = [];
+  var allowUsers = (props.getProperty('LINE_DIRECT_USER_IDS') || '').split(',').map(function (x) { return x.trim(); }).filter(String);
   (body.events || []).forEach(function (ev) {
-    if (!ev || ev.type !== 'message' || !ev.message || !ev.source || ev.source.type !== 'group') return;
+    if (!ev || ev.type !== 'message' || !ev.message || !ev.source) return;
+    // แชทส่วนตัวกับบัญชีบอท: รับเฉพาะรูป (ส่งต่อสลิปจากกลุ่มอื่นมาให้อ่าน) — ข้อความตัวอักษรไม่เก็บ
+    if (ev.source.type === 'user') {
+      var duid = String(ev.source.userId || '');
+      if (!/^U[0-9a-f]{32}$/.test(duid)) return;
+      if (allowUsers.length && allowUsers.indexOf(duid) < 0) return; // ตั้งรายชื่อไว้ = รับเฉพาะคนในรายชื่อ
+      var dmid = String(ev.message.id || '');
+      if (ev.message.type !== 'image' || !/^\d{1,30}$/.test(dmid)) return;
+      items.push({ mid: dmid, ts: Date.now(), uid: duid, gid: '', direct: true, kind: 'image', tries: 0 });
+      return;
+    }
+    if (ev.source.type !== 'group') return;
     var gid = String(ev.source.groupId || '');
     if (!/^C[0-9a-f]{32}$/.test(gid)) return;
     var uid = String(ev.source.userId || '');
@@ -181,7 +196,7 @@ function lineHandleItem_(it, props) {
   if (!token) throw new Error('ยังไม่ได้ตั้ง LINE_CHANNEL_ACCESS_TOKEN');
   var day = Utilities.formatDate(new Date(it.ts), LINE_TZ, 'yyyy-MM-dd');
   var at = Utilities.formatDate(new Date(it.ts), LINE_TZ, "yyyy-MM-dd'T'HH:mm:ss");
-  var who = lineMemberName_(token, it.gid, it.uid);
+  var who = it.direct ? lineProfileName_(token, it.uid) : lineMemberName_(token, it.gid, it.uid);
   if (it.kind === 'text') {
     // ข้อความไม่มีของให้ดึงยืนยันจาก LINE — ต้องเป็นสมาชิกจริงของกลุ่ม (LINE ตอบชื่อได้) ไม่งั้นทิ้ง ไม่เก็บ ไม่แจ้ง
     if (!who) return;
@@ -206,7 +221,7 @@ function lineHandleItem_(it, props) {
   var slip = parseSlipText_(text);
   if (!slip.isSlip) return; // รูปออเดอร์/บิล/อื่นๆ → ข้าม
   karmtoInboxPush_(day, {
-    id: 'L' + it.mid, type: 'slip', at: at, postedBy: who,
+    id: 'L' + it.mid, type: 'slip', at: at, postedBy: who, via: it.direct ? 'direct' : 'group',
     amount: slip.amount, amountCands: slip.amountCands, slipDate: slip.date, slipTime: slip.time,
     sender: slip.sender, receiver: slip.receiver, bank: slip.bank, ref: slip.ref,
     text: String(text || '').replace(/\s+/g, ' ').replace(/\d{6,}/g, function (d) { return 'x'.repeat(d.length - 4) + d.slice(-4); }).slice(0, LINE_RAW_TEXT_MAX), // ปิดเลขบัญชี/เลขยาว
@@ -232,6 +247,16 @@ function lineMemberName_(token, gid, uid) {
   if (!uid) return null;
   try {
     var r = UrlFetchApp.fetch('https://api.line.me/v2/bot/group/' + encodeURIComponent(gid) + '/member/' + encodeURIComponent(uid), {
+      headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true,
+    });
+    if (r.getResponseCode() !== 200) return null;
+    return String(JSON.parse(r.getContentText()).displayName || '').slice(0, 60) || null;
+  } catch (e) { return null; }
+}
+function lineProfileName_(token, uid) {
+  if (!uid) return null;
+  try {
+    var r = UrlFetchApp.fetch('https://api.line.me/v2/bot/profile/' + encodeURIComponent(uid), {
       headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true,
     });
     if (r.getResponseCode() !== 200) return null;

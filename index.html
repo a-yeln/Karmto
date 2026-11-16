@@ -1446,6 +1446,10 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .nostock-chip{border:1.5px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:999px;padding:6px 12px;min-height:34px;font-family:inherit;font-size:13px;cursor:pointer;}
 .nostock-chip.on{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger-ink);font-weight:700;}
 .nostock-chip:disabled{opacity:.5;}
+.short-in{display:inline-flex;align-items:center;gap:4px;font-size:13px;border:1.5px solid var(--border);border-radius:999px;padding:3px 6px 3px 10px;background:var(--surface-2);}
+.short-in.on{border-color:var(--danger);color:var(--danger-ink);font-weight:700;}
+.short-in input{width:58px;min-height:30px;padding:2px 6px;font-size:14px;}
+.short-in small{color:var(--text-dim);font-weight:400;}
 .nostock-sum{margin-top:8px;font-size:12.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-row{margin-top:2px;font-size:11.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#b42318;border:1px solid #b42318;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
@@ -2355,7 +2359,7 @@ const DEFAULT_BRANCHES = [
   {code:'13S', area:'', label:'สาขา 13(แยกส่ง)', separate:true, billName:'', billAddr:'', billTax:''},
   {code:'16S', area:'', label:'สาขา 16(แยกส่ง)', separate:true, billName:'', billAddr:'', billTax:''},
 ];
-const DEFAULT_EXPENSE_CATEGORIES = ['น้ำแข็ง','ค่าแรง','ค่าเดินทาง/น้ำมัน','ซ่อมบำรุง','อื่นๆ'];
+const DEFAULT_EXPENSE_CATEGORIES = ['น้ำแข็ง','ค่าแรง','ค่าเดินทาง/น้ำมัน','ค่าส่ง/ลาล่า','ซ่อมบำรุง','อื่นๆ'];
 const DEFAULT_DEBT_OWNERS = ['ก้ามโต','WJ','AY'];
 const DEFAULT_DEBT_TYPES = ['เงินกู้','บัตรเครดิต','อื่นๆ'];
 const DEFAULT_PERSONAL_INCOME_CATEGORIES = ['เงินเดือน','รายได้เสริม','อื่นๆ'];
@@ -2428,7 +2432,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, noStock:{all:{}, branch:{}}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:''}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, noStock:{all:{}, branch:{}}, shortQty:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:''}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -2524,6 +2528,8 @@ async function loadSettings(){
     if(!settings.priceHistory) settings.priceHistory = {};
     if(!settings.billInfo) settings.billInfo = {...DEFAULT_BILL_INFO};
     if(!settings.expenseCategories) settings.expenseCategories = [...DEFAULT_EXPENSE_CATEGORIES];
+    // หมวด "ค่าส่ง/ลาล่า" เพิ่มให้ร้านเดิมครั้งเดียว (ธงถูกเซฟไปกับ settings — AY ลบทิ้งทีหลังจะไม่เด้งกลับ)
+    if(!settings._expCatLalamove){ if(!settings.expenseCategories.includes('ค่าส่ง/ลาล่า')) settings.expenseCategories.push('ค่าส่ง/ลาล่า'); settings._expCatLalamove = true; }
     if(!settings.debtOwners) settings.debtOwners = [...DEFAULT_DEBT_OWNERS];
     if(!settings._debtOwnersReset){ settings.debtOwners = [...DEFAULT_DEBT_OWNERS]; settings._debtOwnersReset = true; }
     if(!settings.debtTypes) settings.debtTypes = [...DEFAULT_DEBT_TYPES];
@@ -2569,7 +2575,7 @@ async function loadSettings(){
     const isNotFound = e && e.message && e.message.indexOf('Key not found') === 0;
     const priceHistory = {};
     PRODUCTS.forEach(p=>{ priceHistory[p.id] = [{date:'2026-01-01', price:p.price}]; });
-    settings = {branches: DEFAULT_BRANCHES, priceHistory, billInfo: {...DEFAULT_BILL_INFO}, expenseCategories: [...DEFAULT_EXPENSE_CATEGORIES], debtOwners: [...DEFAULT_DEBT_OWNERS], debtTypes: [...DEFAULT_DEBT_TYPES], personalIncomeCategories: [...DEFAULT_PERSONAL_INCOME_CATEGORIES], personalExpenseCategories: [...DEFAULT_PERSONAL_EXPENSE_CATEGORIES], purchaseSellers: [...DEFAULT_PURCHASE_SELLERS], calendarDotsEnabled: true, _debtOwnersReset: true, shelfLifeDays: {...DEFAULT_SHELF_LIFE_DAYS}};
+    settings = {branches: DEFAULT_BRANCHES, priceHistory, billInfo: {...DEFAULT_BILL_INFO}, expenseCategories: [...DEFAULT_EXPENSE_CATEGORIES], debtOwners: [...DEFAULT_DEBT_OWNERS], debtTypes: [...DEFAULT_DEBT_TYPES], personalIncomeCategories: [...DEFAULT_PERSONAL_INCOME_CATEGORIES], personalExpenseCategories: [...DEFAULT_PERSONAL_EXPENSE_CATEGORIES], purchaseSellers: [...DEFAULT_PURCHASE_SELLERS], calendarDotsEnabled: true, _debtOwnersReset: true, _expCatLalamove: true, shelfLifeDays: {...DEFAULT_SHELF_LIFE_DAYS}};
     if(isNotFound){
       await window.storage.set('settings', JSON.stringify(settings));
     }else{
@@ -2612,7 +2618,7 @@ function normalizeDay_(d){
   d.orders = d.orders || {}; d.leftoverOut = d.leftoverOut || {}; d.leftoverSince = d.leftoverSince || {}; // วันที่เริ่มค้างของของเหลือแต่ละสินค้า (รอบปัจจุบัน) ใช้คำนวณความเสี่ยงเสีย
   d.billingPaid = d.billingPaid || {}; d.billExtra = d.billExtra || {}; d.billNote = d.billNote || {}; d.expenses = d.expenses || [];
   d.billClaimNotes = d.billClaimNotes || {}; // ข้อความแจ้งเคลม (ไม่มียอดเพิ่ม) ที่โชว์ในบิลของสาขานั้นจริงๆ เสมอ
-  d.noStock = (d.noStock && typeof d.noStock==='object') ? d.noStock : {}; d.noStock.all = d.noStock.all || {}; d.noStock.branch = d.noStock.branch || {}; // ป้าย "ไม่มีสินค้า" (ดู isNoStock_)
+  d.noStock = (d.noStock && typeof d.noStock==='object') ? d.noStock : {}; d.noStock.all = d.noStock.all || {}; d.noStock.branch = d.noStock.branch || {}; d.shortQty = (d.shortQty && typeof d.shortQty==='object') ? d.shortQty : {}; // ป้าย "ไม่มีสินค้า" (ดู isNoStock_)
   d.billNoteShowOnBill = d.billNoteShowOnBill || {}; // ติ๊กเลือกได้ว่า billNote ของสาขานั้นจะโชว์ในบิลที่พิมพ์/คัดลอกด้วยหรือไม่ (ค่าเริ่มต้น false เหมือนพฤติกรรมเดิมของ billNote ก่อนมีช่องนี้)
   d.personalIncome = d.personalIncome || []; d.personalExpense = d.personalExpense || [];
   d.purchases = d.purchases || [];
@@ -3185,19 +3191,37 @@ function isNoStock_(d, code, pid){
   return !!(ns.all && ns.all[pid]);
 }
 // สำเนาแถวออเดอร์สำหรับคิดเงิน — ช่องที่ไม่มีสินค้าเป็น 0 (ไม่แตะแถวจริง)
+// จำนวนที่ส่งขาด (day.shortQty[code][pid]) — ไม่ใช่ตัวเลข/ติดลบ = 0
+function shortQtyOf_(d, code, pid){
+  const v = Number(((d && d.shortQty && d.shortQty[code]) || {})[pid]);
+  return (isFinite(v) && v > 0) ? v : 0;
+}
+// จำนวนที่ "ส่งจริง" = สั่ง − ขาด (ไม่ต่ำกว่า 0); ไม่มีสินค้า = 0 — ใช้คิดเงินทุกจุด
+function deliveredQty_(d, code, row, pid){
+  const ordered = Number((row||{})[pid]||0);
+  if(isNoStock_(d, code, pid)) return 0;
+  const sh = shortQtyOf_(d, code, pid);
+  return sh ? Math.max(0, Math.round((ordered - sh)*10)/10) : ordered;
+}
 function billRow_(d, code, row){
   row = row || {};
-  if(!d || !d.noStock || !PRODUCTS.some(p=>isNoStock_(d, code, p.id))) return row;
+  if(!d || !PRODUCTS.some(p=>isNoStock_(d, code, p.id) || shortQtyOf_(d, code, p.id))) return row;
   const out = Object.assign({}, row);
-  PRODUCTS.forEach(p=>{ if(isNoStock_(d, code, p.id)) out[p.id] = 0; });
+  PRODUCTS.forEach(p=>{ if(out[p.id]!=null) out[p.id] = deliveredQty_(d, code, row, p.id); });
   return out;
+}
+// รายการที่ส่งขาดบางส่วน (ไม่รวมไม่มีสินค้าทั้งรายการ) [{p, short}]
+function shortItems_(d, code, row){
+  row = row || {};
+  return PRODUCTS.filter(p=>Number(row[p.id]||0)>0 && !isNoStock_(d, code, p.id) && shortQtyOf_(d, code, p.id)>0)
+    .map(p=>({p, short: Math.min(shortQtyOf_(d, code, p.id), Number(row[p.id]||0))}));
 }
 // รายการสินค้าที่สาขานี้สั่งแต่ไม่มีสินค้า (ใช้ติดป้าย)
 function noStockItems_(d, code, row){
   row = row || {};
   return PRODUCTS.filter(p=>Number(row[p.id]||0)>0 && isNoStock_(d, code, p.id));
 }
-function computeFeeTotals(orders, d){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders||{}).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ if(d && isNoStock_(d, code, p.id)) return; t[p.id]+=Number(row[p.id]||0); }); }); return t; }
+function computeFeeTotals(orders, d){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders||{}).forEach(([code,row])=>{ if(isFeeExempt(code)) return; const r = d ? billRow_(d, code, row) : row; PRODUCTS.forEach(p=>{ t[p.id]+=Number(r[p.id]||0); }); }); return t; }
 // เช็คว่าแถวออเดอร์นี้ "มีออเดอร์จริง" วันนั้นไหม ต้องนับทั้งสินค้าหลัก 7 รายการและสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอ — เดิมหลาย
 // จุดในแอปเช็คแค่ 7 รายการหลักอย่างเดียว ทำให้สาขาที่สั่งแต่ของนอกแคตตาล็อกล้วนๆ (ไม่มีจำนวนใน 7 รายการหลักเลย แต่มี
 // รายการใน row.custom) ถูกมองว่า "ไม่มีออเดอร์วันนี้" ไปเงียบๆ ทั้งที่มีออเดอร์จริงและมีมูลค่าจริง (เข้า branchBillAmount
@@ -5376,6 +5400,7 @@ function renderBillingList(){
       </div>
       ${paidInfoLine}
       ${(()=>{ const ns = noStockItems_(dayData, code, row); return ns.length ? `<div class="d nostock-row" data-nostockrow="${escapeHtml(code)}">📦 ไม่มีสินค้า: ${ns.map(p=>escapeHtml(p.name)).join(', ')} (ไม่คิดเงิน)</div>` : ''; })()}
+      ${(()=>{ const sh = shortItems_(dayData, code, row); return sh.length ? `<div class="d nostock-row" data-shortrow="${escapeHtml(code)}">✂️ ส่งขาด: ${sh.map(x=>escapeHtml(x.p.name)+' '+x.short).join(', ')} (คิดเงินตามที่ส่งจริง)</div>` : ''; })()}
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
           <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
@@ -5565,6 +5590,9 @@ function noStockSummaryText_(d){
     if(d.noStock && d.noStock.all && d.noStock.all[p.id]) parts.push(`${p.name} ทุกสาขา${miss.length ? ' ยกเว้น '+miss.join(', ') : ''}`);
     else parts.push(`${p.name} สาขา ${hit.join(', ')}`);
   });
+  Object.entries(d.orders).forEach(([c,row])=>{
+    shortItems_(d, c, row).forEach(x=>parts.push(`ส่งขาด ${x.p.name} ${x.short} (สาขา ${c})`));
+  });
   return parts.join(' · ');
 }
 function noStockBranchChipsHtml_(code){
@@ -5574,7 +5602,63 @@ function noStockBranchChipsHtml_(code){
   return `<div class="nostock-bar" data-nostockbar="${escapeHtml(code)}"><span class="nostock-lbl">📦 สาขานี้ไม่มีสินค้า:</span>${prods.map(p=>{
     const on = isNoStock_(dayData, code, p.id);
     return `<button type="button" class="nostock-chip${on?' on':''}" data-nsbranch="${p.id}" aria-pressed="${on}">${p.emoji} ${escapeHtml(p.name)}${on?' ✕ ไม่มี':''}</button>`;
+  }).join('')}</div>
+  <div class="nostock-bar" data-shortbar="${escapeHtml(code)}"><span class="nostock-lbl">✂️ ส่งขาด (ใส่จำนวนที่ขาด):</span>${prods.filter(p=>!isNoStock_(dayData, code, p.id)).map(p=>{
+    const sh = shortQtyOf_(dayData, code, p.id), ord = Number(row[p.id]||0);
+    return `<label class="short-in${sh?' on':''}">${p.emoji} ${escapeHtml(p.name)} <input type="number" inputmode="decimal" min="0" max="${ord}" step="0.1" data-nsshort="${p.id}" value="${sh||''}" placeholder="0" aria-label="${escapeHtml('ส่งขาด '+p.name+' (สั่ง '+ord+')')}"><small>/${ord}</small></label>`;
   }).join('')}</div>`;
+}
+// บันทึกจำนวนส่งขาดของสาขา — ด่านเดียวกับ toggleNoStock_ (ออฟไลน์/เดือนปิด/บิลจ่ายแล้ว บล็อก; อ่านวันสดก่อนเขียน; ย้อนค่าถ้าเพิ่งถูกติ๊กจ่าย)
+async function setShortQty_(code, pid, raw, input){
+  const p = PRODUCTS.find(x=>x.id===pid);
+  if(!p || code==null) return false;
+  const str = String(raw==null?'':raw).trim();
+  const n = str==='' ? 0 : Number(str);
+  if(!isFinite(n) || n < 0 || Math.round(n*10) !== n*10){ showToast('ใส่จำนวนส่งขาดเป็นตัวเลข 0 ขึ้นไป (ทศนิยม 1 ตำแหน่ง)'); return false; }
+  if(noStockBusy_) return false;
+  if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อน'); return false; }
+  const iso = currentDate;
+  if(isMonthClosed_(iso)){ showToast('เดือนนี้ปิดแล้ว แก้ไม่ได้'); return false; }
+  noStockBusy_ = true;
+  if(input) input.disabled = true;
+  try{
+    let fresh;
+    try{ const r = await window.storage.get('day:'+iso); fresh = normalizeDay_(JSON.parse(r.value)); }
+    catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้เปลี่ยน'); return false; }
+    const ord = Number(((fresh.orders[code])||{})[pid]||0);
+    if(!(ord > 0)){ showToast('สาขานี้ไม่ได้สั่งสินค้านี้'); return false; }
+    if(n > ord){ showToast(`ส่งขาดเกินจำนวนที่สั่ง (${ord}) ไม่ได้`); return false; }
+    const prev = shortQtyOf_(fresh, code, pid);
+    if(prev === n) return true;
+    if(fresh.billingPaid[code]){
+      dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
+      if(iso===currentDate){ dayData = fresh; renderBillingList(); }
+      showToast(`บิลสาขา ${code} ติ๊กจ่ายแล้ว — ยกเลิกติ๊กจ่ายก่อน แล้วค่อยใส่ส่งขาด`);
+      return false;
+    }
+    const path = ['shortQty', code, pid];
+    let saved;
+    try{ saved = await writeDayFieldPath_(iso, path, n); }
+    catch(e){ showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    if(saved.billingPaid[code]){
+      let back = saved;
+      try{ back = await writeDayFieldPath_(iso, path, prev); }catch(e){}
+      if(iso===currentDate){ dayData = back; renderBillingList(); }
+      showToast(`บิลสาขา ${code} เพิ่งถูกติ๊กจ่าย — ยังไม่ได้เปลี่ยนส่งขาด`);
+      return false;
+    }
+    if(iso===currentDate) dayData = saved;
+    logActivity_(`ส่งขาด ${p.name} ${prev} → ${n} สาขา ${code} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
+    showToast(n ? `บันทึกส่งขาด ${p.name} ${n} (สาขา ${code})` : `ยกเลิกส่งขาด ${p.name} (สาขา ${code})`);
+    slipMatchCands_ = null;
+    renderBillingList(); renderStats();
+    try{ renderFeeToday(); }catch(e){}
+    try{ await renderOutstanding(); await renderBillingSummaryTiles(); }catch(e){}
+    return true;
+  }finally{
+    noStockBusy_ = false;
+    if(input && input.isConnected) input.disabled = false;
+  }
 }
 function renderNoStockCard_(){
   const wrap = document.getElementById('noStockCard');
@@ -5591,7 +5675,7 @@ function renderNoStockCard_(){
       const on = !!(dayData.noStock && dayData.noStock.all && dayData.noStock.all[p.id]);
       return `<button type="button" class="nostock-chip${on?' on':''}" data-nsall="${p.id}" aria-pressed="${on}">${p.emoji} ${escapeHtml(p.name)}${on?' ✕ ไม่มี':''}</button>`;
     }).join('')}</div>
-    ${summary ? `<div class="nostock-sum" data-nostocksum>${escapeHtml(summary)} — หักจากบิลรวม ${money(cut)} (ไม่นับ Brand fee)</div>` : `<div class="hint">แตะสินค้าที่ไม่ได้ส่งวันนี้ = ทุกสาขาไม่มี · ยกเว้นบางสาขา: เปิดบิลสาขานั้นแล้วแตะที่แถบ 📦</div>`}
+    ${summary ? `<div class="nostock-sum" data-nostocksum>${escapeHtml(summary)} — หักจากบิลรวม ${money(cut)} (ไม่มีสินค้า + ส่งขาด, ไม่นับ Brand fee)</div>` : `<div class="hint">แตะสินค้าที่ไม่ได้ส่งวันนี้ = ทุกสาขาไม่มี · ยกเว้นบางสาขา: เปิดบิลสาขานั้นแล้วแตะที่แถบ 📦</div>`}
   </div>`;
   if(!wrap.__wired){
     wrap.__wired = true;
@@ -5667,10 +5751,13 @@ function computeReceiptData(code, iso, d){
   // บาทเต็มเสมอไปอีกต่อไป — ปัดทีละรายการก่อนรวม ทำให้ยอดรวมย่อยตรงกับผลรวมของแต่ละบรรทัดที่โชว์บนบิลเป๊ะๆ เสมอ
   const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>{
     const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso);
-    if(isNoStock_(d, code, p.id)) return {p, qty, price, amount:0, noStock:true}; // สั่งแต่ไม่มีสินค้า: โชว์ขีดฆ่า ยอด 0
-    const amount = Math.round(qty*price);
-    return {p, qty, price, amount};
-  });
+    if(isNoStock_(d, code, p.id)) return [{p, qty, price, amount:0, noStock:true}]; // สั่งแต่ไม่มีสินค้า: โชว์ขีดฆ่า ยอด 0
+    const sent = deliveredQty_(d, code, row, p.id);
+    if(sent <= 0) return [{p, qty, price, amount:0, noStock:true}]; // ส่งขาดทั้งหมด = เหมือนไม่มีสินค้า
+    const out = [{p, qty: sent, price, amount: Math.round(sent*price)}];
+    if(sent < qty) out.push({p, qty: Math.round((qty-sent)*10)/10, price, amount:0, shortLine:true}); // บรรทัดส่งขาด ฿0
+    return out;
+  }).flat();
   // สินค้าอื่นๆ (นอกแคตตาล็อก) ใช้ราคาที่พิมพ์เองตอนบันทึกออเดอร์ตรงๆ (ไม่มี priceOnDate ให้ค้นเหมือนสินค้าหลัก)
   (row.custom||[]).forEach(it=>{
     const qty = Number(it.qty||0); const price = Number(it.price||0); const amount = Math.round(qty*price);
@@ -5718,6 +5805,8 @@ function buildReceiptCardHTML(code, iso, d, cardId){
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
         ${items.map(it=>it.custom
           ? `<tr><td>${it.qty}</td><td>${escapeHtml(it.name)}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+          : it.shortLine
+          ? `<tr class="r-nostock" data-shortline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ส่งขาด</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : it.noStock
           ? `<tr class="r-nostock" data-nostockline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ไม่มีสินค้า</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : `<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
@@ -5749,6 +5838,11 @@ async function toggleReceipt(code){
     ${noStockBranchChipsHtml_(code)}`;
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
+  holder.querySelectorAll('[data-nsshort]').forEach(inp=>inp.addEventListener('change', async ()=>{
+    const ok = await setShortQty_(code, inp.getAttribute('data-nsshort'), inp.value, inp);
+    if(ok){ holder.innerHTML=''; toggleReceipt(code); }
+    else inp.value = shortQtyOf_(dayData, code, inp.getAttribute('data-nsshort')) || '';
+  }));
   holder.querySelectorAll('[data-nsbranch]').forEach(btn=>btn.addEventListener('click', async ()=>{
     const ok = await toggleNoStock_(code, btn.getAttribute('data-nsbranch'), btn);
     if(ok){ holder.innerHTML=''; toggleReceipt(code); }
@@ -5789,7 +5883,7 @@ async function toggleReceipt(code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
@@ -5849,7 +5943,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
@@ -6470,7 +6564,7 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
       branchSet.add(code);
       if(hasBranchFilter && !branchCodes.has(code)) return;
       filteredBranchSet.add(code);
-      PRODUCTS.forEach(p=>{ if(isNoStock_(d, code, p.id)) return; productTotals[p.id] += Number(row[p.id]||0); }); // จำนวนขายจริง (ไม่นับที่ไม่มีสินค้า)
+      { const br_ = billRow_(d, code, row); PRODUCTS.forEach(p=>{ productTotals[p.id] += Number(br_[p.id]||0); }); } // จำนวนขายจริง (ไม่นับที่ไม่มีสินค้า)
       branchRevenue += branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
     });
   });
@@ -6617,7 +6711,7 @@ async function computePLBreakdown_(monthVal){
     Object.entries(d.orders||{}).forEach(([code,row])=>{
       if(!hasNonEmptyOrder_(row)) return;
       const b = br[code] = br[code] || {rev:0, qty:{}, custom:0};
-      PRODUCTS.forEach(p=>{ const q = Number(row[p.id]||0); if(!q || isNoStock_(d, code, p.id)) return; const v = q*priceOnDate(p.id, iso); prod[p.id].qty += q; prod[p.id].rev += v; b.qty[p.id] = (b.qty[p.id]||0)+q; b.rev += v; });
+      const brow_ = billRow_(d, code, row); PRODUCTS.forEach(p=>{ const q = Number(brow_[p.id]||0); if(!q) return; const v = q*priceOnDate(p.id, iso); prod[p.id].qty += q; prod[p.id].rev += v; b.qty[p.id] = (b.qty[p.id]||0)+q; b.rev += v; });
       const cu = (row.custom||[]).reduce((s2,it)=>s2+Number(it.qty||0)*Number(it.price||0),0);
       b.rev += cu + Number((d.billExtra||{})[code]||0); b.custom += cu;
     });
@@ -13548,7 +13642,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-16.1';
+const APP_BUILD = '2026-11-16.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

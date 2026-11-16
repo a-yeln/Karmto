@@ -86,7 +86,8 @@
 ร่างออเดอร์จาก LINE ในหน้าออเดอร์ (`lineOrders:YYYY-MM-DD`, `loadLineOrderDrafts_`, แตะ = เติมฟอร์มเท่านั้น) •
 จำผู้โอน↔สาขา (`slipPayers`, `rememberSlipPayer_` จดหลัง AY กดยืนยันติ๊กจ่ายเท่านั้น; `slipPayerHints_` แค่ติดป้ายบนปุ่มบิล) •
 ป้าย "ไม่มีสินค้า" (`day.noStock` = {all:{pid}, branch:{code:{pid}}}, ค่าสาขาชนะทั้งวัน): ออเดอร์ไม่เปลี่ยน แต่เงินทุกจุดไม่นับ —
-`branchBillAmount(row, iso, d, code)` ต้องส่ง d+code เสมอ, `computeFeeTotals(orders, d)`; การ์ด 📦 ในแท็บบิล + ปุ่มในบิลสาขา (`toggleNoStock_` บล็อกบิลที่จ่ายแล้ว)
+`branchBillAmount(row, iso, d, code)` ต้องส่ง d+code เสมอ, `computeFeeTotals(orders, d)`; การ์ด 📦 ในแท็บบิล + ปุ่มในบิลสาขา (`toggleNoStock_` บล็อกบิลที่จ่ายแล้ว) •
+ส่งขาดบางส่วน (`day.shortQty` = {code:{pid:n}}; `deliveredQty_`/`billRow_` = สั่ง−ขาด; ช่องในบิลที่เปิด → `setShortQty_`; ใบบิลมีบรรทัด "ส่งขาด" ฿0) • หมวดรายจ่าย "ค่าส่ง/ลาล่า"
 
 ## ค้างฝั่งเจ้าของ
 - ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)

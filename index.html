@@ -1441,6 +1441,16 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .slip-actions .btn{min-height:44px;min-width:0;}
 .slip-note{margin-top:8px;font-size:12px;color:var(--text-dim);}
 .slip-inbox{margin:0 0 10px;min-width:0;}
+.nostock-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
+.nostock-lbl{font-size:12px;color:var(--text-dim);font-weight:600;}
+.nostock-chip{border:1.5px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:999px;padding:6px 12px;min-height:34px;font-family:inherit;font-size:13px;cursor:pointer;}
+.nostock-chip.on{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger-ink);font-weight:700;}
+.nostock-chip:disabled{opacity:.5;}
+.nostock-sum{margin-top:8px;font-size:12.5px;color:var(--danger-ink);font-weight:600;}
+.nostock-row{margin-top:2px;font-size:11.5px;color:var(--danger-ink);font-weight:600;}
+.nostock-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#b42318;border:1px solid #b42318;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
+.r-nostock td{color:#888;}
+.fee-nostock{margin-top:6px;font-size:12.5px;color:var(--danger-ink);font-weight:600;}
 .slip-inbox-head{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;}
 .slip-inbox-head i{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 0 0 var(--success);animation:slipPing 2s ease-out 3;}
 @keyframes slipPing{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
@@ -1922,6 +1932,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 
   <div class="panel" id="panel-billing">
     <div class="dash-grid" id="billingSummaryGrid" style="margin-bottom:16px;"></div>
+    <div id="noStockCard"></div>
     <div id="slipMatchCard"></div>
     <div class="card dash-wide-card">
       <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
@@ -2417,7 +2428,7 @@ function numP(pid, n){
   if(pid==='p7') return Number(n).toLocaleString('th-TH', {maximumFractionDigits:2});
   return Math.round(Number(n)).toLocaleString('th-TH');
 }
-function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:''}; }
+function emptyDay(){ return {orders:{}, leftoverOut:{}, leftoverSince:{}, billingPaid:{}, billExtra:{}, billNote:{}, billNoteShowOnBill:{}, billClaimNotes:{}, noStock:{all:{}, branch:{}}, expenses:[], personalIncome:[], personalExpense:[], purchases:[], purchaseGroupPayment:{}, messageOverrides:{}, feeNote:'', dashNote:''}; }
 function branchDisplayName(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา ${b.code} ${b.area}`; }
 function branchBillLabel(b){ if(b.label) return b.label; return b.code==='00' ? b.area : `สาขา${b.code}(สาขา${b.area})`; }
 function branchAutoAddr(b){
@@ -2601,6 +2612,7 @@ function normalizeDay_(d){
   d.orders = d.orders || {}; d.leftoverOut = d.leftoverOut || {}; d.leftoverSince = d.leftoverSince || {}; // วันที่เริ่มค้างของของเหลือแต่ละสินค้า (รอบปัจจุบัน) ใช้คำนวณความเสี่ยงเสีย
   d.billingPaid = d.billingPaid || {}; d.billExtra = d.billExtra || {}; d.billNote = d.billNote || {}; d.expenses = d.expenses || [];
   d.billClaimNotes = d.billClaimNotes || {}; // ข้อความแจ้งเคลม (ไม่มียอดเพิ่ม) ที่โชว์ในบิลของสาขานั้นจริงๆ เสมอ
+  d.noStock = (d.noStock && typeof d.noStock==='object') ? d.noStock : {}; d.noStock.all = d.noStock.all || {}; d.noStock.branch = d.noStock.branch || {}; // ป้าย "ไม่มีสินค้า" (ดู isNoStock_)
   d.billNoteShowOnBill = d.billNoteShowOnBill || {}; // ติ๊กเลือกได้ว่า billNote ของสาขานั้นจะโชว์ในบิลที่พิมพ์/คัดลอกด้วยหรือไม่ (ค่าเริ่มต้น false เหมือนพฤติกรรมเดิมของ billNote ก่อนมีช่องนี้)
   d.personalIncome = d.personalIncome || []; d.personalExpense = d.personalExpense || [];
   d.purchases = d.purchases || [];
@@ -2982,7 +2994,7 @@ async function writeBillingPaid_(iso, code, value){
   const res = await window.storage.patchField('day:'+iso, ['billingPaid', code], value);
   const fresh = normalizeDay_(JSON.parse(res.value));
   try{
-    const amt = branchBillAmount(fresh.orders[code]||{}, iso) + Number((fresh.billExtra||{})[code]||0);
+    const amt = branchBillAmount(fresh.orders[code]||{}, iso, fresh, code) + Number((fresh.billExtra||{})[code]||0);
     const pd = value && value.paidDate ? ` (โอนวันที่ ${formatDDMMYYYY(value.paidDate)})` : '';
     logActivity_(`${value ? '✅ โอนแล้ว' : '↩️ เปลี่ยนเป็นรอโอน'} บิลสาขา ${code} ${branchName(code)} ${money(amt)}${value?pd:''} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
   }catch(e){}
@@ -3162,7 +3174,30 @@ function renderActivityFeed_(){
 }
 
 function computeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.values(orders).forEach(row=>{ PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
-function computeFeeTotals(orders){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ t[p.id]+=Number(row[p.id]||0); }); }); return t; }
+// ---- ป้าย "ไม่มีสินค้า" (d.noStock) ----
+// ออเดอร์ยังเก็บจำนวนที่สาขาสั่งไว้ตามจริง (ใช้สั่งของ/จัดของ/ล็อต/สต๊อกเหมือนเดิม) แต่ "เงิน" ทุกจุด (บิล ค้างโอน จับคู่สลิป P&L
+// ศูนย์บัญชาการ Brand fee) นับช่องที่ไม่มีสินค้าเป็น 0 — ค่าของสาขาชนะค่าทั้งวัน (false = สาขานี้ได้ของ แม้ทั้งวันติ๊กไม่มี)
+function isNoStock_(d, code, pid){
+  const ns = d && d.noStock;
+  if(!ns) return false;
+  const b = ns.branch && ns.branch[code];
+  if(b && typeof b[pid] === 'boolean') return b[pid];
+  return !!(ns.all && ns.all[pid]);
+}
+// สำเนาแถวออเดอร์สำหรับคิดเงิน — ช่องที่ไม่มีสินค้าเป็น 0 (ไม่แตะแถวจริง)
+function billRow_(d, code, row){
+  row = row || {};
+  if(!d || !d.noStock || !PRODUCTS.some(p=>isNoStock_(d, code, p.id))) return row;
+  const out = Object.assign({}, row);
+  PRODUCTS.forEach(p=>{ if(isNoStock_(d, code, p.id)) out[p.id] = 0; });
+  return out;
+}
+// รายการสินค้าที่สาขานี้สั่งแต่ไม่มีสินค้า (ใช้ติดป้าย)
+function noStockItems_(d, code, row){
+  row = row || {};
+  return PRODUCTS.filter(p=>Number(row[p.id]||0)>0 && isNoStock_(d, code, p.id));
+}
+function computeFeeTotals(orders, d){ const t={}; PRODUCTS.forEach(p=>t[p.id]=0); Object.entries(orders||{}).forEach(([code,row])=>{ if(isFeeExempt(code)) return; PRODUCTS.forEach(p=>{ if(d && isNoStock_(d, code, p.id)) return; t[p.id]+=Number(row[p.id]||0); }); }); return t; }
 // เช็คว่าแถวออเดอร์นี้ "มีออเดอร์จริง" วันนั้นไหม ต้องนับทั้งสินค้าหลัก 7 รายการและสินค้าอื่นๆ (+ อื่นๆ) ด้วยเสมอ — เดิมหลาย
 // จุดในแอปเช็คแค่ 7 รายการหลักอย่างเดียว ทำให้สาขาที่สั่งแต่ของนอกแคตตาล็อกล้วนๆ (ไม่มีจำนวนใน 7 รายการหลักเลย แต่มี
 // รายการใน row.custom) ถูกมองว่า "ไม่มีออเดอร์วันนี้" ไปเงียบๆ ทั้งที่มีออเดอร์จริงและมีมูลค่าจริง (เข้า branchBillAmount
@@ -3183,7 +3218,7 @@ function branchCountLabel(orders){
 function computeFee(totals){ const kg = KG_FEE_IDS.reduce((s,id)=>s+totals[id],0); const oyster = totals.p7; return {kg, oyster, kgAmt:kg*5, oysterAmt:oyster*3, total:kg*5+oyster*3}; }
 // รวมยอดสินค้าอื่นๆ (นอกแคตตาล็อก) เข้ายอดบิลของสาขาด้วยเสมอ ไม่ว่าจะเป็นสาขาปกติหรือสาขา "แยกส่ง" — เพราะ "แยกส่ง" มีผลแค่กับ
 // Brand Fee เท่านั้น (ดู isFeeExempt/computeFeeTotals) ไม่เกี่ยวกับยอดบิล/รายได้ที่เรียกเก็บจากสาขาซึ่งนับทุกสาขาอยู่แล้ว
-function branchBillAmount(row, iso){ return PRODUCTS.reduce((s,p)=> s + Number(row[p.id]||0) * priceOnDate(p.id, iso), 0) + (row.custom||[]).reduce((s,it)=>s+Number(it.qty||0)*Number(it.price||0), 0); }
+function branchBillAmount(row, iso, d, code){ if(d && code!=null) row = billRow_(d, code, row); return PRODUCTS.reduce((s,p)=> s + Number(row[p.id]||0) * priceOnDate(p.id, iso), 0) + (row.custom||[]).reduce((s,it)=>s+Number(it.qty||0)*Number(it.price||0), 0); }
 
 let statsRenderSeq_ = 0;
 // "รอจ่าย" ต้องรวมทุกอย่างที่ต้องจ่ายวันนี้ให้ตรงกับการ์ด "สรุปบิลวันนี้" (ผู้ขายวันนี้/บิลสินค้าล็อต/ค่าขนส่งล็อต/รายจ่ายกิจการ)
@@ -3192,7 +3227,7 @@ async function renderStats(){
   const mySeq = ++statsRenderSeq_;
   const dateAtStart = currentDate;
   const totals = computeTotals(dayData.orders); const n = branchCountLabel(dayData.orders);
-  const feeTotals = computeFeeTotals(dayData.orders); const fee = computeFee(feeTotals);
+  const feeTotals = computeFeeTotals(dayData.orders, dayData); const fee = computeFee(feeTotals);
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   const unpaidCount = entries.filter(([c])=>!dayData.billingPaid[c]).length;
 
@@ -4096,7 +4131,7 @@ async function renderMessages(){
   // (เดิมใช้ยกเว้นค่าธรรมเนียมแบรนด์ใน isFeeExempt) ไม่ใช่ตรวจจากรหัสสาขาเจาะจงเอง กันพลาดถ้ามีการเพิ่ม/ติ๊กสาขาใหม่ทีหลัง
   const debtBranchEntries = orderEntries.slice().sort(branchEntrySortSeparateLast_);
   const debtRowText = ([code,row])=>{
-    const amount = Math.round(branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0));
+    const amount = Math.round(branchBillAmount(row, currentDate, dayData, code) + Number(dayData.billExtra[code]||0));
     return `${branchShortLabel(code)} : ${amount}`;
   };
   const debtNormalRows = debtBranchEntries.filter(([code])=>!isFeeExempt(code)).map(debtRowText);
@@ -4718,7 +4753,7 @@ async function clearLeftoverToday(){
 
 // ---- Fee tab ----
 function renderFeeToday(){
-  const totals = computeFeeTotals(dayData.orders); const fee = computeFee(totals);
+  const totals = computeFeeTotals(dayData.orders, dayData); const fee = computeFee(totals);
   document.getElementById('feeToday').innerHTML = `${money(fee.total)}<span class="unit">วันนี้</span>`;
   document.getElementById('feeKg').textContent = fee.kg + ' กก.';
   document.getElementById('feeKgAmt').textContent = money(fee.kgAmt);
@@ -4729,7 +4764,8 @@ function renderFeeToday(){
     .filter(([code,row]) => isFeeExempt(code) && PRODUCTS.some(p=>Number(row[p.id]||0)>0))
     .map(([code]) => `${code} ${branchName(code)}`);
   const excludedEl = document.getElementById('feeExcludedToday');
-  excludedEl.innerHTML = excludedCodes.length ? `<span class="fee-excl-lbl">ยกเว้นวันนี้ (ไม่นับในยอด):</span> ${excludedCodes.map(c=>`<span class="fee-pill">${escapeHtml(c)}</span>`).join('')}` : '';
+  excludedEl.innerHTML = (excludedCodes.length ? `<span class="fee-excl-lbl">ยกเว้นวันนี้ (ไม่นับในยอด):</span> ${excludedCodes.map(c=>`<span class="fee-pill">${escapeHtml(c)}</span>`).join('')}` : '')
+    + (()=>{ const t = noStockSummaryText_(dayData); return t ? `<div class="fee-nostock" data-feenostock>📦 ไม่มีสินค้า (ไม่นับ fee): ${escapeHtml(t)}</div>` : ''; })();
 }
 // คืนทุกวันของเดือนนั้นจริงๆ (ไม่ใช่แค่วันที่เคยมีการบันทึกข้อมูลไว้) — เพื่อให้ตารางสรุปรายเดือนโชว์วันที่ครบทุกวัน แม้วันไหน
 // ไม่มีออเดอร์เลยก็ยังเห็นวันที่นั้นอยู่ในตาราง (โชว์ว่างแทนเลข 0 ที่หน้าเรียก) พร้อมช่องหมายเหตุอธิบายได้ (เช่น "น้ำท่วม")
@@ -4740,10 +4776,10 @@ async function getMonthDays(monthVal){
   const dayMap = await loadDaysBulk(isoList);
   return isoList.map(iso=>{
     const d = dayMap[iso];
-    const totals = computeFeeTotals(d.orders);
+    const totals = computeFeeTotals(d.orders, d);
     const fee = computeFee(totals);
     const hasOrders = Object.keys(d.orders||{}).some(c=>orderRowHasOrder_(d.orders[c]));
-    return {iso, totals, fee, hasOrders, note: d.feeNote||''};
+    return {iso, totals, fee, hasOrders, note: d.feeNote||'', noStock: noStockSummaryText_(d)};
   });
 }
 async function renderMonthFee(){
@@ -4774,7 +4810,7 @@ async function renderMonthFee(){
         const blank = !r.hasOrders;
         const cell = (v)=> blank ? '' : v;
         return `<tr${blank?' style="color:var(--text-faint);"':''}>
-          <td>${formatDDMMYYYY(r.iso)}</td>
+          <td>${formatDDMMYYYY(r.iso)}${r.noStock ? ` <span class="nostock-tag" data-monthnostock="${r.iso}" title="${escapeHtml('ไม่มีสินค้า (ไม่นับ fee): '+r.noStock)}">📦</span>` : ''}</td>
           ${PRODUCTS.map(p=>`<td class="num num">${cell(r.totals[p.id])}</td>`).join('')}
           <td class="num num">${cell(r.fee.kg)}</td>
           <td class="num num">${cell(r.fee.oyster)}</td>
@@ -4909,7 +4945,7 @@ async function loadSlipCandidates_(force){
     const d = dayMap[iso];
     if(!d) continue;
     Object.entries(d.orders||{}).forEach(([code,row])=>{
-      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
+      const amt = branchBillAmount(row, iso, d, code) + Number((d.billExtra||{})[code]||0);
       if(!(amt>0)) return;
       if((d.billingPaid||{})[code]) return;
       out.push({iso, code, amt});
@@ -5242,7 +5278,7 @@ async function confirmSlipMatch_(btn){
     }catch(e){ await block('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ติ๊กจ่าย', null); return; }
     if(!fresh.orders[code]){ await block('ไม่พบออเดอร์ของบิลนี้แล้ว ยังไม่ได้ติ๊กจ่าย', fresh); return; }
     if(fresh.billingPaid[code]){ await block('บิลนี้ถูกติ๊กจ่ายแล้ว ไม่ได้บันทึกซ้ำ', fresh); return; }
-    const freshAmt = branchBillAmount(fresh.orders[code], iso) + Number((fresh.billExtra||{})[code]||0);
+    const freshAmt = branchBillAmount(fresh.orders[code], iso, fresh, code) + Number((fresh.billExtra||{})[code]||0);
     const freshC = Math.round(freshAmt*100);
     if(freshC !== Math.round(Number(pick.amt)*100) || freshC !== Math.round(typed*100)){
       await block(`ยอดบิลเปลี่ยน ${slipMoney_(pick.amt)} → ${slipMoney_(freshAmt)} ยังไม่ได้ติ๊กจ่าย`, fresh); return;
@@ -5289,7 +5325,7 @@ function renderBillingTodayStats_(entries){
   if(entries.length===0){ el.innerHTML = ''; return; }
   let paidCount = 0, orderTotal = 0, receivedTotal = 0;
   entries.forEach(([code,row])=>{
-    const amt = branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0);
+    const amt = branchBillAmount(row, currentDate, dayData, code) + Number(dayData.billExtra[code]||0);
     orderTotal += amt;
     const payInfo = dayData.billingPaid[code];
     if(payInfo){
@@ -5304,13 +5340,14 @@ function renderBillingTodayStats_(entries){
     <div class="statchip">💵 โอนแล้วได้รับ<b class="num">${money(receivedTotal)}</b></div>`;
 }
 function renderBillingList(){
+  renderNoStockCard_();
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
   entries.sort(branchEntrySortSeparateLast_);
   wrap.innerHTML = entries.map(([code,row])=>{
-    const amt = branchBillAmount(row, currentDate) + Number(dayData.billExtra[code]||0);
+    const amt = branchBillAmount(row, currentDate, dayData, code) + Number(dayData.billExtra[code]||0);
     const payInfo = dayData.billingPaid[code];
     const paid = !!payInfo;
     const paidDate = (payInfo && payInfo.paidDate) ? payInfo.paidDate : null;
@@ -5338,6 +5375,7 @@ function renderBillingList(){
         </div>
       </div>
       ${paidInfoLine}
+      ${(()=>{ const ns = noStockItems_(dayData, code, row); return ns.length ? `<div class="d nostock-row" data-nostockrow="${escapeHtml(code)}">📦 ไม่มีสินค้า: ${ns.map(p=>escapeHtml(p.name)).join(', ')} (ไม่คิดเงิน)</div>` : ''; })()}
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
           <input type="date" id="paydate-${code}" value="${lastUsedPayDate}" style="flex:1;">
@@ -5385,7 +5423,7 @@ function renderBillingList(){
       const paidDate = dateInput.value || todayISO();
       lastUsedPayDate = paidDate;
       const amtInput = document.getElementById(`payamt-${code}`);
-      const billedAmt = branchBillAmount(dayData.orders[code], currentDate) + Number(dayData.billExtra[code]||0);
+      const billedAmt = branchBillAmount(dayData.orders[code], currentDate, dayData, code) + Number(dayData.billExtra[code]||0);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
       const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
       btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
@@ -5512,6 +5550,114 @@ async function saveAllReceiptsAsImages(){
     showToast('รวมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
   }
 }
+// ---- การ์ด "📦 ไม่มีสินค้าวันนี้" (แท็บบิล) + ปุ่มรายสาขาในบิล ----
+// เขียนจุดเดียว: toggleNoStock_ → writeDayFieldPath_ ทีละช่อง (noStock.all.pid หรือ noStock.branch.code.pid) ไม่แตะ orders
+// บิลที่ติ๊กจ่ายแล้วจะไม่ถูกเปลี่ยนยอดเงียบๆ: บล็อกพร้อมบอกสาขา ให้ยกเลิกติ๊กจ่ายก่อน; เช็คจากข้อมูลสดของเซิร์ฟเวอร์ก่อนเขียน
+let noStockBusy_ = false;
+function noStockSummaryText_(d){
+  if(!d || !d.orders) return '';
+  const parts = [];
+  PRODUCTS.forEach(p=>{
+    const ordered = Object.entries(d.orders).filter(([c,row])=>Number((row||{})[p.id]||0)>0).map(([c])=>c);
+    const hit = ordered.filter(c=>isNoStock_(d, c, p.id));
+    if(!hit.length) return;
+    const miss = ordered.filter(c=>!isNoStock_(d, c, p.id));
+    if(d.noStock && d.noStock.all && d.noStock.all[p.id]) parts.push(`${p.name} ทุกสาขา${miss.length ? ' ยกเว้น '+miss.join(', ') : ''}`);
+    else parts.push(`${p.name} สาขา ${hit.join(', ')}`);
+  });
+  return parts.join(' · ');
+}
+function noStockBranchChipsHtml_(code){
+  const row = dayData.orders[code] || {};
+  const prods = PRODUCTS.filter(p=>Number(row[p.id]||0)>0);
+  if(!prods.length) return '';
+  return `<div class="nostock-bar" data-nostockbar="${escapeHtml(code)}"><span class="nostock-lbl">📦 สาขานี้ไม่มีสินค้า:</span>${prods.map(p=>{
+    const on = isNoStock_(dayData, code, p.id);
+    return `<button type="button" class="nostock-chip${on?' on':''}" data-nsbranch="${p.id}" aria-pressed="${on}">${p.emoji} ${escapeHtml(p.name)}${on?' ✕ ไม่มี':''}</button>`;
+  }).join('')}</div>`;
+}
+function renderNoStockCard_(){
+  const wrap = document.getElementById('noStockCard');
+  if(!wrap) return;
+  const orders = dayData.orders || {};
+  const prods = PRODUCTS.filter(p=>Object.values(orders).some(row=>Number((row||{})[p.id]||0)>0));
+  if(!prods.length){ wrap.innerHTML = ''; return; }
+  const summary = noStockSummaryText_(dayData);
+  let cut = 0;
+  Object.entries(orders).forEach(([code,row])=>{ if(orderRowHasOrder_(row)) cut += branchBillAmount(row, currentDate) - branchBillAmount(row, currentDate, dayData, code); });
+  wrap.innerHTML = `<div class="card dash-wide-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 6px;">📦 ไม่มีสินค้าวันนี้ <span class="subhint">(ออเดอร์ไม่เปลี่ยน บิลขึ้น "ไม่มีสินค้า" ฿0)</span></h3>
+    <div class="nostock-bar">${prods.map(p=>{
+      const on = !!(dayData.noStock && dayData.noStock.all && dayData.noStock.all[p.id]);
+      return `<button type="button" class="nostock-chip${on?' on':''}" data-nsall="${p.id}" aria-pressed="${on}">${p.emoji} ${escapeHtml(p.name)}${on?' ✕ ไม่มี':''}</button>`;
+    }).join('')}</div>
+    ${summary ? `<div class="nostock-sum" data-nostocksum>${escapeHtml(summary)} — หักจากบิลรวม ${money(cut)} (ไม่นับ Brand fee)</div>` : `<div class="hint">แตะสินค้าที่ไม่ได้ส่งวันนี้ = ทุกสาขาไม่มี · ยกเว้นบางสาขา: เปิดบิลสาขานั้นแล้วแตะที่แถบ 📦</div>`}
+  </div>`;
+  if(!wrap.__wired){
+    wrap.__wired = true;
+    wrap.addEventListener('click', e=>{
+      const b = e.target && e.target.closest ? e.target.closest('[data-nsall]') : null;
+      if(b && wrap.contains(b)) toggleNoStock_(null, b.getAttribute('data-nsall'), b);
+    });
+  }
+}
+// code = null → ทั้งวัน; code = สาขา → เฉพาะสาขานั้น (ค่าสาขาชนะค่าทั้งวัน)
+async function toggleNoStock_(code, pid, btn){
+  const p = PRODUCTS.find(x=>x.id===pid);
+  if(!p) return false;
+  if(noStockBusy_) return false;
+  if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อน'); return false; }
+  const iso = currentDate;
+  if(isMonthClosed_(iso)){ showToast('เดือนนี้ปิดแล้ว แก้ไม่ได้'); return false; }
+  noStockBusy_ = true;
+  if(btn) btn.disabled = true;
+  try{
+    let fresh;
+    try{ const r = await window.storage.get('day:'+iso); fresh = normalizeDay_(JSON.parse(r.value)); }
+    catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้เปลี่ยน'); return false; }
+    let path, next, affected;
+    if(code==null){
+      next = !(fresh.noStock.all && fresh.noStock.all[pid]);
+      path = ['noStock','all',pid];
+      // สาขาที่ยอดจะเปลี่ยนจริง = สั่งสินค้านี้ และไม่มีค่าเฉพาะสาขาทับไว้
+      affected = Object.entries(fresh.orders).filter(([c,row])=>Number((row||{})[pid]||0)>0 && !(fresh.noStock.branch[c] && typeof fresh.noStock.branch[c][pid]==='boolean')).map(([c])=>c);
+    }else{
+      next = !isNoStock_(fresh, code, pid);
+      path = ['noStock','branch',code,pid];
+      affected = Number(((fresh.orders[code])||{})[pid]||0)>0 ? [code] : [];
+    }
+    const paid = affected.filter(c=>fresh.billingPaid[c]);
+    if(paid.length){
+      dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
+      if(iso===currentDate){ dayData = fresh; renderBillingList(); }
+      showToast(`บิลสาขา ${paid.join(', ')} ติ๊กจ่ายแล้ว — ยกเลิกติ๊กจ่ายก่อน แล้วค่อยเปลี่ยน "ไม่มีสินค้า"`);
+      return false;
+    }
+    let saved;
+    try{ saved = await writeDayFieldPath_(iso, path, next); }
+    catch(e){ showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    // อีกเครื่องติ๊กจ่ายบิลที่กระทบระหว่างที่เราเขียนพอดี → ย้อนค่ากลับ ไม่ให้ยอดบิลที่จ่ายแล้วเปลี่ยน
+    const paidNow = affected.filter(c=>saved.billingPaid[c]);
+    if(paidNow.length){
+      let back = saved;
+      try{ back = await writeDayFieldPath_(iso, path, !next); }catch(e){}
+      if(iso===currentDate){ dayData = back; renderBillingList(); }
+      showToast(`บิลสาขา ${paidNow.join(', ')} เพิ่งถูกติ๊กจ่าย — ยังไม่ได้เปลี่ยน "ไม่มีสินค้า"`);
+      return false;
+    }
+    if(iso===currentDate) dayData = saved;
+    logActivity_(`${next?'ตั้ง':'ยกเลิก'} "ไม่มีสินค้า" ${p.name} ${code==null?'ทุกสาขา':'สาขา '+code} — บิลวันที่ ${formatDDMMYYYY(iso)}`);
+    showToast(`${p.name}: ${next?'ไม่มีสินค้า':'มีสินค้า'} ${code==null?'(ทุกสาขา)':'(สาขา '+code+')'}`);
+    slipMatchCands_ = null;
+    renderBillingList(); renderStats();
+    try{ renderFeeToday(); }catch(e){}
+    try{ await renderOutstanding(); await renderBillingSummaryTiles(); }catch(e){}
+    return true;
+  }finally{
+    noStockBusy_ = false;
+    if(btn && btn.isConnected) btn.disabled = false;
+  }
+}
 function computeReceiptData(code, iso, d){
   iso = iso || currentDate; d = d || dayData;
   const row = d.orders[code];
@@ -5520,7 +5666,9 @@ function computeReceiptData(code, iso, d){
   // โชว์ทศนิยมสตางค์แปลกๆ (เช่น 113.333) ตอนนี้จำนวนสั่งอนุญาตทศนิยม 1 ตำแหน่งแล้ว ผลคูณ จำนวน×ราคา จึงไม่ลงตัวเป็น
   // บาทเต็มเสมอไปอีกต่อไป — ปัดทีละรายการก่อนรวม ทำให้ยอดรวมย่อยตรงกับผลรวมของแต่ละบรรทัดที่โชว์บนบิลเป๊ะๆ เสมอ
   const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>{
-    const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso); const amount = Math.round(qty*price);
+    const qty = Number(row[p.id]); const price = priceOnDate(p.id, iso);
+    if(isNoStock_(d, code, p.id)) return {p, qty, price, amount:0, noStock:true}; // สั่งแต่ไม่มีสินค้า: โชว์ขีดฆ่า ยอด 0
+    const amount = Math.round(qty*price);
     return {p, qty, price, amount};
   });
   // สินค้าอื่นๆ (นอกแคตตาล็อก) ใช้ราคาที่พิมพ์เองตอนบันทึกออเดอร์ตรงๆ (ไม่มี priceOnDate ให้ค้นเหมือนสินค้าหลัก)
@@ -5570,6 +5718,8 @@ function buildReceiptCardHTML(code, iso, d, cardId){
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
         ${items.map(it=>it.custom
           ? `<tr><td>${it.qty}</td><td>${escapeHtml(it.name)}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+          : it.noStock
+          ? `<tr class="r-nostock" data-nostockline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ไม่มีสินค้า</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : `<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
         ).join('')}
       </table>
@@ -5595,9 +5745,14 @@ async function toggleReceipt(code){
     <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
       <input type="text" data-billnote="${code}" value="${escapeHtml(dayData.billNote&&dayData.billNote[code])}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="flex:1;font-size:12.5px;">
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap;"><input type="checkbox" data-billnoteshow="${code}" ${(dayData.billNoteShowOnBill&&dayData.billNoteShowOnBill[code])?'checked':''}> ลงในบิล</label>
-    </div>`;
+    </div>
+    ${noStockBranchChipsHtml_(code)}`;
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
+  holder.querySelectorAll('[data-nsbranch]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const ok = await toggleNoStock_(code, btn.getAttribute('data-nsbranch'), btn);
+    if(ok){ holder.innerHTML=''; toggleReceipt(code); }
+  }));
   holder.querySelector(`[data-billnote="${code}"]`).addEventListener('change', async (e)=>{
     const iso = currentDate;
     const fresh = await writeDayFieldPath_(iso, ['billNote', code], e.target.value);
@@ -5634,7 +5789,7 @@ async function toggleReceipt(code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
@@ -5694,7 +5849,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
@@ -6212,7 +6367,7 @@ function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal){
     let dayRevenue = 0;
     Object.entries(d.orders).forEach(([code,row])=>{
       if(!orderRowHasOrder_(row)) return;
-      const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+      const amt = branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
       dayRevenue += amt;
       if(d.billingPaid[code]) revenuePaid += amt; else revenueUnpaid += amt;
     });
@@ -6222,7 +6377,7 @@ function computeMonthFinancialsCore_(isoList, dayMap, debtsByOwner, wasteTotal){
     (d.purchases||[]).forEach(e=>{ dayCogs += purchaseCostTotal(e); });
     Object.values(d.purchaseGroupPayment||{}).forEach(g=>{ dayCogs += Number(g.extra||0); });
     revenue += dayRevenue; expenseTotal += dayExpense; cogsTotal += dayCogs;
-    feeTotal += computeFee(computeFeeTotals(d.orders)).total;
+    feeTotal += computeFee(computeFeeTotals(d.orders, d)).total;
     if(dayRevenue>0 || dayExpense>0 || dayCogs>0) daily[iso] = {revenue: dayRevenue, expense: dayExpense + dayCogs};
   }
   const grossProfit = revenue - cogsTotal;
@@ -6315,8 +6470,8 @@ async function computeRangeFinancials(startIso, endIso, branchCodes){
       branchSet.add(code);
       if(hasBranchFilter && !branchCodes.has(code)) return;
       filteredBranchSet.add(code);
-      PRODUCTS.forEach(p=>{ productTotals[p.id] += Number(row[p.id]||0); });
-      branchRevenue += branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+      PRODUCTS.forEach(p=>{ if(isNoStock_(d, code, p.id)) return; productTotals[p.id] += Number(row[p.id]||0); }); // จำนวนขายจริง (ไม่นับที่ไม่มีสินค้า)
+      branchRevenue += branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
     });
   });
   // COGS/รายจ่าย/Fee/กำไรสุทธิ (core) ยังเป็นยอดรวมทั้งร้านเสมอ เพราะข้อมูลจริงไม่มีการบันทึกแยกตามสาขา —
@@ -6462,7 +6617,7 @@ async function computePLBreakdown_(monthVal){
     Object.entries(d.orders||{}).forEach(([code,row])=>{
       if(!hasNonEmptyOrder_(row)) return;
       const b = br[code] = br[code] || {rev:0, qty:{}, custom:0};
-      PRODUCTS.forEach(p=>{ const q = Number(row[p.id]||0); if(!q) return; const v = q*priceOnDate(p.id, iso); prod[p.id].qty += q; prod[p.id].rev += v; b.qty[p.id] = (b.qty[p.id]||0)+q; b.rev += v; });
+      PRODUCTS.forEach(p=>{ const q = Number(row[p.id]||0); if(!q || isNoStock_(d, code, p.id)) return; const v = q*priceOnDate(p.id, iso); prod[p.id].qty += q; prod[p.id].rev += v; b.qty[p.id] = (b.qty[p.id]||0)+q; b.rev += v; });
       const cu = (row.custom||[]).reduce((s2,it)=>s2+Number(it.qty||0)*Number(it.price||0),0);
       b.rev += cu + Number((d.billExtra||{})[code]||0); b.custom += cu;
     });
@@ -7065,7 +7220,7 @@ async function computeOutstandingYearTotal_(year, filterMode, branchFilter){
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
       if(branchFilter && code!==branchFilter) return;
-      const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+      const amt = branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
       if(amt<=0) return;
       const paid = !!d.billingPaid[code];
       if(paid && !includePaid) return;
@@ -7382,7 +7537,7 @@ async function onOutstandingListClick_(e){
     container.querySelectorAll('input[type="date"][id^="outpaydate-"]').forEach(inp=>{ if(inp !== dateInput) inp.value = paidDate; });
     try{
       const d = await loadDay(r.iso);
-      const billedAmt = branchBillAmount(d.orders[r.code], r.iso) + Number((d.billExtra||{})[r.code]||0);
+      const billedAmt = branchBillAmount(d.orders[r.code], r.iso, d, r.code) + Number((d.billExtra||{})[r.code]||0);
       const amtInput = document.getElementById(`outpayamt-${r.iso}-${r.code}`);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedAmt;
       const payValue = {paid:true, paidDate, transferAmount, billedAmount: billedAmt};
@@ -7514,7 +7669,7 @@ async function renderOutstanding(){
       const d = dayMap[iso];
       Object.entries(d.orders).forEach(([code,row])=>{
         if(!outstandingTypeMatches_(code)) return;
-        const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+        const amt = branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
         if(amt<=0) return;
         const payInfo = d.billingPaid[code];
         const paid = !!payInfo;
@@ -7615,7 +7770,7 @@ async function renderOutstandingLineMsgs_(){
       const d = dayMap[iso];
       Object.entries(d.orders).forEach(([code,row])=>{
         if(d.billingPaid[code]) return;
-        const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+        const amt = branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
         if(amt<=0) return;
         const base = branchBaseNumber_(code);
         const g = groups[base] || (groups[base] = {base, main:[], sep:[], codes:new Set()});
@@ -11544,7 +11699,7 @@ async function computeBranchAggregates(){
     const d = dayMap[iso];
     Object.entries(d.orders).forEach(([code,row])=>{
       if(!orderRowHasOrder_(row)) return;
-      const amt = branchBillAmount(row, iso) + Number(d.billExtra[code]||0);
+      const amt = branchBillAmount(row, iso, d, code) + Number(d.billExtra[code]||0);
       if(!agg[code]) agg[code] = {paidTotal:0, unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:iso, delays:[]};
       const a = agg[code];
       a.allTimeTotal += amt; a.orderCount += 1; a.lastOrderIso = iso;
@@ -12501,7 +12656,7 @@ async function computeTodayCommand_(){
     const d = dayMap[iso]; if(!d) return;
     Object.entries(d.orders||{}).forEach(([code,row])=>{
       if(!orderRowHasOrder_(row) || (d.billingPaid && d.billingPaid[code])) return;
-      const amt = branchBillAmount(row, iso) + Number((d.billExtra||{})[code]||0);
+      const amt = branchBillAmount(row, iso, d, code) + Number((d.billExtra||{})[code]||0);
       if(amt <= 0) return;
       unpaidTotal += amt; unpaidCount++;
       const days = daysBetweenISO(iso, t);
@@ -12782,10 +12937,10 @@ async function renderWorkflowJourney_(){
 function dayNetProfit_(iso, d){
   const entries = Object.entries(d.orders||{}).filter(([c,row])=>orderRowHasOrder_(row));
   if(!entries.length && !(d.purchases||[]).length && !(d.expenses||[]).length) return null;
-  const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,iso) + Number((d.billExtra||{})[code]||0), 0);
+  const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,iso,d,code) + Number((d.billExtra||{})[code]||0), 0);
   const cogs = (d.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
   const exp = (d.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
-  const fee = computeFee(computeFeeTotals(d.orders||{})).total;
+  const fee = computeFee(computeFeeTotals(d.orders||{}, d)).total;
   return revenue - cogs - exp - fee;
 }
 async function renderProfitDailyChart_(){
@@ -12855,10 +13010,10 @@ async function renderDashboard(){
   renderWorkflowJourney_();
   renderTodayCommand_();
   const totals = computeTotals(dayData.orders);
-  const feeTotals = computeFeeTotals(dayData.orders);
+  const feeTotals = computeFeeTotals(dayData.orders, dayData);
   const fee = computeFee(feeTotals);
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
-  const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,currentDate) + Number(dayData.billExtra[code]||0), 0);
+  const revenue = entries.reduce((s,[code,row])=>s + branchBillAmount(row,currentDate,dayData,code) + Number(dayData.billExtra[code]||0), 0);
   const cogsToday = (dayData.purchases||[]).reduce((s,e)=>s+purchaseCostTotal(e),0);
   const expenseToday = (dayData.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);
   const totalCostToday = cogsToday + expenseToday; // ต้นทุนสินค้า + รายจ่ายกิจการ รวมเป็นก้อนเดียว
@@ -12920,7 +13075,7 @@ async function renderDashboard(){
   });
   setDashDual_('dashPaidToday', money(paidTodayTotal));
 
-  const trendData = days14.map(iso=>({iso, fee: computeFee(computeFeeTotals(day14Map[iso].orders)).total}));
+  const trendData = days14.map(iso=>({iso, fee: computeFee(computeFeeTotals(day14Map[iso].orders, day14Map[iso])).total}));
   const maxFee = Math.max(1, ...trendData.map(t=>t.fee));
   trendEl.className=''; trendEl.innerHTML = `<div class="trendchart">${trendData.map((t,i)=>{
     const h = Math.max(2, Math.round((t.fee/maxFee)*72));
@@ -13393,7 +13548,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-14.1';
+const APP_BUILD = '2026-11-16.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

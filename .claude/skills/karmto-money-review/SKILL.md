@@ -24,3 +24,4 @@ description: สูตรเงินของ Karmto (P&L, ต้นทุน�
 - ยอดบิล = ออเดอร์ × ราคา โดยช่องที่ `isNoStock_(d, code, pid)` เป็น 0 — เรียก `branchBillAmount(row, iso, d, code)` ครบ 4 ตัวเสมอ (ขาด d/code = นับสินค้าที่ไม่มีเป็นเงิน = ผิด)
 - Brand fee: `computeFeeTotals(orders, d)` ไม่นับช่องไม่มีสินค้า · P&L แยกสินค้า/สาขา (`computePLBreakdown_`) ก็ไม่นับ
 - จำนวนสำหรับสั่งของ/ล็อต/สต๊อก (`computeTotals`) ยังนับตามออเดอร์ — ต้นทุนที่เบิกไปแล้ว AY แก้เองที่หน้าล็อต
+- ส่งขาด: `day.shortQty[code][pid]` → จำนวนคิดเงิน = `deliveredQty_` (สั่ง − ขาด, ไม่ต่ำกว่า 0, ปัด 1 ตำแหน่ง); ไม่มีสินค้าชนะส่งขาด; fee/P&L ใช้ `billRow_`

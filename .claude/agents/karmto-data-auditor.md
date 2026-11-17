@@ -6,6 +6,7 @@ skills:
   - karmto-lot-costing
   - karmto-iron-rules
   - karmto-ay-way
+  - karmto-domain-glossary
 ---
 
 # ผู้ตรวจกรอกครบ + ตัดต้นทุนย้อนหลัง (อ่านอย่างเดียว)

@@ -6,6 +6,8 @@ skills:
   - karmto-testing
   - karmto-codebase-map
   - karmto-iron-rules
+  - karmto-domain-glossary
+  - karmto-fix-workflow
 ---
 
 # ผู้ตรวจจับบั๊ก/แก้ปัญหา

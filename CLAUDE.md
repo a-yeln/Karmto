@@ -29,14 +29,20 @@
 5. ห้ามใส่ชื่อ/ID โมเดลใน commit หรือ PR
 
 ## ทีม Agent (`.claude/agents/karmto-*.md`) + สกิล (`.claude/skills/karmto-*`)
-15 ตัว: `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
+18 ตัว (ผังฝ่าย/เจ้าของสกิล/สกิลของแต่ละตัวอยู่ใน `.claude/agents/ORG.md`): `ay-proxy` (ตัวแทน AY, โหมดเงา) • `manager` (วางแผน/แจกงาน/ตัดสิน/สรุป) • `designer` • `plan-reviewer` (รีเช็คก่อนเขียนจริง) •
 `builder` • `gs-backend` • `bug-hunter` • `test-writer` • `ui-checker` • `money-guard` • `security-guard` (ความปลอดภัยสูงสุด) • `release` •
 `accountant` (บัญชี/กระทบยอด/P&L/cashflow/หนี้, อ่านอย่างเดียว) • `data-auditor` (กรอกครบ + ตัดต้นทุนล็อตย้อนหลัง, อ่านอย่างเดียว) •
 `perf-guard` (ความเร็ว/จำนวนคำขอ/ขนาดคีย์, อ่านอย่างเดียว)
++ หัวหน้าฝ่าย 3 ตัว: `head-build` (designer, builder, gs-backend) • `head-quality` (plan-reviewer, test-writer, bug-hunter, ui-checker, perf-guard, release) •
+`head-money` (money-guard, accountant, data-auditor) — `security-guard` เป็นหัวหน้าฝ่ายความปลอดภัยเอง
+— หัวหน้าฝ่ายเขียนใบสั่งงาน/รีวิวงานลูกทีม/เสนอ diff แก้สกิล (อ่านอย่างเดียว) **กลับคำ "ไม่ผ่าน" ของ money-guard/security-guard ไม่ได้**
 — ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
-- สกิล 12 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
+- ด่านกันพลาด: เริ่มรอบงานให้คัดลอก `.claude/gates/TEMPLATE.md` เป็น `.claude/gates/current.md` (ไม่ขึ้น git) manager เทียบทีละแถวตอนจบรอบ แถวว่าง = ส่งกลับ
+  และรัน `node tools/check-skills.js` ตรวจสกิลเพี้ยน (ERROR ต้องแก้ก่อนเริ่มงานใหม่)
+- สกิล 14 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
   `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist` •
-  `karmto-order-ocr` (อ่านรูปออเดอร์) — สคริปต์ตรวจล้นจอทุกธีม/แคปจอ/วัด OCR อยู่ใน `.claude/skills/karmto-testing/scripts/`
+  `karmto-order-ocr` (อ่านรูปออเดอร์) • `karmto-fix-workflow` (ลำดับงานแก้บั๊ก/เพิ่มฟีเจอร์) • `karmto-domain-glossary` (ศัพท์สาขา/แยกส่ง/ค้างโอน/ล็อต)
+  — สคริปต์ตรวจล้นจอทุกธีม/แคปจอ/วัด OCR อยู่ใน `.claude/skills/karmto-testing/scripts/`
   — เมื่อโค้ดเปลี่ยนมาก (เช่น บรรทัดใน codebase-map เลื่อน) หรือ AY ติ๊ก ❌ ให้อัปเดตสกิลที่เกี่ยวข้อง นี่คือวิธี "เทรน" ทีม
 - ลำดับงานมาตรฐาน: manager → designer → ay-proxy → builder (แผนแก้) → plan-reviewer → builder (ลงมือ, +gs-backend) → test-writer →
   bug-hunter (ถ้าเทสแดง) → ui-checker → money-guard → security-guard → release → manager สรุป → Claude หลัก commit/PR/squash merge
@@ -90,7 +96,9 @@
 ส่งขาดบางส่วน (`day.shortQty` = {code:{pid:n}}; `deliveredQty_`/`billRow_` = สั่ง−ขาด; ช่องในบิลที่เปิด → `setShortQty_`; ใบบิลมีบรรทัด "ส่งขาด" ฿0) • หมวดรายจ่าย "ค่าส่ง/ลาล่า"
 
 ## ค้างฝั่งเจ้าของ
-- ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม)
+- ตั้ง `KARMTO_KEY` ใน Apps Script ตามขั้นตอนหัวไฟล์ `backend/AuthGuard.gs` (ยังไม่ตั้ง = ระบบใช้ได้เหมือนเดิม = **repo นี้สาธารณะ ใครมีลิงก์ `/exec` ก็อ่าน/เขียนข้อมูลได้** ด่วนที่สุด)
+- งานความปลอดภัยฝั่งเจ้าของที่เหลือ (Google 2 ขั้นตอน/แชร์ Sheet-โฟลเดอร์สำรอง/กฎป้องกัน branch `main` บน GitHub/Secret scanning/ตรวจว่าสำรองรายวันรันอยู่) — เช็คลิสต์ใน `.claude/agents/karmto-security-guard.md`
+- ขยายเวลาเก็บไฟล์สำรองให้นานกว่า 30 วัน (`backend/BackupTrigger.gs`) — รอเจ้าของบอกจำนวนวัน แล้วต้องวางโค้ดใหม่ใน Apps Script เอง
 - ติดตั้งบอท LINE ตามขั้นตอนหัวไฟล์ `backend/LineBot.gs` (ต้องมี LINE OA + Messaging API channel; ยังไม่ติดตั้ง = แถบสลิปไม่โชว์)
 - กลุ่ม LINE สาขา (55 คน) มีบอทของบริษัทลูกค้าอยู่แล้ว บอทเราเข้าไม่ได้ และ AY ต้องการอัตโนมัติในกลุ่มเดิม → รอ 2 อย่าง:
   (ก) AY ส่ง `docs/line-relay-for-it.md` ขอไอทีลูกค้าส่งสำเนารูปมา (ข) AY ลง LINE บนคอม Asus แล้วรัน `tools/line-watcher/check-line.bat` ส่งผลกลับ

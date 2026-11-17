@@ -6,6 +6,7 @@ skills:
   - karmto-reconcile
   - karmto-money-review
   - karmto-ay-way
+  - karmto-domain-glossary
 ---
 
 # ตัวบัญชี (อ่านอย่างเดียว)

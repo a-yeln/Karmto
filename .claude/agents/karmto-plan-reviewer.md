@@ -7,6 +7,7 @@ skills:
   - karmto-codebase-map
   - karmto-testing
   - karmto-security-audit
+  - karmto-domain-glossary
 ---
 
 # ผู้รีเช็คก่อนเขียนจริง

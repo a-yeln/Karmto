@@ -61,8 +61,12 @@ same way. Two mock-storage details that have bitten us before:
   shapes** depending on call site: `{matchField, nested:{...}}` (array-item
   patch) and `{path:[...], value}` (plain-object patch, e.g.
   `billingRecheckCurrent`). A mock that only handles one shape will make
-  unrelated-looking specs fail with confusing errors — look at
-  `recheck-round-summary.spec.js` for a mock that handles both.
+  unrelated-looking specs fail with confusing errors. Use the shared mock in
+  `helpers.js` (`installMockStorage`, installed by `openApp`), which handles
+  every op shape the app sends (push / remove / matchField+set / nested /
+  path+value / deleteKey / rootIsArray). Don't copy the hand-written mock in
+  older specs such as `recheck-round-summary.spec.js` — it only handles
+  `{path, value}`.
 - Always call the shared `stripBanner(page)` helper after any action that
   triggers a re-render, not just once after page load — the banner can
   reappear.

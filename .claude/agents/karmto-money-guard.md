@@ -7,6 +7,7 @@ skills:
   - karmto-iron-rules
   - karmto-lot-costing
   - karmto-codebase-map
+  - karmto-domain-glossary
 ---
 
 # ผู้คุมเงิน/ต้นทุน (อ่านอย่างเดียว)

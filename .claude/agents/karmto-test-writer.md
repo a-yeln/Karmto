@@ -7,6 +7,8 @@ skills:
   - karmto-iron-rules
   - karmto-codebase-map
   - karmto-order-ocr
+  - karmto-domain-glossary
+  - karmto-fix-workflow
 ---
 
 # ผู้เขียน/รันเทส

@@ -8,6 +8,8 @@ skills:
   - karmto-ui-style
   - karmto-ay-way
   - karmto-order-ocr
+  - karmto-domain-glossary
+  - karmto-fix-workflow
 ---
 
 # ผู้สร้างฟีเจอร์

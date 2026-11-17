@@ -10,6 +10,9 @@ skills:
   - karmto-order-ocr
   - karmto-domain-glossary
   - karmto-fix-workflow
+  - karmto-ui-thai-conventions
+  - karmto-storage-data-model
+  - karmto-line-message
 ---
 
 # ผู้สร้างฟีเจอร์

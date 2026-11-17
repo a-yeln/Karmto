@@ -7,6 +7,7 @@ skills:
   - karmto-ui-style
   - karmto-codebase-map
   - karmto-iron-rules
+  - karmto-ui-thai-conventions
 ---
 
 # ผู้ออกแบบฟีเจอร์/ระบบ

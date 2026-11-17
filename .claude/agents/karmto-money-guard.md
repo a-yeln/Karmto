@@ -8,6 +8,8 @@ skills:
   - karmto-lot-costing
   - karmto-codebase-map
   - karmto-domain-glossary
+  - karmto-storage-data-model
+  - karmto-line-message
 ---
 
 # ผู้คุมเงิน/ต้นทุน (อ่านอย่างเดียว)

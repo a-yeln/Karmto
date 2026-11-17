@@ -39,9 +39,10 @@
 — ตัวรองที่ยังไม่สร้างอยู่ใน `.claude/agents/RESERVE.md`
 - ด่านกันพลาด: เริ่มรอบงานให้คัดลอก `.claude/gates/TEMPLATE.md` เป็น `.claude/gates/current.md` (ไม่ขึ้น git) manager เทียบทีละแถวตอนจบรอบ แถวว่าง = ส่งกลับ
   และรัน `node tools/check-skills.js` ตรวจสกิลเพี้ยน (ERROR ต้องแก้ก่อนเริ่มงานใหม่)
-- สกิล 14 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
+- สกิล 17 ตัว (agent โหลดอัตโนมัติผ่าน frontmatter `skills:`): `karmto-iron-rules` • `karmto-ay-way` • `karmto-codebase-map` • `karmto-testing` •
   `karmto-ui-style` • `karmto-money-review` • `karmto-security-audit` • `karmto-reconcile` • `karmto-lot-costing` • `karmto-apps-script` • `karmto-release-checklist` •
-  `karmto-order-ocr` (อ่านรูปออเดอร์) • `karmto-fix-workflow` (ลำดับงานแก้บั๊ก/เพิ่มฟีเจอร์) • `karmto-domain-glossary` (ศัพท์สาขา/แยกส่ง/ค้างโอน/ล็อต)
+  `karmto-order-ocr` (อ่านรูปออเดอร์) • `karmto-fix-workflow` (ลำดับงานแก้บั๊ก/เพิ่มฟีเจอร์) • `karmto-domain-glossary` (ศัพท์สาขา/แยกส่ง/ค้างโอน/ล็อต) •
+  `karmto-storage-data-model` (โครง storage/คีย์/แพทเทิร์นกันข้อมูลเก่า) • `karmto-line-message` (ข้อความ LINE ที่ให้ AY คัดลอก) • `karmto-ui-thai-conventions` (ป้าย PeriPage/เมนู/ปุ่มเรียง/ข้อความไทย)
   — สคริปต์ตรวจล้นจอทุกธีม/แคปจอ/วัด OCR อยู่ใน `.claude/skills/karmto-testing/scripts/`
   — เมื่อโค้ดเปลี่ยนมาก (เช่น บรรทัดใน codebase-map เลื่อน) หรือ AY ติ๊ก ❌ ให้อัปเดตสกิลที่เกี่ยวข้อง นี่คือวิธี "เทรน" ทีม
 - ลำดับงานมาตรฐาน: manager → designer → ay-proxy → builder (แผนแก้) → plan-reviewer → builder (ลงมือ, +gs-backend) → test-writer →

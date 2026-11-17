@@ -7,6 +7,8 @@ skills:
   - karmto-security-audit
   - karmto-iron-rules
   - karmto-order-ocr
+  - karmto-storage-data-model
+  - karmto-line-message
 ---
 
 # ผู้ดูแล Apps Script

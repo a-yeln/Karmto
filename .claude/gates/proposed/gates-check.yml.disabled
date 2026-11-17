@@ -1,0 +1,42 @@
+# ร่าง — ยังไม่ทำงาน (นามสกุล .disabled และอยู่นอก .github/workflows/)
+# เปิดใช้ = ย้ายไปเป็น .github/workflows/gates-check.yml + ย้าย check-gates.js ไป .claude/gates/check-gates.js
+# แล้วตั้ง "gates / guards" เป็น required status check ในกฎป้องกัน main (ดู README-th.md)
+name: gates
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # เช็คเอาต์ "ปลาย branch ของ PR" (ไม่ใช่ merge commit ที่ GitHub สร้าง) เพื่อให้ลายนิ้วมือตรงกับที่คำนวณในเครื่อง
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch base branch
+        run: git fetch --no-tags origin "+refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+      # ใช้ตัวตรวจจาก main (ไม่ใช่จาก PR) — PR จะแก้ตัวตรวจให้ตัวเองผ่านไม่ได้
+      # ครั้งแรกที่ main ยังไม่มีตัวตรวจ (PR ที่เปิดใช้เอง) ใช้ของ PR แทนพร้อมคำเตือน
+      - name: Pick checker from base branch
+        run: |
+          if git show "origin/${{ github.base_ref }}:.claude/gates/check-gates.js" > "$RUNNER_TEMP/check-gates.js" 2>/dev/null; then
+            echo "ใช้ตัวตรวจจาก ${{ github.base_ref }}"
+          else
+            echo "::warning::main ยังไม่มีตัวตรวจ — ใช้ของ PR นี้ (ควรเกิดครั้งเดียวตอนเปิดใช้)"
+            cp .claude/gates/check-gates.js "$RUNNER_TEMP/check-gates.js"
+          fi
+      - name: money-guard + security-guard must match this code
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: node "$RUNNER_TEMP/check-gates.js" --base "origin/${{ github.base_ref }}" --head HEAD --branch "$HEAD_REF"

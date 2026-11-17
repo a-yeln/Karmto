@@ -1,0 +1,20 @@
+{
+  "_อ่านก่อน": "ร่าง — ยังไม่ได้ลงทะเบียน. ถ้า AY อนุมัติ: ย้าย check-gates.js ไป .claude/gates/check-gates.js แล้วเพิ่ม 2 รายการใน hooks.PreToolUse ข้างล่างต่อท้ายรายการเดิมใน .claude/settings.json (อย่าลบของเดิม pre-commit-check.sh). ลบคีย์ _อ่านก่อน และ _หมายเหตุ ออกตอนวางจริง",
+  "_หมายเหตุ": "matcher ตัวที่ 2 เดาจากชื่อเครื่องมือ GitHub ในเซสชันนี้ (mcp__github__merge_pull_request / mcp__github__enable_pr_auto_merge) — ไม่แน่ใจว่าชื่อจริงตอนเปิดใช้เป็นแบบนี้ทุกเซสชัน ต้องลองยิงจริงหนึ่งครั้งหลังเปิดใช้",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/gates/check-gates.js --hook" }
+        ]
+      },
+      {
+        "matcher": "mcp__.*__(merge_pull_request|enable_pr_auto_merge)",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/gates/check-gates.js --hook" }
+        ]
+      }
+    ]
+  }
+}

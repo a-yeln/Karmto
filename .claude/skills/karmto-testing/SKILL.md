@@ -14,6 +14,28 @@ description: สูตรเขียนและรันเทส Playwright �
   ทีละไฟล์: `python3 -m http.server 8765 &` ที่ root แล้ว `cd tests && NODE_PATH=/opt/node22/lib/node_modules PW_CHROMIUM_PATH=/opt/pw-browsers/chromium node specs/X.spec.js`
 - รายงานจำนวน PASS/FAIL จริง ห้ามบอกว่าผ่านถ้ายังไม่ได้รัน; บั๊กต้องมี spec ที่แดงก่อนแก้และเขียวหลังแก้
 
+## โครง spec ใหม่ขั้นต่ำ (ลอกจาก `short-delivery-bill.spec.js` / `no-stock-bill.spec.js`)
+```js
+const { launch, mkDay, openApp, makeChecker, stripBanner } = require('../helpers');
+(async () => {
+  const browser = await launch();                 // ผ่าน sandbox เสมอ (บล็อก script.google.com)
+  const { check, finish } = makeChecker();
+  const page = await openApp(browser, { store: { 'day:2026-11-16': mkDay({ orders: { '21': { p1: 2 } } }) }, date: '2026-11-16' }); // 420px เป็นค่าเริ่มต้น
+  await page.clock.setFixedTime(new Date('2026-11-16T10:00:00+07:00'));
+  // ... evaluate/คลิก แล้ว check('ข้อความ', เงื่อนไข, ค่าที่อยากเห็นตอนพัง)
+  await finish(browser);                          // exit 1 ถ้ามี FAIL — run-all ตัดสินจาก exit code
+})();
+```
+- ชื่อไฟล์ `tests/specs/<เรื่อง>.spec.js` → `run-all.js` เก็บเอง ไม่ต้องลงทะเบียนที่ไหน
+- mock: ใช้ `installMockStorage` ใน `helpers.js` เท่านั้น (รองรับ patchOps ทุกแบบ: push/remove/matchField+set/nested/path+value/deleteKey/rootIsArray)
+  ห้ามเขียน mock เอง และห้ามลอก spec รุ่นเก่า 24 ไฟล์ที่ไม่ใช้ helpers (`grep -L helpers tests/specs/*.js`) — mock ในนั้นรองรับไม่ครบ
+- `window.__writes` = `{op:'set'|'patchField'|'patchOps', key, path|ops}` (get/list/delete/bulkSet ไม่จด) — ล้าง `window.__writes = []` ก่อนกด
+  แล้ว**กรองด้วย key เสมอ** เพราะ mock ถูกห่อด้วย `wrapStorageForDayRevs_` อัตโนมัติ จึงมีการเขียน `dayRevs` ติดมาด้วย
+- โค้ด `backend/*.gs`: ไม่ต้องเปิดเบราว์เซอร์ — โหลดไฟล์เข้า `vm` + จำลองบริการ Apps Script (ดู `line-bot-backend.spec.js`)
+- แคปจอ: `path.join(process.env.SHOT_DIR || tests/screenshots, 'x.png')` + `.catch(()=>{})` — `tests/screenshots/` อยู่ใน `.gitignore` ไม่ต้อง commit
+- "วันนี้" ต้องเป็นเวลาไทย ไม่ใช่ UTC ของเครื่องรัน (เคยพังมาแล้ว) → ตรึงนาฬิกาด้วย `+07:00`
+- รอผลด้วย `page.waitForFunction(() => <สถานะจริง>)` แบบที่ไฟล์ใหม่ใช้ แทน `waitForTimeout(ms)` ในไฟล์เก่า (เป็นแนวทาง ยังไม่มีหลักฐานว่าเคย flaky)
+
 ## สคริปต์ช่วยตรวจ (อยู่ใน `scripts/` ของสกิลนี้)
 - `mobile-overflow-sweep.js [width]` — ทุกแท็บ × ทุกธีม/โหมด ที่จอมือถือ ต้องขึ้น `NO OVERFLOW` (รันทุกครั้งที่แก้ CSS/เลย์เอาต์)
 - `theme-screenshots.js <tab> <outDir> [selector] [width]` — แคปทุกธีมไว้ดูด้วยตา (ดูภาพจริงทุกครั้ง อย่าเชื่อแค่ตัวเลข)

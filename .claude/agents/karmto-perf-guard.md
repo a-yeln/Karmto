@@ -5,6 +5,7 @@ tools: Read, Bash, Glob, Grep
 skills:
   - karmto-codebase-map
   - karmto-testing
+  - karmto-storage-data-model
 ---
 
 # ผู้ตรวจความเร็วและขนาดข้อมูล

@@ -9,6 +9,7 @@ skills:
   - karmto-reconcile
   - karmto-domain-glossary
   - karmto-stock-form
+  - karmto-storage-data-model
 ---
 
 # หัวหน้าฝ่ายเงิน (อ่านอย่างเดียว)

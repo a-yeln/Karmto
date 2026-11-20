@@ -12,6 +12,7 @@ skills:
   - karmto-fix-workflow
   - karmto-messages
   - karmto-stock-form
+  - karmto-storage-data-model
 ---
 
 # ผู้สร้างฟีเจอร์

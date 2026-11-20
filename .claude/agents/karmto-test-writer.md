@@ -9,6 +9,8 @@ skills:
   - karmto-order-ocr
   - karmto-domain-glossary
   - karmto-fix-workflow
+  - karmto-storage-data-model
+  - karmto-messages
 ---
 
 # ผู้เขียน/รันเทส

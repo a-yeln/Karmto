@@ -8,6 +8,7 @@ skills:
   - karmto-iron-rules
   - karmto-domain-glossary
   - karmto-fix-workflow
+  - karmto-storage-data-model
 ---
 
 # ผู้ตรวจจับบั๊ก/แก้ปัญหา

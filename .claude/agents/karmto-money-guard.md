@@ -9,6 +9,8 @@ skills:
   - karmto-codebase-map
   - karmto-domain-glossary
   - karmto-stock-form
+  - karmto-storage-data-model
+  - karmto-messages
 ---
 
 # ผู้คุมเงิน/ต้นทุน (อ่านอย่างเดียว)

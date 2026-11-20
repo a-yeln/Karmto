@@ -8,17 +8,17 @@
 |---|---|
 | แอปบนเว็บ (https://a-yeln.github.io/Karmto/) | ✅ ใช้งานได้ deploy ล่าสุดสำเร็จ |
 | เทสอัตโนมัติ (57 spec, GitHub Actions) | ✅ ผ่านทั้งชุดบน main ล่าสุด |
-| PR ค้าง | ⚠️ 1 ตัว (#150) ซ้ำกับของที่ merge แล้วบางส่วน ต้องตัดสินใจ |
+| PR ค้าง | ⚠️ 1 ตัว (#150) เหลือแค่ร่างด่านกัน merge รอ AY ตัดสิน |
 | งานค้างฝั่ง AY | 🔴 5 เรื่อง (ด่วนสุด: ตั้งรหัสเข้าใช้ `KARMTO_KEY`) |
 | แผนถัดไป | ข้อ 1 เสร็จ · ข้อ 2–5 รอ AY ยืนยัน · ข้อ 6 ทำแล้วบางส่วน รอติดตั้ง |
 | Issue เปิดอยู่ | ไม่มี |
 
 ## PR ที่ยังเปิด
-- **#150** (ร่าง, 17 พ.ย.) "สกิลใหม่ 3 ตัว (storage / LINE / UI ไทย) + ร่างด่านกัน merge (ยังไม่เปิดใช้)"
-  - `karmto-line-message` **ซ้ำ** กับ `karmto-messages` ที่ merge แล้วใน #151 → ควรรวมเป็นตัวเดียว
-  - `karmto-storage-data-model`, `karmto-ui-thai-conventions` ทับกับ `karmto-codebase-map` / `karmto-iron-rules` / `karmto-ui-style` บางส่วน
-  - ร่างด่านกัน merge (`.claude/gates/proposed/`) ยังไม่เปิดใช้
-  - ชนกับ main แน่นอน (`ORG.md`, `CLAUDE.md`, agent frontmatter) — ถ้าจะใช้ต่อต้อง merge main เข้าไปแล้วตัดส่วนที่ซ้ำ
+- **#150** (ร่าง, 17 พ.ย.) "สกิลใหม่ 3 ตัว + ร่างด่านกัน merge" — **สกิลทั้ง 3 ตัวย้ายเข้า main แล้วใน #152** (ไม่ต้อง merge #150 ส่วนสกิลซ้ำ):
+  - `karmto-line-message` → รวมเข้า `karmto-messages` (ของ #150 ละเอียดกว่า: ข้อความบิล, สรุปรีเช็ค, รูปแบบเลขเงิน, ข้อมูลห้ามหลุด, บอทเงียบ)
+  - `karmto-storage-data-model` → รับเป็นสกิลใหม่ (ชั้น storage, รายการคีย์, สำรอง, กันข้อมูลเก่า/เขียนชนข้ามเครื่อง)
+  - `karmto-ui-thai-conventions` → รวมเข้า `karmto-ui-style` เป็นหัวข้อ "แบบแผนหน้าจอที่ใช้อยู่จริง"
+  - ที่เหลือใน #150 คือ **ร่างด่านกัน merge** (`.claude/gates/proposed/`, ยังไม่เปิดใช้) — รอ AY ตัดสินว่าจะเปิดใช้หรือปิด PR
 
 ## ทำเสร็จแล้ว (ย่อ — รายการเต็มใน `CLAUDE.md` หัวข้อ "ทำไปแล้ว")
 - **งานประจำวัน:** ลงออเดอร์ (ตารางสาขาแตะครั้งเดียว, อ่านรูปออเดอร์ OCR, ร่างออเดอร์จาก LINE), ข้อความส่ง 5 ส่วน, ป้าย PeriPage, เช็คลิสต์ "กรอกครบวันนี้"
@@ -49,7 +49,7 @@
 
 ## ทีม Claude ใน repo
 - agent 18 ตัวใน `.claude/agents/` (ผังและเจ้าของสกิลใน `ORG.md`)
-- สกิล 16 ตัวใน `.claude/skills/` — `node tools/check-skills.js` ผ่าน ERROR 0 / WARN 0
+- สกิล 17 ตัวใน `.claude/skills/` — `node tools/check-skills.js` ผ่าน ERROR 0 / WARN 0
 - hook กันลืม `APP_BUILD` / syntax พัง: `.claude/hooks/pre-commit-check.sh`
 
 ## ค้างเรื่องสกิลในบัญชี claude.ai ของ AY (อยู่นอก repo)

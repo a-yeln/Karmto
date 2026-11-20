@@ -7,6 +7,7 @@ skills:
   - karmto-iron-rules
   - karmto-codebase-map
   - karmto-ay-way
+  - karmto-messages
 ---
 
 # ผู้ตรวจความปลอดภัย (อ่านอย่างเดียว)

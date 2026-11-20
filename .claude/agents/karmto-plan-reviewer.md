@@ -8,6 +8,7 @@ skills:
   - karmto-testing
   - karmto-security-audit
   - karmto-domain-glossary
+  - karmto-storage-data-model
 ---
 
 # ผู้รีเช็คก่อนเขียนจริง

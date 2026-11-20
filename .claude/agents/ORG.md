@@ -47,9 +47,9 @@ AY (เจ้าของ ตัดสินจริง)
 
 | เจ้าของ | สกิล |
 |---|---|
-| karmto-head-build | `karmto-codebase-map`, `karmto-ui-style`, `karmto-apps-script`, `karmto-order-ocr`, `karmto-fix-workflow` |
+| karmto-head-build | `karmto-codebase-map`, `karmto-ui-style`, `karmto-apps-script`, `karmto-order-ocr`, `karmto-fix-workflow`, `karmto-messages` |
 | karmto-head-quality | `karmto-testing`, `karmto-release-checklist` |
-| karmto-head-money | `karmto-iron-rules`, `karmto-money-review`, `karmto-lot-costing`, `karmto-reconcile`, `karmto-domain-glossary` |
+| karmto-head-money | `karmto-iron-rules`, `karmto-money-review`, `karmto-lot-costing`, `karmto-reconcile`, `karmto-domain-glossary`, `karmto-stock-form` |
 | karmto-security-guard | `karmto-security-audit` |
 | karmto-manager | `karmto-ay-way` |
 
@@ -60,9 +60,9 @@ AY (เจ้าของ ตัดสินจริง)
 |---|---|
 | karmto-manager | `karmto-ay-way`, `karmto-iron-rules`, `karmto-release-checklist`, `karmto-codebase-map` |
 | karmto-ay-proxy | `karmto-ay-way`, `karmto-iron-rules` |
-| karmto-head-build | `karmto-codebase-map`, `karmto-ui-style`, `karmto-apps-script`, `karmto-order-ocr`, `karmto-fix-workflow`, `karmto-ay-way` |
+| karmto-head-build | `karmto-codebase-map`, `karmto-ui-style`, `karmto-apps-script`, `karmto-order-ocr`, `karmto-fix-workflow`, `karmto-ay-way`, `karmto-messages` |
 | karmto-designer | `karmto-ay-way`, `karmto-ui-style`, `karmto-codebase-map`, `karmto-iron-rules` |
-| karmto-builder | `karmto-iron-rules`, `karmto-codebase-map`, `karmto-ui-style`, `karmto-ay-way`, `karmto-order-ocr`, `karmto-domain-glossary`, `karmto-fix-workflow` |
+| karmto-builder | `karmto-iron-rules`, `karmto-codebase-map`, `karmto-ui-style`, `karmto-ay-way`, `karmto-order-ocr`, `karmto-domain-glossary`, `karmto-fix-workflow`, `karmto-messages`, `karmto-stock-form` |
 | karmto-gs-backend | `karmto-apps-script`, `karmto-security-audit`, `karmto-iron-rules`, `karmto-order-ocr` |
 | karmto-head-quality | `karmto-testing`, `karmto-release-checklist`, `karmto-fix-workflow`, `karmto-codebase-map` |
 | karmto-plan-reviewer | `karmto-iron-rules`, `karmto-codebase-map`, `karmto-testing`, `karmto-security-audit`, `karmto-domain-glossary` |
@@ -71,10 +71,10 @@ AY (เจ้าของ ตัดสินจริง)
 | karmto-ui-checker | `karmto-ui-style`, `karmto-ay-way` |
 | karmto-perf-guard | `karmto-codebase-map`, `karmto-testing` |
 | karmto-release | `karmto-release-checklist`, `karmto-testing` |
-| karmto-head-money | `karmto-iron-rules`, `karmto-money-review`, `karmto-lot-costing`, `karmto-reconcile`, `karmto-domain-glossary` |
-| karmto-money-guard | `karmto-money-review`, `karmto-iron-rules`, `karmto-lot-costing`, `karmto-codebase-map`, `karmto-domain-glossary` |
+| karmto-head-money | `karmto-iron-rules`, `karmto-money-review`, `karmto-lot-costing`, `karmto-reconcile`, `karmto-domain-glossary`, `karmto-stock-form` |
+| karmto-money-guard | `karmto-money-review`, `karmto-iron-rules`, `karmto-lot-costing`, `karmto-codebase-map`, `karmto-domain-glossary`, `karmto-stock-form` |
 | karmto-accountant | `karmto-reconcile`, `karmto-money-review`, `karmto-ay-way`, `karmto-domain-glossary` |
-| karmto-data-auditor | `karmto-lot-costing`, `karmto-iron-rules`, `karmto-ay-way`, `karmto-domain-glossary` |
+| karmto-data-auditor | `karmto-lot-costing`, `karmto-iron-rules`, `karmto-ay-way`, `karmto-domain-glossary`, `karmto-stock-form` |
 | karmto-security-guard | `karmto-security-audit`, `karmto-iron-rules`, `karmto-codebase-map`, `karmto-ay-way` |
 
 ## เมื่อไหร่ต้องอัปเดตสกิล (ใครทำ)

@@ -7,6 +7,7 @@ skills:
   - karmto-iron-rules
   - karmto-ay-way
   - karmto-domain-glossary
+  - karmto-stock-form
 ---
 
 # ผู้ตรวจกรอกครบ + ตัดต้นทุนย้อนหลัง (อ่านอย่างเดียว)

@@ -8,6 +8,7 @@ skills:
   - karmto-lot-costing
   - karmto-reconcile
   - karmto-domain-glossary
+  - karmto-stock-form
 ---
 
 # หัวหน้าฝ่ายเงิน (อ่านอย่างเดียว)

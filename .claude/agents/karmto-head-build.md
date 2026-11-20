@@ -9,6 +9,7 @@ skills:
   - karmto-order-ocr
   - karmto-fix-workflow
   - karmto-ay-way
+  - karmto-messages
 ---
 
 # หัวหน้าฝ่ายสร้าง (อ่านอย่างเดียว)

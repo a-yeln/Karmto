@@ -10,7 +10,7 @@ skills:
   - karmto-domain-glossary
   - karmto-fix-workflow
   - karmto-storage-data-model
-  - karmto-line-message
+  - karmto-messages
 ---
 
 # ผู้เขียน/รันเทส

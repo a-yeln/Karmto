@@ -5,7 +5,6 @@ tools: Read, Bash, Glob, Grep
 skills:
   - karmto-ui-style
   - karmto-ay-way
-  - karmto-ui-thai-conventions
 ---
 
 # ผู้ตรวจหน้าตา UI

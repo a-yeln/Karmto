@@ -495,6 +495,20 @@ table.plain td.num{text-align:right;}
 .dash-metric.accent .dm-value{color:var(--accent);}
 .dash-metric.danger{background:var(--danger-soft);}
 .dash-metric.danger .dm-value{color:var(--danger);}
+/* สาขาคู่ ปกติ+แยกส่ง (renderBranchDetail) และเส้นคั่นแยกส่งในบิลรายวัน (renderBillingList) — สีจากตัวแปรธีมเท่านั้น */
+.branchpair{min-width:0;}
+.branchpair-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin-bottom:8px;color:var(--text);min-width:0;}
+.branchpair-head b{overflow-wrap:anywhere;}
+.branchpair-sub{font-size:12px;color:var(--text-dim);}
+.branchpair-total{margin-bottom:10px;}
+.branchpair-part{min-width:0;margin-top:10px;padding:10px 10px 6px;border:1px solid var(--border-soft);border-left:4px solid var(--b-mint,var(--accent));border-radius:12px;background:var(--surface);}
+.branchpair-part.is-sep{border-left-color:var(--b-lav,var(--accent));}
+.branchpair-parthead{font-size:13px;font-weight:600;color:var(--text-dim);margin-bottom:8px;}
+.branchpair-parthead b{color:var(--accent);}
+.billsub{text-align:right;font-size:12px;color:var(--text-dim);padding:4px 2px 2px;}
+.billsep{display:flex;align-items:center;gap:8px;margin:10px 0 6px;font-size:12.5px;font-weight:600;color:var(--text-dim);white-space:nowrap;}
+.billsep::before,.billsep::after{content:"";flex:1 1 auto;min-width:12px;border-top:1px dashed var(--border);}
+.billsep-tag{flex:none;font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:999px;color:var(--text-dim);border:1px solid var(--b-lav,var(--border));background:var(--c-lav,var(--surface-2));}
 .dash-metric.info{background:var(--mahkard-soft);}
 .dash-metric.info .dm-value{color:var(--mahkard);}
 .dash-metric.success{background:var(--success-soft);}
@@ -1943,6 +1957,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div class="statrow" id="billingTodayStats" style="margin-bottom:10px;"></div>
       <button class="btn secondary" id="saveAllBillsBtn" style="margin-bottom:4px;">🖼️ บันทึกบิลทุกใบของวันนี้เป็นรูปภาพ (แยกทีละใบ)</button>
       <div class="hint" style="margin-bottom:10px;">ได้ไฟล์รูปแยกกัน 1 บิล 1 ไฟล์ — มือถือที่รองรับจะเด้งหน้าแชร์ไฟล์แยกให้เลย ถ้าไม่รองรับจะรวมไว้ในไฟล์ .zip ไฟล์เดียว (แตกไฟล์ดูรูปแยกแต่ละใบได้)</div>
+      <div style="display:flex;justify-content:flex-end;"><button type="button" class="btn small secondary" id="billSepOrderToggle" style="width:auto;margin-bottom:6px;display:none;">🔀 แยกส่งไว้ท้าย</button></div>
       <div id="billingList"></div>
     </div>
     <div class="card dash-wide-card">
@@ -1971,6 +1986,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
         <button class="btn small secondary" id="outstandingSortToggle" style="width:auto;">⇅ ดีเลย์มาก→น้อย</button>
         <button class="btn small secondary" id="outstandingDateSortToggle" style="width:auto;">📅 เรียงตามวันที่</button>
+        <button class="btn small secondary" id="outSepOrderToggle" style="width:auto;">🔀 แยกส่งไว้ท้าย</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);">
         <label class="cal-switch"><input type="checkbox" id="recheckModeToggle"><span class="track"></span><span class="knob"></span></label>
@@ -5358,7 +5374,7 @@ function renderBillingTodayStats_(entries){
     }
   });
   el.innerHTML = `
-    <div class="statchip">🏪 สาขาที่ออเดอร์<b class="num">${entries.length}</b></div>
+    <div class="statchip">🏪 สาขาที่ออเดอร์<b class="num">${branchCountLabel(dayData.orders)}</b></div>
     <div class="statchip">✅ ชำระแล้ว<b class="num">${paidCount}/${entries.length}</b></div>
     <div class="statchip">💰 ยอดรวมออเดอร์<b class="num">${money(orderTotal)}</b></div>
     <div class="statchip">💵 โอนแล้วได้รับ<b class="num">${money(receivedTotal)}</b></div>`;
@@ -5368,10 +5384,18 @@ function renderBillingList(){
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
+  // ปุ่มสลับลำดับแยกส่ง (จำต่อเครื่อง) — โชว์เฉพาะวันที่มีสาขาแยกส่ง (ไม่มีก็เรียงเหมือนกันทั้งสองแบบ)
+  const sepOrderBtn = document.getElementById('billSepOrderToggle');
+  const hasSepToday = entries.some(([c])=>isFeeExempt(c));
+  if(sepOrderBtn){ sepOrderBtn.textContent = sepOrderLabel_(); sepOrderBtn.style.display = hasSepToday ? '' : 'none'; }
   if(entries.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีออเดอร์วันนี้</div>'; return; }
-  entries.sort(branchEntrySortSeparateLast_);
-  wrap.innerHTML = entries.map(([code,row])=>{
-    const amt = branchBillAmount(row, currentDate, dayData, code) + Number(dayData.billExtra[code]||0);
+  const pairMode = sepOrderPref_()==='pair';
+  entries.sort(pairMode ? branchEntryPairCmp_ : branchEntrySortSeparateLast_);
+  // ยอดต่อบิลคำนวณครั้งเดียว (สูตรเดิม branchBillAmount+billExtra) ใช้ทั้งแถวบิลและยอดย่อยเส้นคั่น "แยกส่ง"
+  const amtOf_ = {};
+  entries.forEach(([code,row])=>{ amtOf_[code] = branchBillAmount(row, currentDate, dayData, code) + Number(dayData.billExtra[code]||0); });
+  const rowHtml = entries.map(([code,row])=>{
+    const amt = amtOf_[code];
     const payInfo = dayData.billingPaid[code];
     const paid = !!payInfo;
     const paidDate = (payInfo && payInfo.paidDate) ? payInfo.paidDate : null;
@@ -5385,11 +5409,12 @@ function renderBillingList(){
     // ส่วนต่างโอนขาด-เกิน (รายละเอียดเสริม ไม่ใช่ตัววันที่ตรงๆ) ยังอยู่บรรทัดเล็กด้านล่างเหมือนเดิม
     const paidDateTagInline = paid ? `<span style="color:var(--success);font-size:11px;font-weight:600;white-space:nowrap;flex:none;">✅ ${formatDDMMYYYY(paidDate)}</span>` : '';
     const paidInfoLine = delayInfo ? `<div class="d" style="margin-top:2px;color:var(--text-faint);font-size:11.5px;">${delayInfo.replace(/^ /,'')}</div>` : '';
-    return `<div class="branchbill" id="bb-${code}">
+    return `<div class="branchbill" id="bb-${escapeHtml(code)}">
       <div class="toprow">
         <div class="left" style="flex-wrap:nowrap;overflow:hidden;">
-          <span class="code" style="color:var(--accent);font-weight:600;flex:none;">${code}</span>
+          <span class="code" style="color:var(--accent);font-weight:600;flex:none;">${escapeHtml(code)}</span>
           <span class="n" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(branchName(code))}</span>
+          ${pairMode && isFeeExempt(code) ? '<span class="billsep-tag">แยกส่ง</span>' : ''}
         </div>
         <span class="amt num big">${money(amt)}</span>
         <div class="acts2">
@@ -5417,7 +5442,17 @@ function renderBillingList(){
       </div>` : ''}
       <div id="receipt-${code}"></div>
     </div>`;
-  }).join('');
+  });
+  // โหมด "แยกส่งไว้ท้าย": ยอดย่อยสาขาปกติ + เส้นคั่น "🚚 แยกส่ง" ก่อนแถวแยกส่งแรก (ไม่มีคลาส .branchbill/.code กันนับปนกับแถวบิล)
+  const firstSepIdx = pairMode ? -1 : entries.findIndex(([c])=>isFeeExempt(c));
+  if(firstSepIdx >= 0){
+    const sumAmt = list=>list.reduce((s,[c])=>s + amtOf_[c], 0);
+    const mainList = entries.slice(0, firstSepIdx), sepList = entries.slice(firstSepIdx);
+    const sepHtml = (mainList.length ? `<div class="billsub">ส่งปกติ ${mainList.length} สาขา · <b class="num">${money(sumAmt(mainList))}</b></div>` : '')
+      + `<div class="billsep" role="separator">🚚 แยกส่ง · ${sepList.length} สาขา · <b class="num">${money(sumAmt(sepList))}</b></div>`;
+    rowHtml.splice(firstSepIdx, 0, sepHtml);
+  }
+  wrap.innerHTML = rowHtml.join('');
   wrap.querySelectorAll('[data-pay]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const code = btn.getAttribute('data-pay');
@@ -7710,6 +7745,8 @@ async function renderOutstanding(){
   const sortBtn = document.getElementById('outstandingSortToggle');
   const dateSortBtn = document.getElementById('outstandingDateSortToggle');
   const statsEl = document.getElementById('outstandingStats');
+  const sepOrderBtn = document.getElementById('outSepOrderToggle');
+  if(sepOrderBtn) sepOrderBtn.textContent = sepOrderLabel_();
   if(!container.__outWired){ container.__outWired = true; container.addEventListener('click', onOutstandingListClick_); }
   if(dateSortBtn) dateSortBtn.textContent = billingRecheckMode
     ? (outstandingDateSortDir==='desc' ? '📅 ล่าสุด→เก่าสุด' : '📅 เก่าสุด→ล่าสุด')
@@ -7732,6 +7769,7 @@ async function renderOutstanding(){
     branchDetailEl.style.display = '';
     if(sortBtn) sortBtn.style.display = 'none';
     if(dateSortBtn) dateSortBtn.style.display = 'none';
+    if(sepOrderBtn) sepOrderBtn.style.display = 'none';
     if(statsEl) statsEl.innerHTML = '';
     await renderBranchDetail(outstandingBranchFilterValue, null, 'outstandingBranchDetail');
     return;
@@ -7740,6 +7778,7 @@ async function renderOutstanding(){
   container.style.display = '';
   // โหมดรีเช็คเรียงตามวันที่เสมอ (เลือกได้ว่าเก่า→ใหม่ หรือ ใหม่→เก่า) ปุ่มเรียงดีเลย์เลยซ่อนไว้
   if(dateSortBtn) dateSortBtn.style.display = '';
+  if(sepOrderBtn) sepOrderBtn.style.display = '';
   if(sortBtn) sortBtn.style.display = (billingRecheckMode || outstandingDateSortDir) ? 'none' : '';
   container.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   // "ค้างโอน" ดูทุกวันที่ค้างอยู่เสมอ — "โอนแล้ว"/"ทุกบิล" จำกัดตามช่วงเดือนที่เลือก (หลายเดือนได้)
@@ -7775,18 +7814,20 @@ async function renderOutstanding(){
     outstandingScopeRows_ = scope;
     renderOutstandingStats_();
     let rows = scope.filter(r=>r.paid ? includePaid : includeUnpaid);
-    // บิลวันเดียวกัน: สาขาปกติเรียงตามรหัสก่อน แล้วสาขาแยกส่งอยู่ท้ายสุดของวันนั้นเสมอ
+    // บิลวันเดียวกัน: ค่าเริ่มต้น สาขาปกติเรียงตามรหัสก่อน แล้วสาขาแยกส่งอยู่ท้ายสุดของวันนั้น;
+    // โหมด "🔗 ติดคู่สาขา" (karmto.sepOrder) เปลี่ยนแค่ตัวตัดสินเสมอกัน ให้ 13T ต่อท้าย 13
+    const codeCmp = sepOrderPref_()==='pair' ? outstandingPairCmp_ : outstandingCodeCmp_;
     rows.sort((a,b)=>{
       if(billingRecheckMode){
         const dd = outstandingDateSortDir==='desc' ? b.iso.localeCompare(a.iso) : a.iso.localeCompare(b.iso);
-        return dd || outstandingCodeCmp_(a,b);
+        return dd || codeCmp(a,b);
       }
       if(outstandingDateSortDir){
         const dd = outstandingDateSortDir==='desc' ? b.iso.localeCompare(a.iso) : a.iso.localeCompare(b.iso);
-        return dd || outstandingCodeCmp_(a,b);
+        return dd || codeCmp(a,b);
       }
       const d = outstandingSortDir==='asc' ? a.delay-b.delay : b.delay-a.delay;
-      return d || a.iso.localeCompare(b.iso) || outstandingCodeCmp_(a,b);
+      return d || a.iso.localeCompare(b.iso) || codeCmp(a,b);
     });
     outstandingLastRowsCount_ = rows.length; // พูลเต็มก่อนกรองมุมมองรีเช็ค (ใช้โชว์ "ทั้งหมด")
     outstandingMarks_ = {};
@@ -7823,6 +7864,50 @@ function branchBaseNumber_(code){
   if(!base) return String(code);
   return /^\d+$/.test(base) ? String(Number(base)) : base;
 }
+// ---- สาขาคู่ "ปกติ + แยกส่ง" (เช่น 13 กับ 13T) — ใช้แค่จัดการแสดงผล/ลำดับ ไม่เกี่ยวกับยอดเงินหรือ Brand fee ----
+// กลุ่มตั้งขึ้นจาก "สาขาที่ติ๊กแยกส่ง" เป็นแกนเสมอ: ถ้ามีสาขาแยกส่งที่เลขฐานเดียวกัน → ทุกรหัสที่เลขฐานตรงกันอยู่กลุ่มเดียวกัน
+// ไม่มีสาขาแยกส่งเลขนั้น = ไม่จับคู่ (กัน 01 กับ 1 ที่เป็นสาขาปกติทั้งคู่ถูกรวมกันมั่ว — บั๊ก bce5054)
+// สมมาตรเสมอ: branchSameGroup_(x, y) === branchSameGroup_(y, x) เปิดจากฝั่งไหนก็ได้กลุ่มเดียวกัน
+function branchSameGroup_(x, code){
+  if(!x || !code) return false;
+  if(x === code) return true;
+  const bx = branchBaseNumber_(x);
+  if(bx !== branchBaseNumber_(code)) return false;
+  return (settings.branches||[]).some(b=>b && b.code && isFeeExempt(b.code) && branchBaseNumber_(b.code)===bx);
+}
+// รหัสในกลุ่มเดียวกับ code (จากรายชื่อสาขา + รหัสที่มีบิลใน agg) เรียงปกติก่อนแยกส่ง — เก็บเฉพาะรหัสที่กดเลือกเอง หรือที่มีบิลจริง
+function branchPairParts_(code, agg){
+  if(!code) return [];
+  const all = new Set([...(settings.branches||[]).map(b=>b && b.code).filter(Boolean), ...Object.keys(agg||{})]);
+  return Array.from(all)
+    .filter(c=>branchSameGroup_(c, code) && (c===code || (agg && agg[c] && agg[c].orderCount>0)))
+    .map(c=>[c]).sort(branchEntrySortSeparateLast_).map(e=>e[0]);
+}
+// ตัวเทียบโหมด "ติดคู่สาขา": เลขฐาน (ตัวเลข) → สาขาปกติก่อนแยกส่ง → รหัส; เลขฐานที่ไม่ใช่ตัวเลขเรียงด้วย localeCompare
+function pairCodeCmp_(x, y){
+  const bx = branchBaseNumber_(x), by = branchBaseNumber_(y);
+  const nx = /^\d+$/.test(bx), ny = /^\d+$/.test(by);
+  if(nx && ny){ if(Number(bx)!==Number(by)) return Number(bx)-Number(by); }
+  else if(bx !== by) return bx.localeCompare(by);
+  const sx = isFeeExempt(x), sy = isFeeExempt(y);
+  if(sx !== sy) return sx ? 1 : -1;
+  return String(x).localeCompare(String(y));
+}
+function branchEntryPairCmp_(a, b){ return pairCodeCmp_(a[0], b[0]); } // ลิสต์แบบ [code, row] (บิลรายวัน)
+function outstandingPairCmp_(a, b){ return pairCodeCmp_(a.code, b.code); } // ลิสต์แบบ {code} (หน้ารวมตามโอน)
+// ลำดับแยกส่ง: 'last' = แยกส่งไว้ท้าย (ค่าเริ่มต้นเดิม) | 'pair' = ติดคู่สาขา — จำต่อเครื่อง (localStorage) ไม่เขียนข้อมูลร้าน
+let sepOrderMem_ = null;
+function sepOrderPref_(){
+  if(sepOrderMem_) return sepOrderMem_;
+  try{ return localStorage.getItem('karmto.sepOrder')==='pair' ? 'pair' : 'last'; }catch(e){ return 'last'; }
+}
+function setSepOrderPref_(v){
+  const val = v==='pair' ? 'pair' : 'last';
+  sepOrderMem_ = val;
+  try{ localStorage.setItem('karmto.sepOrder', val); }catch(e){}
+  return val;
+}
+function sepOrderLabel_(){ return sepOrderPref_()==='pair' ? '🔗 ติดคู่สาขา' : '🔀 แยกส่งไว้ท้าย'; }
 function lineBaht_(n){ return Math.round(n).toLocaleString('th-TH'); }
 function buildFollowupMessage_(mainBills, sepBills){
   const lines = ['สวัสดีค่ะ จากบัญชีก้ามโตนะคะ'];
@@ -12056,6 +12141,54 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
   if(!sameCodeAlreadyShown){ detailEl.className='loading'; detailEl.innerHTML = 'กำลังโหลด…'; }
   const agg = precomputedAgg || await computeBranchAggregates();
   if(mySeq !== branchDetailRenderSeq_[cId]) return; // มีการเรียกเรนเดอร์รอบใหม่ของ container นี้มาแล้วระหว่างรอ ทิ้งผลรอบนี้ไปเลย
+  // สาขาคู่ (ปกติ + แยกส่ง เช่น 13 กับ 13T): การ์ดเดียว แถวรวมบนสุด + กล่องย่อยต่อรหัส — แต่ละกล่องคือการ์ดเดิมของรหัสนั้นทั้งใบ
+  // (ติ๊กจ่าย/โอนรวมอยู่ในกล่องของรหัสตัวเอง เขียน billingPaid ด้วยรหัสของกล่องนั้นเท่านั้น); แถวรวม = ผลบวก agg ของแต่ละรหัส
+  // (ตัวเลขทุกตัวมาจาก branchBillAmount+billExtra ใน computeBranchAggregates เดิม ไม่มีสูตรใหม่); กล่องย่อยไม่วนซ้อน (id มี __part_)
+  if(!/__part_\d+$/.test(cId)){
+    const parts = branchPairParts_(code, agg);
+    if(parts.length>1){
+      const mainCode = parts.find(c=>!isFeeExempt(c)) || parts[0];
+      const sumOf = f=>parts.reduce((s,c)=>s + Number((agg[c]||{})[f]||0), 0);
+      detailEl.className = '';
+      detailEl.innerHTML = `
+        <div class="branchpair">
+          <div class="branchpair-head"><b>🏪 ${escapeHtml(branchName(mainCode))}</b> <span class="branchpair-sub">${parts.map(c=>escapeHtml(c)).join(' + ')}</span></div>
+          <div class="dash-grid branchpair-total" style="margin-bottom:10px;">
+            <div class="dash-metric danger"><div class="dm-label">บิลค้างโอนรวม</div><div class="dm-value num" data-pairtotal="unpaidCount"></div></div>
+            <div class="dash-metric danger"><div class="dm-label">ยอดค้างโอนรวม</div><div class="dm-value num" data-pairtotal="unpaidTotal"></div></div>
+            <div class="dash-metric"><div class="dm-label">ยอดสะสมรวม</div><div class="dm-value num" data-pairtotal="allTimeTotal"></div></div>
+          </div>
+          ${parts.map((c,i)=>{ const sep = isFeeExempt(c); return `
+          <div class="branchpair-part ${sep?'is-sep':'is-main'}">
+            <div class="branchpair-parthead">${sep?'🚚 แยกส่ง':'📦 ส่งปกติ'} <b>${escapeHtml(c)}</b></div>
+            <div id="${cId}__part_${i}"></div>
+          </div>`; }).join('')}
+        </div>`;
+      detailEl.dataset.branchCode = code;
+      const pairEl = detailEl.querySelector('.branchpair');
+      const paintPairTotals = ()=>{
+        const set = (k, txt)=>{ const el = pairEl.querySelector(`[data-pairtotal="${k}"]`); if(el) el.textContent = txt; };
+        set('unpaidCount', `${sumOf('unpaidCount')} บิล`);
+        set('unpaidTotal', money(Math.round(sumOf('unpaidTotal')*100)/100));
+        set('allTimeTotal', money(Math.round(sumOf('allTimeTotal')*100)/100));
+      };
+      paintPairTotals();
+      // ผูกกับ div ห่อที่สร้างใหม่ทุกรอบ (ไม่ใช่ container เดิม) กันตัวฟังซ้อนสะสม + เช็ครอบล่าสุดก่อนเขียนตัวเลข
+      pairEl.addEventListener('karmto-branchpart-changed', ev=>{
+        if(mySeq !== branchDetailRenderSeq_[cId] || !pairEl.isConnected) return;
+        paintPairTotals();
+        const pd = ev.detail && ev.detail.paidDate;
+        if(pd){
+          // ล็อกวันจ่ายตามข้ามกล่อง: ช่องวันที่ทุกช่องในการ์ดคู่ (ยืนยันทีละบิล + โอนรวม) ใช้วันที่ล่าสุดที่เพิ่งยืนยัน
+          pairEl.querySelectorAll('input[type="date"][id^="quickpaydate-"], input[type="date"]#branchPayDate').forEach(inp=>{
+            if(inp !== (ev.detail.source||null)) inp.value = pd;
+          });
+        }
+      });
+      await Promise.all(parts.map((c,i)=>renderBranchDetail(c, agg, `${cId}__part_${i}`)));
+      return;
+    }
+  }
   const a = agg[code] || {unpaidTotal:0, unpaidCount:0, unpaidList:[], allBillsList:[], allTimeTotal:0, orderCount:0, lastOrderIso:null};
   const sortDir = branchDetailSortDir_[cId] || 'desc';
   const sortedBills = (a.allBillsList||[]).slice().sort((x,y)=> sortDir==='asc' ? x.iso.localeCompare(y.iso) : y.iso.localeCompare(x.iso));
@@ -12194,6 +12327,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       const filterPaidBtn = detailEl.querySelector('[data-branchbillfilter="paid"]');
       if(filterUnpaidBtn) filterUnpaidBtn.textContent = `ค้างโอน (${a.unpaidCount})`;
       if(filterPaidBtn) filterPaidBtn.textContent = `โอนแล้ว (${sortedBills.length - a.unpaidCount})`;
+      // การ์ดคู่ (13+13T) ฟังแล้วบวกแถวรวมใหม่จาก agg ที่เพิ่งแก้ข้างบน (ไม่ยิงเน็ตเพิ่ม); สาขาเดี่ยวไม่มีใครฟัง
+      detailEl.dispatchEvent(new CustomEvent('karmto-branchpart-changed', {bubbles:true, detail:{code, iso}}));
       const payBtn = wrap.querySelector(`[data-quickpay="${CSS.escape(iso)}"]`);
       const cardEl = payBtn ? payBtn.closest('.branchbill') : null;
       if(!cardEl) return;
@@ -12228,6 +12363,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       wrap.querySelectorAll('input[type="date"][id^="quickpaydate-"]').forEach(inp=>{
         if(inp !== dateInput) inp.value = paidDate;
       });
+      // การ์ดคู่: ส่งวันที่ไปให้กล่องอีกรหัสล็อกตามด้วย (สาขาเดี่ยวไม่มีใครฟัง)
+      detailEl.dispatchEvent(new CustomEvent('karmto-branchpart-changed', {bubbles:true, detail:{code, iso, paidDate, source: dateInput}}));
       const amtInput = document.getElementById(`quickpayamt-${code}-${iso}`);
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : bill.amt;
       try{
@@ -12236,8 +12373,9 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
         if(iso===currentDate) dayData = fresh;
         showToast('บันทึกว่าโอนแล้ว');
         const dashSelectEl = document.getElementById('dashBranchSelect');
-        if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
-        if(outstandingBranchFilterValue===code) markBranchBillPaidInPlace_(iso, payValue);
+        // สาขาคู่: เทียบทั้งกลุ่ม และส่งรหัสที่เลือกในดรอปดาวน์ (ไม่ใช่รหัสกล่อง) กันจอกระพริบ "กำลังโหลด…"
+        if(dashSelectEl && branchSameGroup_(dashSelectEl.value, code)) await renderBranchDetail(dashSelectEl.value, null, 'dashBranchDetail');
+        if(branchSameGroup_(outstandingBranchFilterValue, code)) markBranchBillPaidInPlace_(iso, payValue);
       }catch(e){
         showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
         btn.disabled = false; btn.textContent = 'ยืนยัน';
@@ -12257,6 +12395,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       if(isos.length===0) return;
       const paidDate = detailEl.querySelector('#branchPayDate').value || todayISO();
       lastUsedPayDate = paidDate;
+      detailEl.dispatchEvent(new CustomEvent('karmto-branchpart-changed', {bubbles:true, detail:{code, paidDate, source: detailEl.querySelector('#branchPayDate')}}));
       const billedSum = isos.reduce((s,iso)=>{ const b = sortedBills.find(x=>x.iso===iso); return s + (b?b.amt:0); },0);
       const amtInput = detailEl.querySelector('#branchPayAmount');
       const transferAmount = amtInput && amtInput.value!=='' ? Number(amtInput.value) : billedSum;
@@ -12304,8 +12443,8 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
       renderStats();
       // รีเฟรชทุกที่ๆ อาจกำลังแสดงรายละเอียดสาขานี้อยู่ (แดชบอร์ด และ/หรือ หน้าบิลโอนเงิน)
       const dashSelectEl = document.getElementById('dashBranchSelect');
-      if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
-      if(outstandingBranchFilterValue===code) await renderOutstanding();
+      if(dashSelectEl && branchSameGroup_(dashSelectEl.value, code)) await renderBranchDetail(dashSelectEl.value, null, 'dashBranchDetail');
+      if(branchSameGroup_(outstandingBranchFilterValue, code)) await renderOutstanding();
     });
     updateBranchPayBar();
   }
@@ -12712,8 +12851,8 @@ async function toggleBranchBillPaidQuick(iso, code, btn){
     if(iso===currentDate) dayData = fresh;
     showToast(nextValue ? 'บันทึกว่าโอนแล้ว' : 'เปลี่ยนกลับเป็นรอโอน');
     const dashSelectEl = document.getElementById('dashBranchSelect');
-    if(dashSelectEl && dashSelectEl.value===code) await renderBranchDetail(code, null, 'dashBranchDetail');
-    if(outstandingBranchFilterValue===code) await renderOutstanding();
+    if(dashSelectEl && branchSameGroup_(dashSelectEl.value, code)) await renderBranchDetail(dashSelectEl.value, null, 'dashBranchDetail');
+    if(branchSameGroup_(outstandingBranchFilterValue, code)) await renderOutstanding();
   }catch(e){
     showToast('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง — สถานะยังไม่เปลี่ยน');
     if(btn) btn.disabled = false;
@@ -13642,7 +13781,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-16.2';
+const APP_BUILD = '2026-11-20.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -15073,6 +15212,14 @@ async function init(){
     else outstandingDateSortDir = outstandingDateSortDir===null ? 'desc' : outstandingDateSortDir==='desc' ? 'asc' : null;
     await renderOutstanding();
   });
+  // สลับลำดับแยกส่ง "🔀 แยกส่งไว้ท้าย" ↔ "🔗 ติดคู่สาขา" — ค่าเดียวใช้ร่วมกันทั้งบิลรายวันและรายการตามโอน จำต่อเครื่อง (ไม่เขียนข้อมูลร้าน)
+  const toggleSepOrder_ = async ()=>{
+    setSepOrderPref_(sepOrderPref_()==='pair' ? 'last' : 'pair');
+    renderBillingList();
+    await renderOutstanding();
+  };
+  document.getElementById('billSepOrderToggle').addEventListener('click', toggleSepOrder_);
+  document.getElementById('outSepOrderToggle').addEventListener('click', toggleSepOrder_);
   document.getElementById('recheckModeToggle').addEventListener('change', async (e)=>{
     billingRecheckMode = e.target.checked;
     if(!billingRecheckMode) outstandingRecheckView_ = 'all'; // ปิดโหมดรีเช็ค -> ล้างตัวกรอง "เหลือ" ไปด้วย กันค้างข้ามรอบ

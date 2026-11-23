@@ -31,7 +31,7 @@
 ## ค้างฝั่ง AY (Claude ทำแทนไม่ได้)
 1. 🔴 **ตั้ง `KARMTO_KEY`** ใน Apps Script ตามหัวไฟล์ `backend/AuthGuard.gs` — ยังไม่ตั้ง = repo สาธารณะ ใครมีลิงก์ `/exec` ก็อ่าน/เขียนข้อมูลได้
 2. งานความปลอดภัยที่เหลือ (Google 2 ขั้นตอน, สิทธิ์แชร์ Sheet/โฟลเดอร์สำรอง, กฎป้องกัน branch `main`, Secret scanning, เช็คว่าสำรองรายวันรันอยู่) — เช็คลิสต์ใน `.claude/agents/karmto-security-guard.md`
-3. บอกจำนวนวันที่อยากเก็บไฟล์สำรอง (ตอนนี้ 30 วัน) แล้ววางโค้ดใหม่ใน Apps Script
+3. วางโค้ด `backend/BackupTrigger.gs` ฉบับใหม่ใน Apps Script (ไม่ลบไฟล์สำรองเลย ตามที่สั่ง; เตือนเมื่อ Drive ใช้เกิน 80%) — ถ้าเคยวางฉบับเก่า เช็คถังขยะ Drive หาไฟล์ `karmto-backup-*`
 4. ติดตั้งบอท LINE ตามหัวไฟล์ `backend/LineBot.gs` (ต้องมี LINE OA + Messaging API)
 5. กลุ่ม LINE สาขา: ส่ง `docs/line-relay-for-it.md` ให้ไอทีลูกค้า **หรือ** รัน `tools/line-watcher/check-line.bat` บนคอม Asus — ยังไม่เคยลองกับของจริง
 

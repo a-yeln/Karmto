@@ -15,7 +15,9 @@
  *
  * จากนี้ไประบบจะรันเองอัตโนมัติทุกวันตอนตี 3 (ตามโซนเวลาของโปรเจกต์ Apps Script นี้ ปกติจะตรงกับโซนเวลาที่ตั้งค่า
  * ไว้ตอนสร้าง Google Sheet) ไม่ต้องทำอะไรต่อ — ไฟล์สำรองจะไปโผล่ที่โฟลเดอร์ "Karmto Backups" ใน Google Drive ของ
- * บัญชีที่รันฟังก์ชันนี้ (ไฟล์ .json ใหม่ 1 ไฟล์ต่อวัน เก็บย้อนหลัง 30 วัน เกินกว่านั้นลบไฟล์เก่าทิ้งอัตโนมัติกันพื้นที่เต็ม)
+ * บัญชีที่รันฟังก์ชันนี้ (ไฟล์ .json ใหม่ 1 ไฟล์ต่อวัน เก็บทุกไฟล์ตลอดไป — โค้ดนี้ไม่ลบ/ไม่ย้ายไฟล์สำรองใดๆ ทั้งสิ้น
+ * ถ้าพื้นที่ Drive ใช้ไปเกิน 80% การรันจะขึ้นแดง (Failed) ใน "Executions" พร้อมข้อความเตือน — ไฟล์สำรองของวันนั้นถูกเขียนก่อนแล้ว
+ * ให้ไปเพิ่มพื้นที่ Drive เอง ห้ามให้ระบบลบไฟล์เก่าแทน)
  *
  * อยากทดสอบทันทีไม่ต้องรอถึงตี 3: เลือกฟังก์ชัน "runDailyKarmtoBackup" แล้วกด ▶ รันตรงๆ ได้เลยเหมือนกัน
  *
@@ -32,7 +34,8 @@ var BACKUP_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxBUioYu6BXM
 var BACKUP_EXTRA_ROOT_KEYS = ['rawLots', 'lotProductBills', 'lotTransportBills', 'wasteRecords', 'activityLog', 'billingRecheckCurrent', 'billingRecheckHistory', 'supplierShortfalls', 'stockFormDraft','stockFormLastSync','closedMonths','slipPayers'];
 
 var BACKUP_FOLDER_NAME = 'Karmto Backups';
-var BACKUP_RETENTION_DAYS = 30; // เก็บไฟล์สำรองอัตโนมัติไว้ย้อนหลังกี่วัน เกินกว่านี้ลบทิ้งอัตโนมัติ กันพื้นที่ Drive เต็มไปเรื่อยๆ ตามอายุร้าน
+// เจ้าของสั่งชัด: ห้ามลบข้อมูลสำรองทิ้งเด็ดขาด (ระบบระยะยาว) — จึงไม่มีโค้ดลบไฟล์เก่า แค่เตือนเมื่อพื้นที่ Drive ใกล้เต็ม
+var BACKUP_SPACE_WARN_RATIO = 0.8; // พื้นที่ Drive ที่ใช้ไปเกินสัดส่วนนี้ → รันจบแล้วขึ้น error เตือน (ไฟล์สำรองเขียนไปแล้ว)
 
 /**
  * ฟังก์ชันหลักที่ trigger เรียกทุกวัน — ดึงข้อมูลทุกอย่างผ่าน API เดียวกับที่เว็บแอปใช้เป๊ะๆ (ไม่ได้อ่าน Sheet ตรงๆ
@@ -75,9 +78,16 @@ function runDailyKarmtoBackup() {
   var folder = backupGetOrCreateFolder_();
   var dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   var fileName = 'karmto-backup-' + dateStr + '.json';
-  folder.createFile(fileName, JSON.stringify(payload), MimeType.PLAIN_TEXT);
+  var created = folder.createFile(fileName, JSON.stringify(payload), MimeType.PLAIN_TEXT);
 
-  backupPruneOldFiles_(folder);
+  // บันทึกขนาดไฟล์ + พื้นที่ Drive ลง Executions (ดูได้ว่าโตวันละเท่าไหร่ ใช้วางแผนระยะยาว) — ไม่ลบอะไรเลย
+  var limit = DriveApp.getStorageLimit();
+  var used = DriveApp.getStorageUsed();
+  Logger.log('Karmto backup: ' + fileName + ' ขนาด ' + (created.getSize() / 1048576).toFixed(2) + ' MB | Drive ใช้ไป ' +
+    (used / 1073741824).toFixed(2) + ' / ' + (limit / 1073741824).toFixed(2) + ' GB');
+  if (limit > 0 && used / limit >= BACKUP_SPACE_WARN_RATIO) {
+    throw new Error('Karmto backup: พื้นที่ Drive ใช้ไป ' + Math.round(used / limit * 100) + '% — สำรองวันนี้เขียนเสร็จแล้ว แต่ต้องเพิ่มพื้นที่ Drive เอง (ระบบไม่ลบไฟล์สำรองเก่า)');
+  }
 }
 
 /** เรียก API ของเว็บแอป Karmto ตัวเดียวกับที่ window.storage ใน index.html เรียก (GET ตอนมี queryString, POST ตอนมี postBody) */
@@ -104,17 +114,6 @@ function backupGetOrCreateFolder_() {
   var it = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
   if (it.hasNext()) return it.next();
   return DriveApp.createFolder(BACKUP_FOLDER_NAME);
-}
-
-function backupPruneOldFiles_(folder) {
-  var cutoff = new Date(Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-  var files = folder.getFilesByType(MimeType.PLAIN_TEXT);
-  while (files.hasNext()) {
-    var f = files.next();
-    if (f.getName().indexOf('karmto-backup-') === 0 && f.getDateCreated() < cutoff) {
-      f.setTrashed(true);
-    }
-  }
 }
 
 /** รันครั้งเดียวตอนติดตั้ง — ตั้ง trigger ให้ runDailyKarmtoBackup ทำงานเองทุกวันตอนตี 3 (idempotent: รันซ้ำกี่ครั้งก็ได้ ไม่สร้าง trigger ซ้ำซ้อน) */

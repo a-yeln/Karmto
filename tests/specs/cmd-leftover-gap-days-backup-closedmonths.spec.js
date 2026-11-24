@@ -19,6 +19,7 @@ const SHOT_DIR = process.env.SHOT_DIR || path.join(__dirname, '..', 'screenshots
     ['day:2026-11-21']: mkDay({ orders: { '01': { p1: 3 } }, leftoverOut: { p2: 0 } }), // จดแล้ว (0) → ไม่แสดง
     ['day:2026-11-22']: mkDay({ orders: { '02': { p2: 4 } } }),                       // ขาด → แสดง
     ['day:2026-11-23']: mkDay({ expenses: [{ id: 'e1', amount: 50 }] }),                // ไม่มีออเดอร์ → ไม่แสดง
+    ['day:2026-11-01"><img src=x id=evil>']: mkDay({ orders: { '01': { p1: 3 } } }), // คีย์แปลก → ต้องไม่เรนเดอร์
     ['day:' + T]: mkDay({ orders: { '01': { p1: 5 } } }),                             // วันนี้ → ไม่แสดง (อยู่ในเช็คลิสต์ 7 ขั้น)
   });
   const open = async () => {
@@ -39,8 +40,10 @@ const SHOT_DIR = process.env.SHOT_DIR || path.join(__dirname, '..', 'screenshots
   });
   check('Lists past days with orders but no leftover recorded, newest first', r.has && JSON.stringify(r.days) === JSON.stringify(['2026-11-22', '2026-11-20']) && r.text.includes('ยังไม่จดของเหลือ 2 วัน'), r);
   check('Skips today, closed month, days already recorded (even 0) and days without orders', !r.days.includes(T) && !r.days.includes('2026-10-15') && !r.days.includes('2026-11-21') && !r.days.includes('2026-11-23'), r.days);
+  const evil = await page.evaluate(() => ({ img: !!document.querySelector('#cmdCenter #evil, #cmdCenter img[src="x"]'), btn: [...document.querySelectorAll('[data-leftgap]')].some(b => !/^\d{4}-\d{2}-\d{2}$/.test(b.getAttribute('data-leftgap'))) }));
+  check('Odd day: key (with HTML chars) is not rendered as a button or img', !evil.img && !evil.btn, evil);
   check('Rendering writes nothing', r.wrote === 0, r.wrote);
-  const same = await page.evaluate(async () => { const gaps = await computeDataGaps(); return gaps.filter(g => g.type === 'leftover' && g.iso < '2026-11-25' && g.iso >= '2026-11-01').map(g => g.iso).sort().reverse(); });
+  const same = await page.evaluate(async () => { const gaps = await computeDataGaps(); return gaps.filter(g => g.type === 'leftover' && /^\d{4}-\d{2}-\d{2}$/.test(g.iso) && g.iso < '2026-11-25' && g.iso >= '2026-11-01').map(g => g.iso).sort().reverse(); });
   check('Same days as the Notifications check (same rule)', JSON.stringify(same) === JSON.stringify(r.days), same);
 
   const go = await page.evaluate(async () => {

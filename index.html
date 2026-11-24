@@ -12922,7 +12922,8 @@ async function computeTodayCommand_(){
   let spikes = []; try{ spikes = await computePriceSpikes_(); }catch(e){}
   // วันย้อนหลังที่ "ไม่ได้จดของเหลือ" — ใช้เกณฑ์เดียวกับหน้า Notifications (computeDayGaps_ type 'leftover') ไม่คิดเกณฑ์ใหม่
   // ไม่นับวันนี้ (อยู่ในเช็คลิสต์ 7 ขั้นแล้ว) และข้ามเดือนที่ปิดแล้ว (แก้ไม่ได้อยู่แล้ว) — อ่านอย่างเดียว
-  const leftGapDays = isos.filter(iso=>iso < t && !isMonthClosed_(iso) && dayMap[iso])
+  const leftGapDays = isos.filter(iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)) // กันคีย์ day: แปลกๆ หลุดเข้า HTML
+    .filter(iso=>iso < t && !isMonthClosed_(iso) && dayMap[iso])
     .filter(iso=>computeDayGaps_(iso, dayMap[iso], dayMap[addDaysISO(iso,-1)] || emptyDay(), lotIds).some(g=>g.type==='leftover'))
     .reverse();
   return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes, leftGapDays};
@@ -12978,7 +12979,7 @@ async function renderTodayCommand_(){
   const reds = rows.filter(r=>r.sev==='red').length;
   const lg = c.leftGapDays || [], LG_MAX = 6;
   const gapHtml = lg.length ? `<div class="cmd-gapdays" id="cmdLeftGaps"><div class="cmd-gaphead"><span class="cmd-dot amber"></span><span class="cmd-txt">📦 ยังไม่จดของเหลือ ${lg.length} วัน<small>แตะวันที่ เพื่อไปจด</small></span></div>
-      <div class="cmd-chips">${lg.slice(0,LG_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-leftgap="${iso}">${formatDDMMYYYY(iso).slice(0,5)}</button>`).join('')}${lg.length>LG_MAX?`<button type="button" class="cmd-chip more" data-cmdgo="noti" data-cmdtoday="0">+${lg.length-LG_MAX}</button>`:''}</div></div>` : '';
+      <div class="cmd-chips">${lg.slice(0,LG_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-leftgap="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('')}${lg.length>LG_MAX?`<button type="button" class="cmd-chip more" data-cmdgo="noti" data-cmdtoday="0">+${lg.length-LG_MAX}</button>`:''}</div></div>` : '';
   el.innerHTML = `<div class="cmd-card">
     <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
       <span class="cmd-sum">ค้างรับทั้งหมด ${money(c.unpaidTotal)} (${c.unpaidCount} บิล)</span></div>
@@ -13800,7 +13801,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.1';
+const APP_BUILD = '2026-11-25.2';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

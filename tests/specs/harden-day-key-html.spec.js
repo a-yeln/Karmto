@@ -67,6 +67,20 @@ const noEvil = page => page.evaluate(() => !document.getElementById('evil') && !
   check('รายจ่ายทั้งหมดยังโชว์รายการปกติ', await page.evaluate(() => document.getElementById('allExpenseList').textContent.includes('ผู้ขาย')));
   check('ยอดค้างจ่ายรวมไม่นับวันแปลก (฿300)', await page.evaluate(async () => { const r = await computeAllExpensePayables(); return r.total === 300 && r.count === 1; }));
 
+  // label รายจ่าย: escape ที่จุดแสดงผลที่เดียว — & ' ต้องไม่ซ้อน และ HTML ใน note ไม่กลายเป็น element
+  {
+    const page2 = await openApp(browser, { store: { ['day:' + TODAY]: mkDay({ expenses: [{ id: 'e-amp', seller: 'ผู้ขาย', category: 'อื่นๆ', note: "A&B 'x' <b id=evil2>z</b>", amount: 10, paid: false }] }) }, date: TODAY });
+    await page2.clock.setFixedTime(new Date(TODAY + 'T10:00:00+07:00'));
+    await stripBanner(page2);
+    await page2.evaluate(async () => { await switchTab('purchase'); await renderAllExpenseList(); });
+    await page2.waitForTimeout(500);
+    const txt = await page2.evaluate(() => document.getElementById('allExpenseList').textContent);
+    check("note มี & และ ' โชว์ตัวอักษรเดิม ไม่ซ้อน (&amp;)", txt.includes("A&B 'x'") && !txt.includes('&amp;'), txt);
+    check('note ที่มี <b id=evil2> ไม่เกิด element แทรก', await page2.evaluate(() => !document.getElementById('evil2')));
+    check('note โชว์เป็นข้อความ (<b ...>)', txt.includes('<b id=evil2>'));
+    await page2.close();
+  }
+
   // ไม่มีการเขียนข้อมูลเพิ่ม
   const writes = await page.evaluate(() => window.__writes.filter(w => w.key !== 'dayRevs'));
   check('ไม่มีการเขียนข้อมูล (window.__writes ไม่เพิ่ม)', writes.length === 0, writes);

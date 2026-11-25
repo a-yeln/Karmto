@@ -7048,7 +7048,7 @@ async function buildAllExpenseRows_(){
     const d = dayMap[iso];
     (d.expenses||[]).forEach(e=>{
       const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-      rows.push({iso, label:escapeHtml(e.category)+(e.note?` — ${escapeHtml(e.note)}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
+      rows.push({iso, label:(e.category||'')+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
     });
     // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
     // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
@@ -7070,6 +7070,7 @@ async function buildAllExpenseRows_(){
       const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
       const itemLabel = g.items.map(e=>{ if(e.customName) return '📦'+e.customName; const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
       const paidDate = ((d.purchaseGroupPayment||{})[seller]||{}).paidDate || null;
+      // label เก็บเป็นข้อความดิบ — escapeHtml ที่จุดแสดงผลที่เดียว (กัน &amp; ซ้อน)
       // ไม่ใส่ชื่อคู่ค้าซ้ำในป้ายชื่อแล้ว เพราะย้ายไปขึ้นต้นแถวแทน (ดูส่วนแสดงผลด้านล่าง)
       rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}`, amount:g.amount, paid:g.paid, paidDate, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
     });
@@ -13944,7 +13945,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.5';
+const APP_BUILD = '2026-11-25.6';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

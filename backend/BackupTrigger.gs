@@ -46,7 +46,7 @@ function runDailyKarmtoBackup() {
   var dayKeys = listRes.keys || [];
   // คีย์ที่แยกเก็บทีละชิ้น — ต้องตรงกับ BACKUP_PREFIXES ใน index.html
   var actKeys = [];
-  ['actlog:', 'rchkm:', 'rchk:', 'productImage:', 'lineInbox:'].forEach(function (px) {
+  ['actlog:', 'rchkm:', 'rchk:', 'productImage:', 'lineInbox:', 'backorders:'].forEach(function (px) {
     actKeys = actKeys.concat((backupFetch_('?action=list&prefix=' + encodeURIComponent(px)).keys) || []);
   });
   var allKeys = dayKeys.concat(['settings', 'debts']).concat(BACKUP_EXTRA_ROOT_KEYS).concat(actKeys);

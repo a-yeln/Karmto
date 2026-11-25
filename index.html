@@ -5926,7 +5926,11 @@ async function sendBackorder_(id, sentIso, costRaw, btn){
   try{
     const p = PRODUCTS.find(x=>x.id===b.pid);
     let expId = null;
+    if(!boMonthsAround_(sentIso).includes(String(b.fromIso).slice(0,7))){ showToast('ค้างส่งนานเกิน 2 เดือน — ส่งชดเชยจากการ์ดนี้ไม่ได้ ลงรายจ่าย/หมายเหตุบิลเอง'); return false; }
     if(cost > 0){
+      // ค่าส่งของรายการนี้เคยบันทึกและติ๊กจ่ายไปแล้ว (รอบก่อนพังกลางทาง) → ห้ามเขียนทับเงียบๆ
+      try{ const r0 = await window.storage.get('day:'+sentIso); const d0 = normalizeDay_(JSON.parse(r0.value)); if((d0.expenses||[]).some(e=>e.id==='e-bo-'+id && e.paid)){ showToast('ค่าส่งของรายการนี้ถูกบันทึกและติ๊กจ่ายแล้ว — ใส่ค่าส่งเป็น 0 แล้วกดส่งอีกครั้ง'); return false; } }
+      catch(e){ if(!(e && e.message && e.message.indexOf('Key not found')===0)){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ส่งชดเชย'); return false; } }
       const expense = {id: 'e-bo-'+id, category:'ค่าส่ง/ลาล่า', seller:'', note:`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (ค้างจาก ${formatDDMMYYYY(b.fromIso)})`, amount: Math.round(cost), paid:false};
       try{
         // id ตายตัวต่อรายการค้างส่ง: ลบของเดิม (ถ้าเคยค้างจากรอบที่พังกลางทาง) แล้วเพิ่ม — กดซ้ำกี่ครั้งก็ไม่เกิดค่าส่งซ้ำ

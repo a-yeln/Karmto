@@ -929,6 +929,13 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 .cmd-txt small{display:block;color:var(--text-dim);font-size:11.5px;}
 .cmd-go{flex:none;font-size:12px;color:var(--accent);font-weight:700;}
 .cmd-ok{margin-top:6px;font-size:13px;color:var(--success);}
+.cmd-gapdays{background:var(--surface-2,rgba(0,0,0,.03));border:1px solid var(--border-soft,var(--border));border-radius:12px;padding:8px 10px;min-width:0;}
+.cmd-gaphead{display:flex;align-items:center;gap:8px;color:var(--text);}
+.cmd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.cmd-chip{min-height:44px;min-width:56px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface,transparent);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.cmd-chip:hover{border-color:var(--accent);}
+.cmd-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.cmd-chip.more{color:var(--accent);}
 .purch-margin{margin-top:8px;padding:8px 10px;border-radius:12px;font-size:12.5px;line-height:1.45;}
 .purch-margin.ok{background:rgba(62,160,110,.10);color:var(--text-dim);}
 .purch-margin.warn{background:rgba(224,71,90,.10);border:1.5px solid rgba(224,71,90,.45);color:var(--text);}
@@ -13059,7 +13066,13 @@ async function computeTodayCommand_(){
   let lotRows = [];
   if(currentDate === t){ try{ lotRows = (await computeLotSettleRows_(rawLots)).filter(r=>r.overdueSoldQty>0.001); }catch(e){} }
   let spikes = []; try{ spikes = await computePriceSpikes_(); }catch(e){}
-  return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes};
+  // วันย้อนหลังที่ "ไม่ได้จดของเหลือ" — ใช้เกณฑ์เดียวกับหน้า Notifications (computeDayGaps_ type 'leftover') ไม่คิดเกณฑ์ใหม่
+  // ไม่นับวันนี้ (อยู่ในเช็คลิสต์ 7 ขั้นแล้ว) และข้ามเดือนที่ปิดแล้ว (แก้ไม่ได้อยู่แล้ว) — อ่านอย่างเดียว
+  const leftGapDays = isos.filter(iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)) // กันคีย์ day: แปลกๆ หลุดเข้า HTML
+    .filter(iso=>iso < t && !isMonthClosed_(iso) && dayMap[iso])
+    .filter(iso=>computeDayGaps_(iso, dayMap[iso], dayMap[addDaysISO(iso,-1)] || emptyDay(), lotIds).some(g=>g.type==='leftover'))
+    .reverse();
+  return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes, leftGapDays};
 }
 // ---- แถบอายุค้างรับ (บนศูนย์บัญชาการ): ยอดที่สาขายังไม่โอน แยกตามจำนวนวันที่ค้าง — แสดงอย่างเดียว ใช้ยอดเดียวกับ "ค้างรับทั้งหมด" ----
 function buildReceivableAging_(raw){
@@ -13110,13 +13123,20 @@ async function renderTodayCommand_(){
   c.aging.filter(a=>!a.red).forEach(a=>rows.push({sev:'amber', go:'leftover', today:true, text:`${a.p.emoji} ${a.p.name} ค้าง ${a.qty} ${a.p.unit} ครบอายุพรุ่งนี้ — ขายก่อน`, act:'ดู'}));
   if(c.spikes.length){ const s0 = c.spikes[0]; rows.push({sev:'amber', go:'noti', text:`ราคาซื้อพุ่ง ${c.spikes.length} รายการ — ล่าสุด ${escapeHtml(s0.name)} +${s0.pct}%`, sub:`${formatDDMMYYYY(s0.iso)} ฿${s0.price} เทียบเฉลี่ย ฿${s0.avg}`, act:'ดู'}); }
   const reds = rows.filter(r=>r.sev==='red').length;
+  const lg = c.leftGapDays || [], LG_MAX = 6;
+  const gapHtml = lg.length ? `<div class="cmd-gapdays" id="cmdLeftGaps"><div class="cmd-gaphead"><span class="cmd-dot amber"></span><span class="cmd-txt">📦 ยังไม่จดของเหลือ ${lg.length} วัน<small>แตะวันที่ เพื่อไปจด</small></span></div>
+      <div class="cmd-chips">${lg.slice(0,LG_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-leftgap="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('')}${lg.length>LG_MAX?`<button type="button" class="cmd-chip more" data-cmdgo="noti" data-cmdtoday="0">+${lg.length-LG_MAX}</button>`:''}</div></div>` : '';
   el.innerHTML = `<div class="cmd-card">
     <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
       <span class="cmd-sum">ค้างรับทั้งหมด ${money(c.unpaidTotal)} (${c.unpaidCount} บิล)</span></div>
     ${buildReceivableAging_(c.ageBuckets)}
-    ${rows.length ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}</div>`
+    ${rows.length || gapHtml ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}${gapHtml}</div>`
       : `<div class="cmd-ok">✅ ไม่มีเรื่องด่วนวันนี้</div>`}
   </div>`;
+  el.querySelectorAll('[data-leftgap]').forEach(b=>b.addEventListener('click', async ()=>{
+    await jumpToGap(b.getAttribute('data-leftgap'), 'leftover'); // แค่พาไปหน้าของเหลือของวันนั้น ไม่เขียนอะไร
+    window.scrollTo({top:0, behavior:'smooth'});
+  }));
   el.querySelectorAll('[data-cmdgo]').forEach(b=>b.addEventListener('click', async ()=>{
     const tab = b.getAttribute('data-cmdgo');
     if(b.getAttribute('data-cmdtoday')==='1' && currentDate !== todayISO()) await loadForDate(todayISO());
@@ -13927,7 +13947,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.3';
+const APP_BUILD = '2026-11-25.4';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

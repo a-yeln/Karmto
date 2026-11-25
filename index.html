@@ -253,6 +253,7 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .btn.danger{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);font-weight:500;}
 .btn.small{width:auto;padding:6px 10px;font-size:12.5px;}
 .rowlist{display:flex;flex-direction:column;gap:8px;}
+.orow.dragging{opacity:.85;box-shadow:0 8px 20px rgba(0,0,0,.18);transform:scale(1.02);position:relative;z-index:2;}
 .orow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:9px 11px;transition:background .5s,border-color .5s;}
 .orow .name{font-size:13.5px;}
 .orow.flash-saved{background:var(--success-soft);border-color:var(--success);}
@@ -1686,7 +1687,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div id="orderImageStatus" class="hint" style="margin-top:6px;"></div>
       <div id="lineOrderDrafts" class="slip-inbox" style="display:none;margin-top:10px;"></div>
     </div>
-    <div class="card dash-wide-card" data-no-collapse="1" id="branchGridCard">
+    <div class="card dash-wide-card" id="branchGridCard">
       <h3 style="margin:0 0 8px;">🗂️ สาขาวันนี้ <span class="subhint" id="branchGridCount"></span></h3>
       <div id="branchGrid" class="bgrid"></div>
       <div class="hint" style="margin-top:8px;">แตะสาขาเพื่อกรอก/แก้ออเดอร์ • สีทึบ = บันทึกแล้ว</div>
@@ -1911,6 +1912,22 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div class="field">
         <label>หมวด</label>
         <select id="expCategory"></select>
+      </div>
+      <div id="expGoodsBox" style="display:none;">
+        <label style="font-size:12px;font-weight:700;">รายการสินค้า <span class="subhint">(ค่าสินค้า — กรอกได้หลายรายการ)</span></label>
+        <div id="expGoodsRows" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
+        <button type="button" class="btn secondary" id="expGoodsAddRow" style="margin-top:8px;">+ เพิ่มสินค้า</button>
+        <div class="field" style="margin-top:10px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="expShipToggle" style="width:auto;"> เพิ่มค่าส่ง</label></div>
+        <div id="expShipBox" style="display:none;">
+          <div class="field"><label>ขนส่งระบุ</label><input type="text" id="expShipCarrier" placeholder="เช่น Kerry, Flash, รถส่งเอง"></div>
+          <div class="field"><label>ราคาค่าส่ง</label><input type="number" step="1" id="expShipPrice" placeholder="0"></div>
+          <div class="field"><label>หมายเหตุค่าส่ง</label><input type="text" id="expShipNote" placeholder="เช่น ส่งแช่แข็ง"></div>
+        </div>
+        <div id="expGoodsTotal" class="hint" style="font-weight:700;margin-top:6px;"></div>
+      </div>
+      <div id="expTransportBox" class="field" style="display:none;">
+        <label>ระบุ (ขนส่ง/ผู้ให้บริการ)</label>
+        <input type="text" id="expTransportCarrier" placeholder="เช่น Lalamove, Kerry, รถส่งเอง">
       </div>
       <div class="field"><label>จ่ายให้ใคร (ถ้ามี — เช่น จ่ายรวมกับค่าเชอรี่ให้พี่พัฒน์)</label><select id="expPayee"><option value="">— ไม่ระบุ —</option></select>
         <input type="text" id="expPayeeOther" placeholder="ชื่อ/ร้าน" style="display:none;margin-top:6px;">
@@ -6197,12 +6214,68 @@ function renderExpenseList(){
   updateBillSummaryVisibility();
   applyDailyExpenseRoutine_();
 }
+// ค่าสินค้า/ค่าส่ง: หมวดสองชื่อนี้ตั้งเป็นชื่อคงที่ (ต้องตรงกับชื่อในการตั้งค่าหมวดรายจ่าย)
+// ค่าสินค้าเปิดรายการสินค้าหลายแถว (ชื่อ/จำนวน/ราคา/ค่าใช้จ่ายเพิ่มเติม) + ค่าส่งแบบเลือกได้ — จำนวนเงินรวมคำนวณให้ (ช่องจำนวนเงินล็อก)
+// ส่วนหมวดค่าส่ง/ลาล่าเพิ่มช่อง "ระบุ" ขนส่ง — ทุกค่าเก็บเป็นฟิลด์เสริมของรายการเดิม จึงไม่กระทบยอดรวม/P&L ที่อ่าน amount เหมือนเดิม
+const EXP_GOODS_CAT_ = 'ค่าสินค้า';
+const EXP_TRANSPORT_CAT_ = 'ค่าส่ง/ลาล่า';
+let expGoodsRows_ = [];
+function expGoodsMode_(){ const el = document.getElementById('expCategory'); return !!el && el.value===EXP_GOODS_CAT_; }
+function expGoodsItemsSum_(){ return expGoodsRows_.reduce((s,r)=>s+(Number(r.qty)||0)*(Number(r.price)||0)+(Number(r.extra)||0),0); }
+function expGoodsShipSum_(){ return document.getElementById('expShipToggle')?.checked ? (Number(document.getElementById('expShipPrice')?.value)||0) : 0; }
+function expGoodsSum_(){ return Math.round((expGoodsItemsSum_()+expGoodsShipSum_())*100)/100; }
+function expGoodsTotalText_(){
+  const items = expGoodsItemsSum_(), ship = expGoodsShipSum_();
+  return `สินค้า ${money(items)}${ship?` + ค่าส่ง ${money(ship)}`:''} = รวม ${money(items+ship)}`;
+}
+function renderExpGoods_(){
+  const box = document.getElementById('expGoodsBox'); if(!box) return;
+  const cat = document.getElementById('expCategory').value;
+  const goods = cat===EXP_GOODS_CAT_;
+  box.style.display = goods ? '' : 'none';
+  document.getElementById('expTransportBox').style.display = cat===EXP_TRANSPORT_CAT_ ? '' : 'none';
+  const amt = document.getElementById('expAmount');
+  amt.readOnly = goods;
+  if(goods){
+    if(!expGoodsRows_.length) expGoodsRows_.push({name:'', qty:'', price:'', extra:''});
+    document.getElementById('expShipBox').style.display = document.getElementById('expShipToggle').checked ? '' : 'none';
+    document.getElementById('expGoodsRows').innerHTML = expGoodsRows_.map((r,i)=>`
+      <div data-goodsrow="${i}" style="display:grid;grid-template-columns:1fr 64px 84px 84px auto;gap:6px;align-items:end;">
+        <div><label style="font-size:11px;">ชื่อสินค้า</label><input type="text" data-gf="name" value="${escapeHtml(r.name)}" placeholder="เช่น กุ้งตัด"></div>
+        <div><label style="font-size:11px;">จำนวน</label><input type="number" step="0.01" data-gf="qty" value="${escapeHtml(r.qty)}" placeholder="0"></div>
+        <div><label style="font-size:11px;">ราคา/หน่วย</label><input type="number" step="0.01" data-gf="price" value="${escapeHtml(r.price)}" placeholder="0"></div>
+        <div><label style="font-size:11px;">ค่าเพิ่มเติม</label><input type="number" step="0.01" data-gf="extra" value="${escapeHtml(r.extra)}" placeholder="0"></div>
+        <button type="button" class="iconbtn" data-goodsdel="${i}" aria-label="ลบแถวนี้" ${expGoodsRows_.length>1?'':'disabled style="opacity:.3;"'}>✕</button>
+      </div>`).join('');
+    document.getElementById('expGoodsTotal').textContent = expGoodsTotalText_();
+    amt.value = expGoodsSum_() || '';
+  }
+}
+function wireExpGoods_(){
+  const box = document.getElementById('expGoodsBox'); if(!box || box.dataset.wired) return;
+  box.dataset.wired = '1';
+  const refreshTotals = ()=>{ document.getElementById('expGoodsTotal').textContent = expGoodsTotalText_(); document.getElementById('expAmount').value = expGoodsSum_() || ''; };
+  document.getElementById('expCategory').addEventListener('change', renderExpGoods_);
+  document.getElementById('expShipToggle').addEventListener('change', renderExpGoods_);
+  document.getElementById('expShipPrice').addEventListener('input', refreshTotals);
+  document.getElementById('expGoodsAddRow').addEventListener('click', ()=>{ expGoodsRows_.push({name:'', qty:'', price:'', extra:''}); renderExpGoods_(); });
+  box.addEventListener('input', e=>{
+    const inp = e.target.closest('[data-gf]'); if(!inp) return;
+    const idx = Number(inp.closest('[data-goodsrow]').dataset.goodsrow);
+    expGoodsRows_[idx][inp.dataset.gf] = inp.value;
+    refreshTotals();
+  });
+  box.addEventListener('click', e=>{
+    const del = e.target.closest('[data-goodsdel]'); if(!del) return;
+    expGoodsRows_.splice(Number(del.dataset.goodsdel),1); renderExpGoods_();
+  });
+}
 // แกนกลางบันทึกรายจ่าย ใช้ร่วมกันทั้งฟอร์มเดิมในแท็บต้นทุนซื้อ (addExpense) และ modal เพิ่มรายจ่ายด่วนบนแดชบอร์ด
 // (addExpenseFromDashboard) — กันไม่ให้ตรรกะบันทึก/validate เพี้ยนกันระหว่างสองฟอร์ม คืน true/false ว่าบันทึกสำเร็จไหม
-async function addExpenseCore_(category, seller, note, amount, isoOverride){
+async function addExpenseCore_(category, seller, note, amount, isoOverride, detail){
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return false; }
   const iso = isoOverride || currentDate;
-  const expense = {id: uid('e'), category, seller, note, amount, paid:false};
+  const expense = {id: uid('e'), category, seller, note, amount, paid:false, ...(detail||{})};
   // เพิ่มรายการแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทน push เข้า dayData แล้ว saveDay() ทั้งก้อน — เดิมถ้ามีคน
   // อื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกต้นทุนซื้อพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคนแบบเงียบๆ
   const fresh = await writeDayArrayOp_(iso, 'expenses', {push: expense});
@@ -6217,10 +6290,27 @@ async function addExpenseCore_(category, seller, note, amount, isoOverride){
 async function addExpense(){
   const category = document.getElementById('expCategory').value;
   const seller = readPayeeOtherValue_('expPayee', 'expPayeeOther');
-  const note = document.getElementById('expNote').value.trim();
-  const amount = Number(document.getElementById('expAmount').value||0);
-  const ok = await addExpenseCore_(category, seller, note, amount);
+  let note = document.getElementById('expNote').value.trim();
+  let amount = Number(document.getElementById('expAmount').value||0);
+  let detail = null;
+  if(expGoodsMode_()){
+    const items = expGoodsRows_.map(r=>({name:String(r.name||'').trim(), qty:Number(r.qty)||0, price:Number(r.price)||0, extra:Number(r.extra)||0}));
+    if(items.some(it=>!it.name || it.qty<=0 || it.price<0 || it.extra<0)){ showToast('ค่าสินค้า: ต้องระบุชื่อ จำนวน (>0) และราคาทุกรายการ'); return; }
+    const shipOn = document.getElementById('expShipToggle').checked;
+    const shipping = shipOn ? {carrier:document.getElementById('expShipCarrier').value.trim(), price:Number(document.getElementById('expShipPrice').value)||0, note:document.getElementById('expShipNote').value.trim()} : null;
+    if(shipping && (!shipping.carrier || shipping.price<0)){ showToast('ค่าส่ง: ต้องระบุขนส่งและราคา'); return; }
+    amount = expGoodsSum_();
+    if(!note) note = items.map(it=>`${it.name} ${it.qty}×${it.price}${it.extra?` +${it.extra}`:''}`).join(', ');
+    detail = {items, ...(shipping?{shipping}:{})};
+  } else if(category===EXP_TRANSPORT_CAT_){
+    const carrier = document.getElementById('expTransportCarrier').value.trim();
+    if(!carrier){ showToast('กรุณาระบุขนส่ง/ผู้ให้บริการ'); return; }
+    detail = {carrier};
+    if(!note) note = carrier;
+  }
+  const ok = await addExpenseCore_(category, seller, note, amount, undefined, detail);
   if(!ok) return;
+  if(detail){ expGoodsRows_ = []; document.getElementById('expShipToggle').checked = false; ['expShipCarrier','expShipPrice','expShipNote','expTransportCarrier'].forEach(id=>{ document.getElementById(id).value=''; }); renderExpGoods_(); }
   // addExpenseCore_ เรียก renderExpenseList() ไปแล้วข้างใน ซึ่งถ้าวันนี้มีออเดอร์จะสั่ง applyDailyExpenseRoutine_() กรอกฟอร์ม
   // ล่วงหน้าให้ขั้นถัดไปอัตโนมัติ (เช่น ค่าแรงพี่พัฒน์ 700 -> น้ำแข็งพี่พัฒน์) ไปแล้ว ห้ามมาเคลียร์ทับตรงนี้ซ้ำ ไม่งั้นจะล้างค่าที่
   // เพิ่งกรอกไว้ให้อัตโนมัติจนว่างเปล่าไปเฉยๆ — เคลียร์ฟอร์มเองแบบเดิมเฉพาะวันที่ไม่มีออเดอร์เลย (ไม่มีรูทีนมาจัดการให้)
@@ -10807,6 +10897,53 @@ function clearPurchFormRowFields_(){
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   const mh = document.getElementById('purchMarginHint'); if(mh) mh.style.display = 'none';
 }
+// กดค้าง ~0.4 วิที่แถวแล้วลากขึ้น/ลง เพื่อสลับลำดับรายการที่พักไว้ในบิล (ไม่กระทบยอด เพราะรวมทั้งบิลเหมือนเดิม)
+// ใช้ pointer events บน document ระหว่างลาก (ไม่ผูกกับ capture ของแถว เพราะแถวถูกย้ายใน DOM ระหว่างลาก) พอปล่อยค่อย render ใหม่จาก state
+function wirePurchStagedDrag_(el){
+  el.querySelectorAll('.purch-staged-row').forEach(row=>{
+    let timer=null, dragging=false, startX=0, startY=0;
+    const stop=()=>{
+      clearTimeout(timer); timer=null;
+      if(dragging){
+        dragging=false; row.classList.remove('dragging');
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', stop);
+        document.removeEventListener('pointercancel', stop);
+        renderPurchStagedList();
+      }
+    };
+    const onMove=(e)=>{
+      if(!dragging){ if(Math.hypot(e.clientX-startX, e.clientY-startY)>8) clearTimeout(timer); return; }
+      e.preventDefault();
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const over = under && under.closest && under.closest('.purch-staged-row');
+      if(!over || over===row || over.parentElement!==row.parentElement) return;
+      const from = Number(row.dataset.purchstagrow), to = Number(over.dataset.purchstagrow);
+      if(!(from>=0 && to>=0) || from===to) return;
+      const [moved] = purchStagedRows.splice(from,1);
+      purchStagedRows.splice(to,0,moved);
+      // ย้ายแถวใน DOM ตรงๆ ให้ลากต่อได้ลื่น แล้วตั้ง index ใหม่ทุกแถว
+      if(from<to) over.after(row); else over.before(row);
+      el.querySelectorAll('.purch-staged-row').forEach((r,k)=>{ r.dataset.purchstagrow=k; });
+    };
+    row.addEventListener('pointerdown', (e)=>{
+      if(e.button) return;
+      if(e.target.closest('button')) return;
+      startX=e.clientX; startY=e.clientY;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        dragging=true; row.classList.add('dragging');
+        if(navigator.vibrate) try{ navigator.vibrate(15); }catch(_){}
+        document.addEventListener('pointermove', onMove, {passive:false});
+        document.addEventListener('pointerup', stop);
+        document.addEventListener('pointercancel', stop);
+      }, 400);
+    });
+    row.addEventListener('pointerup', ()=>{ if(!dragging) clearTimeout(timer); });
+    row.addEventListener('pointerleave', ()=>{ if(!dragging) clearTimeout(timer); });
+    row.addEventListener('contextmenu', (e)=>{ if(dragging) e.preventDefault(); });
+  });
+}
 function renderPurchStagedList(){
   const el = document.getElementById('purchStagedList');
   if(!el) return;
@@ -10820,9 +10957,11 @@ function renderPurchStagedList(){
   el.innerHTML = `<div class="hint" style="margin:8px 0 4px;">${headerText}${purchStagedRows.length?' — แตะชื่อสินค้าด้านล่างเพื่อสลับมาแก้ในฟอร์ม':''}</div>` +
     purchStagedRows.map((r,i)=>{
       const p = PRODUCTS.find(x=>x.id===r.productId);
-      return `<div class="orow"><div class="name" data-purchstagedit="${i}" style="cursor:pointer;">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''}</div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
+      const subTotal = r.qty*r.price+Number(r.extra||0);
+      return `<div class="orow purch-staged-row" data-purchstagrow="${i}" style="touch-action:pan-y;"><div class="name" data-purchstagedit="${i}" style="cursor:pointer;">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''} <b class="num" style="color:var(--accent);">= ${money(subTotal)}</b></div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
     }).join('') +
     `<button type="button" class="btn small secondary" data-purchbillcancel="1" style="width:auto;margin-top:4px;">ยกเลิก${purchBillEditingId?'การแก้บิลนี้':(purchEditingId?'การแก้ไข':'บิลนี้')}</button>`;
+  wirePurchStagedDrag_(el);
   el.querySelectorAll('[data-purchstagedit]').forEach(nameEl=>nameEl.addEventListener('click', ()=>{
     swapPurchStagedRowIntoForm_(Number(nameEl.getAttribute('data-purchstagedit')));
   }));
@@ -12751,7 +12890,9 @@ let purchaseGapsSeq_ = 0;
 // ปัญหายังไม่ถูกแก้จริง และการปิดจะไม่กระทบตัวเลข/สถานะ "ครบแล้ว" ที่คำนวณจาก gaps จริงเสมอ (แค่ซ่อนจากสายตา ไม่ได้ล้างปัญหา)
 let dismissedGapKeys_ = new Set();
 let dismissedGapKeysIso_ = null;
-function gapDismissKey_(g){ return `${g.type}|${g.lotId||''}|${g.drawId||''}|${g.text}`; }
+// คีย์ปิดแจ้งเตือน: ตัดตัวเลขออกจากข้อความ เพราะตัวเลข (กก./ยอด) เปลี่ยนได้ตามข้อมูลที่โหลดเสร็จ/ซิงค์จากเครื่องอื่น
+// ทำให้กากบาทที่กดปิดไปแล้วกลับมาโผล่ทั้งที่เป็นเรื่องเดิม (สินค้า/ประเภทเดิม)
+function gapDismissKey_(g){ return `${g.type}|${g.lotId||''}|${g.drawId||''}|${String(g.text||'').replace(/[0-9][0-9.,\/]*/g,'#')}`; }
 async function renderPurchaseGapsToday_(){
   const el = document.getElementById('purchaseGapsToday');
   if(!el) return;
@@ -12802,7 +12943,12 @@ async function renderPurchaseGapsToday_(){
     const doneHtml = lotBackfillDoneLog_.length ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">
       ${lotBackfillDoneLog_.map(d=>`<div style="margin-bottom:2px;">✅ เติมต้นทุนแล้ว: ${d.text} (เช็คได้ที่รายการต้นทุนซื้อของวันนั้น)</div>`).join('')}
     </div>` : '';
-    const completeHtml = purchaseComplete ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>` : '';
+    // แบนเนอร์ "ครบแล้ว" เดิมขึ้นทั้งที่ยังมีรายการ lot-costed-orphan/duplicate ค้างอยู่ (เช่น เนื้อหอยเชอรี่ตัดต้นทุนเกินรายการจริง)
+    // ซึ่งเป็นคนละเรื่องกับ "วันนี้กรอกครบตามออเดอร์หรือยัง" แต่ผู้ใช้อ่านแล้วเข้าใจว่าครบทั้งหมด → ถ้ายังมีปัญหาเหล่านี้ ให้เปลี่ยนเป็นแถบเหลืองบอกชัดว่ายังต้องตรวจ
+    const hasIntegrityProblems = gaps.some(g=>g.type==='lot-costed-orphan' || g.type==='lot-costed-duplicate');
+    const completeHtml = !purchaseComplete ? '' : hasIntegrityProblems
+      ? `<div class="hint" style="border:1px solid var(--warning-ink, #8a6100);border-radius:8px;padding:8px 10px;background:var(--warning-soft, #fff6d6);color:var(--warning-ink, #8a6100);margin-bottom:6px;">⚠️ วันนี้กรอกต้นทุนซื้อครบตามออเดอร์แล้ว แต่ยังมีรายการเก่า/ซ้ำค้างอยู่ด้านล่าง (ยังไม่ครบทั้งระบบ) — ตรวจก่อนปิดงาน</div>`
+      : `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>`;
     const gapsHtml = visibleGaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
       ${visibleGaps.map(g=>{
         // lot-costed-orphan/lot-costed-duplicate คือปัญหาข้อมูลจริง (ตัดต้นทุนไปแล้วแต่ไม่มีรายการรองรับ/มีรายการซ้ำ) ไม่ใช่แค่
@@ -13801,7 +13947,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.2';
+const APP_BUILD = '2026-11-25.4';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -14071,6 +14217,7 @@ function applyDailyExpenseRoutine_(){
   }
   // ตั้งค่าตรงๆ ด้านบนไม่ยิง onchange — ซิงก์ช่องพิมพ์ชื่อเองของ "จ่ายให้ใคร" ให้ซ่อนตามเสมอ (ไม่งั้นค้างโชว์จากที่เลือกไว้ก่อนหน้า)
   togglePayeeOther_('expPayee', 'expPayeeOther');
+  renderExpGoods_();
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){
@@ -15203,6 +15350,7 @@ async function init(){
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
   guardedClick('addExpenseBtn', addExpense);
   wireIceAutoCalc_('expCategory','expNote','expAmount');
+  wireExpGoods_(); renderExpGoods_();
   wireIceAutoCalc_('dashExpCategory','dashExpNote','dashExpAmount');
   document.getElementById('dashExpDate').addEventListener('change', e=>{ if(e.target.value) prefillDashExpenseRoutine_(e.target.value); });
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{

@@ -8658,10 +8658,83 @@ async function exportAllData(){
     showBackupFallbackModal(jsonStr);
   }
 }
+// อ่านสถานะเดือนปิดสดจากเซิร์ฟเวอร์แบบเข้มงวด (ใช้ตอนนำเข้าสำรอง) — ต่างจาก loadClosedMonths_ ที่กลืน error เงียบ:
+// ไม่มีคีย์ (Key not found) = ยังไม่เคยปิดเดือนไหน {} ; error อื่น (เน็ต/เซิร์ฟเวอร์/อ่านค่าไม่ออก) = throw ห้ามเดาว่าไม่มีเดือนปิด
+async function readClosedMonthsStrict_(){
+  let r;
+  try{ r = await window.storage.get('closedMonths'); }
+  catch(e){ if(String(e && e.message).indexOf('Key not found')===0) return {}; throw e; }
+  const v = JSON.parse(r.value);
+  if(v === null) return {};
+  if(typeof v !== 'object' || Array.isArray(v)) throw new Error('ข้อมูลเดือนที่ปิดในระบบอ่านไม่ออก');
+  return v;
+}
+// แปลงเป็น JSON แบบเรียงคีย์ — ใช้เทียบข้อมูลสองก้อนว่าเหมือนกันไหมโดยไม่สนลำดับคีย์
+function stableJson_(v){
+  if(v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if(Array.isArray(v)) return '[' + v.map(stableJson_).join(',') + ']';
+  return '{' + Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableJson_(v[k])).join(',') + '}';
+}
+function importDayCanon_(v){
+  if(!v || typeof v !== 'object' || Array.isArray(v)) return stableJson_(v);
+  return stableJson_(normalizeDay_(JSON.parse(JSON.stringify(v)))); // clone ก่อน เพราะ normalizeDay_ แก้ object เดิม
+}
+const IMPORT_YM_RE_ = /^\d{4}-\d{2}$/;
 async function importAllData(file){
   try{
     const text = await file.text();
     const payload = JSON.parse(text);
+    // ---- ตรวจเดือนที่ปิดก่อนเขียนอะไรทั้งสิ้น ----
+    // เดิมกู้คืนแล้ว set closedMonths ทับทั้งก้อน (เดือนที่ปิดในระบบแต่ไม่อยู่ในไฟล์หายไป) และ bulkSetStorage ไม่ผ่านล็อกปิดเดือน
+    // (วันของเดือนที่ปิดถูกทับเงียบๆ) — ตอนนี้: เดือนปิด = ของเดิม ∪ ในไฟล์ (ไม่ลบเดือนไหน), วันในเดือนที่ปิดอยู่ในระบบที่ต่างจากไฟล์ = ข้าม
+    let serverCM;
+    try{ serverCM = await readClosedMonthsStrict_(); }
+    catch(e){
+      console.error('Import: cannot read closedMonths', e);
+      showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็คเดือนที่ปิดในระบบไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+      return;
+    }
+    const serverClosed = ym => !!serverCM[ym];
+    const dayEntries = (payload.days && typeof payload.days === 'object') ? Object.entries(payload.days) : [];
+    const lockedEntries = dayEntries.filter(([k])=>typeof k === 'string' && k.indexOf('day:')===0 && serverClosed(k.slice(4,11)));
+    const skipDiff = [], skipSame = [];
+    if(lockedEntries.length){
+      const keys = lockedEntries.map(([k])=>k);
+      const cur = {};
+      try{
+        for(let i=0; i<keys.length; i+=40){
+          const chunk = keys.slice(i, i+40);
+          const vals = await withTimeout_(window.bulkGetStorageImpl(chunk), 30000, 'อ่านข้อมูลเดือนที่ปิด');
+          chunk.forEach(k=>{ cur[k] = vals ? vals[k] : undefined; });
+        }
+        for(const [k, v] of lockedEntries){
+          const raw = cur[k];
+          if(raw === null || raw === undefined || raw === '') continue; // ไม่มีในระบบ = เขียนได้ตามปกติ (เจ้าของสั่ง)
+          const curVal = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if(importDayCanon_(curVal) === importDayCanon_(v)) skipSame.push(k); else skipDiff.push(k);
+        }
+      }catch(e){
+        console.error('Import: cannot read current closed-month days', e);
+        showToast('นำเข้าข้อมูลไม่สำเร็จ: อ่านข้อมูลวันในเดือนที่ปิดไม่ได้ ยังไม่ได้นำเข้าอะไรเลย');
+        return;
+      }
+    }
+    const fileCM = (payload.closedMonths && typeof payload.closedMonths === 'object' && !Array.isArray(payload.closedMonths)) ? payload.closedMonths : {};
+    const addMonths = Object.keys(fileCM).filter(ym=>IMPORT_YM_RE_.test(ym) && fileCM[ym] && !serverClosed(ym)).sort();
+    if(skipDiff.length || addMonths.length){
+      const lines = ['นำเข้าข้อมูลสำรอง — ตรวจเดือนที่ปิด'];
+      if(skipDiff.length){
+        lines.push('', `ข้าม ${skipDiff.length} วัน (อยู่ในเดือนที่ปิดแล้ว และข้อมูลในไฟล์ต่างจากในระบบ — คงของในระบบไว้):`);
+        skipDiff.slice().sort().forEach(k=>lines.push('• ' + formatDDMMYYYY(k.slice(4))));
+      }
+      if(addMonths.length) lines.push('', `ไฟล์ปิดเดือน ${addMonths.map(monthLabel_).join(', ')} แต่ในระบบยังไม่ได้ปิด`);
+      lines.push('', addMonths.length
+        ? `ตกลง = นำเข้าส่วนที่เหลือ และล็อกเดือน ${addMonths.map(monthLabel_).join(', ')} ตามไฟล์`
+        : 'ตกลง = นำเข้าส่วนที่เหลือ (ข้ามวันข้างบน)');
+      lines.push('ยกเลิก = ไม่นำเข้าอะไรเลย');
+      if(!confirm(lines.join('\n'))){ showToast('ยกเลิกแล้ว ยังไม่ได้นำเข้าอะไรเลย'); return; }
+    }
+    const skipSet = new Set(skipDiff.concat(skipSame));
     // ต้อง backfill ฟิลด์ให้ครบเหมือน loadSettings() ตอนโหลดแอปปกติทุกประการ (ดู ~1415-1461) — เดิมจุดนี้ backfill แค่บางส่วน
     // (ขาด purchaseSellers/calendarDotsEnabled/shelfLifeDays) ถ้านำเข้าไฟล์สำรองเก่าที่ settings ไม่มีฟิลด์พวกนี้ จะได้
     // settings ที่ไม่ครบ แล้ว saveSettings() เขียนทับฉบับไม่ครบนี้ลงเซิร์ฟเวอร์ทันที ทำให้แท็บต้นทุนซื้อ/เหลือ&Claim พังกลาง
@@ -8684,7 +8757,7 @@ async function importAllData(file){
     }
     let importedCount = 0;
     if(payload.days){
-      const items = Object.entries(payload.days).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
+      const items = dayEntries.filter(([k])=>!skipSet.has(k)).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
       const batchSize = 40;
       for(let i=0; i<items.length; i+=batchSize){
         showToast(`กำลังนำเข้า ${Math.min(i+batchSize, items.length)}/${items.length} วัน…`);
@@ -8695,14 +8768,22 @@ async function importAllData(file){
     if(payload.debts){ await saveDebts(payload.debts); }
     // กู้คืน root key อื่นๆ ที่ exportAllData() สำรองไว้ด้วย (ดูคอมเมนต์ที่ BACKUP_EXTRA_ROOT_KEYS) — ไฟล์สำรองเก่าก่อนรอบนี้
     // จะไม่มีฟิลด์พวกนี้เลย ก็แค่ข้ามไปเฉยๆ ไม่ต้องเขียนทับด้วยค่าว่าง
-    for(const k of BACKUP_EXTRA_ROOT_KEYS.concat(Object.keys(payload).filter(k=>BACKUP_PREFIXES.some(px=>k.indexOf(px)===0)))){
+    for(const k of BACKUP_EXTRA_ROOT_KEYS.filter(k=>k!=='closedMonths').concat(Object.keys(payload).filter(k=>BACKUP_PREFIXES.some(px=>k.indexOf(px)===0)))){
       if(payload[k] !== undefined && payload[k] !== null){
         await window.storage.set(k, JSON.stringify(payload[k]));
       }
     }
+    // closedMonths: ไม่ set ทับ — เพิ่มทีละเดือนเฉพาะเดือนที่ไฟล์ปิดแต่ระบบยังไม่ปิด (AY กดยืนยันแล้วข้างบน) ไม่ลบเดือนไหนเลย
+    if(addMonths.length){
+      closedMonths_ = {...serverCM}; // ฐานของ writeClosedMonth_ กรณีระบบยังไม่มีคีย์นี้ ต้องเป็นค่าสดจากเซิร์ฟเวอร์
+      for(const ym of addMonths) await writeClosedMonth_(ym, fileCM[ym]);
+    }
     rawLotsCache_ = null; lotTransportBillsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null; activityLogCache_ = null;
     if(window.storage.__clearListCache) window.storage.__clearListCache();
-    showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)`);
+    const skipNote = skipDiff.length ? ` ข้าม ${skipDiff.length} วัน (เดือนที่ปิด)` : '';
+    const lockNote = addMonths.length ? ` ล็อกเดือน ${addMonths.map(monthLabel_).join(', ')} ตามไฟล์` : '';
+    showToast(`นำเข้าข้อมูลสำเร็จ (${importedCount} วัน)${skipNote}${lockNote}`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)${skipNote}${lockNote}`);
+    if(skipDiff.length) logActivity_(`นำเข้าสำรอง: ข้ามวันในเดือนที่ปิด (ข้อมูลต่างจากในระบบ คงของเดิม) ${skipDiff.slice().sort().map(k=>formatDDMMYYYY(k.slice(4))).join(', ')}`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
 }
@@ -14246,7 +14327,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.6';
+const APP_BUILD = '2026-11-25.7';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

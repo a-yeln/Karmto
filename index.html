@@ -4995,6 +4995,11 @@ async function renderBillingSummaryTiles(){
 let slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null, inbox:null};
 let slipMatchCands_ = null, slipMatchCandsAt_ = 0, slipMatchSeq_ = 0, slipMatchTimer_ = null, slipMatchBusy_ = false;
 const SLIP_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+// รายการวัน (iso) จากผล storage.list('day:...') — กรองเฉพาะรูปแบบ YYYY-MM-DD กันคีย์ day: แปลกๆ ไหลไปถึง innerHTML/attribute
+// ใช้กับ "แสดงผล/คำนวณ" เท่านั้น — ห้ามใช้กับสำรองข้อมูล (exportAllData) เพราะจะทำให้ไฟล์สำรองตกหล่นเงียบ
+function dayIsos_(listRes){
+  return ((listRes && listRes.keys) || []).map(k=>String(k).slice(4)).filter(iso=>SLIP_ISO_RE.test(iso));
+}
 function parseSlipAmount_(str){
   // ไม่เดา: รับเฉพาะตัวเลขล้วน (ตัด , ฿ ช่องว่าง) ทศนิยมไม่เกิน 2 ตำแหน่ง และมากกว่า 0 — นอกนั้นคืน null
   const t = String(str==null ? '' : str).replace(/[,฿\s]/g, '');
@@ -5012,7 +5017,7 @@ function slipMoney_(n){
 async function loadSlipCandidates_(force){
   if(!force && slipMatchCands_ && Date.now() - slipMatchCandsAt_ < 30000) return slipMatchCands_;
   const listRes = await window.storage.list('day:');
-  const isoList = ((listRes && listRes.keys) || []).map(k=>String(k).slice(4)).filter(iso=>SLIP_ISO_RE.test(iso));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const out = [];
   for(const iso of isoList){
@@ -6924,7 +6929,7 @@ function sumWasteForMonth_(wasteRecords, monthVal){
 }
 async function computeMonthFinancials(monthVal){
   const listRes = await window.storage.list('day:'+monthVal);
-  const isoList = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const debtsByOwner = await computeDebtPaymentsByOwnerForMonth(monthVal);
   const wasteRecords = await loadWasteRecords();
@@ -7073,8 +7078,8 @@ async function renderMonthPL(){
     if(dayEntries.length){
       const bestDay = dayEntries.reduce((a,b)=>b[1].revenue>a[1].revenue?b:a);
       const worstDay = dayEntries.reduce((a,b)=>b[1].revenue<a[1].revenue?b:a);
-      bestDayHtml = `<div class="hint">ยอดขายสูงสุด: ${formatDDMMYYYY(bestDay[0])} (${money(bestDay[1].revenue)})</div>`;
-      worstDayHtml = `<div class="hint">ยอดขายต่ำสุด: ${formatDDMMYYYY(worstDay[0])} (${money(worstDay[1].revenue)})</div>`;
+      bestDayHtml = `<div class="hint">ยอดขายสูงสุด: ${escapeHtml(formatDDMMYYYY(bestDay[0]))} (${money(bestDay[1].revenue)})</div>`;
+      worstDayHtml = `<div class="hint">ยอดขายต่ำสุด: ${escapeHtml(formatDDMMYYYY(worstDay[0]))} (${money(worstDay[1].revenue)})</div>`;
     }
     const sign = v => v>=0 ? 'success' : 'danger';
     const row = (label, val, kind) => `<tr><td>${label}</td><td class="num" style="color:${kind==='neg'?'var(--danger)':kind==='pos'?'var(--success)':'var(--text-faint)'};">${val}</td></tr>`;
@@ -7199,7 +7204,7 @@ function buildMonthInsightsHtml(r, prevR){
 }
 async function computeYearFinancials(year){
   const listRes = await window.storage.list('day:'+year);
-  const allIso = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
+  const allIso = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(allIso);
   const debts = await loadDebts();
   const wasteRecords = await loadWasteRecords();
@@ -7336,8 +7341,7 @@ let allExpActionInFlight = false;
 let allExpenseRowsCache_ = null;
 async function buildAllExpenseRows_(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const today = todayISO();
   let rows = []; // เก็บทุกรายการไว้ก่อน ไม่กรองตามแท็บ เพื่อให้สรุปยอดของคู่ค้าถูกต้องเสมอไม่ว่าจะเปิดแท็บไหนอยู่
@@ -7345,7 +7349,7 @@ async function buildAllExpenseRows_(){
     const d = dayMap[iso];
     (d.expenses||[]).forEach(e=>{
       const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-      rows.push({iso, label:escapeHtml(e.category)+(e.note?` — ${escapeHtml(e.note)}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
+      rows.push({iso, label:(e.category||'')+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
     });
     // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
     // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
@@ -7367,6 +7371,7 @@ async function buildAllExpenseRows_(){
       const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
       const itemLabel = g.items.map(e=>{ if(e.customName) return '📦'+e.customName; const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
       const paidDate = ((d.purchaseGroupPayment||{})[seller]||{}).paidDate || null;
+      // label เก็บเป็นข้อความดิบ — escapeHtml ที่จุดแสดงผลที่เดียว (กัน &amp; ซ้อน)
       // ไม่ใส่ชื่อคู่ค้าซ้ำในป้ายชื่อแล้ว เพราะย้ายไปขึ้นต้นแถวแทน (ดูส่วนแสดงผลด้านล่าง)
       rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}`, amount:g.amount, paid:g.paid, paidDate, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
     });
@@ -7442,13 +7447,13 @@ async function renderAllExpenseList(skipReload){
           <span class="allexp-name">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span>
           <span class="allexp-amount">${money(r.amount)}</span>
           <span class="allexp-date${r.paid?' paid':''}">${r.paid ? `✅ ${r.paidDate?formatDDMMYYYY(r.paidDate):'-'}` : '—'}</span>
-          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${escapeHtml(r.key)}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
-        <div class="d" style="margin-top:2px;">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
+        <div class="d" style="margin-top:2px;">${escapeHtml(formatDDMMYYYY(r.iso))} • ${escapeHtml(r.label)}</div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="allexpdate-${encodeURIComponent(r.key)}" value="${lastUsedPayDate}" style="flex:1;">
-          <button class="btn small" data-allexpconfirm="${r.key}" style="width:auto;">ยืนยัน</button>
-          <button class="btn small secondary" data-allexpcancel="${r.key}" style="width:auto;">ยกเลิก</button>
+          <button class="btn small" data-allexpconfirm="${escapeHtml(r.key)}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-allexpcancel="${escapeHtml(r.key)}" style="width:auto;">ยกเลิก</button>
         </div>` : ''}
       </div>`;
     }).join('');
@@ -7527,8 +7532,7 @@ async function renderAllExpenseList(skipReload){
 }
 async function computeAllExpensePayables(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   let total = 0, count = 0;
   for(const iso of isoList){
@@ -7739,8 +7743,7 @@ async function computeOutstandingYearTotal_(year, filterMode, branchFilter){
   const includePaid = filterMode==='paid' || filterMode==='all';
   const includeUnpaid = filterMode==='unpaid' || filterMode==='all';
   const listRes = await window.storage.list('day:'+year);
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   let count = 0;
   isoList.forEach(iso=>{
@@ -7874,14 +7877,14 @@ function outstandingMonthRange_(){
 async function listDayIsosInMonthRange_(from, to){
   if(from === to){
     const res = await window.storage.list('day:'+from);
-    return ((res && res.keys) || []).map(k=>k.slice(4));
+    return dayIsos_(res);
   }
   const years = [];
   for(let y = Number(from.slice(0,4)); y <= Number(to.slice(0,4)); y++) years.push(String(y));
   const lists = await Promise.all(years.map(y=>window.storage.list('day:'+y)));
   const out = [];
-  lists.forEach(res=>((res && res.keys) || []).forEach(k=>{
-    const iso = k.slice(4), m = iso.slice(0,7);
+  lists.forEach(res=>dayIsos_(res).forEach(iso=>{
+    const m = iso.slice(0,7);
     if(m >= from && m <= to) out.push(iso);
   }));
   return out;
@@ -7923,51 +7926,51 @@ function buildOutstandingRowHtml_(r, mark, daySep){
   const fullName = branchName(r.code);
   const name = fullName.replace(/^สาขา\s*/, ''); // ตัดคำว่า "สาขา" ออกในแถว ให้เหลือที่โชว์เลข+ชื่อพื้นที่
   const sepTag = isFeeExempt(r.code) && !/แยก/.test(name) ? '<span class="osep">แยกส่ง</span>' : '';
-  const paidTag = r.paid ? `<span class="opaid" data-outstandingpaidinfo="${key}" title="โอนเมื่อ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}">✅ ${r.payInfo&&r.payInfo.paidDate?shortDDMMYY_(r.payInfo.paidDate):'-'}</span>` : '';
+  const paidTag = r.paid ? `<span class="opaid" data-outstandingpaidinfo="${escapeHtml(key)}" title="โอนเมื่อ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}">✅ ${r.payInfo&&r.payInfo.paidDate?shortDDMMYY_(r.payInfo.paidDate):'-'}</span>` : '';
   const chkBtn = !recheck ? ''
-    : mark ? `<button type="button" class="rchk-btn done${mark.result==='still_unpaid'?' bad':''}" data-recheckexpand="${key}" aria-label="เช็คแล้ว — แตะเพื่อดูรายละเอียด"><small>✓ เช็ค</small></button>`
-    : `<button type="button" class="rchk-btn" data-recheckstart="${key}" aria-label="เช็คบิลนี้"><span class="e">🔎</span><small>CHECK</small></button>`;
+    : mark ? `<button type="button" class="rchk-btn done${mark.result==='still_unpaid'?' bad':''}" data-recheckexpand="${escapeHtml(key)}" aria-label="เช็คแล้ว — แตะเพื่อดูรายละเอียด"><small>✓ เช็ค</small></button>`
+    : `<button type="button" class="rchk-btn" data-recheckstart="${escapeHtml(key)}" aria-label="เช็คบิลนี้"><span class="e">🔎</span><small>CHECK</small></button>`;
   const notPaidLabel = r.paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
   const paidLabel = r.paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
   const recheckHtml = !recheck ? '' : mark
     ? `<div class="lrow-hint ochkdetail" style="margin-top:4px;padding-left:0;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="color:${mark.result==='found_paid'?'var(--success)':'var(--danger)'};font-size:11.5px;">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
-        <button class="btn small secondary" data-recheckundo="${key}" style="width:auto;flex:none;">↺ ยกเลิกเช็ค</button>
+        <button class="btn small secondary" data-recheckundo="${escapeHtml(key)}" style="width:auto;flex:none;">↺ ยกเลิกเช็ค</button>
       </div>`
-    : `<div style="display:none;margin-top:6px;" data-recheckform="${key}">
-        <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
+    : `<div style="display:none;margin-top:6px;" data-recheckform="${escapeHtml(key)}">
+        <input type="text" data-recheckinput="${escapeHtml(key)}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
         <div style="display:flex;gap:6px;margin-top:6px;">
-          <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
-          <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
+          <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${escapeHtml(key)}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
+          <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${escapeHtml(key)}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
         </div>
       </div>`;
-  return `<div class="branchbill otrow${recheck&&mark?' checked':''}${daySep?' oday-sep':''}" data-outstandingrow="${key}">
+  return `<div class="branchbill otrow${recheck&&mark?' checked':''}${daySep?' oday-sep':''}" data-outstandingrow="${escapeHtml(key)}">
     <div class="toprow">
       ${chkBtn}
       <div class="left">
-        <span class="odate">${shortDDMMYY_(r.iso)}</span>
+        <span class="odate">${escapeHtml(shortDDMMYY_(r.iso))}</span>
         <span class="n" title="${escapeHtml(fullName)}">${escapeHtml(name)}</span>${sepTag}${paidTag}${r.payInfo?outstandingDiffHtml_(r.payInfo, r.amt):''}
       </div>
       <span class="amt num big">${money(r.amt)}</span>
       <div class="acts2">
         <span class="badge-delay">${r.delay} วัน</span>
-        <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
-        <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
+        <button class="iconbtn" data-outstandingbill="${escapeHtml(key)}" aria-label="ดูบิล">🧾</button>
+        <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${escapeHtml(key)}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
       </div>
     </div>
-    <div style="margin-top:6px;display:none;" data-outstandingeditor="${key}">
-      <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
+    <div style="margin-top:6px;display:none;" data-outstandingeditor="${escapeHtml(key)}">
+      <input type="date" id="outpaydate-${escapeHtml(r.iso)}-${escapeHtml(r.code)}" value="${lastUsedPayDate}" style="width:100%;">
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
         <label style="flex:none;">โอนจริง</label>
-        <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
+        <input type="number" step="1" id="outpayamt-${escapeHtml(r.iso)}-${escapeHtml(r.code)}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
+        <button class="btn small" data-outstandingconfirm="${escapeHtml(key)}" style="width:auto;">ยืนยัน</button>
+        <button class="btn small secondary" data-outstandingcancel="${escapeHtml(key)}" style="width:auto;">ยกเลิก</button>
       </div>
     </div>
     ${recheckHtml}
-    <div id="bdreceipt-${r.code}-${r.iso}"></div>
+    <div id="bdreceipt-${escapeHtml(r.code)}-${escapeHtml(r.iso)}"></div>
   </div>`;
 }
 function renderOutstandingStats_(){
@@ -8190,7 +8193,7 @@ async function renderOutstanding(){
       isoList = await listDayIsosInMonthRange_(from, to);
     }else{
       const listRes = await window.storage.list('day:');
-      isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+      isoList = dayIsos_(listRes);
     }
     if(mySeq !== outstandingRenderSeq_) return;
     const dayMap = await loadDaysBulk(isoList);
@@ -8338,7 +8341,7 @@ async function renderOutstandingLineMsgs_(){
   el.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   try{
     const listRes = await window.storage.list('day:');
-    const isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+    const isoList = dayIsos_(listRes);
     const dayMap = await loadDaysBulk(isoList);
     const today = todayISO();
     const groups = {};
@@ -8790,8 +8793,7 @@ async function addPersonalExpense(){
 }
 async function computePersonalMonth(monthVal){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys ? listRes.keys : []).filter(k=>k.startsWith('day:'+monthVal));
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes).filter(iso=>iso.startsWith(monthVal));
   const dayMap = await loadDaysBulk(isoList);
   let income=0, expense=0;
   const byCategory = {};
@@ -11971,8 +11973,7 @@ function purchaseNoteHint(list){
 }
 async function computePurchaseMonth(monthVal){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys ? listRes.keys : []).filter(k=>k.startsWith('day:'+monthVal));
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes).filter(iso=>iso.startsWith(monthVal));
   const dayMap = await loadDaysBulk(isoList);
   const byProduct = {};
   let grandTotal = 0;
@@ -12316,8 +12317,7 @@ function addDebtType(){
 // ---- Dashboard tab ----
 async function computeBranchAggregates(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4)).sort();
+  const isoList = dayIsos_(listRes).sort();
   const dayMap = await loadDaysBulk(isoList);
   const today = todayISO();
   const agg = {};
@@ -13006,7 +13006,6 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
 }
 async function computeDataGaps(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
   const today = todayISO();
   // สินค้าที่มีล็อตวัตถุดิบเหลืออยู่ — ถ้ายังไม่ได้ "เบิกใช้" วันนั้น ให้เตือนแบบเบิกจากล็อต ไม่ใช่เตือนแบบซื้อใหม่ (กันสับสนว่าซื้อไปแล้วทำไมยังเตือน)
   const rawLots = await loadRawLots();
@@ -13015,7 +13014,7 @@ async function computeDataGaps(){
   const lotProductIds = new Set(rawLots.map(l=>l.productId));
   // เช็คทุกวันที่มีข้อมูลจริง ไม่จำกัดแค่ 14 วันล่าสุด — เดิมจำกัดไว้เพื่อความเร็ว แต่จริงๆ ข้อมูลของวันอื่นๆ
   // ถูกโหลดแคชไว้แล้วจาก computeBranchAggregates() ที่ทำงานก่อนหน้านี้ในหน้าแดชบอร์ด จึงแทบไม่เสียเวลาเพิ่ม
-  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso<=today).sort();
+  const isoList = dayIsos_(listRes).filter(iso=>iso<=today).sort();
   const prevIsoList = isoList.map(iso=>addDaysISO(iso,-1));
   const allNeeded = [...new Set([...isoList, ...prevIsoList])];
   const dayMap = await loadDaysBulk(allNeeded);
@@ -13052,8 +13051,7 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
   if(drawsWithCost.length===0) return [];
   if(!dayMap){
     const listRes = await window.storage.list('day:');
-    const keys = (listRes && listRes.keys) ? listRes.keys : [];
-    dayMap = await loadDaysBulk(keys.map(k=>k.slice(4)));
+    dayMap = await loadDaysBulk(dayIsos_(listRes));
   }
   const recordedByDraw = new Map();
   const entriesByDraw = new Map(); // key -> [{iso, entryId, qty}] — เก็บไว้เผื่อ over-recorded ต้องชี้ตัวรายการที่ซ้ำให้ดูตรงๆ
@@ -13335,7 +13333,7 @@ const CMD_OVERDUE_DAYS = 3;
 async function computeTodayCommand_(){
   const t = todayISO(), y = addDaysISO(t, -1);
   const listRes = await window.storage.list('day:');
-  const isos = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(i=>i<=t).sort();
+  const isos = dayIsos_(listRes).filter(i=>i<=t).sort();
   const dayMap = await loadDaysBulk([...new Set([...isos, y, t])]);
   const overdue = []; let unpaidTotal = 0, unpaidCount = 0;
   const ageBuckets = [0, 0, 0]; // ค้างรับแยกอายุ: ยังไม่ถึงเกณฑ์ทวง / ถึงเกณฑ์–7 วัน / เกิน 7 วัน
@@ -13546,8 +13544,8 @@ async function renderDataGaps(){
     const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
     const shown = sortedGaps.slice(0,25);
     list.innerHTML = sizeHtml + priceHtml + shown.map(g=>`
-      <div class="delayrow" style="cursor:pointer;" data-gapiso="${g.iso}" data-gaptab="${g.tab}">
-        <div><div>${formatDDMMYYYY(g.iso)}</div><div class="d">${g.text}</div></div>
+      <div class="delayrow" style="cursor:pointer;" data-gapiso="${escapeHtml(g.iso)}" data-gaptab="${escapeHtml(g.tab)}">
+        <div><div>${escapeHtml(formatDDMMYYYY(g.iso))}</div><div class="d">${g.text}</div></div>
         <span class="badge-delay">แก้ไข ›</span>
       </div>`).join('') + (sortedGaps.length>25 ? `<div class="hint" style="margin-top:6px;">...และอีก ${sortedGaps.length-25} รายการ (แสดงเฉพาะล่าสุด 25 รายการ)</div>` : '');
     list.querySelectorAll('[data-gapiso]').forEach(row=>{
@@ -13650,7 +13648,7 @@ async function renderProfitDailyChart_(){
     const today = todayISO();
     const start = addDaysISO(today, -179);
     const listRes = await window.storage.list('day:');
-    const have = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(iso=>iso>=start && iso<=today).sort();
+    const have = dayIsos_(listRes).filter(iso=>iso>=start && iso<=today).sort();
     if(!have.length){ el.className='empty'; el.innerHTML='ยังไม่มีข้อมูล'; return; }
     const dayMap = await loadDaysBulk(have);
     const days = []; for(let iso=have[0]; iso<=today; iso=addDaysISO(iso,1)) days.push(iso);
@@ -14248,7 +14246,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.5';
+const APP_BUILD = '2026-11-25.6';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

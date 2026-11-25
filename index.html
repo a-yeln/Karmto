@@ -1472,6 +1472,14 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .short-in.on{border-color:var(--danger);color:var(--danger-ink);font-weight:700;}
 .short-in input{width:58px;min-height:30px;padding:2px 6px;font-size:14px;}
 .short-in small{color:var(--text-dim);font-weight:400;}
+.r-bo td{font-size:12px;color:#8a5a00;background:#fff7e6;}
+.r-cmp td{color:#1f6b3a;}
+.cmp-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#1f6b3a;border:1px solid #1f6b3a;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
+.bo-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+.bo-row small{display:block;color:var(--text-dim);font-size:11.5px;}
+.bo-send{width:100%;display:flex;flex-direction:column;gap:6px;}
+.bo-send label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;}
+.bo-send input{max-width:170px;}
 .nostock-sum{margin-top:8px;font-size:12.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-row{margin-top:2px;font-size:11.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#b42318;border:1px solid #b42318;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
@@ -1975,6 +1983,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
   <div class="panel" id="panel-billing">
     <div class="dash-grid" id="billingSummaryGrid" style="margin-bottom:16px;"></div>
     <div id="noStockCard"></div>
+    <div id="backorderCard"></div>
     <div id="slipMatchCard"></div>
     <div class="card dash-wide-card">
       <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
@@ -4363,7 +4372,7 @@ async function computeSuggestedLeftover(pid, iso, data){
       for(const d of (lot.draws||[])){ if(d.date===iso) yieldQty += Number(d.sellableQty||0); }
     }
   }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
-  const orderedQty = computeTotals(data.orders)[pid]||0;
+  const orderedQty = shippedTotals_(data, iso)[pid]||0; // จำนวนที่ออกจากร้านจริง (หักค้างส่ง/ส่งขาด + บวกส่งชดเชย)
   // ของที่เคลม/ตัดเป็นของเสียไปแล้ววันนี้ ต้องหักออกจากค่าแนะนำด้วย ไม่งั้นกด "ล้างข้อมูล คำนวณแนะนำใหม่" (clearLeftoverToday())
   // จะกลับไปคำนวณสูตรเดิมแบบไม่รู้ว่าเคลมไปแล้วเท่าไหร่ ได้ตัวเลขเหมือนไม่เคยเคลมมาก่อนเลย (บันทึกเคลมไว้ใน wasteRecords แล้ว
   // แต่ leftoverOut ถูกลบทิ้งไปพร้อมกัน เลยดึงกลับมาไม่ได้ถ้าไม่หักในสูตรนี้ตรงๆ)
@@ -4829,7 +4838,8 @@ function renderFeeToday(){
     .map(([code]) => `${code} ${branchName(code)}`);
   const excludedEl = document.getElementById('feeExcludedToday');
   excludedEl.innerHTML = (excludedCodes.length ? `<span class="fee-excl-lbl">ยกเว้นวันนี้ (ไม่นับในยอด):</span> ${excludedCodes.map(c=>`<span class="fee-pill">${escapeHtml(c)}</span>`).join('')}` : '')
-    + (()=>{ const t = noStockSummaryText_(dayData); return t ? `<div class="fee-nostock" data-feenostock>📦 ไม่มีสินค้า (ไม่นับ fee): ${escapeHtml(t)}</div>` : ''; })();
+    + (()=>{ const t = noStockSummaryText_(dayData); return t ? `<div class="fee-nostock" data-feenostock>📦 ไม่มีสินค้า (ไม่นับ fee): ${escapeHtml(t)}</div>` : ''; })()
+    + (()=>{ const t = backorderSummaryText_(currentDate); return t ? `<div class="fee-nostock" data-feebo>🚚 ${escapeHtml(t)} — fee นับเต็มวันที่เก็บเงิน ไม่นับซ้ำวันส่งชดเชย</div>` : ''; })();
 }
 // คืนทุกวันของเดือนนั้นจริงๆ (ไม่ใช่แค่วันที่เคยมีการบันทึกข้อมูลไว้) — เพื่อให้ตารางสรุปรายเดือนโชว์วันที่ครบทุกวัน แม้วันไหน
 // ไม่มีออเดอร์เลยก็ยังเห็นวันที่นั้นอยู่ในตาราง (โชว์ว่างแทนเลข 0 ที่หน้าเรียก) พร้อมช่องหมายเหตุอธิบายได้ (เช่น "น้ำท่วม")
@@ -5410,6 +5420,7 @@ function renderBillingTodayStats_(entries){
 }
 function renderBillingList(){
   renderNoStockCard_();
+  renderBackorderCard_();
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
@@ -5454,6 +5465,8 @@ function renderBillingList(){
       </div>
       ${paidInfoLine}
       ${(()=>{ const ns = noStockItems_(dayData, code, row); return ns.length ? `<div class="d nostock-row" data-nostockrow="${escapeHtml(code)}">📦 ไม่มีสินค้า: ${ns.map(p=>escapeHtml(p.name)).join(', ')} (ไม่คิดเงิน)</div>` : ''; })()}
+      ${(()=>{ const bo = backordersFrom_(currentDate, code); return bo.length ? `<div class="d nostock-row bo-tag" data-borowtag="${escapeHtml(code)}">📦 ค้างส่ง: ${bo.map(b=>escapeHtml(PRODUCTS.find(x=>x.id===b.pid).name)+' '+boQty_(b)+(b.status==='sent'?' (ส่งแล้ว)':'')).join(', ')} (บิลเต็ม)</div>` : ''; })()}
+      ${(()=>{ const cm = compensationsOn_(currentDate, code); return cm.length ? `<div class="d nostock-row bo-tag" data-cmprowtag="${escapeHtml(code)}">🚚 ส่งชดเชยวันนี้: ${cm.map(b=>escapeHtml(PRODUCTS.find(x=>x.id===b.pid).name)+' '+boQty_(b)).join(', ')} (฿0)</div>` : ''; })()}
       ${(()=>{ const sh = shortItems_(dayData, code, row); return sh.length ? `<div class="d nostock-row" data-shortrow="${escapeHtml(code)}">✂️ ส่งขาด: ${sh.map(x=>escapeHtml(x.p.name)+' '+x.short).join(', ')} (คิดเงินตามที่ส่งจริง)</div>` : ''; })()}
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
@@ -5692,6 +5705,8 @@ async function setShortQty_(code, pid, raw, input){
     const ord = Number(((fresh.orders[code])||{})[pid]||0);
     if(!(ord > 0)){ showToast('สาขานี้ไม่ได้สั่งสินค้านี้'); return false; }
     if(n > ord){ showToast(`ส่งขาดเกินจำนวนที่สั่ง (${ord}) ไม่ได้`); return false; }
+    if(n > 0){ try{ await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+      if(backorderQtyOf_(iso, code, pid) > 0){ showToast('สินค้านี้ตั้ง "ค้างส่ง (บิลเต็ม)" ไว้แล้ว — ยกเลิกอันนั้นก่อน'); return false; } }
     const prev = shortQtyOf_(fresh, code, pid);
     if(prev === n) return true;
     if(fresh.billingPaid[code]){
@@ -5774,6 +5789,11 @@ async function toggleNoStock_(code, pid, btn){
       path = ['noStock','branch',code,pid];
       affected = Number(((fresh.orders[code])||{})[pid]||0)>0 ? [code] : [];
     }
+    if(next){
+      try{ await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+      const boHit = affected.filter(c=>backorderQtyOf_(iso, c, pid) > 0);
+      if(boHit.length){ showToast(`สาขา ${boHit.join(', ')} ตั้ง "ค้างส่ง (บิลเต็ม)" ${p.name} ไว้แล้ว — ยกเลิกค้างส่งก่อน`); return false; }
+    }
     const paid = affected.filter(c=>fresh.billingPaid[c]);
     if(paid.length){
       dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
@@ -5806,6 +5826,273 @@ async function toggleNoStock_(code, pid, btn){
     if(btn && btn.isConnected) btn.disabled = false;
   }
 }
+// ---- ค้างส่ง + ส่งชดเชย (คีย์รายเดือน backorders:YYYY-MM ตามเดือนของ fromIso) ----
+// บิลเก็บเงินเต็มตามออเดอร์เสมอ (ไม่แตะ branchBillAmount/fee) — แค่บันทึกว่าของออกจากร้านจริงวันไหน เพื่อให้จำนวนสต๊อกตรง
+// {id, fromIso, code, pid, qty, status:'open'|'sent', sentIso, costExpenseId}
+// แยกคีย์รายเดือนกันคีย์โตเกินเพดาน 50,000 ตัวอักษร; โหลด 3 เดือนล่าสุด + 3 เดือนรอบวันที่ที่เปิดดู
+// เขียนผ่าน writeRootArrayOp_(boKey_(fromIso), …) ทีละรายการเท่านั้น
+const BO_PREFIX = 'backorders:';
+let backordersCache_ = null, backorderBusy_ = false;
+const boByMonth_ = {}, boMonthAt_ = {};
+function boKey_(iso){ return BO_PREFIX + String(iso).slice(0,7); }
+function boMonthsAround_(iso){
+  const out = [];
+  let [y, m] = String(iso).slice(0,7).split('-').map(Number);
+  for(let i=0; i<3; i++){ out.push(`${y}-${String(m).padStart(2,'0')}`); m--; if(m<1){ m=12; y--; } }
+  return out;
+}
+function boValid_(b){
+  return b && typeof b.id==='string' && typeof b.code==='string' && SLIP_ISO_RE.test(String(b.fromIso)) && PRODUCTS.some(p=>p.id===b.pid)
+    && (b.status==='open' || (b.status==='sent' && SLIP_ISO_RE.test(String(b.sentIso))));
+}
+function boRebuild_(){ backordersCache_ = Object.values(boByMonth_).flat(); }
+function boSetMonth_(month, arr){ boByMonth_[month] = (Array.isArray(arr) ? arr : []).filter(boValid_); boMonthAt_[month] = Date.now(); boRebuild_(); }
+async function loadBackorders_(force, anchorIso){
+  const months = Array.from(new Set([...boMonthsAround_(todayISO()), ...boMonthsAround_(anchorIso || currentDate || todayISO())]));
+  const need = months.filter(m=> force || !boMonthAt_[m] || Date.now() - boMonthAt_[m] > 60000);
+  if(need.length){
+    const vals = await window.bulkGetStorageImpl(need.map(m=>BO_PREFIX+m));
+    need.forEach(m=>{ let arr = []; try{ arr = JSON.parse(vals[BO_PREFIX+m]); }catch(e){} boSetMonth_(m, arr); });
+  }else if(!backordersCache_) boRebuild_();
+  return backordersCache_;
+}
+async function writeBackorders_(fromIso, ops){
+  const month = String(fromIso).slice(0,7);
+  return writeRootArrayOp_(boKey_(fromIso), ops, a=>boSetMonth_(month, a));
+}
+function boQty_(b){ const v = Number(b && b.qty); return (isFinite(v) && v > 0) ? Math.round(v*10)/10 : 0; }
+function backordersFrom_(iso, code){ return (backordersCache_||[]).filter(b=>b.fromIso===iso && (code==null || b.code===code)); }
+function compensationsOn_(iso, code){ return (backordersCache_||[]).filter(b=>b.status==='sent' && b.sentIso===iso && (code==null || b.code===code)); }
+function backorderQtyOf_(iso, code, pid){ return backordersFrom_(iso, code).filter(b=>b.pid===pid).reduce((s,b)=>s+boQty_(b),0); }
+// จำนวนที่ "ออกจากร้านจริง" ของวัน (ใช้กับสต๊อก/ของเหลือ/ล็อต/ซื้อ): ส่งจริงหลังไม่มีสินค้า/ส่งขาด − ค้างส่งของวันนี้ + ส่งชดเชยวันนี้
+function shippedTotals_(d, iso){
+  const t = {}; PRODUCTS.forEach(p=>t[p.id]=0);
+  Object.entries((d && d.orders) || {}).forEach(([code,row])=>{
+    const r = billRow_(d, code, row);
+    PRODUCTS.forEach(p=>{ t[p.id] += Number(r[p.id]||0); });
+  });
+  backordersFrom_(iso).forEach(b=>{ t[b.pid] -= boQty_(b); });
+  compensationsOn_(iso).forEach(b=>{ t[b.pid] += boQty_(b); });
+  PRODUCTS.forEach(p=>{ t[p.id] = Math.max(0, Math.round(t[p.id]*100)/100); });
+  return t;
+}
+function backorderSummaryText_(iso){
+  const parts = [];
+  backordersFrom_(iso).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); parts.push(`ค้างส่ง ${p.name} ${boQty_(b)} (สาขา ${b.code}${b.status==='sent' ? ', ส่งแล้ว '+formatDDMMYYYY(b.sentIso) : ''})`); });
+  compensationsOn_(iso).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); parts.push(`ส่งชดเชย ${p.name} ${boQty_(b)} (สาขา ${b.code}, ค้างจาก ${formatDDMMYYYY(b.fromIso)})`); });
+  return parts.join(' · ');
+}
+// ช่องในบิลที่เปิด: ค้างส่ง (บิลเต็ม)
+function backorderBranchBarHtml_(code){
+  const row = dayData.orders[code] || {};
+  const prods = PRODUCTS.filter(p=>Number(row[p.id]||0)>0 && !isNoStock_(dayData, code, p.id));
+  if(!prods.length) return '';
+  return `<div class="nostock-bar" data-bobar="${escapeHtml(code)}"><span class="nostock-lbl">📦 ค้างส่ง (บิลเต็ม ร้านส่งชดเชย):</span>${prods.map(p=>{
+    const items = backordersFrom_(currentDate, code).filter(b=>b.pid===p.id);
+    const q = items.reduce((s,b)=>s+boQty_(b),0), sent = items.some(b=>b.status==='sent'), ord = Number(row[p.id]||0);
+    return `<label class="short-in${q?' on':''}">${p.emoji} ${escapeHtml(p.name)} <input type="number" inputmode="decimal" min="0" max="${ord}" step="0.1" data-nsbo="${p.id}" value="${q||''}" placeholder="0"${sent?' disabled':''} aria-label="${escapeHtml('ค้างส่ง '+p.name+' (สั่ง '+ord+')')}"><small>/${ord}${sent?' ส่งแล้ว':''}</small></label>`;
+  }).join('')}</div>`;
+}
+function boGuard_(isos){
+  if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อน'); return false; }
+  for(const iso of isos){ if(iso && isMonthClosed_(iso)){ showToast(`เดือนของวันที่ ${formatDDMMYYYY(iso)} ปิดแล้ว แก้ไม่ได้`); return false; } }
+  return true;
+}
+// ตั้ง/แก้/ลบ ค้างส่งของสาขา+สินค้าในวันที่เปิดอยู่ (n = 0 → ลบ) — ห้ามซ้อนกับ ✂️ ส่งขาด/ไม่มีสินค้า
+async function setBackorderQty_(code, pid, raw, input){
+  const p = PRODUCTS.find(x=>x.id===pid);
+  if(!p || code==null) return false;
+  const str = String(raw==null?'':raw).trim();
+  const n = str==='' ? 0 : Number(str);
+  if(!isFinite(n) || n < 0 || Math.round(n*10) !== n*10){ showToast('ใส่จำนวนค้างส่งเป็นตัวเลข 0 ขึ้นไป (ทศนิยม 1 ตำแหน่ง)'); return false; }
+  const iso = currentDate;
+  if(!boGuard_([iso])) return false;
+  if(backorderBusy_) return false;
+  backorderBusy_ = true;
+  if(input) input.disabled = true;
+  try{
+    let fresh;
+    try{ const r = await window.storage.get('day:'+iso); fresh = normalizeDay_(JSON.parse(r.value)); }
+    catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้เปลี่ยน'); return false; }
+    const ord = Number(((fresh.orders[code])||{})[pid]||0);
+    if(n > 0 && !(ord > 0)){ showToast('สาขานี้ไม่ได้สั่งสินค้านี้'); return false; }
+    if(n > ord){ showToast(`ค้างส่งเกินจำนวนที่สั่ง (${ord}) ไม่ได้`); return false; }
+    if(n > 0 && (shortQtyOf_(fresh, code, pid) > 0 || isNoStock_(fresh, code, pid))){ showToast('สินค้านี้ตั้ง "ส่งขาด/ไม่มีสินค้า" (ลดบิล) ไว้แล้ว — ยกเลิกอันนั้นก่อน'); return false; }
+    let all;
+    try{ all = await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+    const cur = all.filter(b=>b.fromIso===iso && b.code===code && b.pid===pid);
+    if(cur.some(b=>b.status==='sent')){ showToast('รายการนี้ส่งชดเชยแล้ว — ยกเลิกการส่งก่อนแก้จำนวน'); return false; }
+    const prev = cur.reduce((s,b)=>s+boQty_(b),0);
+    if(prev === n) return true;
+    const ops = cur.map(b=>({remove:{matchField:'id', matchValue:b.id}}));
+    if(n > 0) ops.push({push:{id: uid('bo'), fromIso: iso, code, pid, qty: n, status:'open', sentIso:null, costExpenseId:null}});
+    try{ await writeBackorders_(iso, ops); }
+    catch(e){ showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    logActivity_(`ค้างส่ง ${p.name} ${prev} → ${n} สาขา ${code} (บิลเต็ม) — วันที่ ${formatDDMMYYYY(iso)}`);
+    showToast(n ? `บันทึกค้างส่ง ${p.name} ${n} (สาขา ${code}) — บิลยังเต็ม` : `ยกเลิกค้างส่ง ${p.name} (สาขา ${code})`);
+    renderBillingList();
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(input && input.isConnected) input.disabled = false;
+  }
+}
+// ส่งชดเชย: open → sent (+ ค่าส่ง → รายจ่ายหมวด ค่าส่ง/ลาล่า ของวันที่ส่ง)
+async function sendBackorder_(id, sentIso, costRaw, btn){
+  if(!SLIP_ISO_RE.test(String(sentIso||''))){ showToast('เลือกวันที่ส่ง'); return false; }
+  const cost = String(costRaw==null?'':costRaw).trim()==='' ? 0 : Number(costRaw);
+  if(!isFinite(cost) || cost < 0){ showToast('ค่าส่งต้องเป็นตัวเลข 0 ขึ้นไป'); return false; }
+  if(backorderBusy_) return false;
+  let all;
+  try{ all = await loadBackorders_(true); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+  const b = all.find(x=>x.id===id);
+  if(!b){ showToast('ไม่พบรายการนี้แล้ว'); renderBackorderCard_(); return false; }
+  if(b.status==='sent'){ showToast('รายการนี้ส่งชดเชยแล้ว'); renderBackorderCard_(); return false; }
+  if(sentIso < b.fromIso){ showToast('วันที่ส่งชดเชยต้องไม่ก่อนวันที่ค้าง'); return false; }
+  if(!boGuard_([b.fromIso, sentIso])) return false;
+  backorderBusy_ = true;
+  if(btn) btn.disabled = true;
+  try{
+    const p = PRODUCTS.find(x=>x.id===b.pid);
+    let expId = null;
+    if(!boMonthsAround_(sentIso).includes(String(b.fromIso).slice(0,7))){ showToast('ค้างส่งนานเกิน 2 เดือน — ส่งชดเชยจากการ์ดนี้ไม่ได้ ลงรายจ่าย/หมายเหตุบิลเอง'); return false; }
+    if(cost > 0){
+      // ค่าส่งของรายการนี้เคยบันทึกและติ๊กจ่ายไปแล้ว (รอบก่อนพังกลางทาง) → ห้ามเขียนทับเงียบๆ
+      try{ const r0 = await window.storage.get('day:'+sentIso); const d0 = normalizeDay_(JSON.parse(r0.value)); if((d0.expenses||[]).some(e=>e.id==='e-bo-'+id && e.paid)){ showToast('ค่าส่งของรายการนี้ถูกบันทึกและติ๊กจ่ายแล้ว — ใส่ค่าส่งเป็น 0 แล้วกดส่งอีกครั้ง'); return false; } }
+      catch(e){ if(!(e && e.message && e.message.indexOf('Key not found')===0)){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ส่งชดเชย'); return false; } }
+      const expense = {id: 'e-bo-'+id, category:'ค่าส่ง/ลาล่า', seller:'', note:`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (ค้างจาก ${formatDDMMYYYY(b.fromIso)})`, amount: Math.round(cost), paid:false};
+      try{
+        // id ตายตัวต่อรายการค้างส่ง: ลบของเดิม (ถ้าเคยค้างจากรอบที่พังกลางทาง) แล้วเพิ่ม — กดซ้ำกี่ครั้งก็ไม่เกิดค่าส่งซ้ำ
+        const fresh = await writeDayArrayOp_(sentIso, 'expenses', [{remove:{matchField:'id', matchValue: expense.id}}, {push: expense}]);
+        if(sentIso===currentDate) dayData = fresh;
+        expId = expense.id;
+        logActivity_(`เพิ่มรายจ่าย ค่าส่ง/ลาล่า ${money(expense.amount)} — วันที่ ${formatDDMMYYYY(sentIso)}`);
+      }catch(e){ showToast('บันทึกค่าส่งไม่สำเร็จ ยังไม่ได้ส่งชดเชย'); return false; }
+    }
+    try{
+      await writeBackorders_(b.fromIso, {matchField:'id', matchValue:id, set:{status:'sent', sentIso, costExpenseId: expId, sentAt: new Date().toISOString()}});
+    }catch(e){ showToast(`บันทึกส่งชดเชยไม่สำเร็จ${expId ? ' (ค่าส่งบันทึกแล้ว — ตรวจที่รายจ่ายวันที่ '+formatDDMMYYYY(sentIso)+')' : ''}`); return false; }
+    logActivity_(`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (ค้างจาก ${formatDDMMYYYY(b.fromIso)}) วันที่ ${formatDDMMYYYY(sentIso)}${cost ? ' ค่าส่ง '+money(cost) : ''}`);
+    showToast(`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} แล้ว`);
+    renderBillingList(); try{ renderExpenseList(); renderStats(); }catch(e){}
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(btn && btn.isConnected) btn.disabled = false;
+  }
+}
+// ยกเลิกส่งชดเชย: sent → open (ลบรายจ่ายค่าส่งที่สร้างไว้ ถ้ายังไม่ติ๊กจ่าย)
+async function unsendBackorder_(id, btn){
+  if(backorderBusy_) return false;
+  let all;
+  try{ all = await loadBackorders_(true); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+  const b = all.find(x=>x.id===id);
+  if(!b || b.status!=='sent'){ renderBackorderCard_(); return false; }
+  if(!boGuard_([b.fromIso, b.sentIso])) return false;
+  backorderBusy_ = true;
+  if(btn) btn.disabled = true;
+  try{
+    if(b.costExpenseId){
+      let d;
+      try{ const r = await window.storage.get('day:'+b.sentIso); d = normalizeDay_(JSON.parse(r.value)); }
+      catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ยกเลิก'); return false; }
+      const ex = (d.expenses||[]).find(e=>e.id===b.costExpenseId);
+      if(ex && ex.paid){ showToast(`ค่าส่งของรายการนี้ติ๊กจ่ายแล้ว (วันที่ ${formatDDMMYYYY(b.sentIso)}) — ไปแก้ที่รายจ่ายก่อน`); return false; }
+      if(ex){
+        try{
+          const fresh = await writeDayArrayOp_(b.sentIso, 'expenses', {remove:{matchField:'id', matchValue:b.costExpenseId}});
+          if(b.sentIso===currentDate) dayData = fresh;
+        }catch(e){ showToast('ลบค่าส่งไม่สำเร็จ ยังไม่ได้ยกเลิก'); return false; }
+      }
+    }
+    try{
+      await writeBackorders_(b.fromIso, {matchField:'id', matchValue:id, set:{status:'open', sentIso:null, costExpenseId:null, sentAt:null}});
+    }catch(e){ showToast('ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    const p = PRODUCTS.find(x=>x.id===b.pid);
+    logActivity_(`ยกเลิกส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (เดิมส่งวันที่ ${formatDDMMYYYY(b.sentIso)})`);
+    showToast('ยกเลิกส่งชดเชยแล้ว กลับเป็นค้างส่ง');
+    renderBillingList(); try{ renderExpenseList(); renderStats(); }catch(e){}
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(btn && btn.isConnected) btn.disabled = false;
+  }
+}
+// การ์ด "📦 ค้างส่งชดเชย" (แท็บบิล): รายการค้าง + ส่งชดเชย + ใบส่งของชดเชยของวันที่เปิดอยู่ (สาขาที่ไม่มีออเดอร์วันนั้น)
+let backorderSendOpen_ = null;
+function compensationSlipText_(code, iso){
+  const bi = settings.billInfo, b = branchByCode(code), buyer = buyerInfoFor(b||{code});
+  const items = compensationsOn_(iso, code);
+  return [bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
+    `ใบส่งของชดเชย (ไม่คิดเงิน)`, ...(buyer.name ? [`นาม ${buyer.name}`] : []), `วันที่ ${formatDDMMYYYY(iso)}`, '',
+    ...items.map(x=>{ const p = PRODUCTS.find(y=>y.id===x.pid); return `${boQty_(x)} ${p.id==='p7'?'กระปุก':p.unit}  ${p.name}  ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(x.fromIso)} = 0`; }),
+    '', 'รวมเงินทั้งหมด ฿0', `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`].join('\n');
+}
+function compensationSlipHtml_(code, iso){
+  const bi = settings.billInfo, b = branchByCode(code), buyer = buyerInfoFor(b||{code});
+  const items = compensationsOn_(iso, code);
+  return `<div class="scrollx"><div class="receipt" style="margin-top:10px;" id="receiptcard-cmp-${escapeHtml(code)}">
+    <div class="rheadtop"><img src="${LOGO_DATA_URI}" alt="${escapeHtml(bi.sellerName)}" class="receiptlogo">
+      <div class="rheadinfo"><div class="shopname">${escapeHtml(bi.sellerName)}</div><div class="addr">${escapeHtml(bi.sellerAddr1)}<br>${escapeHtml(bi.sellerAddr2)}<br>${escapeHtml(bi.sellerContact)}</div></div>
+      <div class="rheadmeta"><div class="rbillno">ใบส่งของชดเชย</div><div class="rdate">${formatDDMMYYYY(iso)}</div></div></div>
+    ${buyer.name ? `<div class="idrow"><div class="idlabel">นาม</div><div class="idvalue">${escapeHtml(buyer.name)}</div></div>` : ''}
+    <table><tr><th>จำนวน</th><th>รายการ</th><th class="num">จำนวนเงิน</th></tr>
+      ${items.map(x=>{ const p = PRODUCTS.find(y=>y.id===x.pid); return `<tr data-cmpline="${p.id}"><td>${boQty_(x)} ${p.id==='p7'?'กระปุก':p.unit}</td><td>${escapeHtml(p.name)} <span class="cmp-tag">ชดเชย</span><br><small>ค้างส่งจากวันที่ ${formatDDMMYYYY(x.fromIso)}</small></td><td class="num num">0</td></tr>`; }).join('')}
+    </table>
+    <div class="grand"><span>รวมเงินทั้งหมด</span><span class="num">฿0</span></div>
+    <div class="kv" style="margin-top:6px;font-size:12px;color:var(--text-dim);">📌 ส่งชดเชยของที่ค้างส่ง ไม่คิดเงิน (ชำระแล้วในบิลวันที่ค้าง)</div>
+  </div></div>`;
+}
+async function renderBackorderCard_(){
+  const wrap = document.getElementById('backorderCard');
+  if(!wrap) return;
+  let all;
+  try{ all = await loadBackorders_(); }catch(e){ wrap.innerHTML = ''; return; }
+  const iso = currentDate;
+  const open = all.filter(b=>b.status==='open').sort((a,b)=>a.fromIso.localeCompare(b.fromIso));
+  const sentToday = compensationsOn_(iso);
+  const slipCodes = Array.from(new Set(sentToday.map(b=>b.code))).filter(c=>!orderRowHasOrder_((dayData.orders||{})[c]));
+  if(!open.length && !sentToday.length){ wrap.innerHTML = ''; return; }
+  const pName = b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); return `${p.emoji} ${escapeHtml(p.name)} ${boQty_(b)} ${p.id==='p7'?'กระปุก':escapeHtml(p.unit)}`; };
+  const ageDays = b=> Math.max(0, Math.round((new Date(iso+'T00:00:00Z') - new Date(b.fromIso+'T00:00:00Z'))/86400000));
+  wrap.innerHTML = `<div class="card dash-wide-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 6px;">📦 ค้างส่งชดเชย <span class="subhint">(บิลเก็บเต็มแล้ว ร้านส่งให้ภายหลัง)</span></h3>
+    ${open.length ? open.map(b=>`<div class="bo-row" data-borow="${escapeHtml(b.id)}">
+        <div><b>${escapeHtml(b.code)} ${escapeHtml(branchName(b.code))}</b> · ${pName(b)}<small>ค้างจาก ${formatDDMMYYYY(b.fromIso)} · ${ageDays(b)} วัน</small></div>
+        ${backorderSendOpen_===b.id ? `<div class="bo-send">
+          <label>วันที่ส่ง <input type="date" data-bosenddate value="${escapeHtml(iso >= b.fromIso ? iso : b.fromIso)}"></label>
+          <label>ค่าส่ง (ถ้ามี) <input type="number" inputmode="decimal" min="0" step="1" data-bosendcost placeholder="0"></label>
+          <div class="slip-actions"><button type="button" class="btn" data-boconfirm="${escapeHtml(b.id)}">ยืนยันส่งชดเชย</button><button type="button" class="btn secondary" data-bocancel>ยกเลิก</button></div>
+          <div class="hint">ค่าส่งจะลงรายจ่ายหมวด "ค่าส่ง/ลาล่า" ของวันที่ส่ง · บิลไม่เปลี่ยน</div>
+        </div>` : `<button type="button" class="btn secondary small" data-bosend="${escapeHtml(b.id)}">🚚 ส่งชดเชย</button>`}
+      </div>`).join('') : `<div class="hint">ไม่มีของค้างส่ง</div>`}
+    ${sentToday.length ? `<div class="slip-head" style="margin-top:10px;">ส่งชดเชยวันนี้</div>${sentToday.map(b=>`<div class="bo-row" data-bosent="${escapeHtml(b.id)}"><div>${escapeHtml(b.code)} ${escapeHtml(branchName(b.code))} · ${pName(b)}<small>ค้างจาก ${formatDDMMYYYY(b.fromIso)}</small></div><button type="button" class="btn secondary small" data-bounsend="${escapeHtml(b.id)}">ยกเลิกส่ง</button></div>`).join('')}` : ''}
+    ${slipCodes.map(c=>`<div data-cmpslip="${escapeHtml(c)}">${compensationSlipHtml_(c, iso)}
+      <div style="display:flex;gap:8px;margin-top:8px;"><button class="btn secondary" data-cmpimg="${escapeHtml(c)}" style="width:auto;">🖼️ บันทึกเป็นรูปภาพ</button><button class="btn secondary" data-cmpcopy="${escapeHtml(c)}" style="width:auto;">คัดลอกข้อความ</button></div></div>`).join('')}
+  </div>`;
+  if(!wrap.__wired){
+    wrap.__wired = true;
+    wrap.addEventListener('click', async e=>{
+      const el = e.target && e.target.closest ? e.target.closest('[data-bosend],[data-bocancel],[data-boconfirm],[data-bounsend],[data-cmpimg],[data-cmpcopy]') : null;
+      if(!el || !wrap.contains(el)) return;
+      if(el.hasAttribute('data-bosend')){ backorderSendOpen_ = el.getAttribute('data-bosend'); renderBackorderCard_(); }
+      else if(el.hasAttribute('data-bocancel')){ backorderSendOpen_ = null; renderBackorderCard_(); }
+      else if(el.hasAttribute('data-boconfirm')){
+        const box = el.closest('.bo-send');
+        const ok = await sendBackorder_(el.getAttribute('data-boconfirm'), box.querySelector('[data-bosenddate]').value, box.querySelector('[data-bosendcost]').value, el);
+        if(ok){ backorderSendOpen_ = null; renderBackorderCard_(); }
+      }else if(el.hasAttribute('data-bounsend')){
+        if(!confirm('ยกเลิกส่งชดเชยรายการนี้? (กลับเป็นค้างส่ง และลบค่าส่งที่บันทึกไว้ถ้ายังไม่ติ๊กจ่าย)')) return;
+        if(await unsendBackorder_(el.getAttribute('data-bounsend'), el)) renderBackorderCard_();
+      }else if(el.hasAttribute('data-cmpimg')){ saveReceiptAsImage('cmp-'+el.getAttribute('data-cmpimg')); }
+      else if(el.hasAttribute('data-cmpcopy')){
+        const txt = compensationSlipText_(el.getAttribute('data-cmpcopy'), currentDate);
+        try{ await navigator.clipboard.writeText(txt); }catch(err){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+        showToast('คัดลอกใบส่งของชดเชยแล้ว');
+      }
+    });
+  }
+}
 function computeReceiptData(code, iso, d){
   iso = iso || currentDate; d = d || dayData;
   const row = d.orders[code];
@@ -5820,8 +6107,13 @@ function computeReceiptData(code, iso, d){
     if(sent <= 0) return [{p, qty, price, amount:0, noStock:true}]; // ส่งขาดทั้งหมด = เหมือนไม่มีสินค้า
     const out = [{p, qty: sent, price, amount: Math.round(sent*price)}];
     if(sent < qty) out.push({p, qty: Math.round((qty-sent)*10)/10, price, amount:0, shortLine:true}); // บรรทัดส่งขาด ฿0
+    // ค้างส่ง (บิลเต็ม): ยอดไม่เปลี่ยน แค่บอกว่าได้รับเท่าไร ค้างเท่าไร
+    const boQ = backorderQtyOf_(iso, code, p.id);
+    if(boQ > 0) out[0].bo = {qty: boQ, recv: Math.max(0, Math.round((sent-boQ)*10)/10), sent: backordersFrom_(iso, code).some(b=>b.pid===p.id && b.status==='sent')};
     return out;
   }).flat();
+  // ส่งชดเชยของที่ค้างจากวันก่อน: บรรทัด ฿0 (ยอดไม่เพิ่ม)
+  compensationsOn_(iso, code).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); if(p) items.push({p, qty: boQty_(b), price:0, amount:0, comp:true, fromIso: b.fromIso}); });
   // สินค้าอื่นๆ (นอกแคตตาล็อก) ใช้ราคาที่พิมพ์เองตอนบันทึกออเดอร์ตรงๆ (ไม่มี priceOnDate ให้ค้นเหมือนสินค้าหลัก)
   (row.custom||[]).forEach(it=>{
     const qty = Number(it.qty||0); const price = Number(it.price||0); const amount = Math.round(qty*price);
@@ -5867,13 +6159,16 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       </div>` : ''}
       <table>
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
-        ${items.map(it=>it.custom
+        ${items.map(it=>it.comp
+          ? `<tr class="r-cmp" data-cmpline="${it.p.id}"><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${escapeHtml(it.p.name)} <span class="cmp-tag">ชดเชย</span><br><small>ค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)}</small></td><td class="num num">-</td><td class="num num">0</td></tr>`
+          : it.custom
           ? `<tr><td>${it.qty}</td><td>${escapeHtml(it.name)}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
           : it.shortLine
           ? `<tr class="r-nostock" data-shortline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ส่งขาด</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : it.noStock
           ? `<tr class="r-nostock" data-nostockline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ไม่มีสินค้า</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : `<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+            + (it.bo ? `<tr class="r-bo" data-boline="${it.p.id}"><td colspan="4">↳ ได้รับ ${it.bo.recv} · <b>ค้างส่ง ${it.bo.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</b> — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}</td></tr>` : '')
         ).join('')}
       </table>
       <div class="totline"><span>ผลรวมย่อย</span><span class="num">${subtotal.toLocaleString('th-TH')}</span></div>
@@ -5899,9 +6194,15 @@ async function toggleReceipt(code){
       <input type="text" data-billnote="${code}" value="${escapeHtml(dayData.billNote&&dayData.billNote[code])}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="flex:1;font-size:12.5px;">
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap;"><input type="checkbox" data-billnoteshow="${code}" ${(dayData.billNoteShowOnBill&&dayData.billNoteShowOnBill[code])?'checked':''}> ลงในบิล</label>
     </div>
-    ${noStockBranchChipsHtml_(code)}`;
+    ${noStockBranchChipsHtml_(code)}
+    ${backorderBranchBarHtml_(code)}`;
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
+  holder.querySelectorAll('[data-nsbo]').forEach(inp=>inp.addEventListener('change', async ()=>{
+    const ok = await setBackorderQty_(code, inp.getAttribute('data-nsbo'), inp.value, inp);
+    if(ok){ holder.innerHTML=''; toggleReceipt(code); }
+    else inp.value = backorderQtyOf_(currentDate, code, inp.getAttribute('data-nsbo')) || '';
+  }));
   holder.querySelectorAll('[data-nsshort]').forEach(inp=>inp.addEventListener('change', async ()=>{
     const ok = await setShortQty_(code, inp.getAttribute('data-nsshort'), inp.value, inp);
     if(ok){ holder.innerHTML=''; toggleReceipt(code); }
@@ -5947,7 +6248,7 @@ async function toggleReceipt(code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.comp ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)} = 0` : it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` + (it.bo ? `\n   ↳ ได้รับ ${it.bo.recv} · ค้างส่ง ${it.bo.qty} — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}` : '')),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
@@ -6007,7 +6308,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.comp ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)} = 0` : it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` + (it.bo ? `\n   ↳ ได้รับ ${it.bo.recv} · ค้างส่ง ${it.bo.qty} — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}` : '')),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
@@ -8311,7 +8612,7 @@ function showBackupFallbackModal(jsonStr){
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
 const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths','slipPayers'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
-const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:'];
+const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:','backorders:'];
 async function exportAllData(){
   let payload;
   try{
@@ -8624,7 +8925,7 @@ async function updatePurchaseLeftoverHint(){
   if(!hintEl) return;
   if(!LEFTOVER_IDS.includes(pid)){ hintEl.innerHTML = ''; return; }
   const p = PRODUCTS.find(x=>x.id===pid);
-  const totals = computeTotals(dayData.orders);
+  const totals = shippedTotals_(dayData, currentDate);
   const todayOrder = totals[pid]||0;
   let prevDay;
   try{
@@ -8899,7 +9200,7 @@ async function computeLotSettleRows_(lots){
   // ใช้ "ยอดออเดอร์ดิบของวันนี้" ตรงๆ ไม่ใช่ computeNeededQtyToday() (ที่หักลบของเหลือยกมาออกไปด้วย) — เพราะของเหลือที่ถูกหักไปนั้น
   // คือก้อนสต็อกเดียวกับที่ค้างตัดต้นทุนอยู่ตรงนี้เป๊ะๆ (ของที่เบิกมาทำไว้เกินออเดอร์วันนั้น = ของเหลือของวันถัดไป) ถ้าไปหักซ้ำอีกที
   // จะกลายเป็นยอดที่ "ต้องตัดวันนี้" เหลือ 0 ทั้งที่ของเหลือนั้นแหละที่กำลังจะถูกใช้เติมออเดอร์วันนี้พอดี การ์ดเลยไม่ขึ้นทั้งที่ควรขึ้น
-  const rawTotalsToday = computeTotals(dayData.orders);
+  const rawTotalsToday = shippedTotals_(dayData, currentDate);
   const rows = [];
   for(const pid of productIdsWithLots){
     // จำกัดแค่รอบเบิกที่เกิดขึ้นถึงวันที่กำลังดูอยู่แล้วเท่านั้น (asOfDate=currentDate) — กันย้อนไปดูวันเก่าๆ
@@ -10801,7 +11102,7 @@ async function renderLotProductBillList(){
 
 // คำนวณจำนวนที่ "ควรจะซื้อ" ของสินค้านี้วันนี้ จากยอดออเดอร์ (หักของเหลือที่มีจากเมื่อวานถ้าเป็นสินค้าที่มีของเหลือ)
 async function computeNeededQtyToday(pid){
-  const totals = computeTotals(dayData.orders);
+  const totals = shippedTotals_(dayData, currentDate);
   const todayOrder = totals[pid]||0;
   if(!LEFTOVER_IDS.includes(pid)) return todayOrder;
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
@@ -12614,7 +12915,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
 // แต่ตอนนี้การ์ด "รายการต้นทุนซื้อวันนี้" ก็ต้องใช้เช็คแค่วันที่กำลังดูอยู่วันเดียว (เร็วกว่ามาก ไม่ต้องสแกนทุกวันในระบบ) เลยแยกมาให้เรียกซ้ำได้ทั้งสองที่
 function computeDayGaps_(iso, d, prevDay, lotProductIds){
   const gaps = [];
-  const totals = computeTotals(d.orders||{});
+  const totals = shippedTotals_(d, iso);
   const neededByProduct = {};
   PRODUCTS.forEach(p=>{
     const qty = totals[p.id]||0;
@@ -12803,7 +13104,7 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
 // วันที่กำลังดูอยู่วันไหนก็ได้เหมือนเช็คของสินค้ากลุ่มไม่มีล็อต (asOfDate=iso กันนับของเบิกในอนาคตของวันที่ดูอยู่มาปนด้วย)
 async function computeLotUncoveredNeedGaps_(iso, d, lots, prevDay){
   const gaps = [];
-  const totals = computeTotals(d.orders||{});
+  const totals = shippedTotals_(d, iso);
   const lotProductIds = Array.from(new Set(lots.map(l=>l.productId)));
   // หักจำนวนที่บันทึก "ต้นทุนซื้อวันนี้" ไว้ตรงๆ แล้วออกก่อนเทียบกับของในล็อต — สินค้ากลุ่มนี้ซื้อเป็นล็อตได้เหมือนสินค้าปกติ
   // ด้วย (ไม่ได้ผ่านการเบิก/ตัดสต็อกล็อตเสมอไป) ถ้าบันทึกต้นทุนซื้อไว้แล้วจริงตรงๆ ถือว่าครอบคลุมแล้ว ไม่ควรเตือนซ้ำว่า
@@ -14003,7 +14304,7 @@ async function loadForDate(iso){
   try{
     let d;
     try{
-      d = await loadDay(iso);
+      [d] = await Promise.all([loadDay(iso), loadBackorders_(false, iso).catch(()=>null)]);
     }catch(e){
       // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
       // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
@@ -14320,7 +14621,8 @@ async function sfLoadCtx_(){
   const dayMap = await loadDaysBulk([prevIso, ...dates]);
   const lots = await loadRawLots();
   const orderTotals = {};
-  dates.forEach(iso=>{ orderTotals[iso] = computeTotals((dayMap[iso]||emptyDay()).orders||{}); });
+  try{ await loadBackorders_(false, dates[0]); await loadBackorders_(false, dates[dates.length-1]); }catch(e){}
+  dates.forEach(iso=>{ orderTotals[iso] = shippedTotals_(dayMap[iso]||emptyDay(), iso); });
   const prev = dayMap[prevIso] || emptyDay();
   const rawOpening = {};
   PRODUCTS.forEach(p=>{
@@ -15457,7 +15759,7 @@ async function init(){
     const pid = document.getElementById('purchProduct').value;
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p){ showToast('เลือกสินค้าก่อน'); return; }
-    const qty = Math.round(((computeTotals((dayData && dayData.orders) || {})[pid]) || 0) * 100) / 100;
+    const qty = Math.round(((shippedTotals_(dayData || emptyDay(), currentDate)[pid]) || 0) * 100) / 100;
     if(!qty){ showToast(`วันที่ ${formatDDMMYYYY(currentDate)} ยังไม่มีออเดอร์ ${p.emoji}${p.name}`); return; }
     // ออเดอร์นับเป็นหน่วยขาย — ถ้าหน่วยซื้อไม่ใช่หน่วยเดียวกัน (เช่นซื้อเป็นกก. ได้เป็นกระปุก) เติมช่อง "จำนวนที่ทำได้" แทน
     const sameUnit = purchaseBuyUnit(pid) === purchaseSellUnit(pid);
@@ -15560,7 +15862,7 @@ async function init(){
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{
-    await Promise.all([loadSettings(), syncDayRevs_(), loadClosedMonths_()]);
+    await Promise.all([loadSettings(), syncDayRevs_(), loadClosedMonths_(), loadBackorders_().catch(()=>{})]);
     await loadForDate(todayISO());
   }catch(e){
     showConnectionErrorBanner(e);

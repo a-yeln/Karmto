@@ -279,6 +279,21 @@ const lt = (billId, over) => Object.assign({ id: 'lt' + (NOW - 6 * 24 * 3600 * 1
     await page.close();
   }
 
+  // 12c) renderLotList (ไม่มี preloadedLots): อ่านสดว่างแต่แคชมีบิล → ensure throw แต่รายการล็อตยังขึ้น ไม่ขึ้น "โหลดไม่สำเร็จ" ไม่เขียนบิล
+  {
+    const page = await open({ rawLots: [lot(OLD), lot(OLD3)], lotProductBills: [lp(OLD)], lotTransportBills: [lt(OLD)] });
+    const r = await page.evaluate(async () => {
+      await loadLotProductBills(); await loadLotTransportBills();
+      const inner = window.storage; const origGet = inner.get.bind(inner);
+      inner.get = async (key) => key === 'lotProductBills' ? { key, value: '[]', shared: false } : origGet(key);
+      const before = JSON.stringify(window.__store);
+      await renderLotList();
+      const wrap = document.getElementById('lotList');
+      return { text: wrap ? wrap.textContent : null, hasCards: wrap ? wrap.children.length : 0, billWrites: window.__writes.filter(w => w.key === 'lotProductBills' || w.key === 'lotTransportBills').length, same: JSON.stringify(window.__store) === before };
+    });
+    check('12c renderLotList: ensure fails -> lot list still shown, no load-error text, no bill writes', r.text !== null && !r.text.includes('โหลดข้อมูลลอตไม่สำเร็จ') && r.hasCards > 0 && r.billWrites === 0 && r.same, r);
+    await page.close();
+  }
   // 13) billId เป็นตัวเลขในชีต → จับคู่ด้วยสตริง ไม่สร้างซ้ำ
   for (const lotBid of ['1234567', 1234567]) {
     const page = await open({ rawLots: [lot(lotBid, { id: 'n-0' })], lotProductBills: [lp(1234567, { id: 'lpn' })], lotTransportBills: [lt(1234567, { id: 'ltn' })] });

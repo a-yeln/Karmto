@@ -8694,22 +8694,30 @@ async function importAllData(file){
       showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็คเดือนที่ปิดในระบบไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
       return;
     }
-    const serverClosed = ym => !!serverCM[ym];
-    const dayEntries = (payload.days && typeof payload.days === 'object') ? Object.entries(payload.days) : [];
-    const lockedEntries = dayEntries.filter(([k])=>typeof k === 'string' && k.indexOf('day:')===0 && serverClosed(k.slice(4,11)));
+    // hasOwnProperty กันคีย์อย่าง valueOf/__proto__/constructor ถูกนับเป็นเดือนปิด
+    const cmHas_ = (cm, ym) => !!cm && Object.prototype.hasOwnProperty.call(cm, ym) && !!cm[ym];
+    const serverClosed = ym => cmHas_(serverCM, ym);
+    // ช่อง days รับเฉพาะคีย์ day:YYYY-MM-DD — คีย์อื่น (เช่น "settings"/"closedMonths") ห้ามไหลไป bulkSetStorage ที่ไม่ผ่านล็อกใดๆ
+    const IMPORT_DAY_KEY_RE_ = /^day:\d{4}-\d{2}-\d{2}$/;
+    const rawDayEntries = (payload.days && typeof payload.days === 'object' && !Array.isArray(payload.days)) ? Object.entries(payload.days) : [];
+    const dayEntries = rawDayEntries.filter(([k])=>IMPORT_DAY_KEY_RE_.test(k));
+    const badDayKeys = rawDayEntries.length - dayEntries.length;
+    if(badDayKeys) console.warn('Import: dropped non-day keys in payload.days', rawDayEntries.filter(([k])=>!IMPORT_DAY_KEY_RE_.test(k)).map(([k])=>k));
+    const lockedEntries = dayEntries.filter(([k])=>serverClosed(k.slice(4,11)));
     const skipDiff = [], skipSame = [];
     if(lockedEntries.length){
       const keys = lockedEntries.map(([k])=>k);
       const cur = {};
+      const emptyKeys = [];
       try{
         for(let i=0; i<keys.length; i+=40){
           const chunk = keys.slice(i, i+40);
           const vals = await withTimeout_(window.bulkGetStorageImpl(chunk), 30000, 'อ่านข้อมูลเดือนที่ปิด');
-          chunk.forEach(k=>{ cur[k] = vals ? vals[k] : undefined; });
+          chunk.forEach(k=>{ cur[k] = (vals && Object.prototype.hasOwnProperty.call(vals, k)) ? vals[k] : undefined; });
         }
         for(const [k, v] of lockedEntries){
           const raw = cur[k];
-          if(raw === null || raw === undefined || raw === '') continue; // ไม่มีในระบบ = เขียนได้ตามปกติ (เจ้าของสั่ง)
+          if(raw === null || raw === undefined || raw === ''){ emptyKeys.push(k); continue; }
           const curVal = typeof raw === 'string' ? JSON.parse(raw) : raw;
           if(importDayCanon_(curVal) === importDayCanon_(v)) skipSame.push(k); else skipDiff.push(k);
         }
@@ -8718,9 +8726,46 @@ async function importAllData(file){
         showToast('นำเข้าข้อมูลไม่สำเร็จ: อ่านข้อมูลวันในเดือนที่ปิดไม่ได้ ยังไม่ได้นำเข้าอะไรเลย');
         return;
       }
+      // bulkGet ว่าง ≠ ไม่มีในระบบเสมอไป (อ่านพลาดเงียบๆ ได้) — ยืนยันกับรายชื่อคีย์สด (ล้างแคชรายชื่อ 60 วิ ของตัวห่อก่อน)
+      // ไม่มีจริง = เขียนได้ตามปกติ (เจ้าของสั่ง); รายชื่อบอกว่ามี หรือเช็ครายชื่อไม่ได้ = หยุดทั้งหมด
+      if(emptyKeys.length){
+        let existing;
+        try{
+          if(window.storage.__clearListCache) window.storage.__clearListCache();
+          const res = await withTimeout_(window.storage.list('day:'), 30000, 'เช็ครายชื่อวัน');
+          if(!res || !Array.isArray(res.keys)) throw new Error('รายชื่อวันในระบบอ่านไม่ออก');
+          existing = new Set(res.keys);
+        }catch(e){
+          console.error('Import: cannot verify closed-month days via list', e);
+          showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็ครายชื่อวันในเดือนที่ปิดไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+          return;
+        }
+        const ghost = emptyKeys.filter(k=>existing.has(k)).sort();
+        if(ghost.length){
+          console.error('Import: closed-month days exist but read empty', ghost);
+          showToast(`นำเข้าข้อมูลไม่สำเร็จ: วันในเดือนที่ปิด ${ghost.map(k=>formatDDMMYYYY(k.slice(4))).join(', ')} มีอยู่ในระบบแต่อ่านค่าไม่ได้ ยังไม่ได้นำเข้าอะไรเลย ลองใหม่อีกครั้ง`);
+          return;
+        }
+      }
     }
-    const fileCM = (payload.closedMonths && typeof payload.closedMonths === 'object' && !Array.isArray(payload.closedMonths)) ? payload.closedMonths : {};
-    const addMonths = Object.keys(fileCM).filter(ym=>IMPORT_YM_RE_.test(ym) && fileCM[ym] && !serverClosed(ym)).sort();
+    const fileCMRaw = (payload.closedMonths && typeof payload.closedMonths === 'object' && !Array.isArray(payload.closedMonths)) ? payload.closedMonths : {};
+    // ทำให้เป็นรูปเดียวกับที่แอปเขียนเอง (writeClosedMonth_ ตอนกดปิดเดือน = {at: ISO, dev: ชื่อเครื่อง}):
+    // true = ปิดแต่ไม่มีรายละเอียด → {at: ตอนนี้, dev: เครื่องนี้}; object = เก็บแค่ at/dev ที่เป็นข้อความ; รูปอื่น = ข้าม ไม่เขียน
+    const fileCM = {};
+    let badCM = 0;
+    Object.keys(fileCMRaw).forEach(ym=>{
+      if(!IMPORT_YM_RE_.test(ym)) return;
+      const v = fileCMRaw[ym];
+      if(!v) return;
+      if(v === true){ fileCM[ym] = {at: new Date().toISOString(), dev: deviceName_()}; return; }
+      if(typeof v === 'object' && !Array.isArray(v)){
+        fileCM[ym] = {at: typeof v.at === 'string' && v.at ? v.at : new Date().toISOString(), dev: typeof v.dev === 'string' && v.dev ? v.dev : deviceName_()};
+        return;
+      }
+      badCM++;
+    });
+    if(badCM) console.warn('Import: skipped malformed closedMonths entries', badCM);
+    const addMonths = Object.keys(fileCM).filter(ym=>!serverClosed(ym)).sort();
     if(skipDiff.length || addMonths.length){
       const lines = ['นำเข้าข้อมูลสำรอง — ตรวจเดือนที่ปิด'];
       if(skipDiff.length){
@@ -8733,6 +8778,21 @@ async function importAllData(file){
         : 'ตกลง = นำเข้าส่วนที่เหลือ (ข้ามวันข้างบน)');
       lines.push('ยกเลิก = ไม่นำเข้าอะไรเลย');
       if(!confirm(lines.join('\n'))){ showToast('ยกเลิกแล้ว ยังไม่ได้นำเข้าอะไรเลย'); return; }
+    }
+    // ตรวจเดือนปิดสดซ้ำก่อนเขียนจริง — กันเครื่องอื่นปิดเดือนเพิ่มระหว่างตรวจ/รอกด confirm (วันของเดือนนั้นยังไม่ได้เช็คเลย)
+    {
+      let freshCM;
+      try{ freshCM = await readClosedMonthsStrict_(); }
+      catch(e){
+        console.error('Import: cannot re-read closedMonths', e);
+        showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็คเดือนที่ปิดในระบบซ้ำไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+        return;
+      }
+      const newlyClosed = Object.keys(freshCM).filter(ym=>cmHas_(freshCM, ym) && !serverClosed(ym)).sort();
+      if(newlyClosed.length){
+        showToast(`นำเข้าข้อมูลไม่สำเร็จ: มีการปิดเดือน ${newlyClosed.map(ym=>IMPORT_YM_RE_.test(ym)?monthLabel_(ym):ym).join(', ')} เพิ่มระหว่างนั้น ยังไม่ได้นำเข้าอะไรเลย ลองนำเข้าใหม่อีกครั้ง`);
+        return;
+      }
     }
     const skipSet = new Set(skipDiff.concat(skipSame));
     // ต้อง backfill ฟิลด์ให้ครบเหมือน loadSettings() ตอนโหลดแอปปกติทุกประการ (ดู ~1415-1461) — เดิมจุดนี้ backfill แค่บางส่วน
@@ -8782,7 +8842,8 @@ async function importAllData(file){
     if(window.storage.__clearListCache) window.storage.__clearListCache();
     const skipNote = skipDiff.length ? ` ข้าม ${skipDiff.length} วัน (เดือนที่ปิด)` : '';
     const lockNote = addMonths.length ? ` ล็อกเดือน ${addMonths.map(monthLabel_).join(', ')} ตามไฟล์` : '';
-    showToast(`นำเข้าข้อมูลสำเร็จ (${importedCount} วัน)${skipNote}${lockNote}`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)${skipNote}${lockNote}`);
+    const badNote = (badDayKeys ? ` ตัดคีย์ที่ไม่ใช่วัน ${badDayKeys} รายการ` : '') + (badCM ? ` ข้ามเดือนปิดที่รูปไม่ถูก ${badCM} รายการ` : '');
+    showToast(`นำเข้าข้อมูลสำเร็จ (${importedCount} วัน)${skipNote}${lockNote}${badNote}`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)${skipNote}${lockNote}${badNote}`);
     if(skipDiff.length) logActivity_(`นำเข้าสำรอง: ข้ามวันในเดือนที่ปิด (ข้อมูลต่างจากในระบบ คงของเดิม) ${skipDiff.slice().sort().map(k=>formatDDMMYYYY(k.slice(4))).join(', ')}`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
@@ -14327,7 +14388,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.7';
+const APP_BUILD = '2026-11-26.1';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

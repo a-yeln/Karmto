@@ -259,6 +259,7 @@ label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
 .btn.danger{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);font-weight:500;}
 .btn.small{width:auto;padding:6px 10px;font-size:12.5px;}
 .rowlist{display:flex;flex-direction:column;gap:8px;}
+.orow.dragging{opacity:.85;box-shadow:0 8px 20px rgba(0,0,0,.18);transform:scale(1.02);position:relative;z-index:2;}
 .orow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:8px;padding:9px 11px;transition:background .5s,border-color .5s;}
 .orow .name{font-size:13.5px;}
 .orow.flash-saved{background:var(--success-soft);border-color:var(--success);}
@@ -934,6 +935,13 @@ table.purch-table td .badge-delay{white-space:nowrap;}
 .cmd-txt small{display:block;color:var(--text-dim);font-size:11.5px;}
 .cmd-go{flex:none;font-size:12px;color:var(--accent);font-weight:700;}
 .cmd-ok{margin-top:6px;font-size:13px;color:var(--success);}
+.cmd-gapdays{background:var(--surface-2,rgba(0,0,0,.03));border:1px solid var(--border-soft,var(--border));border-radius:12px;padding:8px 10px;min-width:0;}
+.cmd-gaphead{display:flex;align-items:center;gap:8px;color:var(--text);}
+.cmd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.cmd-chip{min-height:44px;min-width:56px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface,transparent);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.cmd-chip:hover{border-color:var(--accent);}
+.cmd-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.cmd-chip.more{color:var(--accent);}
 .purch-margin{margin-top:8px;padding:8px 10px;border-radius:12px;font-size:12.5px;line-height:1.45;}
 .purch-margin.ok{background:rgba(62,160,110,.10);color:var(--text-dim);}
 .purch-margin.warn{background:rgba(224,71,90,.10);border:1.5px solid rgba(224,71,90,.45);color:var(--text);}
@@ -1625,6 +1633,14 @@ html[data-theme=mermaid] .osw .seg.on-sep{box-shadow:0 3px 0 rgba(40,15,80,.55),
 .short-in.on{border-color:var(--danger);color:var(--danger-ink);font-weight:700;}
 .short-in input{width:58px;min-height:30px;padding:2px 6px;font-size:14px;}
 .short-in small{color:var(--text-dim);font-weight:400;}
+.r-bo td{font-size:12px;color:#8a5a00;background:#fff7e6;}
+.r-cmp td{color:#1f6b3a;}
+.cmp-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#1f6b3a;border:1px solid #1f6b3a;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
+.bo-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+.bo-row small{display:block;color:var(--text-dim);font-size:11.5px;}
+.bo-send{width:100%;display:flex;flex-direction:column;gap:6px;}
+.bo-send label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;}
+.bo-send input{max-width:170px;}
 .nostock-sum{margin-top:8px;font-size:12.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-row{margin-top:2px;font-size:11.5px;color:var(--danger-ink);font-weight:600;}
 .nostock-tag{display:inline-block;font-size:10.5px;font-weight:700;color:#b42318;border:1px solid #b42318;border-radius:6px;padding:0 4px;margin-left:4px;vertical-align:middle;}
@@ -2099,6 +2115,22 @@ html[data-theme=mermaid] .osw .seg.on-sep{box-shadow:0 3px 0 rgba(40,15,80,.55),
         <label>หมวด</label>
         <select id="expCategory"></select>
       </div>
+      <div id="expGoodsBox" style="display:none;">
+        <label style="font-size:12px;font-weight:700;">รายการสินค้า <span class="subhint">(ค่าสินค้า — กรอกได้หลายรายการ)</span></label>
+        <div id="expGoodsRows" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
+        <button type="button" class="btn secondary" id="expGoodsAddRow" style="margin-top:8px;">+ เพิ่มสินค้า</button>
+        <div class="field" style="margin-top:10px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="expShipToggle" style="width:auto;"> เพิ่มค่าส่ง</label></div>
+        <div id="expShipBox" style="display:none;">
+          <div class="field"><label>ขนส่งระบุ</label><input type="text" id="expShipCarrier" placeholder="เช่น Kerry, Flash, รถส่งเอง"></div>
+          <div class="field"><label>ราคาค่าส่ง</label><input type="number" step="1" id="expShipPrice" placeholder="0"></div>
+          <div class="field"><label>หมายเหตุค่าส่ง</label><input type="text" id="expShipNote" placeholder="เช่น ส่งแช่แข็ง"></div>
+        </div>
+        <div id="expGoodsTotal" class="hint" style="font-weight:700;margin-top:6px;"></div>
+      </div>
+      <div id="expTransportBox" class="field" style="display:none;">
+        <label>ระบุ (ขนส่ง/ผู้ให้บริการ)</label>
+        <input type="text" id="expTransportCarrier" placeholder="เช่น Lalamove, Kerry, รถส่งเอง">
+      </div>
       <div class="field"><label>จ่ายให้ใคร (ถ้ามี — เช่น จ่ายรวมกับค่าเชอรี่ให้พี่พัฒน์)</label><select id="expPayee"><option value="">— ไม่ระบุ —</option></select>
         <input type="text" id="expPayeeOther" placeholder="ชื่อ/ร้าน" style="display:none;margin-top:6px;">
       </div>
@@ -2145,6 +2177,7 @@ html[data-theme=mermaid] .osw .seg.on-sep{box-shadow:0 3px 0 rgba(40,15,80,.55),
   <div class="panel" id="panel-billing">
     <div class="dash-grid" id="billingSummaryGrid" style="margin-bottom:16px;"></div>
     <div id="noStockCard"></div>
+    <div id="backorderCard"></div>
     <div id="slipMatchCard"></div>
     <div class="card dash-wide-card">
       <h3>🧾 บิลรายสาขา — วันที่เลือก</h3>
@@ -5091,7 +5124,7 @@ async function computeSuggestedLeftover(pid, iso, data){
       for(const d of (lot.draws||[])){ if(d.date===iso) yieldQty += Number(d.sellableQty||0); }
     }
   }catch(e){ /* โหลดล็อตไม่ได้ก็ข้ามไป ไม่ให้กระทบยอดของเหลือหลัก */ }
-  const orderedQty = computeTotals(data.orders)[pid]||0;
+  const orderedQty = shippedTotals_(data, iso)[pid]||0; // จำนวนที่ออกจากร้านจริง (หักค้างส่ง/ส่งขาด + บวกส่งชดเชย)
   // ของที่เคลม/ตัดเป็นของเสียไปแล้ววันนี้ ต้องหักออกจากค่าแนะนำด้วย ไม่งั้นกด "ล้างข้อมูล คำนวณแนะนำใหม่" (clearLeftoverToday())
   // จะกลับไปคำนวณสูตรเดิมแบบไม่รู้ว่าเคลมไปแล้วเท่าไหร่ ได้ตัวเลขเหมือนไม่เคยเคลมมาก่อนเลย (บันทึกเคลมไว้ใน wasteRecords แล้ว
   // แต่ leftoverOut ถูกลบทิ้งไปพร้อมกัน เลยดึงกลับมาไม่ได้ถ้าไม่หักในสูตรนี้ตรงๆ)
@@ -5557,7 +5590,8 @@ function renderFeeToday(){
     .map(([code]) => `${code} ${branchName(code)}`);
   const excludedEl = document.getElementById('feeExcludedToday');
   excludedEl.innerHTML = (excludedCodes.length ? `<span class="fee-excl-lbl">ยกเว้นวันนี้ (ไม่นับในยอด):</span> ${excludedCodes.map(c=>`<span class="fee-pill">${escapeHtml(c)}</span>`).join('')}` : '')
-    + (()=>{ const t = noStockSummaryText_(dayData); return t ? `<div class="fee-nostock" data-feenostock>📦 ไม่มีสินค้า (ไม่นับ fee): ${escapeHtml(t)}</div>` : ''; })();
+    + (()=>{ const t = noStockSummaryText_(dayData); return t ? `<div class="fee-nostock" data-feenostock>📦 ไม่มีสินค้า (ไม่นับ fee): ${escapeHtml(t)}</div>` : ''; })()
+    + (()=>{ const t = backorderSummaryText_(currentDate); return t ? `<div class="fee-nostock" data-feebo>🚚 ${escapeHtml(t)} — fee นับเต็มวันที่เก็บเงิน ไม่นับซ้ำวันส่งชดเชย</div>` : ''; })();
 }
 // คืนทุกวันของเดือนนั้นจริงๆ (ไม่ใช่แค่วันที่เคยมีการบันทึกข้อมูลไว้) — เพื่อให้ตารางสรุปรายเดือนโชว์วันที่ครบทุกวัน แม้วันไหน
 // ไม่มีออเดอร์เลยก็ยังเห็นวันที่นั้นอยู่ในตาราง (โชว์ว่างแทนเลข 0 ที่หน้าเรียก) พร้อมช่องหมายเหตุอธิบายได้ (เช่น "น้ำท่วม")
@@ -5713,6 +5747,11 @@ async function renderBillingSummaryTiles(){
 let slipMatchDraft_ = {amountStr:'', pick:null, paidDate:'', note:null, nearMsg:null, inbox:null};
 let slipMatchCands_ = null, slipMatchCandsAt_ = 0, slipMatchSeq_ = 0, slipMatchTimer_ = null, slipMatchBusy_ = false;
 const SLIP_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+// รายการวัน (iso) จากผล storage.list('day:...') — กรองเฉพาะรูปแบบ YYYY-MM-DD กันคีย์ day: แปลกๆ ไหลไปถึง innerHTML/attribute
+// ใช้กับ "แสดงผล/คำนวณ" เท่านั้น — ห้ามใช้กับสำรองข้อมูล (exportAllData) เพราะจะทำให้ไฟล์สำรองตกหล่นเงียบ
+function dayIsos_(listRes){
+  return ((listRes && listRes.keys) || []).map(k=>String(k).slice(4)).filter(iso=>SLIP_ISO_RE.test(iso));
+}
 function parseSlipAmount_(str){
   // ไม่เดา: รับเฉพาะตัวเลขล้วน (ตัด , ฿ ช่องว่าง) ทศนิยมไม่เกิน 2 ตำแหน่ง และมากกว่า 0 — นอกนั้นคืน null
   const t = String(str==null ? '' : str).replace(/[,฿\s]/g, '');
@@ -5730,7 +5769,7 @@ function slipMoney_(n){
 async function loadSlipCandidates_(force){
   if(!force && slipMatchCands_ && Date.now() - slipMatchCandsAt_ < 30000) return slipMatchCands_;
   const listRes = await window.storage.list('day:');
-  const isoList = ((listRes && listRes.keys) || []).map(k=>String(k).slice(4)).filter(iso=>SLIP_ISO_RE.test(iso));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const out = [];
   for(const iso of isoList){
@@ -6133,6 +6172,7 @@ function renderBillingTodayStats_(entries){
 }
 function renderBillingList(){
   renderNoStockCard_();
+  renderBackorderCard_();
   const wrap = document.getElementById('billingList');
   const entries = Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row));
   renderBillingTodayStats_(entries);
@@ -6177,6 +6217,8 @@ function renderBillingList(){
       </div>
       ${paidInfoLine}
       ${(()=>{ const ns = noStockItems_(dayData, code, row); return ns.length ? `<div class="d nostock-row" data-nostockrow="${escapeHtml(code)}">📦 ไม่มีสินค้า: ${ns.map(p=>escapeHtml(p.name)).join(', ')} (ไม่คิดเงิน)</div>` : ''; })()}
+      ${(()=>{ const bo = backordersFrom_(currentDate, code); return bo.length ? `<div class="d nostock-row bo-tag" data-borowtag="${escapeHtml(code)}">📦 ค้างส่ง: ${bo.map(b=>escapeHtml(PRODUCTS.find(x=>x.id===b.pid).name)+' '+boQty_(b)+(b.status==='sent'?' (ส่งแล้ว)':'')).join(', ')} (บิลเต็ม)</div>` : ''; })()}
+      ${(()=>{ const cm = compensationsOn_(currentDate, code); return cm.length ? `<div class="d nostock-row bo-tag" data-cmprowtag="${escapeHtml(code)}">🚚 ส่งชดเชยวันนี้: ${cm.map(b=>escapeHtml(PRODUCTS.find(x=>x.id===b.pid).name)+' '+boQty_(b)).join(', ')} (฿0)</div>` : ''; })()}
       ${(()=>{ const sh = shortItems_(dayData, code, row); return sh.length ? `<div class="d nostock-row" data-shortrow="${escapeHtml(code)}">✂️ ส่งขาด: ${sh.map(x=>escapeHtml(x.p.name)+' '+x.short).join(', ')} (คิดเงินตามที่ส่งจริง)</div>` : ''; })()}
       ${showDatePicker ? `<div style="margin-top:8px;">
         <div style="display:flex;gap:6px;align-items:center;">
@@ -6415,6 +6457,8 @@ async function setShortQty_(code, pid, raw, input){
     const ord = Number(((fresh.orders[code])||{})[pid]||0);
     if(!(ord > 0)){ showToast('สาขานี้ไม่ได้สั่งสินค้านี้'); return false; }
     if(n > ord){ showToast(`ส่งขาดเกินจำนวนที่สั่ง (${ord}) ไม่ได้`); return false; }
+    if(n > 0){ try{ await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+      if(backorderQtyOf_(iso, code, pid) > 0){ showToast('สินค้านี้ตั้ง "ค้างส่ง (บิลเต็ม)" ไว้แล้ว — ยกเลิกอันนั้นก่อน'); return false; } }
     const prev = shortQtyOf_(fresh, code, pid);
     if(prev === n) return true;
     if(fresh.billingPaid[code]){
@@ -6497,6 +6541,11 @@ async function toggleNoStock_(code, pid, btn){
       path = ['noStock','branch',code,pid];
       affected = Number(((fresh.orders[code])||{})[pid]||0)>0 ? [code] : [];
     }
+    if(next){
+      try{ await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+      const boHit = affected.filter(c=>backorderQtyOf_(iso, c, pid) > 0);
+      if(boHit.length){ showToast(`สาขา ${boHit.join(', ')} ตั้ง "ค้างส่ง (บิลเต็ม)" ${p.name} ไว้แล้ว — ยกเลิกค้างส่งก่อน`); return false; }
+    }
     const paid = affected.filter(c=>fresh.billingPaid[c]);
     if(paid.length){
       dayCache_[iso] = fresh; writeDayToLocalStorage_(iso, fresh);
@@ -6529,6 +6578,273 @@ async function toggleNoStock_(code, pid, btn){
     if(btn && btn.isConnected) btn.disabled = false;
   }
 }
+// ---- ค้างส่ง + ส่งชดเชย (คีย์รายเดือน backorders:YYYY-MM ตามเดือนของ fromIso) ----
+// บิลเก็บเงินเต็มตามออเดอร์เสมอ (ไม่แตะ branchBillAmount/fee) — แค่บันทึกว่าของออกจากร้านจริงวันไหน เพื่อให้จำนวนสต๊อกตรง
+// {id, fromIso, code, pid, qty, status:'open'|'sent', sentIso, costExpenseId}
+// แยกคีย์รายเดือนกันคีย์โตเกินเพดาน 50,000 ตัวอักษร; โหลด 3 เดือนล่าสุด + 3 เดือนรอบวันที่ที่เปิดดู
+// เขียนผ่าน writeRootArrayOp_(boKey_(fromIso), …) ทีละรายการเท่านั้น
+const BO_PREFIX = 'backorders:';
+let backordersCache_ = null, backorderBusy_ = false;
+const boByMonth_ = {}, boMonthAt_ = {};
+function boKey_(iso){ return BO_PREFIX + String(iso).slice(0,7); }
+function boMonthsAround_(iso){
+  const out = [];
+  let [y, m] = String(iso).slice(0,7).split('-').map(Number);
+  for(let i=0; i<3; i++){ out.push(`${y}-${String(m).padStart(2,'0')}`); m--; if(m<1){ m=12; y--; } }
+  return out;
+}
+function boValid_(b){
+  return b && typeof b.id==='string' && typeof b.code==='string' && SLIP_ISO_RE.test(String(b.fromIso)) && PRODUCTS.some(p=>p.id===b.pid)
+    && (b.status==='open' || (b.status==='sent' && SLIP_ISO_RE.test(String(b.sentIso))));
+}
+function boRebuild_(){ backordersCache_ = Object.values(boByMonth_).flat(); }
+function boSetMonth_(month, arr){ boByMonth_[month] = (Array.isArray(arr) ? arr : []).filter(boValid_); boMonthAt_[month] = Date.now(); boRebuild_(); }
+async function loadBackorders_(force, anchorIso){
+  const months = Array.from(new Set([...boMonthsAround_(todayISO()), ...boMonthsAround_(anchorIso || currentDate || todayISO())]));
+  const need = months.filter(m=> force || !boMonthAt_[m] || Date.now() - boMonthAt_[m] > 60000);
+  if(need.length){
+    const vals = await window.bulkGetStorageImpl(need.map(m=>BO_PREFIX+m));
+    need.forEach(m=>{ let arr = []; try{ arr = JSON.parse(vals[BO_PREFIX+m]); }catch(e){} boSetMonth_(m, arr); });
+  }else if(!backordersCache_) boRebuild_();
+  return backordersCache_;
+}
+async function writeBackorders_(fromIso, ops){
+  const month = String(fromIso).slice(0,7);
+  return writeRootArrayOp_(boKey_(fromIso), ops, a=>boSetMonth_(month, a));
+}
+function boQty_(b){ const v = Number(b && b.qty); return (isFinite(v) && v > 0) ? Math.round(v*10)/10 : 0; }
+function backordersFrom_(iso, code){ return (backordersCache_||[]).filter(b=>b.fromIso===iso && (code==null || b.code===code)); }
+function compensationsOn_(iso, code){ return (backordersCache_||[]).filter(b=>b.status==='sent' && b.sentIso===iso && (code==null || b.code===code)); }
+function backorderQtyOf_(iso, code, pid){ return backordersFrom_(iso, code).filter(b=>b.pid===pid).reduce((s,b)=>s+boQty_(b),0); }
+// จำนวนที่ "ออกจากร้านจริง" ของวัน (ใช้กับสต๊อก/ของเหลือ/ล็อต/ซื้อ): ส่งจริงหลังไม่มีสินค้า/ส่งขาด − ค้างส่งของวันนี้ + ส่งชดเชยวันนี้
+function shippedTotals_(d, iso){
+  const t = {}; PRODUCTS.forEach(p=>t[p.id]=0);
+  Object.entries((d && d.orders) || {}).forEach(([code,row])=>{
+    const r = billRow_(d, code, row);
+    PRODUCTS.forEach(p=>{ t[p.id] += Number(r[p.id]||0); });
+  });
+  backordersFrom_(iso).forEach(b=>{ t[b.pid] -= boQty_(b); });
+  compensationsOn_(iso).forEach(b=>{ t[b.pid] += boQty_(b); });
+  PRODUCTS.forEach(p=>{ t[p.id] = Math.max(0, Math.round(t[p.id]*100)/100); });
+  return t;
+}
+function backorderSummaryText_(iso){
+  const parts = [];
+  backordersFrom_(iso).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); parts.push(`ค้างส่ง ${p.name} ${boQty_(b)} (สาขา ${b.code}${b.status==='sent' ? ', ส่งแล้ว '+formatDDMMYYYY(b.sentIso) : ''})`); });
+  compensationsOn_(iso).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); parts.push(`ส่งชดเชย ${p.name} ${boQty_(b)} (สาขา ${b.code}, ค้างจาก ${formatDDMMYYYY(b.fromIso)})`); });
+  return parts.join(' · ');
+}
+// ช่องในบิลที่เปิด: ค้างส่ง (บิลเต็ม)
+function backorderBranchBarHtml_(code){
+  const row = dayData.orders[code] || {};
+  const prods = PRODUCTS.filter(p=>Number(row[p.id]||0)>0 && !isNoStock_(dayData, code, p.id));
+  if(!prods.length) return '';
+  return `<div class="nostock-bar" data-bobar="${escapeHtml(code)}"><span class="nostock-lbl">📦 ค้างส่ง (บิลเต็ม ร้านส่งชดเชย):</span>${prods.map(p=>{
+    const items = backordersFrom_(currentDate, code).filter(b=>b.pid===p.id);
+    const q = items.reduce((s,b)=>s+boQty_(b),0), sent = items.some(b=>b.status==='sent'), ord = Number(row[p.id]||0);
+    return `<label class="short-in${q?' on':''}">${p.emoji} ${escapeHtml(p.name)} <input type="number" inputmode="decimal" min="0" max="${ord}" step="0.1" data-nsbo="${p.id}" value="${q||''}" placeholder="0"${sent?' disabled':''} aria-label="${escapeHtml('ค้างส่ง '+p.name+' (สั่ง '+ord+')')}"><small>/${ord}${sent?' ส่งแล้ว':''}</small></label>`;
+  }).join('')}</div>`;
+}
+function boGuard_(isos){
+  if(isOffline_() || readOfflineQueue_().length){ showToast('ต้องต่อเน็ตก่อน'); return false; }
+  for(const iso of isos){ if(iso && isMonthClosed_(iso)){ showToast(`เดือนของวันที่ ${formatDDMMYYYY(iso)} ปิดแล้ว แก้ไม่ได้`); return false; } }
+  return true;
+}
+// ตั้ง/แก้/ลบ ค้างส่งของสาขา+สินค้าในวันที่เปิดอยู่ (n = 0 → ลบ) — ห้ามซ้อนกับ ✂️ ส่งขาด/ไม่มีสินค้า
+async function setBackorderQty_(code, pid, raw, input){
+  const p = PRODUCTS.find(x=>x.id===pid);
+  if(!p || code==null) return false;
+  const str = String(raw==null?'':raw).trim();
+  const n = str==='' ? 0 : Number(str);
+  if(!isFinite(n) || n < 0 || Math.round(n*10) !== n*10){ showToast('ใส่จำนวนค้างส่งเป็นตัวเลข 0 ขึ้นไป (ทศนิยม 1 ตำแหน่ง)'); return false; }
+  const iso = currentDate;
+  if(!boGuard_([iso])) return false;
+  if(backorderBusy_) return false;
+  backorderBusy_ = true;
+  if(input) input.disabled = true;
+  try{
+    let fresh;
+    try{ const r = await window.storage.get('day:'+iso); fresh = normalizeDay_(JSON.parse(r.value)); }
+    catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้เปลี่ยน'); return false; }
+    const ord = Number(((fresh.orders[code])||{})[pid]||0);
+    if(n > 0 && !(ord > 0)){ showToast('สาขานี้ไม่ได้สั่งสินค้านี้'); return false; }
+    if(n > ord){ showToast(`ค้างส่งเกินจำนวนที่สั่ง (${ord}) ไม่ได้`); return false; }
+    if(n > 0 && (shortQtyOf_(fresh, code, pid) > 0 || isNoStock_(fresh, code, pid))){ showToast('สินค้านี้ตั้ง "ส่งขาด/ไม่มีสินค้า" (ลดบิล) ไว้แล้ว — ยกเลิกอันนั้นก่อน'); return false; }
+    let all;
+    try{ all = await loadBackorders_(true, iso); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+    const cur = all.filter(b=>b.fromIso===iso && b.code===code && b.pid===pid);
+    if(cur.some(b=>b.status==='sent')){ showToast('รายการนี้ส่งชดเชยแล้ว — ยกเลิกการส่งก่อนแก้จำนวน'); return false; }
+    const prev = cur.reduce((s,b)=>s+boQty_(b),0);
+    if(prev === n) return true;
+    const ops = cur.map(b=>({remove:{matchField:'id', matchValue:b.id}}));
+    if(n > 0) ops.push({push:{id: uid('bo'), fromIso: iso, code, pid, qty: n, status:'open', sentIso:null, costExpenseId:null}});
+    try{ await writeBackorders_(iso, ops); }
+    catch(e){ showToast('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    logActivity_(`ค้างส่ง ${p.name} ${prev} → ${n} สาขา ${code} (บิลเต็ม) — วันที่ ${formatDDMMYYYY(iso)}`);
+    showToast(n ? `บันทึกค้างส่ง ${p.name} ${n} (สาขา ${code}) — บิลยังเต็ม` : `ยกเลิกค้างส่ง ${p.name} (สาขา ${code})`);
+    renderBillingList();
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(input && input.isConnected) input.disabled = false;
+  }
+}
+// ส่งชดเชย: open → sent (+ ค่าส่ง → รายจ่ายหมวด ค่าส่ง/ลาล่า ของวันที่ส่ง)
+async function sendBackorder_(id, sentIso, costRaw, btn){
+  if(!SLIP_ISO_RE.test(String(sentIso||''))){ showToast('เลือกวันที่ส่ง'); return false; }
+  const cost = String(costRaw==null?'':costRaw).trim()==='' ? 0 : Number(costRaw);
+  if(!isFinite(cost) || cost < 0){ showToast('ค่าส่งต้องเป็นตัวเลข 0 ขึ้นไป'); return false; }
+  if(backorderBusy_) return false;
+  let all;
+  try{ all = await loadBackorders_(true); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+  const b = all.find(x=>x.id===id);
+  if(!b){ showToast('ไม่พบรายการนี้แล้ว'); renderBackorderCard_(); return false; }
+  if(b.status==='sent'){ showToast('รายการนี้ส่งชดเชยแล้ว'); renderBackorderCard_(); return false; }
+  if(sentIso < b.fromIso){ showToast('วันที่ส่งชดเชยต้องไม่ก่อนวันที่ค้าง'); return false; }
+  if(!boGuard_([b.fromIso, sentIso])) return false;
+  backorderBusy_ = true;
+  if(btn) btn.disabled = true;
+  try{
+    const p = PRODUCTS.find(x=>x.id===b.pid);
+    let expId = null;
+    if(!boMonthsAround_(sentIso).includes(String(b.fromIso).slice(0,7))){ showToast('ค้างส่งนานเกิน 2 เดือน — ส่งชดเชยจากการ์ดนี้ไม่ได้ ลงรายจ่าย/หมายเหตุบิลเอง'); return false; }
+    if(cost > 0){
+      // ค่าส่งของรายการนี้เคยบันทึกและติ๊กจ่ายไปแล้ว (รอบก่อนพังกลางทาง) → ห้ามเขียนทับเงียบๆ
+      try{ const r0 = await window.storage.get('day:'+sentIso); const d0 = normalizeDay_(JSON.parse(r0.value)); if((d0.expenses||[]).some(e=>e.id==='e-bo-'+id && e.paid)){ showToast('ค่าส่งของรายการนี้ถูกบันทึกและติ๊กจ่ายแล้ว — ใส่ค่าส่งเป็น 0 แล้วกดส่งอีกครั้ง'); return false; } }
+      catch(e){ if(!(e && e.message && e.message.indexOf('Key not found')===0)){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ส่งชดเชย'); return false; } }
+      const expense = {id: 'e-bo-'+id, category:'ค่าส่ง/ลาล่า', seller:'', note:`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (ค้างจาก ${formatDDMMYYYY(b.fromIso)})`, amount: Math.round(cost), paid:false};
+      try{
+        // id ตายตัวต่อรายการค้างส่ง: ลบของเดิม (ถ้าเคยค้างจากรอบที่พังกลางทาง) แล้วเพิ่ม — กดซ้ำกี่ครั้งก็ไม่เกิดค่าส่งซ้ำ
+        const fresh = await writeDayArrayOp_(sentIso, 'expenses', [{remove:{matchField:'id', matchValue: expense.id}}, {push: expense}]);
+        if(sentIso===currentDate) dayData = fresh;
+        expId = expense.id;
+        logActivity_(`เพิ่มรายจ่าย ค่าส่ง/ลาล่า ${money(expense.amount)} — วันที่ ${formatDDMMYYYY(sentIso)}`);
+      }catch(e){ showToast('บันทึกค่าส่งไม่สำเร็จ ยังไม่ได้ส่งชดเชย'); return false; }
+    }
+    try{
+      await writeBackorders_(b.fromIso, {matchField:'id', matchValue:id, set:{status:'sent', sentIso, costExpenseId: expId, sentAt: new Date().toISOString()}});
+    }catch(e){ showToast(`บันทึกส่งชดเชยไม่สำเร็จ${expId ? ' (ค่าส่งบันทึกแล้ว — ตรวจที่รายจ่ายวันที่ '+formatDDMMYYYY(sentIso)+')' : ''}`); return false; }
+    logActivity_(`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (ค้างจาก ${formatDDMMYYYY(b.fromIso)}) วันที่ ${formatDDMMYYYY(sentIso)}${cost ? ' ค่าส่ง '+money(cost) : ''}`);
+    showToast(`ส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} แล้ว`);
+    renderBillingList(); try{ renderExpenseList(); renderStats(); }catch(e){}
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(btn && btn.isConnected) btn.disabled = false;
+  }
+}
+// ยกเลิกส่งชดเชย: sent → open (ลบรายจ่ายค่าส่งที่สร้างไว้ ถ้ายังไม่ติ๊กจ่าย)
+async function unsendBackorder_(id, btn){
+  if(backorderBusy_) return false;
+  let all;
+  try{ all = await loadBackorders_(true); }catch(e){ showToast('โหลดรายการค้างส่งไม่ได้ ลองใหม่'); return false; }
+  const b = all.find(x=>x.id===id);
+  if(!b || b.status!=='sent'){ renderBackorderCard_(); return false; }
+  if(!boGuard_([b.fromIso, b.sentIso])) return false;
+  backorderBusy_ = true;
+  if(btn) btn.disabled = true;
+  try{
+    if(b.costExpenseId){
+      let d;
+      try{ const r = await window.storage.get('day:'+b.sentIso); d = normalizeDay_(JSON.parse(r.value)); }
+      catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ ยังไม่ได้ยกเลิก'); return false; }
+      const ex = (d.expenses||[]).find(e=>e.id===b.costExpenseId);
+      if(ex && ex.paid){ showToast(`ค่าส่งของรายการนี้ติ๊กจ่ายแล้ว (วันที่ ${formatDDMMYYYY(b.sentIso)}) — ไปแก้ที่รายจ่ายก่อน`); return false; }
+      if(ex){
+        try{
+          const fresh = await writeDayArrayOp_(b.sentIso, 'expenses', {remove:{matchField:'id', matchValue:b.costExpenseId}});
+          if(b.sentIso===currentDate) dayData = fresh;
+        }catch(e){ showToast('ลบค่าส่งไม่สำเร็จ ยังไม่ได้ยกเลิก'); return false; }
+      }
+    }
+    try{
+      await writeBackorders_(b.fromIso, {matchField:'id', matchValue:id, set:{status:'open', sentIso:null, costExpenseId:null, sentAt:null}});
+    }catch(e){ showToast('ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง'); return false; }
+    const p = PRODUCTS.find(x=>x.id===b.pid);
+    logActivity_(`ยกเลิกส่งชดเชย ${p.name} ${boQty_(b)} สาขา ${b.code} (เดิมส่งวันที่ ${formatDDMMYYYY(b.sentIso)})`);
+    showToast('ยกเลิกส่งชดเชยแล้ว กลับเป็นค้างส่ง');
+    renderBillingList(); try{ renderExpenseList(); renderStats(); }catch(e){}
+    return true;
+  }finally{
+    backorderBusy_ = false;
+    if(btn && btn.isConnected) btn.disabled = false;
+  }
+}
+// การ์ด "📦 ค้างส่งชดเชย" (แท็บบิล): รายการค้าง + ส่งชดเชย + ใบส่งของชดเชยของวันที่เปิดอยู่ (สาขาที่ไม่มีออเดอร์วันนั้น)
+let backorderSendOpen_ = null;
+function compensationSlipText_(code, iso){
+  const bi = settings.billInfo, b = branchByCode(code), buyer = buyerInfoFor(b||{code});
+  const items = compensationsOn_(iso, code);
+  return [bi.sellerName, bi.sellerAddr1, bi.sellerAddr2, bi.sellerContact, '',
+    `ใบส่งของชดเชย (ไม่คิดเงิน)`, ...(buyer.name ? [`นาม ${buyer.name}`] : []), `วันที่ ${formatDDMMYYYY(iso)}`, '',
+    ...items.map(x=>{ const p = PRODUCTS.find(y=>y.id===x.pid); return `${boQty_(x)} ${p.id==='p7'?'กระปุก':p.unit}  ${p.name}  ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(x.fromIso)} = 0`; }),
+    '', 'รวมเงินทั้งหมด ฿0', `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`].join('\n');
+}
+function compensationSlipHtml_(code, iso){
+  const bi = settings.billInfo, b = branchByCode(code), buyer = buyerInfoFor(b||{code});
+  const items = compensationsOn_(iso, code);
+  return `<div class="scrollx"><div class="receipt" style="margin-top:10px;" id="receiptcard-cmp-${escapeHtml(code)}">
+    <div class="rheadtop"><img src="${LOGO_DATA_URI}" alt="${escapeHtml(bi.sellerName)}" class="receiptlogo">
+      <div class="rheadinfo"><div class="shopname">${escapeHtml(bi.sellerName)}</div><div class="addr">${escapeHtml(bi.sellerAddr1)}<br>${escapeHtml(bi.sellerAddr2)}<br>${escapeHtml(bi.sellerContact)}</div></div>
+      <div class="rheadmeta"><div class="rbillno">ใบส่งของชดเชย</div><div class="rdate">${formatDDMMYYYY(iso)}</div></div></div>
+    ${buyer.name ? `<div class="idrow"><div class="idlabel">นาม</div><div class="idvalue">${escapeHtml(buyer.name)}</div></div>` : ''}
+    <table><tr><th>จำนวน</th><th>รายการ</th><th class="num">จำนวนเงิน</th></tr>
+      ${items.map(x=>{ const p = PRODUCTS.find(y=>y.id===x.pid); return `<tr data-cmpline="${p.id}"><td>${boQty_(x)} ${p.id==='p7'?'กระปุก':p.unit}</td><td>${escapeHtml(p.name)} <span class="cmp-tag">ชดเชย</span><br><small>ค้างส่งจากวันที่ ${formatDDMMYYYY(x.fromIso)}</small></td><td class="num num">0</td></tr>`; }).join('')}
+    </table>
+    <div class="grand"><span>รวมเงินทั้งหมด</span><span class="num">฿0</span></div>
+    <div class="kv" style="margin-top:6px;font-size:12px;color:var(--text-dim);">📌 ส่งชดเชยของที่ค้างส่ง ไม่คิดเงิน (ชำระแล้วในบิลวันที่ค้าง)</div>
+  </div></div>`;
+}
+async function renderBackorderCard_(){
+  const wrap = document.getElementById('backorderCard');
+  if(!wrap) return;
+  let all;
+  try{ all = await loadBackorders_(); }catch(e){ wrap.innerHTML = ''; return; }
+  const iso = currentDate;
+  const open = all.filter(b=>b.status==='open').sort((a,b)=>a.fromIso.localeCompare(b.fromIso));
+  const sentToday = compensationsOn_(iso);
+  const slipCodes = Array.from(new Set(sentToday.map(b=>b.code))).filter(c=>!orderRowHasOrder_((dayData.orders||{})[c]));
+  if(!open.length && !sentToday.length){ wrap.innerHTML = ''; return; }
+  const pName = b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); return `${p.emoji} ${escapeHtml(p.name)} ${boQty_(b)} ${p.id==='p7'?'กระปุก':escapeHtml(p.unit)}`; };
+  const ageDays = b=> Math.max(0, Math.round((new Date(iso+'T00:00:00Z') - new Date(b.fromIso+'T00:00:00Z'))/86400000));
+  wrap.innerHTML = `<div class="card dash-wide-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 6px;">📦 ค้างส่งชดเชย <span class="subhint">(บิลเก็บเต็มแล้ว ร้านส่งให้ภายหลัง)</span></h3>
+    ${open.length ? open.map(b=>`<div class="bo-row" data-borow="${escapeHtml(b.id)}">
+        <div><b>${escapeHtml(b.code)} ${escapeHtml(branchName(b.code))}</b> · ${pName(b)}<small>ค้างจาก ${formatDDMMYYYY(b.fromIso)} · ${ageDays(b)} วัน</small></div>
+        ${backorderSendOpen_===b.id ? `<div class="bo-send">
+          <label>วันที่ส่ง <input type="date" data-bosenddate value="${escapeHtml(iso >= b.fromIso ? iso : b.fromIso)}"></label>
+          <label>ค่าส่ง (ถ้ามี) <input type="number" inputmode="decimal" min="0" step="1" data-bosendcost placeholder="0"></label>
+          <div class="slip-actions"><button type="button" class="btn" data-boconfirm="${escapeHtml(b.id)}">ยืนยันส่งชดเชย</button><button type="button" class="btn secondary" data-bocancel>ยกเลิก</button></div>
+          <div class="hint">ค่าส่งจะลงรายจ่ายหมวด "ค่าส่ง/ลาล่า" ของวันที่ส่ง · บิลไม่เปลี่ยน</div>
+        </div>` : `<button type="button" class="btn secondary small" data-bosend="${escapeHtml(b.id)}">🚚 ส่งชดเชย</button>`}
+      </div>`).join('') : `<div class="hint">ไม่มีของค้างส่ง</div>`}
+    ${sentToday.length ? `<div class="slip-head" style="margin-top:10px;">ส่งชดเชยวันนี้</div>${sentToday.map(b=>`<div class="bo-row" data-bosent="${escapeHtml(b.id)}"><div>${escapeHtml(b.code)} ${escapeHtml(branchName(b.code))} · ${pName(b)}<small>ค้างจาก ${formatDDMMYYYY(b.fromIso)}</small></div><button type="button" class="btn secondary small" data-bounsend="${escapeHtml(b.id)}">ยกเลิกส่ง</button></div>`).join('')}` : ''}
+    ${slipCodes.map(c=>`<div data-cmpslip="${escapeHtml(c)}">${compensationSlipHtml_(c, iso)}
+      <div style="display:flex;gap:8px;margin-top:8px;"><button class="btn secondary" data-cmpimg="${escapeHtml(c)}" style="width:auto;">🖼️ บันทึกเป็นรูปภาพ</button><button class="btn secondary" data-cmpcopy="${escapeHtml(c)}" style="width:auto;">คัดลอกข้อความ</button></div></div>`).join('')}
+  </div>`;
+  if(!wrap.__wired){
+    wrap.__wired = true;
+    wrap.addEventListener('click', async e=>{
+      const el = e.target && e.target.closest ? e.target.closest('[data-bosend],[data-bocancel],[data-boconfirm],[data-bounsend],[data-cmpimg],[data-cmpcopy]') : null;
+      if(!el || !wrap.contains(el)) return;
+      if(el.hasAttribute('data-bosend')){ backorderSendOpen_ = el.getAttribute('data-bosend'); renderBackorderCard_(); }
+      else if(el.hasAttribute('data-bocancel')){ backorderSendOpen_ = null; renderBackorderCard_(); }
+      else if(el.hasAttribute('data-boconfirm')){
+        const box = el.closest('.bo-send');
+        const ok = await sendBackorder_(el.getAttribute('data-boconfirm'), box.querySelector('[data-bosenddate]').value, box.querySelector('[data-bosendcost]').value, el);
+        if(ok){ backorderSendOpen_ = null; renderBackorderCard_(); }
+      }else if(el.hasAttribute('data-bounsend')){
+        if(!confirm('ยกเลิกส่งชดเชยรายการนี้? (กลับเป็นค้างส่ง และลบค่าส่งที่บันทึกไว้ถ้ายังไม่ติ๊กจ่าย)')) return;
+        if(await unsendBackorder_(el.getAttribute('data-bounsend'), el)) renderBackorderCard_();
+      }else if(el.hasAttribute('data-cmpimg')){ saveReceiptAsImage('cmp-'+el.getAttribute('data-cmpimg')); }
+      else if(el.hasAttribute('data-cmpcopy')){
+        const txt = compensationSlipText_(el.getAttribute('data-cmpcopy'), currentDate);
+        try{ await navigator.clipboard.writeText(txt); }catch(err){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+        showToast('คัดลอกใบส่งของชดเชยแล้ว');
+      }
+    });
+  }
+}
 function computeReceiptData(code, iso, d){
   iso = iso || currentDate; d = d || dayData;
   const row = d.orders[code];
@@ -6543,8 +6859,13 @@ function computeReceiptData(code, iso, d){
     if(sent <= 0) return [{p, qty, price, amount:0, noStock:true}]; // ส่งขาดทั้งหมด = เหมือนไม่มีสินค้า
     const out = [{p, qty: sent, price, amount: Math.round(sent*price)}];
     if(sent < qty) out.push({p, qty: Math.round((qty-sent)*10)/10, price, amount:0, shortLine:true}); // บรรทัดส่งขาด ฿0
+    // ค้างส่ง (บิลเต็ม): ยอดไม่เปลี่ยน แค่บอกว่าได้รับเท่าไร ค้างเท่าไร
+    const boQ = backorderQtyOf_(iso, code, p.id);
+    if(boQ > 0) out[0].bo = {qty: boQ, recv: Math.max(0, Math.round((sent-boQ)*10)/10), sent: backordersFrom_(iso, code).some(b=>b.pid===p.id && b.status==='sent')};
     return out;
   }).flat();
+  // ส่งชดเชยของที่ค้างจากวันก่อน: บรรทัด ฿0 (ยอดไม่เพิ่ม)
+  compensationsOn_(iso, code).forEach(b=>{ const p = PRODUCTS.find(x=>x.id===b.pid); if(p) items.push({p, qty: boQty_(b), price:0, amount:0, comp:true, fromIso: b.fromIso}); });
   // สินค้าอื่นๆ (นอกแคตตาล็อก) ใช้ราคาที่พิมพ์เองตอนบันทึกออเดอร์ตรงๆ (ไม่มี priceOnDate ให้ค้นเหมือนสินค้าหลัก)
   (row.custom||[]).forEach(it=>{
     const qty = Number(it.qty||0); const price = Number(it.price||0); const amount = Math.round(qty*price);
@@ -6590,13 +6911,16 @@ function buildReceiptCardHTML(code, iso, d, cardId){
       </div>` : ''}
       <table>
         <tr><th>จำนวน</th><th>รายการ</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr>
-        ${items.map(it=>it.custom
+        ${items.map(it=>it.comp
+          ? `<tr class="r-cmp" data-cmpline="${it.p.id}"><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${escapeHtml(it.p.name)} <span class="cmp-tag">ชดเชย</span><br><small>ค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)}</small></td><td class="num num">-</td><td class="num num">0</td></tr>`
+          : it.custom
           ? `<tr><td>${it.qty}</td><td>${escapeHtml(it.name)}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
           : it.shortLine
           ? `<tr class="r-nostock" data-shortline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ส่งขาด</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : it.noStock
           ? `<tr class="r-nostock" data-nostockline="${it.p.id}"><td><s>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</s></td><td><s>${escapeHtml(it.p.name)}</s> <span class="nostock-tag">ไม่มีสินค้า</span></td><td class="num num"><s>${it.price}</s></td><td class="num num">0</td></tr>`
           : `<tr><td>${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</td><td>${it.p.name}</td><td class="num num">${it.price}</td><td class="num num">${it.amount.toLocaleString('th-TH')}</td></tr>`
+            + (it.bo ? `<tr class="r-bo" data-boline="${it.p.id}"><td colspan="4">↳ ได้รับ ${it.bo.recv} · <b>ค้างส่ง ${it.bo.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}</b> — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}</td></tr>` : '')
         ).join('')}
       </table>
       <div class="totline"><span>ผลรวมย่อย</span><span class="num">${subtotal.toLocaleString('th-TH')}</span></div>
@@ -6622,9 +6946,15 @@ async function toggleReceipt(code){
       <input type="text" data-billnote="${code}" value="${escapeHtml(dayData.billNote&&dayData.billNote[code])}" placeholder="+ หมายเหตุบิลนี้ (ถ้ามี)" style="flex:1;font-size:12.5px;">
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap;"><input type="checkbox" data-billnoteshow="${code}" ${(dayData.billNoteShowOnBill&&dayData.billNoteShowOnBill[code])?'checked':''}> ลงในบิล</label>
     </div>
-    ${noStockBranchChipsHtml_(code)}`;
+    ${noStockBranchChipsHtml_(code)}
+    ${backorderBranchBarHtml_(code)}`;
   const {items, subtotal, extra, total, bi, buyer, billNo, claimNotes} = computeReceiptData(code);
   holder.querySelector(`[data-savebillimg="${code}"]`).addEventListener('click', ()=>saveReceiptAsImage(code));
+  holder.querySelectorAll('[data-nsbo]').forEach(inp=>inp.addEventListener('change', async ()=>{
+    const ok = await setBackorderQty_(code, inp.getAttribute('data-nsbo'), inp.value, inp);
+    if(ok){ holder.innerHTML=''; toggleReceipt(code); }
+    else inp.value = backorderQtyOf_(currentDate, code, inp.getAttribute('data-nsbo')) || '';
+  }));
   holder.querySelectorAll('[data-nsshort]').forEach(inp=>inp.addEventListener('change', async ()=>{
     const ok = await setShortQty_(code, inp.getAttribute('data-nsshort'), inp.value, inp);
     if(ok){ holder.innerHTML=''; toggleReceipt(code); }
@@ -6670,7 +7000,7 @@ async function toggleReceipt(code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(currentDate)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.comp ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)} = 0` : it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` + (it.bo ? `\n   ↳ ได้รับ ${it.bo.recv} · ค้างส่ง ${it.bo.qty} — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}` : '')),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(currentDate)}`
@@ -6730,7 +7060,7 @@ async function toggleBranchDetailReceipt(iso, code){
       `บิลเงินสด #${billNo}${isFeeExempt(code)?' (ส่งแยกบิล)':''}`, ...(buyer.name ? [`นาม ${buyer.name}`] : []),
       ...(buyer.addr ? [`ที่อยู่จัดส่ง ${splitAddrLines_(buyer.addr).join('\n')}`] : []), ...(buyer.tax ? [`เลขประจำตัวผู้เสียภาษี ${buyer.tax}`] : []),
       `วันที่ ${formatDDMMYYYY(iso)}`, '',
-      ...items.map(it=>it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}`),
+      ...items.map(it=>it.comp ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ชดเชยค้างส่งจากวันที่ ${formatDDMMYYYY(it.fromIso)} = 0` : it.custom ? `${it.qty}  ${it.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` : it.shortLine ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ส่งขาด = 0` : it.noStock ? `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  — ไม่มีสินค้า = 0` : `${it.qty} ${it.p.id==='p7'?'กระปุก':it.p.unit}  ${it.p.name}  ${it.price} x ${it.qty} = ${it.amount.toLocaleString('th-TH')}` + (it.bo ? `\n   ↳ ได้รับ ${it.bo.recv} · ค้างส่ง ${it.bo.qty} — ${it.bo.sent ? 'ส่งชดเชยแล้ว' : 'ร้านส่งชดเชยให้ (ไม่คิดเงินเพิ่ม)'}` : '')),
       '', `ผลรวมย่อย ${subtotal.toLocaleString('th-TH')}`, `ค่าใช้จ่ายเพิ่มเติม/เคลม ${curExtra}`, `รวมเงินทั้งหมด ${money(curTotal)}`, `(${bahtText(curTotal)})`, '',
       ...(claimNotes.length ? [...claimNotes.map(n=>`📌 ${n}`), ''] : []),
       `🦀${bi.sellerName} ขอขอบคุณที่ให้เราดูแลออเดอร์คุณ🦀`, `№ ${billNo} • ${formatDDMMYYYY(iso)}`
@@ -6942,12 +7272,68 @@ function renderExpenseList(){
   updateBillSummaryVisibility();
   applyDailyExpenseRoutine_();
 }
+// ค่าสินค้า/ค่าส่ง: หมวดสองชื่อนี้ตั้งเป็นชื่อคงที่ (ต้องตรงกับชื่อในการตั้งค่าหมวดรายจ่าย)
+// ค่าสินค้าเปิดรายการสินค้าหลายแถว (ชื่อ/จำนวน/ราคา/ค่าใช้จ่ายเพิ่มเติม) + ค่าส่งแบบเลือกได้ — จำนวนเงินรวมคำนวณให้ (ช่องจำนวนเงินล็อก)
+// ส่วนหมวดค่าส่ง/ลาล่าเพิ่มช่อง "ระบุ" ขนส่ง — ทุกค่าเก็บเป็นฟิลด์เสริมของรายการเดิม จึงไม่กระทบยอดรวม/P&L ที่อ่าน amount เหมือนเดิม
+const EXP_GOODS_CAT_ = 'ค่าสินค้า';
+const EXP_TRANSPORT_CAT_ = 'ค่าส่ง/ลาล่า';
+let expGoodsRows_ = [];
+function expGoodsMode_(){ const el = document.getElementById('expCategory'); return !!el && el.value===EXP_GOODS_CAT_; }
+function expGoodsItemsSum_(){ return expGoodsRows_.reduce((s,r)=>s+(Number(r.qty)||0)*(Number(r.price)||0)+(Number(r.extra)||0),0); }
+function expGoodsShipSum_(){ return document.getElementById('expShipToggle')?.checked ? (Number(document.getElementById('expShipPrice')?.value)||0) : 0; }
+function expGoodsSum_(){ return Math.round((expGoodsItemsSum_()+expGoodsShipSum_())*100)/100; }
+function expGoodsTotalText_(){
+  const items = expGoodsItemsSum_(), ship = expGoodsShipSum_();
+  return `สินค้า ${money(items)}${ship?` + ค่าส่ง ${money(ship)}`:''} = รวม ${money(items+ship)}`;
+}
+function renderExpGoods_(){
+  const box = document.getElementById('expGoodsBox'); if(!box) return;
+  const cat = document.getElementById('expCategory').value;
+  const goods = cat===EXP_GOODS_CAT_;
+  box.style.display = goods ? '' : 'none';
+  document.getElementById('expTransportBox').style.display = cat===EXP_TRANSPORT_CAT_ ? '' : 'none';
+  const amt = document.getElementById('expAmount');
+  amt.readOnly = goods;
+  if(goods){
+    if(!expGoodsRows_.length) expGoodsRows_.push({name:'', qty:'', price:'', extra:''});
+    document.getElementById('expShipBox').style.display = document.getElementById('expShipToggle').checked ? '' : 'none';
+    document.getElementById('expGoodsRows').innerHTML = expGoodsRows_.map((r,i)=>`
+      <div data-goodsrow="${i}" style="display:grid;grid-template-columns:1fr 64px 84px 84px auto;gap:6px;align-items:end;">
+        <div><label style="font-size:11px;">ชื่อสินค้า</label><input type="text" data-gf="name" value="${escapeHtml(r.name)}" placeholder="เช่น กุ้งตัด"></div>
+        <div><label style="font-size:11px;">จำนวน</label><input type="number" step="0.01" data-gf="qty" value="${escapeHtml(r.qty)}" placeholder="0"></div>
+        <div><label style="font-size:11px;">ราคา/หน่วย</label><input type="number" step="0.01" data-gf="price" value="${escapeHtml(r.price)}" placeholder="0"></div>
+        <div><label style="font-size:11px;">ค่าเพิ่มเติม</label><input type="number" step="0.01" data-gf="extra" value="${escapeHtml(r.extra)}" placeholder="0"></div>
+        <button type="button" class="iconbtn" data-goodsdel="${i}" aria-label="ลบแถวนี้" ${expGoodsRows_.length>1?'':'disabled style="opacity:.3;"'}>✕</button>
+      </div>`).join('');
+    document.getElementById('expGoodsTotal').textContent = expGoodsTotalText_();
+    amt.value = expGoodsSum_() || '';
+  }
+}
+function wireExpGoods_(){
+  const box = document.getElementById('expGoodsBox'); if(!box || box.dataset.wired) return;
+  box.dataset.wired = '1';
+  const refreshTotals = ()=>{ document.getElementById('expGoodsTotal').textContent = expGoodsTotalText_(); document.getElementById('expAmount').value = expGoodsSum_() || ''; };
+  document.getElementById('expCategory').addEventListener('change', renderExpGoods_);
+  document.getElementById('expShipToggle').addEventListener('change', renderExpGoods_);
+  document.getElementById('expShipPrice').addEventListener('input', refreshTotals);
+  document.getElementById('expGoodsAddRow').addEventListener('click', ()=>{ expGoodsRows_.push({name:'', qty:'', price:'', extra:''}); renderExpGoods_(); });
+  box.addEventListener('input', e=>{
+    const inp = e.target.closest('[data-gf]'); if(!inp) return;
+    const idx = Number(inp.closest('[data-goodsrow]').dataset.goodsrow);
+    expGoodsRows_[idx][inp.dataset.gf] = inp.value;
+    refreshTotals();
+  });
+  box.addEventListener('click', e=>{
+    const del = e.target.closest('[data-goodsdel]'); if(!del) return;
+    expGoodsRows_.splice(Number(del.dataset.goodsdel),1); renderExpGoods_();
+  });
+}
 // แกนกลางบันทึกรายจ่าย ใช้ร่วมกันทั้งฟอร์มเดิมในแท็บต้นทุนซื้อ (addExpense) และ modal เพิ่มรายจ่ายด่วนบนแดชบอร์ด
 // (addExpenseFromDashboard) — กันไม่ให้ตรรกะบันทึก/validate เพี้ยนกันระหว่างสองฟอร์ม คืน true/false ว่าบันทึกสำเร็จไหม
-async function addExpenseCore_(category, seller, note, amount, isoOverride){
+async function addExpenseCore_(category, seller, note, amount, isoOverride, detail){
   if(!category || amount<=0){ showToast('กรอกหมวดและจำนวนเงินให้ครบ'); return false; }
   const iso = isoOverride || currentDate;
-  const expense = {id: uid('e'), category, seller, note, amount, paid:false};
+  const expense = {id: uid('e'), category, seller, note, amount, paid:false, ...(detail||{})};
   // เพิ่มรายการแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps push) แทน push เข้า dayData แล้ว saveDay() ทั้งก้อน — เดิมถ้ามีคน
   // อื่นบันทึกอะไรของวันเดียวกันคาบเกี่ยวกัน (เช่นอีกคนบันทึกต้นทุนซื้อพร้อมกัน) ใครบันทึกทีหลังจะทับของอีกคนแบบเงียบๆ
   const fresh = await writeDayArrayOp_(iso, 'expenses', {push: expense});
@@ -6962,10 +7348,27 @@ async function addExpenseCore_(category, seller, note, amount, isoOverride){
 async function addExpense(){
   const category = document.getElementById('expCategory').value;
   const seller = readPayeeOtherValue_('expPayee', 'expPayeeOther');
-  const note = document.getElementById('expNote').value.trim();
-  const amount = Number(document.getElementById('expAmount').value||0);
-  const ok = await addExpenseCore_(category, seller, note, amount);
+  let note = document.getElementById('expNote').value.trim();
+  let amount = Number(document.getElementById('expAmount').value||0);
+  let detail = null;
+  if(expGoodsMode_()){
+    const items = expGoodsRows_.map(r=>({name:String(r.name||'').trim(), qty:Number(r.qty)||0, price:Number(r.price)||0, extra:Number(r.extra)||0}));
+    if(items.some(it=>!it.name || it.qty<=0 || it.price<0 || it.extra<0)){ showToast('ค่าสินค้า: ต้องระบุชื่อ จำนวน (>0) และราคาทุกรายการ'); return; }
+    const shipOn = document.getElementById('expShipToggle').checked;
+    const shipping = shipOn ? {carrier:document.getElementById('expShipCarrier').value.trim(), price:Number(document.getElementById('expShipPrice').value)||0, note:document.getElementById('expShipNote').value.trim()} : null;
+    if(shipping && (!shipping.carrier || shipping.price<0)){ showToast('ค่าส่ง: ต้องระบุขนส่งและราคา'); return; }
+    amount = expGoodsSum_();
+    if(!note) note = items.map(it=>`${it.name} ${it.qty}×${it.price}${it.extra?` +${it.extra}`:''}`).join(', ');
+    detail = {items, ...(shipping?{shipping}:{})};
+  } else if(category===EXP_TRANSPORT_CAT_){
+    const carrier = document.getElementById('expTransportCarrier').value.trim();
+    if(!carrier){ showToast('กรุณาระบุขนส่ง/ผู้ให้บริการ'); return; }
+    detail = {carrier};
+    if(!note) note = carrier;
+  }
+  const ok = await addExpenseCore_(category, seller, note, amount, undefined, detail);
   if(!ok) return;
+  if(detail){ expGoodsRows_ = []; document.getElementById('expShipToggle').checked = false; ['expShipCarrier','expShipPrice','expShipNote','expTransportCarrier'].forEach(id=>{ document.getElementById(id).value=''; }); renderExpGoods_(); }
   // addExpenseCore_ เรียก renderExpenseList() ไปแล้วข้างใน ซึ่งถ้าวันนี้มีออเดอร์จะสั่ง applyDailyExpenseRoutine_() กรอกฟอร์ม
   // ล่วงหน้าให้ขั้นถัดไปอัตโนมัติ (เช่น ค่าแรงพี่พัฒน์ 700 -> น้ำแข็งพี่พัฒน์) ไปแล้ว ห้ามมาเคลียร์ทับตรงนี้ซ้ำ ไม่งั้นจะล้างค่าที่
   // เพิ่งกรอกไว้ให้อัตโนมัติจนว่างเปล่าไปเฉยๆ — เคลียร์ฟอร์มเองแบบเดิมเฉพาะวันที่ไม่มีออเดอร์เลย (ไม่มีรูทีนมาจัดการให้)
@@ -7278,7 +7681,7 @@ function sumWasteForMonth_(wasteRecords, monthVal){
 }
 async function computeMonthFinancials(monthVal){
   const listRes = await window.storage.list('day:'+monthVal);
-  const isoList = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const debtsByOwner = await computeDebtPaymentsByOwnerForMonth(monthVal);
   const wasteRecords = await loadWasteRecords();
@@ -7427,8 +7830,8 @@ async function renderMonthPL(){
     if(dayEntries.length){
       const bestDay = dayEntries.reduce((a,b)=>b[1].revenue>a[1].revenue?b:a);
       const worstDay = dayEntries.reduce((a,b)=>b[1].revenue<a[1].revenue?b:a);
-      bestDayHtml = `<div class="hint">ยอดขายสูงสุด: ${formatDDMMYYYY(bestDay[0])} (${money(bestDay[1].revenue)})</div>`;
-      worstDayHtml = `<div class="hint">ยอดขายต่ำสุด: ${formatDDMMYYYY(worstDay[0])} (${money(worstDay[1].revenue)})</div>`;
+      bestDayHtml = `<div class="hint">ยอดขายสูงสุด: ${escapeHtml(formatDDMMYYYY(bestDay[0]))} (${money(bestDay[1].revenue)})</div>`;
+      worstDayHtml = `<div class="hint">ยอดขายต่ำสุด: ${escapeHtml(formatDDMMYYYY(worstDay[0]))} (${money(worstDay[1].revenue)})</div>`;
     }
     const sign = v => v>=0 ? 'success' : 'danger';
     const row = (label, val, kind) => `<tr><td>${label}</td><td class="num" style="color:${kind==='neg'?'var(--danger)':kind==='pos'?'var(--success)':'var(--text-faint)'};">${val}</td></tr>`;
@@ -7553,7 +7956,7 @@ function buildMonthInsightsHtml(r, prevR){
 }
 async function computeYearFinancials(year){
   const listRes = await window.storage.list('day:'+year);
-  const allIso = (listRes && listRes.keys ? listRes.keys : []).map(k=>k.slice(4));
+  const allIso = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(allIso);
   const debts = await loadDebts();
   const wasteRecords = await loadWasteRecords();
@@ -7690,8 +8093,7 @@ let allExpActionInFlight = false;
 let allExpenseRowsCache_ = null;
 async function buildAllExpenseRows_(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   const today = todayISO();
   let rows = []; // เก็บทุกรายการไว้ก่อน ไม่กรองตามแท็บ เพื่อให้สรุปยอดของคู่ค้าถูกต้องเสมอไม่ว่าจะเปิดแท็บไหนอยู่
@@ -7699,7 +8101,7 @@ async function buildAllExpenseRows_(){
     const d = dayMap[iso];
     (d.expenses||[]).forEach(e=>{
       const delay = e.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
-      rows.push({iso, label:escapeHtml(e.category)+(e.note?` — ${escapeHtml(e.note)}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
+      rows.push({iso, label:(e.category||'')+(e.note?` — ${e.note}`:''), amount:e.amount, paid:e.paid, paidDate:e.paidDate||null, delay, seller:e.seller||'', type:'exp', key:`exp:${iso}:${e.id}`, expId:e.id});
     });
     // รวมรายการซื้อของทุกสินค้าที่เป็นผู้ขายเดียวกันในวันเดียวกัน (+ ค่าใช้จ่ายเพิ่มเติมบิล) ให้เป็น "บิลเดียว" หนึ่งแถว
     // เพราะโอนเงินตามยอดบิลจริงทีเดียว ไม่ได้แยกโอนเป็นรายสินค้า
@@ -7721,6 +8123,7 @@ async function buildAllExpenseRows_(){
       const delay = g.paid ? null : Math.round((new Date(today)-new Date(iso))/86400000);
       const itemLabel = g.items.map(e=>{ if(e.customName) return '📦'+e.customName; const p=PRODUCTS.find(x=>x.id===e.productId); return p?p.emoji+p.name:e.productId; }).join(' ');
       const paidDate = ((d.purchaseGroupPayment||{})[seller]||{}).paidDate || null;
+      // label เก็บเป็นข้อความดิบ — escapeHtml ที่จุดแสดงผลที่เดียว (กัน &amp; ซ้อน)
       // ไม่ใส่ชื่อคู่ค้าซ้ำในป้ายชื่อแล้ว เพราะย้ายไปขึ้นต้นแถวแทน (ดูส่วนแสดงผลด้านล่าง)
       rows.push({iso, label:`ซื้อของ${itemLabel?': '+itemLabel:''}`, amount:g.amount, paid:g.paid, paidDate, delay, seller, type:'pg', key:`pg:${iso}:${seller}`});
     });
@@ -7796,13 +8199,13 @@ async function renderAllExpenseList(skipReload){
           <span class="allexp-name">${escapeHtml(r.seller) || 'ไม่ระบุคู่ค้า'}${r.sellerNote?` (${escapeHtml(r.sellerNote)})`:''}</span>
           <span class="allexp-amount">${money(r.amount)}</span>
           <span class="allexp-date${r.paid?' paid':''}">${r.paid ? `✅ ${r.paidDate?formatDDMMYYYY(r.paidDate):'-'}` : '—'}</span>
-          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${r.key}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
+          <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-allexppay="${escapeHtml(r.key)}">${r.paid?'จ่ายแล้ว':`ค้าง ${r.delay} วัน`}</button>
         </div>
-        <div class="d" style="margin-top:2px;">${formatDDMMYYYY(r.iso)} • ${r.label}</div>
+        <div class="d" style="margin-top:2px;">${escapeHtml(formatDDMMYYYY(r.iso))} • ${escapeHtml(r.label)}</div>
         ${editing ? `<div style="display:flex;gap:6px;margin-top:8px;">
           <input type="date" id="allexpdate-${encodeURIComponent(r.key)}" value="${lastUsedPayDate}" style="flex:1;">
-          <button class="btn small" data-allexpconfirm="${r.key}" style="width:auto;">ยืนยัน</button>
-          <button class="btn small secondary" data-allexpcancel="${r.key}" style="width:auto;">ยกเลิก</button>
+          <button class="btn small" data-allexpconfirm="${escapeHtml(r.key)}" style="width:auto;">ยืนยัน</button>
+          <button class="btn small secondary" data-allexpcancel="${escapeHtml(r.key)}" style="width:auto;">ยกเลิก</button>
         </div>` : ''}
       </div>`;
     }).join('');
@@ -7881,8 +8284,7 @@ async function renderAllExpenseList(skipReload){
 }
 async function computeAllExpensePayables(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   let total = 0, count = 0;
   for(const iso of isoList){
@@ -8093,8 +8495,7 @@ async function computeOutstandingYearTotal_(year, filterMode, branchFilter){
   const includePaid = filterMode==='paid' || filterMode==='all';
   const includeUnpaid = filterMode==='unpaid' || filterMode==='all';
   const listRes = await window.storage.list('day:'+year);
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes);
   const dayMap = await loadDaysBulk(isoList);
   let count = 0;
   isoList.forEach(iso=>{
@@ -8228,14 +8629,14 @@ function outstandingMonthRange_(){
 async function listDayIsosInMonthRange_(from, to){
   if(from === to){
     const res = await window.storage.list('day:'+from);
-    return ((res && res.keys) || []).map(k=>k.slice(4));
+    return dayIsos_(res);
   }
   const years = [];
   for(let y = Number(from.slice(0,4)); y <= Number(to.slice(0,4)); y++) years.push(String(y));
   const lists = await Promise.all(years.map(y=>window.storage.list('day:'+y)));
   const out = [];
-  lists.forEach(res=>((res && res.keys) || []).forEach(k=>{
-    const iso = k.slice(4), m = iso.slice(0,7);
+  lists.forEach(res=>dayIsos_(res).forEach(iso=>{
+    const m = iso.slice(0,7);
     if(m >= from && m <= to) out.push(iso);
   }));
   return out;
@@ -8277,51 +8678,51 @@ function buildOutstandingRowHtml_(r, mark, daySep){
   const fullName = branchName(r.code);
   const name = fullName.replace(/^สาขา\s*/, ''); // ตัดคำว่า "สาขา" ออกในแถว ให้เหลือที่โชว์เลข+ชื่อพื้นที่
   const sepTag = isFeeExempt(r.code) && !/แยก/.test(name) ? '<span class="osep">แยกส่ง</span>' : '';
-  const paidTag = r.paid ? `<span class="opaid" data-outstandingpaidinfo="${key}" title="โอนเมื่อ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}">✅ ${r.payInfo&&r.payInfo.paidDate?shortDDMMYY_(r.payInfo.paidDate):'-'}</span>` : '';
+  const paidTag = r.paid ? `<span class="opaid" data-outstandingpaidinfo="${escapeHtml(key)}" title="โอนเมื่อ ${r.payInfo&&r.payInfo.paidDate?formatDDMMYYYY(r.payInfo.paidDate):'-'}">✅ ${r.payInfo&&r.payInfo.paidDate?shortDDMMYY_(r.payInfo.paidDate):'-'}</span>` : '';
   const chkBtn = !recheck ? ''
-    : mark ? `<button type="button" class="rchk-btn done${mark.result==='still_unpaid'?' bad':''}" data-recheckexpand="${key}" aria-label="เช็คแล้ว — แตะเพื่อดูรายละเอียด"><small>✓ เช็ค</small></button>`
-    : `<button type="button" class="rchk-btn" data-recheckstart="${key}" aria-label="เช็คบิลนี้"><span class="e">🔎</span><small>CHECK</small></button>`;
+    : mark ? `<button type="button" class="rchk-btn done${mark.result==='still_unpaid'?' bad':''}" data-recheckexpand="${escapeHtml(key)}" aria-label="เช็คแล้ว — แตะเพื่อดูรายละเอียด"><small>✓ เช็ค</small></button>`
+    : `<button type="button" class="rchk-btn" data-recheckstart="${escapeHtml(key)}" aria-label="เช็คบิลนี้"><span class="e">🔎</span><small>CHECK</small></button>`;
   const notPaidLabel = r.paid ? 'จริงๆ ยังไม่ได้จ่าย (ผิดพลาด)' : 'ยังไม่โอนจริง';
   const paidLabel = r.paid ? 'ยืนยันว่าจ่ายจริง (ถูกต้อง)' : 'เจอว่าโอนแล้ว';
   const recheckHtml = !recheck ? '' : mark
     ? `<div class="lrow-hint ochkdetail" style="margin-top:4px;padding-left:0;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="color:${mark.result==='found_paid'?'var(--success)':'var(--danger)'};font-size:11.5px;">🔍 เช็คแล้ว ${formatRecheckTimestamp_(mark.checkedAt)}${mark.result==='found_paid'?' — ผลเช็ค: จ่ายแล้วจริง':' — ผลเช็ค: ยังไม่จ่ายจริง'}${mark.note?`: ${escapeHtml(mark.note)}`:''}</span>
-        <button class="btn small secondary" data-recheckundo="${key}" style="width:auto;flex:none;">↺ ยกเลิกเช็ค</button>
+        <button class="btn small secondary" data-recheckundo="${escapeHtml(key)}" style="width:auto;flex:none;">↺ ยกเลิกเช็ค</button>
       </div>`
-    : `<div style="display:none;margin-top:6px;" data-recheckform="${key}">
-        <input type="text" data-recheckinput="${key}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
+    : `<div style="display:none;margin-top:6px;" data-recheckform="${escapeHtml(key)}">
+        <input type="text" data-recheckinput="${escapeHtml(key)}" placeholder="บันทึก/หลักฐาน เช่น โทรถามแล้วบอกว่า... (ไม่บังคับ)">
         <div style="display:flex;gap:6px;margin-top:6px;">
-          <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${key}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
-          <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${key}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
+          <button class="btn small" data-recheckresult="still_unpaid" data-recheckkey="${escapeHtml(key)}" style="width:auto;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger);">${notPaidLabel}</button>
+          <button class="btn small" data-recheckresult="found_paid" data-recheckkey="${escapeHtml(key)}" style="width:auto;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);">${paidLabel}</button>
         </div>
       </div>`;
-  return `<div class="branchbill otrow${recheck&&mark?' checked':''}${daySep?' oday-sep':''}" data-outstandingrow="${key}">
+  return `<div class="branchbill otrow${recheck&&mark?' checked':''}${daySep?' oday-sep':''}" data-outstandingrow="${escapeHtml(key)}">
     <div class="toprow">
       ${chkBtn}
       <div class="left">
-        <span class="odate">${shortDDMMYY_(r.iso)}</span>
+        <span class="odate">${escapeHtml(shortDDMMYY_(r.iso))}</span>
         <span class="n" title="${escapeHtml(fullName)}">${escapeHtml(name)}</span>${sepTag}${paidTag}${r.payInfo?outstandingDiffHtml_(r.payInfo, r.amt):''}
       </div>
       <span class="amt num big">${money(r.amt)}</span>
       <div class="acts2">
         <span class="badge-delay">${r.delay} วัน</span>
-        <button class="iconbtn" data-outstandingbill="${key}" aria-label="ดูบิล">🧾</button>
-        <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${key}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
+        <button class="iconbtn" data-outstandingbill="${escapeHtml(key)}" aria-label="ดูบิล">🧾</button>
+        <button class="paytoggle ${r.paid?'paid':'unpaid'}" data-outstandingpay="${escapeHtml(key)}">${r.paid?'โอนแล้ว':'รอโอน'}</button>
       </div>
     </div>
-    <div style="margin-top:6px;display:none;" data-outstandingeditor="${key}">
-      <input type="date" id="outpaydate-${r.iso}-${r.code}" value="${lastUsedPayDate}" style="width:100%;">
+    <div style="margin-top:6px;display:none;" data-outstandingeditor="${escapeHtml(key)}">
+      <input type="date" id="outpaydate-${escapeHtml(r.iso)}-${escapeHtml(r.code)}" value="${lastUsedPayDate}" style="width:100%;">
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
         <label style="flex:none;">โอนจริง</label>
-        <input type="number" step="1" id="outpayamt-${r.iso}-${r.code}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
+        <input type="number" step="1" id="outpayamt-${escapeHtml(r.iso)}-${escapeHtml(r.code)}" value="${r.amt}" placeholder="${r.amt}" style="flex:1;">
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="btn small" data-outstandingconfirm="${key}" style="width:auto;">ยืนยัน</button>
-        <button class="btn small secondary" data-outstandingcancel="${key}" style="width:auto;">ยกเลิก</button>
+        <button class="btn small" data-outstandingconfirm="${escapeHtml(key)}" style="width:auto;">ยืนยัน</button>
+        <button class="btn small secondary" data-outstandingcancel="${escapeHtml(key)}" style="width:auto;">ยกเลิก</button>
       </div>
     </div>
     ${recheckHtml}
-    <div id="bdreceipt-${r.code}-${r.iso}"></div>
+    <div id="bdreceipt-${escapeHtml(r.code)}-${escapeHtml(r.iso)}"></div>
   </div>`;
 }
 function renderOutstandingStats_(){
@@ -8544,7 +8945,7 @@ async function renderOutstanding(){
       isoList = await listDayIsosInMonthRange_(from, to);
     }else{
       const listRes = await window.storage.list('day:');
-      isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+      isoList = dayIsos_(listRes);
     }
     if(mySeq !== outstandingRenderSeq_) return;
     const dayMap = await loadDaysBulk(isoList);
@@ -8733,7 +9134,7 @@ async function renderOutstandingLineMsgs_(){
   el.innerHTML = '<div class="loading">กำลังโหลด…</div>';
   try{
     const listRes = await window.storage.list('day:');
-    const isoList = ((listRes && listRes.keys) || []).map(k=>k.slice(4));
+    const isoList = dayIsos_(listRes);
     const dayMap = await loadDaysBulk(isoList);
     const today = todayISO();
     const groups = {};
@@ -9004,7 +9405,7 @@ function showBackupFallbackModal(jsonStr){
 // (grep window.storage.get/set/delete('...') ทั้งไฟล์) นอกเหนือจาก settings/debts ที่มีอยู่แล้ว
 const BACKUP_EXTRA_ROOT_KEYS = ['rawLots','lotProductBills','lotTransportBills','wasteRecords','activityLog','billingRecheckCurrent','billingRecheckHistory','supplierShortfalls','stockFormDraft','stockFormLastSync','closedMonths','slipPayers'];
 // คีย์ที่แยกเก็บทีละชิ้น (ต้อง list ตาม prefix) — ประวัติกิจกรรม, ผลรีเช็คบิล, รอบรีเช็คที่ปิดแล้ว, รูปสินค้า
-const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:'];
+const BACKUP_PREFIXES = ['actlog:','rchkm:','rchk:','productImage:','lineInbox:','backorders:'];
 async function exportAllData(){
   let payload;
   try{
@@ -9050,10 +9451,143 @@ async function exportAllData(){
     showBackupFallbackModal(jsonStr);
   }
 }
+// อ่านสถานะเดือนปิดสดจากเซิร์ฟเวอร์แบบเข้มงวด (ใช้ตอนนำเข้าสำรอง) — ต่างจาก loadClosedMonths_ ที่กลืน error เงียบ:
+// ไม่มีคีย์ (Key not found) = ยังไม่เคยปิดเดือนไหน {} ; error อื่น (เน็ต/เซิร์ฟเวอร์/อ่านค่าไม่ออก) = throw ห้ามเดาว่าไม่มีเดือนปิด
+async function readClosedMonthsStrict_(){
+  let r;
+  try{ r = await window.storage.get('closedMonths'); }
+  catch(e){ if(String(e && e.message).indexOf('Key not found')===0) return {}; throw e; }
+  const v = JSON.parse(r.value);
+  if(v === null) return {};
+  if(typeof v !== 'object' || Array.isArray(v)) throw new Error('ข้อมูลเดือนที่ปิดในระบบอ่านไม่ออก');
+  return v;
+}
+// แปลงเป็น JSON แบบเรียงคีย์ — ใช้เทียบข้อมูลสองก้อนว่าเหมือนกันไหมโดยไม่สนลำดับคีย์
+function stableJson_(v){
+  if(v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if(Array.isArray(v)) return '[' + v.map(stableJson_).join(',') + ']';
+  return '{' + Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableJson_(v[k])).join(',') + '}';
+}
+function importDayCanon_(v){
+  if(!v || typeof v !== 'object' || Array.isArray(v)) return stableJson_(v);
+  return stableJson_(normalizeDay_(JSON.parse(JSON.stringify(v)))); // clone ก่อน เพราะ normalizeDay_ แก้ object เดิม
+}
+const IMPORT_YM_RE_ = /^\d{4}-\d{2}$/;
 async function importAllData(file){
   try{
     const text = await file.text();
     const payload = JSON.parse(text);
+    // ---- ตรวจเดือนที่ปิดก่อนเขียนอะไรทั้งสิ้น ----
+    // เดิมกู้คืนแล้ว set closedMonths ทับทั้งก้อน (เดือนที่ปิดในระบบแต่ไม่อยู่ในไฟล์หายไป) และ bulkSetStorage ไม่ผ่านล็อกปิดเดือน
+    // (วันของเดือนที่ปิดถูกทับเงียบๆ) — ตอนนี้: เดือนปิด = ของเดิม ∪ ในไฟล์ (ไม่ลบเดือนไหน), วันในเดือนที่ปิดอยู่ในระบบที่ต่างจากไฟล์ = ข้าม
+    let serverCM;
+    try{ serverCM = await readClosedMonthsStrict_(); }
+    catch(e){
+      console.error('Import: cannot read closedMonths', e);
+      showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็คเดือนที่ปิดในระบบไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+      return;
+    }
+    // hasOwnProperty กันคีย์อย่าง valueOf/__proto__/constructor ถูกนับเป็นเดือนปิด
+    const cmHas_ = (cm, ym) => !!cm && Object.prototype.hasOwnProperty.call(cm, ym) && !!cm[ym];
+    const serverClosed = ym => cmHas_(serverCM, ym);
+    // ช่อง days รับเฉพาะคีย์ day:YYYY-MM-DD — คีย์อื่น (เช่น "settings"/"closedMonths") ห้ามไหลไป bulkSetStorage ที่ไม่ผ่านล็อกใดๆ
+    const IMPORT_DAY_KEY_RE_ = /^day:\d{4}-\d{2}-\d{2}$/;
+    const rawDayEntries = (payload.days && typeof payload.days === 'object' && !Array.isArray(payload.days)) ? Object.entries(payload.days) : [];
+    const dayEntries = rawDayEntries.filter(([k])=>IMPORT_DAY_KEY_RE_.test(k));
+    const badDayKeys = rawDayEntries.length - dayEntries.length;
+    if(badDayKeys) console.warn('Import: dropped non-day keys in payload.days', rawDayEntries.filter(([k])=>!IMPORT_DAY_KEY_RE_.test(k)).map(([k])=>k));
+    const lockedEntries = dayEntries.filter(([k])=>serverClosed(k.slice(4,11)));
+    const skipDiff = [], skipSame = [];
+    if(lockedEntries.length){
+      const keys = lockedEntries.map(([k])=>k);
+      const cur = {};
+      const emptyKeys = [];
+      try{
+        for(let i=0; i<keys.length; i+=40){
+          const chunk = keys.slice(i, i+40);
+          const vals = await withTimeout_(window.bulkGetStorageImpl(chunk), 30000, 'อ่านข้อมูลเดือนที่ปิด');
+          chunk.forEach(k=>{ cur[k] = (vals && Object.prototype.hasOwnProperty.call(vals, k)) ? vals[k] : undefined; });
+        }
+        for(const [k, v] of lockedEntries){
+          const raw = cur[k];
+          if(raw === null || raw === undefined || raw === ''){ emptyKeys.push(k); continue; }
+          const curVal = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if(importDayCanon_(curVal) === importDayCanon_(v)) skipSame.push(k); else skipDiff.push(k);
+        }
+      }catch(e){
+        console.error('Import: cannot read current closed-month days', e);
+        showToast('นำเข้าข้อมูลไม่สำเร็จ: อ่านข้อมูลวันในเดือนที่ปิดไม่ได้ ยังไม่ได้นำเข้าอะไรเลย');
+        return;
+      }
+      // bulkGet ว่าง ≠ ไม่มีในระบบเสมอไป (อ่านพลาดเงียบๆ ได้) — ยืนยันกับรายชื่อคีย์สด (ล้างแคชรายชื่อ 60 วิ ของตัวห่อก่อน)
+      // ไม่มีจริง = เขียนได้ตามปกติ (เจ้าของสั่ง); รายชื่อบอกว่ามี หรือเช็ครายชื่อไม่ได้ = หยุดทั้งหมด
+      if(emptyKeys.length){
+        let existing;
+        try{
+          if(window.storage.__clearListCache) window.storage.__clearListCache();
+          const res = await withTimeout_(window.storage.list('day:'), 30000, 'เช็ครายชื่อวัน');
+          if(!res || !Array.isArray(res.keys)) throw new Error('รายชื่อวันในระบบอ่านไม่ออก');
+          existing = new Set(res.keys);
+        }catch(e){
+          console.error('Import: cannot verify closed-month days via list', e);
+          showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็ครายชื่อวันในเดือนที่ปิดไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+          return;
+        }
+        const ghost = emptyKeys.filter(k=>existing.has(k)).sort();
+        if(ghost.length){
+          console.error('Import: closed-month days exist but read empty', ghost);
+          showToast(`นำเข้าข้อมูลไม่สำเร็จ: วันในเดือนที่ปิด ${ghost.map(k=>formatDDMMYYYY(k.slice(4))).join(', ')} มีอยู่ในระบบแต่อ่านค่าไม่ได้ ยังไม่ได้นำเข้าอะไรเลย ลองใหม่อีกครั้ง`);
+          return;
+        }
+      }
+    }
+    const fileCMRaw = (payload.closedMonths && typeof payload.closedMonths === 'object' && !Array.isArray(payload.closedMonths)) ? payload.closedMonths : {};
+    // ทำให้เป็นรูปเดียวกับที่แอปเขียนเอง (writeClosedMonth_ ตอนกดปิดเดือน = {at: ISO, dev: ชื่อเครื่อง}):
+    // true = ปิดแต่ไม่มีรายละเอียด → {at: ตอนนี้, dev: เครื่องนี้}; object = เก็บแค่ at/dev ที่เป็นข้อความ; รูปอื่น = ข้าม ไม่เขียน
+    const fileCM = {};
+    let badCM = 0;
+    Object.keys(fileCMRaw).forEach(ym=>{
+      if(!IMPORT_YM_RE_.test(ym)) return;
+      const v = fileCMRaw[ym];
+      if(!v) return;
+      if(v === true){ fileCM[ym] = {at: new Date().toISOString(), dev: deviceName_()}; return; }
+      if(typeof v === 'object' && !Array.isArray(v)){
+        fileCM[ym] = {at: typeof v.at === 'string' && v.at ? v.at : new Date().toISOString(), dev: typeof v.dev === 'string' && v.dev ? v.dev : deviceName_()};
+        return;
+      }
+      badCM++;
+    });
+    if(badCM) console.warn('Import: skipped malformed closedMonths entries', badCM);
+    const addMonths = Object.keys(fileCM).filter(ym=>!serverClosed(ym)).sort();
+    if(skipDiff.length || addMonths.length){
+      const lines = ['นำเข้าข้อมูลสำรอง — ตรวจเดือนที่ปิด'];
+      if(skipDiff.length){
+        lines.push('', `ข้าม ${skipDiff.length} วัน (อยู่ในเดือนที่ปิดแล้ว และข้อมูลในไฟล์ต่างจากในระบบ — คงของในระบบไว้):`);
+        skipDiff.slice().sort().forEach(k=>lines.push('• ' + formatDDMMYYYY(k.slice(4))));
+      }
+      if(addMonths.length) lines.push('', `ไฟล์ปิดเดือน ${addMonths.map(monthLabel_).join(', ')} แต่ในระบบยังไม่ได้ปิด`);
+      lines.push('', addMonths.length
+        ? `ตกลง = นำเข้าส่วนที่เหลือ และล็อกเดือน ${addMonths.map(monthLabel_).join(', ')} ตามไฟล์`
+        : 'ตกลง = นำเข้าส่วนที่เหลือ (ข้ามวันข้างบน)');
+      lines.push('ยกเลิก = ไม่นำเข้าอะไรเลย');
+      if(!confirm(lines.join('\n'))){ showToast('ยกเลิกแล้ว ยังไม่ได้นำเข้าอะไรเลย'); return; }
+    }
+    // ตรวจเดือนปิดสดซ้ำก่อนเขียนจริง — กันเครื่องอื่นปิดเดือนเพิ่มระหว่างตรวจ/รอกด confirm (วันของเดือนนั้นยังไม่ได้เช็คเลย)
+    {
+      let freshCM;
+      try{ freshCM = await readClosedMonthsStrict_(); }
+      catch(e){
+        console.error('Import: cannot re-read closedMonths', e);
+        showToast('นำเข้าข้อมูลไม่สำเร็จ: เช็คเดือนที่ปิดในระบบซ้ำไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้นำเข้าอะไรเลย');
+        return;
+      }
+      const newlyClosed = Object.keys(freshCM).filter(ym=>cmHas_(freshCM, ym) && !serverClosed(ym)).sort();
+      if(newlyClosed.length){
+        showToast(`นำเข้าข้อมูลไม่สำเร็จ: มีการปิดเดือน ${newlyClosed.map(ym=>IMPORT_YM_RE_.test(ym)?monthLabel_(ym):ym).join(', ')} เพิ่มระหว่างนั้น ยังไม่ได้นำเข้าอะไรเลย ลองนำเข้าใหม่อีกครั้ง`);
+        return;
+      }
+    }
+    const skipSet = new Set(skipDiff.concat(skipSame));
     // ต้อง backfill ฟิลด์ให้ครบเหมือน loadSettings() ตอนโหลดแอปปกติทุกประการ (ดู ~1415-1461) — เดิมจุดนี้ backfill แค่บางส่วน
     // (ขาด purchaseSellers/calendarDotsEnabled/shelfLifeDays) ถ้านำเข้าไฟล์สำรองเก่าที่ settings ไม่มีฟิลด์พวกนี้ จะได้
     // settings ที่ไม่ครบ แล้ว saveSettings() เขียนทับฉบับไม่ครบนี้ลงเซิร์ฟเวอร์ทันที ทำให้แท็บต้นทุนซื้อ/เหลือ&Claim พังกลาง
@@ -9076,7 +9610,7 @@ async function importAllData(file){
     }
     let importedCount = 0;
     if(payload.days){
-      const items = Object.entries(payload.days).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
+      const items = dayEntries.filter(([k])=>!skipSet.has(k)).map(([k,v])=>({key:k, value: JSON.stringify(v)}));
       const batchSize = 40;
       for(let i=0; i<items.length; i+=batchSize){
         showToast(`กำลังนำเข้า ${Math.min(i+batchSize, items.length)}/${items.length} วัน…`);
@@ -9087,14 +9621,23 @@ async function importAllData(file){
     if(payload.debts){ await saveDebts(payload.debts); }
     // กู้คืน root key อื่นๆ ที่ exportAllData() สำรองไว้ด้วย (ดูคอมเมนต์ที่ BACKUP_EXTRA_ROOT_KEYS) — ไฟล์สำรองเก่าก่อนรอบนี้
     // จะไม่มีฟิลด์พวกนี้เลย ก็แค่ข้ามไปเฉยๆ ไม่ต้องเขียนทับด้วยค่าว่าง
-    for(const k of BACKUP_EXTRA_ROOT_KEYS.concat(Object.keys(payload).filter(k=>BACKUP_PREFIXES.some(px=>k.indexOf(px)===0)))){
+    for(const k of BACKUP_EXTRA_ROOT_KEYS.filter(k=>k!=='closedMonths').concat(Object.keys(payload).filter(k=>BACKUP_PREFIXES.some(px=>k.indexOf(px)===0)))){
       if(payload[k] !== undefined && payload[k] !== null){
         await window.storage.set(k, JSON.stringify(payload[k]));
       }
     }
+    // closedMonths: ไม่ set ทับ — เพิ่มทีละเดือนเฉพาะเดือนที่ไฟล์ปิดแต่ระบบยังไม่ปิด (AY กดยืนยันแล้วข้างบน) ไม่ลบเดือนไหนเลย
+    if(addMonths.length){
+      closedMonths_ = {...serverCM}; // ฐานของ writeClosedMonth_ กรณีระบบยังไม่มีคีย์นี้ ต้องเป็นค่าสดจากเซิร์ฟเวอร์
+      for(const ym of addMonths) await writeClosedMonth_(ym, fileCM[ym]);
+    }
     rawLotsCache_ = null; lotTransportBillsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null; activityLogCache_ = null;
     if(window.storage.__clearListCache) window.storage.__clearListCache();
-    showToast(`นำเข้าข้อมูลสำเร็จทั้งหมด (${importedCount} วัน)`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)`);
+    const skipNote = skipDiff.length ? ` ข้าม ${skipDiff.length} วัน (เดือนที่ปิด)` : '';
+    const lockNote = addMonths.length ? ` ล็อกเดือน ${addMonths.map(monthLabel_).join(', ')} ตามไฟล์` : '';
+    const badNote = (badDayKeys ? ` ตัดคีย์ที่ไม่ใช่วัน ${badDayKeys} รายการ` : '') + (badCM ? ` ข้ามเดือนปิดที่รูปไม่ถูก ${badCM} รายการ` : '');
+    showToast(`นำเข้าข้อมูลสำเร็จ (${importedCount} วัน)${skipNote}${lockNote}${badNote}`); activityLogCache_ = null; logActivity_(`นำเข้าข้อมูลสำรอง (${importedCount} วัน)${skipNote}${lockNote}${badNote}`);
+    if(skipDiff.length) logActivity_(`นำเข้าสำรอง: ข้ามวันในเดือนที่ปิด (ข้อมูลต่างจากในระบบ คงของเดิม) ${skipDiff.slice().sort().map(k=>formatDDMMYYYY(k.slice(4))).join(', ')}`);
     await loadForDate(currentDate);
   }catch(e){ console.error('Import failed', e); showToast('นำเข้าข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : 'ตรวจสอบไฟล์อีกครั้ง')); }
 }
@@ -9185,8 +9728,7 @@ async function addPersonalExpense(){
 }
 async function computePersonalMonth(monthVal){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys ? listRes.keys : []).filter(k=>k.startsWith('day:'+monthVal));
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes).filter(iso=>iso.startsWith(monthVal));
   const dayMap = await loadDaysBulk(isoList);
   let income=0, expense=0;
   const byCategory = {};
@@ -9318,7 +9860,7 @@ async function updatePurchaseLeftoverHint(){
   if(!hintEl) return;
   if(!LEFTOVER_IDS.includes(pid)){ hintEl.innerHTML = ''; return; }
   const p = PRODUCTS.find(x=>x.id===pid);
-  const totals = computeTotals(dayData.orders);
+  const totals = shippedTotals_(dayData, currentDate);
   const todayOrder = totals[pid]||0;
   let prevDay;
   try{
@@ -9593,7 +10135,7 @@ async function computeLotSettleRows_(lots){
   // ใช้ "ยอดออเดอร์ดิบของวันนี้" ตรงๆ ไม่ใช่ computeNeededQtyToday() (ที่หักลบของเหลือยกมาออกไปด้วย) — เพราะของเหลือที่ถูกหักไปนั้น
   // คือก้อนสต็อกเดียวกับที่ค้างตัดต้นทุนอยู่ตรงนี้เป๊ะๆ (ของที่เบิกมาทำไว้เกินออเดอร์วันนั้น = ของเหลือของวันถัดไป) ถ้าไปหักซ้ำอีกที
   // จะกลายเป็นยอดที่ "ต้องตัดวันนี้" เหลือ 0 ทั้งที่ของเหลือนั้นแหละที่กำลังจะถูกใช้เติมออเดอร์วันนี้พอดี การ์ดเลยไม่ขึ้นทั้งที่ควรขึ้น
-  const rawTotalsToday = computeTotals(dayData.orders);
+  const rawTotalsToday = shippedTotals_(dayData, currentDate);
   const rows = [];
   for(const pid of productIdsWithLots){
     // จำกัดแค่รอบเบิกที่เกิดขึ้นถึงวันที่กำลังดูอยู่แล้วเท่านั้น (asOfDate=currentDate) — กันย้อนไปดูวันเก่าๆ
@@ -10139,12 +10681,64 @@ async function backfillLotCostGap_(lotId, drawId){
   } finally { lotBackfillInFlight_ = false; }
 }
 // เติมข้อมูลบิลสินค้าย้อนหลังให้ล็อตที่สร้างไว้ก่อนมีระบบนี้ (billId ที่ยังไม่มี lotProductBills คู่กัน)
-// เรียกครั้งเดียวตอนโหลดล็อตครั้งแรกของหน้า เพื่อให้บิลเก่าโผล่ในตัวกรองคู่ค้าได้เหมือนกัน
+// เรียกตอนเรนเดอร์รายการล็อต เพื่อให้บิลเก่าโผล่ในตัวกรองคู่ค้าได้เหมือนกัน
+// กันบิลซ้ำ (เคยเกิดจริง): แคชบิลล็อตโหลดครั้งเดียวต่อหน้า แต่ rawLots สดบ่อย → เห็นล็อตของเครื่องอื่นแต่ไม่เห็นบิลของมัน
+// แล้วสร้างบิลซ้ำ จึง (1) ออฟไลน์/คิวค้าง = ไม่ทำ (คิวแปลง push เป็น "ลบ id + เพิ่ม") (2) กันเรียกซ้อนในเครื่องเดียว
+// (3) ถ้าแคชบอกว่าขาด อ่านสดทั้งสองคีย์ก่อนแล้วคิดใหม่ เช็คด้วย billId (4) บิลที่เพิ่งสร้างไม่ถึง 10 นาทีรอก่อน
+// (5) เดือนที่ปิดแล้วไม่สร้างย้อนหลัง • ไม่ลบ/แก้บิลที่มีอยู่ ไม่แตะ rawLots/costedQty
+const LOT_BILL_SETTLE_MS = 10 * 60 * 1000;
+let ensureLotBillsInFlight_ = null;
+// อายุของ billId รูป bill<ms>-xxx (จาก uid('bill')) — อ่านเวลาไม่ได้ (รูปเก่า) = null
+function lotBillIdAgeMs_(bid){
+  const m = /^bill(\d{12,14})-/.exec(String(bid == null ? '' : bid));
+  return m ? Date.now() - Number(m[1]) : null;
+}
+// อ่านบิลล็อตสดข้ามแคช: ยังไม่มีคีย์ = [] • error อื่น/รูปข้อมูลแปลก = throw (ไม่เขียนอะไร)
+// storage.get แปลง error ฝั่งเซิร์ฟเวอร์ทุกชนิดเป็น "Key not found" แยกไม่ออกว่าไม่มีคีย์จริงหรือเซิร์ฟเวอร์พัง —
+// ถ้าอ่านสดได้ว่าง แต่แคชเครื่องนี้มีบิลอยู่ (cachedLen > 0) = ถือว่าอ่านล้มเหลว throw (กันสร้างบิลซ้ำทั้งชุด)
+async function readLotBillKeyFresh_(key, cachedLen){
+  const emptyOrFail = () => { if(Number(cachedLen) > 0) throw new Error('lot bills: fresh read empty but cache has ' + Number(cachedLen)); return []; };
+  let r;
+  try{ r = await window.storage.get(key); }
+  catch(e){ if(e && e.message && e.message.indexOf('Key not found') === 0) return emptyOrFail(); throw e; }
+  const v = JSON.parse(r.value);
+  if(v === null || v === undefined) return emptyOrFail();
+  if(!Array.isArray(v)) throw new Error('lot bills: not an array');
+  if(!v.length) return emptyOrFail();
+  return v;
+}
 async function ensureLotBillRecords(lots){
-  const productBills = await loadLotProductBills();
-  const haveBillIds = new Set(productBills.map(b=>b.billId));
-  const transportBills = await loadLotTransportBills();
-  const haveTransportBillIds = new Set(transportBills.map(b=>b.billId));
+  if(isOffline_() || readOfflineQueue_().length > 0) return;
+  if(ensureLotBillsInFlight_){ try{ await ensureLotBillsInFlight_; }catch(_){} return; }
+  const run = ensureLotBillRecordsRun_(lots);
+  ensureLotBillsInFlight_ = run;
+  try{ await run; }
+  finally{ if(ensureLotBillsInFlight_ === run) ensureLotBillsInFlight_ = null; }
+}
+async function ensureLotBillRecordsRun_(lots){
+  const cachedProduct = await loadLotProductBills(), cachedTransport = await loadLotTransportBills();
+  let plan = lotBillMissingOps_(lots, cachedProduct, cachedTransport);
+  if(!plan.productOps.length && !plan.transportOps.length) return; // ชั้นแรก: แคชบอกว่าครบ ไม่ยิงเน็ตเพิ่ม
+  const freshProduct = await readLotBillKeyFresh_('lotProductBills', cachedProduct.length);
+  const freshTransport = await readLotBillKeyFresh_('lotTransportBills', cachedTransport.length);
+  lotProductBillsCache_ = freshProduct; lotTransportBillsCache_ = freshTransport;
+  plan = lotBillMissingOps_(lots, freshProduct, freshTransport);
+  // เช็คออฟไลน์/คิวค้างซ้ำก่อนเขียนแต่ละคีย์ — ห้ามให้ op ใดเข้าคิวออฟไลน์ (idempotentOps_ แปลง push เป็น ลบ id + เพิ่ม
+  // ซึ่งอาจลบบิลที่จ่ายแล้ว) • หยุดกลางทาง = ไม่เขียนคีย์ที่เหลือ รอบหน้าค่อยเติม
+  const blocked = () => isOffline_() || readOfflineQueue_().length > 0;
+  if(plan.productOps.length){
+    if(blocked()) return;
+    await writeRootArrayOp_('lotProductBills', plan.productOps, arr=>{lotProductBillsCache_=arr;});
+  }
+  if(plan.transportOps.length){
+    if(blocked()) return;
+    await writeRootArrayOp_('lotTransportBills', plan.transportOps, arr=>{lotTransportBillsCache_=arr;});
+  }
+}
+function lotBillMissingOps_(lots, productBills, transportBills){
+  // เก็บเป็นสตริง — ชีตอาจคืน billId เป็นตัวเลข ถ้าเทียบตรงๆ จะจับคู่ไม่เจอแล้วสร้างซ้ำ
+  const haveBillIds = new Set((productBills||[]).filter(b=>b && b.billId != null).map(b=>String(b.billId)));
+  const haveTransportBillIds = new Set((transportBills||[]).filter(b=>b && b.billId != null).map(b=>String(b.billId)));
   const groups = {};
   lots.forEach(lot=>{
     const bid = lot.billId || lot.id;
@@ -10157,7 +10751,10 @@ async function ensureLotBillRecords(lots){
   const transportOps = [];
   Object.keys(groups).forEach(bid=>{
     const rows = groups[bid];
-    if(!haveBillIds.has(bid)){
+    if(rows.some(l=>isMonthClosed_(l.buyDate))) return; // เดือนที่ปิดแล้วห้ามแตะ
+    const age = lotBillIdAgeMs_(bid);
+    if(age !== null && age < LOT_BILL_SETTLE_MS) return; // บิลเพิ่งสร้าง (อาจยังเขียนไม่ครบ/เครื่องอื่นกำลังเขียน) รอก่อน
+    if(!haveBillIds.has(String(bid))){
       const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
       if(amount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
@@ -10165,7 +10762,7 @@ async function ensureLotBillRecords(lots){
       }
     }
     // เผื่อกรณีตอนบันทึกล็อตมีค่าขนส่ง (ติดอยู่ใน extra ของแต่ละล็อตแล้ว นับเป็นต้นทุนถูกต้องอยู่แล้ว) แต่บิลค่าขนส่งที่ต้องตามจ่ายไม่ถูกสร้างขึ้น (เช่น เน็ตสะดุดตอนบันทึกขั้นที่สอง) — สร้างย้อนหลังให้อัตโนมัติ กันตกหล่นไม่มีให้ตามจ่าย
-    if(!haveTransportBillIds.has(bid)){
+    if(!haveTransportBillIds.has(String(bid))){
       const transportAmount = Math.round(rows.reduce((s,l)=>s+Number(l.extra||0),0)*100)/100;
       if(transportAmount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
@@ -10173,8 +10770,24 @@ async function ensureLotBillRecords(lots){
       }
     }
   });
-  if(productOps.length) await writeRootArrayOp_('lotProductBills', productOps, arr=>{lotProductBillsCache_=arr;});
-  if(transportOps.length) await writeRootArrayOp_('lotTransportBills', transportOps, arr=>{lotTransportBillsCache_=arr;});
+  return {productOps, transportOps};
+}
+// นับบิลล็อตที่ billId ซ้ำกัน (กลุ่มที่มีมากกว่า 1 ใบ นับทุกใบในกลุ่ม) แยกสินค้า/ขนส่ง — อ่านอย่างเดียว ไม่ลบ/แก้อะไร
+function lotBillDupStats_(productBills, transportBills){
+  const dates = new Set();
+  let groups = 0;
+  const count = arr => {
+    const m = {};
+    (Array.isArray(arr) ? arr : []).forEach(b=>{
+      const k = b && b.billId; if(k === undefined || k === null || k === '') return;
+      (m[String(k)] = m[String(k)] || []).push(b);
+    });
+    let n = 0;
+    Object.values(m).forEach(g=>{ if(g.length > 1){ n += g.length; groups++; g.forEach(b=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(String(b.buyDate||''))) dates.add(b.buyDate); }); } });
+    return n;
+  };
+  const product = count(productBills), transport = count(transportBills);
+  return {product, transport, total: product + transport, groups, dates: [...dates].sort().reverse()};
 }
 // เติมข้อมูลย้อนหลังให้รายการเคลม/ของเสีย (wasteRecords) ที่บันทึกไว้ก่อนมีระบบหักค้างตัดต้นทุนอัตโนมัติ (ยังไม่มี
 // lotClaimAllocations) — ถ้าสินค้านั้นมีล็อตวัตถุดิบอยู่จริง หักจำนวนที่เคลมออกจากค้างตัดต้นทุนแบบเดียวกับเคลมใหม่
@@ -10548,12 +11161,12 @@ async function renderLotList(preloadedLots){
     try{
       lots = await loadRawLots();
       if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
-      await ensureLotBillRecords(lots);
-      await ensureClaimsLinkedToLots_(lots);
     }catch(e){
       wrap.innerHTML = '<div class="empty">โหลดข้อมูลลอตไม่สำเร็จ (เน็ตมีปัญหา?) ลองรีเฟรชหน้าใหม่ — ข้อมูลไม่ได้หาย แค่โหลดไม่ขึ้น</div>';
       return;
     }
+    try{ await ensureLotBillRecords(lots); }catch(e){ /* เงียบไว้ เหมือนทาง preloadedLots — error ของ ensure ห้ามทำให้รายการล็อตหาย */ }
+    try{ await ensureClaimsLinkedToLots_(lots); }catch(e){ /* เงียบไว้ เหมือนทาง preloadedLots */ }
   }
   if(lots.length===0){ wrap.innerHTML = '<div class="empty">ยังไม่มีล็อตวัตถุดิบ</div>'; return; }
   const groups = {};
@@ -11495,7 +12108,7 @@ async function renderLotProductBillList(){
 
 // คำนวณจำนวนที่ "ควรจะซื้อ" ของสินค้านี้วันนี้ จากยอดออเดอร์ (หักของเหลือที่มีจากเมื่อวานถ้าเป็นสินค้าที่มีของเหลือ)
 async function computeNeededQtyToday(pid){
-  const totals = computeTotals(dayData.orders);
+  const totals = shippedTotals_(dayData, currentDate);
   const todayOrder = totals[pid]||0;
   if(!LEFTOVER_IDS.includes(pid)) return todayOrder;
   const prevDay = await loadDay(addDaysISO(currentDate,-1));
@@ -11593,6 +12206,53 @@ function clearPurchFormRowFields_(){
   document.getElementById('purchExtra').value=''; document.getElementById('purchSellable').value=''; document.getElementById('purchNote').value='';
   const mh = document.getElementById('purchMarginHint'); if(mh) mh.style.display = 'none';
 }
+// กดค้าง ~0.4 วิที่แถวแล้วลากขึ้น/ลง เพื่อสลับลำดับรายการที่พักไว้ในบิล (ไม่กระทบยอด เพราะรวมทั้งบิลเหมือนเดิม)
+// ใช้ pointer events บน document ระหว่างลาก (ไม่ผูกกับ capture ของแถว เพราะแถวถูกย้ายใน DOM ระหว่างลาก) พอปล่อยค่อย render ใหม่จาก state
+function wirePurchStagedDrag_(el){
+  el.querySelectorAll('.purch-staged-row').forEach(row=>{
+    let timer=null, dragging=false, startX=0, startY=0;
+    const stop=()=>{
+      clearTimeout(timer); timer=null;
+      if(dragging){
+        dragging=false; row.classList.remove('dragging');
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', stop);
+        document.removeEventListener('pointercancel', stop);
+        renderPurchStagedList();
+      }
+    };
+    const onMove=(e)=>{
+      if(!dragging){ if(Math.hypot(e.clientX-startX, e.clientY-startY)>8) clearTimeout(timer); return; }
+      e.preventDefault();
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const over = under && under.closest && under.closest('.purch-staged-row');
+      if(!over || over===row || over.parentElement!==row.parentElement) return;
+      const from = Number(row.dataset.purchstagrow), to = Number(over.dataset.purchstagrow);
+      if(!(from>=0 && to>=0) || from===to) return;
+      const [moved] = purchStagedRows.splice(from,1);
+      purchStagedRows.splice(to,0,moved);
+      // ย้ายแถวใน DOM ตรงๆ ให้ลากต่อได้ลื่น แล้วตั้ง index ใหม่ทุกแถว
+      if(from<to) over.after(row); else over.before(row);
+      el.querySelectorAll('.purch-staged-row').forEach((r,k)=>{ r.dataset.purchstagrow=k; });
+    };
+    row.addEventListener('pointerdown', (e)=>{
+      if(e.button) return;
+      if(e.target.closest('button')) return;
+      startX=e.clientX; startY=e.clientY;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        dragging=true; row.classList.add('dragging');
+        if(navigator.vibrate) try{ navigator.vibrate(15); }catch(_){}
+        document.addEventListener('pointermove', onMove, {passive:false});
+        document.addEventListener('pointerup', stop);
+        document.addEventListener('pointercancel', stop);
+      }, 400);
+    });
+    row.addEventListener('pointerup', ()=>{ if(!dragging) clearTimeout(timer); });
+    row.addEventListener('pointerleave', ()=>{ if(!dragging) clearTimeout(timer); });
+    row.addEventListener('contextmenu', (e)=>{ if(dragging) e.preventDefault(); });
+  });
+}
 function renderPurchStagedList(){
   const el = document.getElementById('purchStagedList');
   if(!el) return;
@@ -11606,9 +12266,11 @@ function renderPurchStagedList(){
   el.innerHTML = `<div class="hint" style="margin:8px 0 4px;">${headerText}${purchStagedRows.length?' — แตะชื่อสินค้าด้านล่างเพื่อสลับมาแก้ในฟอร์ม':''}</div>` +
     purchStagedRows.map((r,i)=>{
       const p = PRODUCTS.find(x=>x.id===r.productId);
-      return `<div class="orow"><div class="name" data-purchstagedit="${i}" style="cursor:pointer;">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''}</div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
+      const subTotal = r.qty*r.price+Number(r.extra||0);
+      return `<div class="orow purch-staged-row" data-purchstagrow="${i}" style="touch-action:pan-y;"><div class="name" data-purchstagedit="${i}" style="cursor:pointer;">${p?p.emoji+p.name:r.productId} — ${r.qty}×${r.price}${r.extra?` +${r.extra}`:''} <b class="num" style="color:var(--accent);">= ${money(subTotal)}</b></div><button type="button" class="iconbtn" data-purchstagedel="${i}" aria-label="เอาออกจากบิล">✕</button></div>`;
     }).join('') +
     `<button type="button" class="btn small secondary" data-purchbillcancel="1" style="width:auto;margin-top:4px;">ยกเลิก${purchBillEditingId?'การแก้บิลนี้':(purchEditingId?'การแก้ไข':'บิลนี้')}</button>`;
+  wirePurchStagedDrag_(el);
   el.querySelectorAll('[data-purchstagedit]').forEach(nameEl=>nameEl.addEventListener('click', ()=>{
     swapPurchStagedRowIntoForm_(Number(nameEl.getAttribute('data-purchstagedit')));
   }));
@@ -12317,8 +12979,7 @@ function purchaseNoteHint(list){
 }
 async function computePurchaseMonth(monthVal){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys ? listRes.keys : []).filter(k=>k.startsWith('day:'+monthVal));
-  const isoList = keys.map(k=>k.slice(4));
+  const isoList = dayIsos_(listRes).filter(iso=>iso.startsWith(monthVal));
   const dayMap = await loadDaysBulk(isoList);
   const byProduct = {};
   let grandTotal = 0;
@@ -12662,8 +13323,7 @@ function addDebtType(){
 // ---- Dashboard tab ----
 async function computeBranchAggregates(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
-  const isoList = keys.map(k=>k.slice(4)).sort();
+  const isoList = dayIsos_(listRes).sort();
   const dayMap = await loadDaysBulk(isoList);
   const today = todayISO();
   const agg = {};
@@ -13261,7 +13921,7 @@ async function renderBranchDetail(code, precomputedAgg, containerId){
 // แต่ตอนนี้การ์ด "รายการต้นทุนซื้อวันนี้" ก็ต้องใช้เช็คแค่วันที่กำลังดูอยู่วันเดียว (เร็วกว่ามาก ไม่ต้องสแกนทุกวันในระบบ) เลยแยกมาให้เรียกซ้ำได้ทั้งสองที่
 function computeDayGaps_(iso, d, prevDay, lotProductIds){
   const gaps = [];
-  const totals = computeTotals(d.orders||{});
+  const totals = shippedTotals_(d, iso);
   const neededByProduct = {};
   PRODUCTS.forEach(p=>{
     const qty = totals[p.id]||0;
@@ -13352,7 +14012,6 @@ function computeDayGaps_(iso, d, prevDay, lotProductIds){
 }
 async function computeDataGaps(){
   const listRes = await window.storage.list('day:');
-  const keys = (listRes && listRes.keys) ? listRes.keys : [];
   const today = todayISO();
   // สินค้าที่มีล็อตวัตถุดิบเหลืออยู่ — ถ้ายังไม่ได้ "เบิกใช้" วันนั้น ให้เตือนแบบเบิกจากล็อต ไม่ใช่เตือนแบบซื้อใหม่ (กันสับสนว่าซื้อไปแล้วทำไมยังเตือน)
   const rawLots = await loadRawLots();
@@ -13361,7 +14020,7 @@ async function computeDataGaps(){
   const lotProductIds = new Set(rawLots.map(l=>l.productId));
   // เช็คทุกวันที่มีข้อมูลจริง ไม่จำกัดแค่ 14 วันล่าสุด — เดิมจำกัดไว้เพื่อความเร็ว แต่จริงๆ ข้อมูลของวันอื่นๆ
   // ถูกโหลดแคชไว้แล้วจาก computeBranchAggregates() ที่ทำงานก่อนหน้านี้ในหน้าแดชบอร์ด จึงแทบไม่เสียเวลาเพิ่ม
-  const isoList = keys.map(k=>k.slice(4)).filter(iso=>iso<=today).sort();
+  const isoList = dayIsos_(listRes).filter(iso=>iso<=today).sort();
   const prevIsoList = isoList.map(iso=>addDaysISO(iso,-1));
   const allNeeded = [...new Set([...isoList, ...prevIsoList])];
   const dayMap = await loadDaysBulk(allNeeded);
@@ -13398,8 +14057,7 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
   if(drawsWithCost.length===0) return [];
   if(!dayMap){
     const listRes = await window.storage.list('day:');
-    const keys = (listRes && listRes.keys) ? listRes.keys : [];
-    dayMap = await loadDaysBulk(keys.map(k=>k.slice(4)));
+    dayMap = await loadDaysBulk(dayIsos_(listRes));
   }
   const recordedByDraw = new Map();
   const entriesByDraw = new Map(); // key -> [{iso, entryId, qty}] — เก็บไว้เผื่อ over-recorded ต้องชี้ตัวรายการที่ซ้ำให้ดูตรงๆ
@@ -13452,7 +14110,7 @@ async function computeLotCostedQtyAudit_(rawLots, dayMap){
 // วันที่กำลังดูอยู่วันไหนก็ได้เหมือนเช็คของสินค้ากลุ่มไม่มีล็อต (asOfDate=iso กันนับของเบิกในอนาคตของวันที่ดูอยู่มาปนด้วย)
 async function computeLotUncoveredNeedGaps_(iso, d, lots, prevDay){
   const gaps = [];
-  const totals = computeTotals(d.orders||{});
+  const totals = shippedTotals_(d, iso);
   const lotProductIds = Array.from(new Set(lots.map(l=>l.productId)));
   // หักจำนวนที่บันทึก "ต้นทุนซื้อวันนี้" ไว้ตรงๆ แล้วออกก่อนเทียบกับของในล็อต — สินค้ากลุ่มนี้ซื้อเป็นล็อตได้เหมือนสินค้าปกติ
   // ด้วย (ไม่ได้ผ่านการเบิก/ตัดสต็อกล็อตเสมอไป) ถ้าบันทึกต้นทุนซื้อไว้แล้วจริงตรงๆ ถือว่าครอบคลุมแล้ว ไม่ควรเตือนซ้ำว่า
@@ -13537,7 +14195,9 @@ let purchaseGapsSeq_ = 0;
 // ปัญหายังไม่ถูกแก้จริง และการปิดจะไม่กระทบตัวเลข/สถานะ "ครบแล้ว" ที่คำนวณจาก gaps จริงเสมอ (แค่ซ่อนจากสายตา ไม่ได้ล้างปัญหา)
 let dismissedGapKeys_ = new Set();
 let dismissedGapKeysIso_ = null;
-function gapDismissKey_(g){ return `${g.type}|${g.lotId||''}|${g.drawId||''}|${g.text}`; }
+// คีย์ปิดแจ้งเตือน: ตัดตัวเลขออกจากข้อความ เพราะตัวเลข (กก./ยอด) เปลี่ยนได้ตามข้อมูลที่โหลดเสร็จ/ซิงค์จากเครื่องอื่น
+// ทำให้กากบาทที่กดปิดไปแล้วกลับมาโผล่ทั้งที่เป็นเรื่องเดิม (สินค้า/ประเภทเดิม)
+function gapDismissKey_(g){ return `${g.type}|${g.lotId||''}|${g.drawId||''}|${String(g.text||'').replace(/[0-9][0-9.,\/]*/g,'#')}`; }
 async function renderPurchaseGapsToday_(){
   const el = document.getElementById('purchaseGapsToday');
   if(!el) return;
@@ -13588,7 +14248,12 @@ async function renderPurchaseGapsToday_(){
     const doneHtml = lotBackfillDoneLog_.length ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">
       ${lotBackfillDoneLog_.map(d=>`<div style="margin-bottom:2px;">✅ เติมต้นทุนแล้ว: ${d.text} (เช็คได้ที่รายการต้นทุนซื้อของวันนั้น)</div>`).join('')}
     </div>` : '';
-    const completeHtml = purchaseComplete ? `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>` : '';
+    // แบนเนอร์ "ครบแล้ว" เดิมขึ้นทั้งที่ยังมีรายการ lot-costed-orphan/duplicate ค้างอยู่ (เช่น เนื้อหอยเชอรี่ตัดต้นทุนเกินรายการจริง)
+    // ซึ่งเป็นคนละเรื่องกับ "วันนี้กรอกครบตามออเดอร์หรือยัง" แต่ผู้ใช้อ่านแล้วเข้าใจว่าครบทั้งหมด → ถ้ายังมีปัญหาเหล่านี้ ให้เปลี่ยนเป็นแถบเหลืองบอกชัดว่ายังต้องตรวจ
+    const hasIntegrityProblems = gaps.some(g=>g.type==='lot-costed-orphan' || g.type==='lot-costed-duplicate');
+    const completeHtml = !purchaseComplete ? '' : hasIntegrityProblems
+      ? `<div class="hint" style="border:1px solid var(--warning-ink, #8a6100);border-radius:8px;padding:8px 10px;background:var(--warning-soft, #fff6d6);color:var(--warning-ink, #8a6100);margin-bottom:6px;">⚠️ วันนี้กรอกต้นทุนซื้อครบตามออเดอร์แล้ว แต่ยังมีรายการเก่า/ซ้ำค้างอยู่ด้านล่าง (ยังไม่ครบทั้งระบบ) — ตรวจก่อนปิดงาน</div>`
+      : `<div class="hint" style="border:1px solid var(--success);border-radius:8px;padding:8px 10px;background:var(--success-soft);color:var(--success);margin-bottom:6px;">✔️ บันทึกต้นทุนซื้อครบแล้ว ตรงกับออเดอร์วันนี้</div>`;
     const gapsHtml = visibleGaps.length ? `<div class="hint" style="border:1px solid var(--danger);border-radius:8px;padding:8px 10px;background:var(--danger-soft);color:var(--danger);">
       ${visibleGaps.map(g=>{
         // lot-costed-orphan/lot-costed-duplicate คือปัญหาข้อมูลจริง (ตัดต้นทุนไปแล้วแต่ไม่มีรายการรองรับ/มีรายการซ้ำ) ไม่ใช่แค่
@@ -13674,7 +14339,7 @@ const CMD_OVERDUE_DAYS = 3;
 async function computeTodayCommand_(){
   const t = todayISO(), y = addDaysISO(t, -1);
   const listRes = await window.storage.list('day:');
-  const isos = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(i=>i<=t).sort();
+  const isos = dayIsos_(listRes).filter(i=>i<=t).sort();
   const dayMap = await loadDaysBulk([...new Set([...isos, y, t])]);
   const overdue = []; let unpaidTotal = 0, unpaidCount = 0;
   const ageBuckets = [0, 0, 0]; // ค้างรับแยกอายุ: ยังไม่ถึงเกณฑ์ทวง / ถึงเกณฑ์–7 วัน / เกิน 7 วัน
@@ -13706,7 +14371,16 @@ async function computeTodayCommand_(){
   let lotRows = [];
   if(currentDate === t){ try{ lotRows = (await computeLotSettleRows_(rawLots)).filter(r=>r.overdueSoldQty>0.001); }catch(e){} }
   let spikes = []; try{ spikes = await computePriceSpikes_(); }catch(e){}
-  return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes};
+  // วันย้อนหลังที่ "ไม่ได้จดของเหลือ" — ใช้เกณฑ์เดียวกับหน้า Notifications (computeDayGaps_ type 'leftover') ไม่คิดเกณฑ์ใหม่
+  // ไม่นับวันนี้ (อยู่ในเช็คลิสต์ 7 ขั้นแล้ว) และข้ามเดือนที่ปิดแล้ว (แก้ไม่ได้อยู่แล้ว) — อ่านอย่างเดียว
+  const leftGapDays = isos.filter(iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)) // กันคีย์ day: แปลกๆ หลุดเข้า HTML
+    .filter(iso=>iso < t && !isMonthClosed_(iso) && dayMap[iso])
+    .filter(iso=>computeDayGaps_(iso, dayMap[iso], dayMap[addDaysISO(iso,-1)] || emptyDay(), lotIds).some(g=>g.type==='leftover'))
+    .reverse();
+  // บิลล็อตซ้ำ (billId เดียวกันเกิน 1 ใบ) — แค่บอกให้ไปตรวจเอง ไม่ลบ/แก้ให้
+  let lotDup = null;
+  try{ lotDup = lotBillDupStats_(await loadLotProductBills(), await loadLotTransportBills()); }catch(e){}
+  return {t, overdue, unpaidTotal, unpaidCount, ageBuckets, buyGaps, aging, lotRows, spikes, leftGapDays, lotDup};
 }
 // ---- แถบอายุค้างรับ (บนศูนย์บัญชาการ): ยอดที่สาขายังไม่โอน แยกตามจำนวนวันที่ค้าง — แสดงอย่างเดียว ใช้ยอดเดียวกับ "ค้างรับทั้งหมด" ----
 function buildReceivableAging_(raw){
@@ -13757,13 +14431,32 @@ async function renderTodayCommand_(){
   c.aging.filter(a=>!a.red).forEach(a=>rows.push({sev:'amber', go:'leftover', today:true, text:`${a.p.emoji} ${a.p.name} ค้าง ${a.qty} ${a.p.unit} ครบอายุพรุ่งนี้ — ขายก่อน`, act:'ดู'}));
   if(c.spikes.length){ const s0 = c.spikes[0]; rows.push({sev:'amber', go:'noti', text:`ราคาซื้อพุ่ง ${c.spikes.length} รายการ — ล่าสุด ${escapeHtml(s0.name)} +${s0.pct}%`, sub:`${formatDDMMYYYY(s0.iso)} ฿${s0.price} เทียบเฉลี่ย ฿${s0.avg}`, act:'ดู'}); }
   const reds = rows.filter(r=>r.sev==='red').length;
+  const lg = c.leftGapDays || [], LG_MAX = 6;
+  const gapHtml = lg.length ? `<div class="cmd-gapdays" id="cmdLeftGaps"><div class="cmd-gaphead"><span class="cmd-dot amber"></span><span class="cmd-txt">📦 ยังไม่จดของเหลือ ${lg.length} วัน<small>แตะวันที่ เพื่อไปจด</small></span></div>
+      <div class="cmd-chips">${lg.slice(0,LG_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-leftgap="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('')}${lg.length>LG_MAX?`<button type="button" class="cmd-chip more" data-cmdgo="noti" data-cmdtoday="0">+${lg.length-LG_MAX}</button>`:''}</div></div>` : '';
+  const ld = c.lotDup, LD_MAX = 6;
+  const dupHtml = ld && ld.total > 0 ? `<div class="cmd-gapdays" id="cmdLotDup"><div class="cmd-gaphead"><span class="cmd-dot red"></span><span class="cmd-txt">⚠️ พบบิลล็อตซ้ำ ${Number(ld.total)} ใบ ใน ${Number(ld.groups)} กลุ่มที่ซ้ำกัน<small>สินค้า ${Number(ld.product)} • ขนส่ง ${Number(ld.transport)} — แตะวันที่ไปตรวจบิล ระบบไม่ลบให้</small></span></div>
+      <div class="cmd-chips">${ld.dates.length ? ld.dates.slice(0,LD_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-lotdup="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('') : `<button type="button" class="cmd-chip more" data-cmdgo="purchase" data-cmdtoday="0">ดูบิล ›</button>`}${ld.dates.length>LD_MAX?`<button type="button" class="cmd-chip more" data-lotdup="${escapeHtml(ld.dates[LD_MAX])}">+${ld.dates.length-LD_MAX}</button>`:''}</div></div>` : '';
   el.innerHTML = `<div class="cmd-card">
     <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
       <span class="cmd-sum">ค้างรับทั้งหมด ${money(c.unpaidTotal)} (${c.unpaidCount} บิล)</span></div>
     ${buildReceivableAging_(c.ageBuckets)}
-    ${rows.length ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}</div>`
+    ${rows.length || gapHtml || dupHtml ? `<div class="cmd-list">${rows.map((r,i)=>`<button type="button" class="cmd-row" data-cmdgo="${r.go}" data-cmdtoday="${r.today?1:0}"><span class="cmd-dot ${r.sev}"></span><span class="cmd-txt">${r.text}${r.sub?`<small>${r.sub}</small>`:''}</span><span class="cmd-go">${r.act} ›</span></button>`).join('')}${dupHtml}${gapHtml}</div>`
       : `<div class="cmd-ok">✅ ไม่มีเรื่องด่วนวันนี้</div>`}
   </div>`;
+  el.querySelectorAll('[data-leftgap]').forEach(b=>b.addEventListener('click', async ()=>{
+    await jumpToGap(b.getAttribute('data-leftgap'), 'leftover'); // แค่พาไปหน้าของเหลือของวันนั้น ไม่เขียนอะไร
+    window.scrollTo({top:0, behavior:'smooth'});
+  }));
+  el.querySelectorAll('[data-lotdup]').forEach(b=>b.addEventListener('click', async ()=>{
+    // พาไปการ์ดบิลสินค้าล็อตของวันที่ซื้อ ให้เจ้าของตรวจ/ลบเองจากหน้าปกติ — ตรงนี้ไม่เขียนอะไร
+    const iso = b.getAttribute('data-lotdup');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return;
+    if(currentDate !== iso) await loadForDate(iso);
+    await switchTab('purchase');
+    const sec = document.getElementById('billSecLotProduct');
+    if(sec && sec.scrollIntoView) sec.scrollIntoView({behavior:'smooth', block:'start'}); else window.scrollTo({top:0, behavior:'smooth'});
+  }));
   el.querySelectorAll('[data-cmdgo]').forEach(b=>b.addEventListener('click', async ()=>{
     const tab = b.getAttribute('data-cmdgo');
     if(b.getAttribute('data-cmdtoday')==='1' && currentDate !== todayISO()) await loadForDate(todayISO());
@@ -13872,8 +14565,8 @@ async function renderDataGaps(){
     const sortedGaps = gaps.slice().sort((x,y)=>y.iso.localeCompare(x.iso));
     const shown = sortedGaps.slice(0,25);
     list.innerHTML = sizeHtml + priceHtml + shown.map(g=>`
-      <div class="delayrow" style="cursor:pointer;" data-gapiso="${g.iso}" data-gaptab="${g.tab}">
-        <div><div>${formatDDMMYYYY(g.iso)}</div><div class="d">${g.text}</div></div>
+      <div class="delayrow" style="cursor:pointer;" data-gapiso="${escapeHtml(g.iso)}" data-gaptab="${escapeHtml(g.tab)}">
+        <div><div>${escapeHtml(formatDDMMYYYY(g.iso))}</div><div class="d">${g.text}</div></div>
         <span class="badge-delay">แก้ไข ›</span>
       </div>`).join('') + (sortedGaps.length>25 ? `<div class="hint" style="margin-top:6px;">...และอีก ${sortedGaps.length-25} รายการ (แสดงเฉพาะล่าสุด 25 รายการ)</div>` : '');
     list.querySelectorAll('[data-gapiso]').forEach(row=>{
@@ -13976,7 +14669,7 @@ async function renderProfitDailyChart_(){
     const today = todayISO();
     const start = addDaysISO(today, -179);
     const listRes = await window.storage.list('day:');
-    const have = ((listRes && listRes.keys) || []).map(k=>k.slice(4)).filter(iso=>iso>=start && iso<=today).sort();
+    const have = dayIsos_(listRes).filter(iso=>iso>=start && iso<=today).sort();
     if(!have.length){ el.className='empty'; el.innerHTML='ยังไม่มีข้อมูล'; return; }
     const dayMap = await loadDaysBulk(have);
     const days = []; for(let iso=have[0]; iso<=today; iso=addDaysISO(iso,1)) days.push(iso);
@@ -14720,7 +15413,7 @@ async function loadForDate(iso){
   try{
     let d;
     try{
-      d = await loadDay(iso);
+      [d] = await Promise.all([loadDay(iso), loadBackorders_(false, iso).catch(()=>null)]);
     }catch(e){
       // ใช้ alert() แบบต้องกดรับทราบ แทน toast ที่หายไปเองใน 1.6 วินาที — เพราะเคยเกิดปัญหาจริงมาแล้ว: สลับวันไม่สำเร็จ
       // (เน็ตมีปัญหาตอนนั้นพอดี) แล้วแอปเด้งกลับไปวันเดิมเงียบๆ โดยไม่มีใครทันสังเกต toast แว้บเดียว พอรีบอ่าน/บันทึกรูป
@@ -14934,6 +15627,7 @@ function applyDailyExpenseRoutine_(){
   }
   // ตั้งค่าตรงๆ ด้านบนไม่ยิง onchange — ซิงก์ช่องพิมพ์ชื่อเองของ "จ่ายให้ใคร" ให้ซ่อนตามเสมอ (ไม่งั้นค้างโชว์จากที่เลือกไว้ก่อนหน้า)
   togglePayeeOther_('expPayee', 'expPayeeOther');
+  renderExpGoods_();
 }
 // พับการ์ด "อ่านออเดอร์จากรูปภาพ" กับ "บันทึกออเดอร์ทีละสาขา" อัตโนมัติถ้าวันนี้มีออเดอร์บันทึกไว้แล้ว (ดูย้อนหลังจะได้เห็นแต่รายชื่อสาขาที่บันทึกแล้วเลย)
 function updateOrderFormAutoFold(){
@@ -15044,7 +15738,8 @@ async function sfLoadCtx_(){
   const dayMap = await loadDaysBulk([prevIso, ...dates]);
   const lots = await loadRawLots();
   const orderTotals = {};
-  dates.forEach(iso=>{ orderTotals[iso] = computeTotals((dayMap[iso]||emptyDay()).orders||{}); });
+  try{ await loadBackorders_(false, dates[0]); await loadBackorders_(false, dates[dates.length-1]); }catch(e){}
+  dates.forEach(iso=>{ orderTotals[iso] = shippedTotals_(dayMap[iso]||emptyDay(), iso); });
   const prev = dayMap[prevIso] || emptyDay();
   const rawOpening = {};
   PRODUCTS.forEach(p=>{
@@ -15496,7 +16191,7 @@ const sfNum = v => Number(v||0);
 const sfEq = (a,b) => Math.abs(sfNum(a)-sfNum(b)) < 0.001;
 
 async function sfBuildPlan_(){
-  rawLotsCache_ = null; lotProductBillsCache_ = null; wasteRecordsCache_ = null;
+  rawLotsCache_ = null; lotProductBillsCache_ = null; lotTransportBillsCache_ = null; wasteRecordsCache_ = null;
   await sfLoadCtx_();
   const comp = sfCompute_();
   const scope = sfSyncScope_();
@@ -16075,6 +16770,7 @@ async function init(){
   document.getElementById('yearSummaryInput').addEventListener('change', renderYearSummary);
   guardedClick('addExpenseBtn', addExpense);
   wireIceAutoCalc_('expCategory','expNote','expAmount');
+  wireExpGoods_(); renderExpGoods_();
   wireIceAutoCalc_('dashExpCategory','dashExpNote','dashExpAmount');
   document.getElementById('dashExpDate').addEventListener('change', e=>{ if(e.target.value) prefillDashExpenseRoutine_(e.target.value); });
   document.querySelectorAll('[data-expfilter]').forEach(btn=>btn.addEventListener('click', async ()=>{
@@ -16183,7 +16879,7 @@ async function init(){
     const pid = document.getElementById('purchProduct').value;
     const p = PRODUCTS.find(x=>x.id===pid);
     if(!p){ showToast('เลือกสินค้าก่อน'); return; }
-    const qty = Math.round(((computeTotals((dayData && dayData.orders) || {})[pid]) || 0) * 100) / 100;
+    const qty = Math.round(((shippedTotals_(dayData || emptyDay(), currentDate)[pid]) || 0) * 100) / 100;
     if(!qty){ showToast(`วันที่ ${formatDDMMYYYY(currentDate)} ยังไม่มีออเดอร์ ${p.emoji}${p.name}`); return; }
     // ออเดอร์นับเป็นหน่วยขาย — ถ้าหน่วยซื้อไม่ใช่หน่วยเดียวกัน (เช่นซื้อเป็นกก. ได้เป็นกระปุก) เติมช่อง "จำนวนที่ทำได้" แทน
     const sameUnit = purchaseBuyUnit(pid) === purchaseSellUnit(pid);
@@ -16286,7 +16982,7 @@ async function init(){
 
   // All buttons/tabs are now clickable regardless of whether data loading below succeeds.
   try{
-    await Promise.all([loadSettings(), syncDayRevs_(), loadClosedMonths_()]);
+    await Promise.all([loadSettings(), syncDayRevs_(), loadClosedMonths_(), loadBackorders_().catch(()=>{})]);
     await loadForDate(todayISO());
   }catch(e){
     showConnectionErrorBanner(e);

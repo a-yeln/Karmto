@@ -176,7 +176,7 @@ const lt = (billId, over) => Object.assign({ id: 'lt' + (NOW - 6 * 24 * 3600 * 1
         wrote: window.__writes.length - w0
       };
     });
-    check('10 badge shows "พบบิลล็อตซ้ำ 4 ใบ" (product 2 + transport 2)', r.has && r.text.includes('พบบิลล็อตซ้ำ 4 ใบ') && r.text.includes('สินค้า 2') && r.text.includes('ขนส่ง 2'), r);
+    check('10 badge shows "พบบิลล็อตซ้ำ 4 ใบ ใน 2 กลุ่มที่ซ้ำกัน" (product 2 + transport 2)', r.has && r.text.includes('พบบิลล็อตซ้ำ 4 ใบ ใน 2 กลุ่มที่ซ้ำกัน') && r.text.includes('สินค้า 2') && r.text.includes('ขนส่ง 2'), r);
     check('10 chips = valid buy dates only, newest first', JSON.stringify(r.dates) === JSON.stringify(['2026-11-24', '2026-11-22']), r.dates);
     check('10 no delete/edit buttons in badge', r.btnTexts.every(t => /^\d{2}\/\d{2}$/.test(t)), r.btnTexts);
     check('10 odd billId/buyDate (<img>) not injected as element', !r.evil, r);
@@ -198,11 +198,125 @@ const lt = (billId, over) => Object.assign({ id: 'lt' + (NOW - 6 * 24 * 3600 * 1
     await page.close();
   }
 
+
+  // 11) ออฟไลน์/คิวค้างระหว่างทาง (ผ่านตัวห่อจริง) → ไม่มี op เข้าคิว (ไม่มี ลบ+เพิ่ม) ไม่เขียนขนส่ง
+  for (const how of ['offline', 'queue']) {
+    const page = await open({ rawLots: [lot(OLD)] });
+    const r = await page.evaluate(async (how) => {
+      const inner = window.storage;
+      const origOps = inner.patchOps.bind(inner);
+      inner.patchOps = async (key, ops, rootIsArray) => {
+        const res = await origOps(key, ops, rootIsArray);
+        if (key === 'lotProductBills') { // เขียนสินค้าสำเร็จแล้ว เน็ตหลุด/มีงานเข้าคิวก่อนถึงขนส่ง
+          if (how === 'offline') window.__forceOffline = true;
+          else localStorage.setItem('karmto_offline_queue', JSON.stringify([{ m: 'patchField', key: 'settings', path: ['x'], value: 1, at: 1, qid: 'q1' }]));
+        }
+        return res;
+      };
+      window.storage = wrapStorageForDayRevs_(inner);
+      lotProductBillsCache_ = []; lotTransportBillsCache_ = [];
+      await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots)));
+      const q = readOfflineQueue_();
+      window.__forceOffline = false; localStorage.removeItem('karmto_offline_queue');
+      return {
+        q: q.length, qKeys: q.map(x => x.key),
+        qRemove: q.some(x => (x.ops || []).some(o => o.remove)),
+        lp: (window.__store.lotProductBills || []).length, lt: window.__store.lotTransportBills ? window.__store.lotTransportBills.length : null,
+        ltWrites: window.__writes.filter(w => w.key === 'lotTransportBills').length
+      };
+    }, how);
+    const expQ = how === 'offline' ? 0 : 1;
+    check(`11 ${how} mid-way: no lot-bill op queued (no remove+push), queue len ${expQ}`, r.q === expQ && !r.qKeys.some(k => /^lot/.test(k)) && !r.qRemove, r);
+    check(`11 ${how} mid-way: product bill written once, transport not written`, r.lp === 1 && r.lt === null && r.ltWrites === 0, r);
+    // รอบหน้า (ต่อเน็ตแล้ว) เติมขนส่งให้ ไม่ซ้ำสินค้า
+    const s = await page.evaluate(async () => { await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots))); return { lp: window.__store.lotProductBills.length, lt: (window.__store.lotTransportBills || []).length }; });
+    check(`11 ${how} next run fills transport only`, s.lp === 1 && s.lt === 1, s);
+    await page.close();
+  }
+  // 11b) เน็ตหลุดระหว่างอ่านสด (หลังอ่านขนส่ง) → ไม่เขียนอะไรเลย
+  {
+    const page = await open({ rawLots: [lot(OLD)] });
+    const r = await page.evaluate(async () => {
+      const inner = window.storage; const origGet = inner.get.bind(inner);
+      inner.get = async (key) => { try { return await origGet(key); } finally { if (key === 'lotTransportBills') window.__forceOffline = true; } };
+      window.storage = wrapStorageForDayRevs_(inner);
+      lotProductBillsCache_ = []; lotTransportBillsCache_ = [];
+      await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots)));
+      const q = readOfflineQueue_().length; window.__forceOffline = false;
+      return { q, writes: window.__writes.length, lp: window.__store.lotProductBills || null };
+    });
+    check('11b offline during fresh read: nothing written or queued', r.q === 0 && r.writes === 0 && !r.lp, r);
+    await page.close();
+  }
+
+  // 12) อ่านสดคืน Key not found / [] แต่แคชมีบิล → ถือว่าอ่านล้มเหลว ไม่เขียน ไม่ล้างแคช
+  const OLD3 = 'bill' + (NOW - 3 * 24 * 3600 * 1000) + '-old333';
+  for (const mode of ['notfound-product', 'empty-product', 'notfound-transport', 'empty-transport']) {
+    const page = await open({ rawLots: [lot(OLD), lot(OLD3)], lotProductBills: [lp(OLD)], lotTransportBills: [lt(OLD)] });
+    const r = await page.evaluate(async ({ mode }) => {
+      await loadLotProductBills(); await loadLotTransportBills(); // แคช: บิลของ OLD (OLD3 ขาด → ต้องอ่านสด)
+      const target = mode.endsWith('product') ? 'lotProductBills' : 'lotTransportBills';
+      const inner = window.storage; const origGet = inner.get.bind(inner);
+      inner.get = async (key) => {
+        if (key === target && mode.startsWith('notfound')) throw new Error('Key not found: ' + key); // เซิร์ฟเวอร์ error ถูกแปลงเป็นแบบนี้
+        if (key === target) return { key, value: '[]', shared: false };
+        return origGet(key);
+      };
+      const before = JSON.stringify(window.__store);
+      let threw = false;
+      try { await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots))); } catch (e) { threw = true; }
+      return { threw, writes: window.__writes.length, same: JSON.stringify(window.__store) === before, cLp: (lotProductBillsCache_ || []).length, cLt: (lotTransportBillsCache_ || []).length };
+    }, { mode });
+    check(`12 ${mode} with non-empty cache: throws, no writes, store + cache unchanged`, r.threw && r.writes === 0 && r.same && r.cLp === 1 && r.cLt === 1, r);
+    await page.close();
+  }
+  // 12b) ไม่มีคีย์จริงและแคชว่าง → ยังเติมย้อนหลังได้ (ไม่ throw)
+  {
+    const page = await open({ rawLots: [lot(OLD)] });
+    await page.evaluate(async () => { await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots))); });
+    const s = await snap(page);
+    check('12b no key + empty cache: backfill still works', s.perLp[OLD] === 1 && s.perLt[OLD] === 1, s);
+    await page.close();
+  }
+
+  // 13) billId เป็นตัวเลขในชีต → จับคู่ด้วยสตริง ไม่สร้างซ้ำ
+  for (const lotBid of ['1234567', 1234567]) {
+    const page = await open({ rawLots: [lot(lotBid, { id: 'n-0' })], lotProductBills: [lp(1234567, { id: 'lpn' })], lotTransportBills: [lt(1234567, { id: 'ltn' })] });
+    await page.evaluate(async () => { lotProductBillsCache_ = []; lotTransportBillsCache_ = []; await ensureLotBillRecords(JSON.parse(JSON.stringify(window.__store.rawLots))); });
+    const s = await snap(page);
+    check(`13 numeric billId in store (lot billId ${typeof lotBid}): no duplicate, no push`, s.lp.length === 1 && s.lt.length === 1 && s.pushes === 0, s);
+    await page.close();
+  }
+
+  // 14) จำนวนกลุ่ม: 3 กลุ่ม (สินค้า 2 กลุ่ม 2+3 ใบ, ขนส่ง 1 กลุ่ม 2 ใบ) = 7 ใบ ใน 3 กลุ่ม
+  {
+    const page = await open({ rawLots: [],
+      lotProductBills: [lp('g1'), lp('g1', { id: 'b' }), lp('g2'), lp('g2', { id: 'c' }), lp('g2', { id: 'd' }), lp('g3')],
+      lotTransportBills: [lt('g1', { id: 'e' }), lt('g1', { id: 'f' }), lt('g4', { id: 'g' })] });
+    const r = await page.evaluate(async () => {
+      const st = lotBillDupStats_(window.__store.lotProductBills, window.__store.lotTransportBills);
+      await switchTab('dashboard'); await renderTodayCommand_();
+      const box = document.getElementById('cmdLotDup');
+      return { st, text: box ? box.textContent : '' };
+    });
+    check('14 dup stats: total 7, groups 3', r.st.total === 7 && r.st.groups === 3 && r.st.product === 5 && r.st.transport === 2, r.st);
+    check('14 badge "7 ใบ ใน 3 กลุ่มที่ซ้ำกัน"', r.text.includes('พบบิลล็อตซ้ำ 7 ใบ ใน 3 กลุ่มที่ซ้ำกัน'), r.text);
+    await page.close();
+  }
+
   // ทุกธีม 420px: ไม่ล้นจอ ชิปแตะง่าย ตัวอักษรไม่กลืนพื้น + แคปจอ
   fs.mkdirSync(SHOT_DIR, { recursive: true });
+  const manyStore = () => {
+    const b = [];
+    for (let i = 1; i <= 8; i++) { const d = '2026-11-' + String(10 + i).padStart(2, '0'); b.push(lp('m' + i, { id: 'm' + i + 'a', buyDate: d }), lp('m' + i, { id: 'm' + i + 'b', buyDate: d })); }
+    return { rawLots: [], lotProductBills: b, lotTransportBills: [] };
+  };
+  const noDateStore = () => ({ rawLots: [], lotProductBills: [lp('nd', { buyDate: '' }), lp('nd', { id: 'x2', buyDate: null })], lotTransportBills: [] });
+  const VARIANTS = [['', dupStore], ['-many', manyStore], ['-nodate', noDateStore]];
+  for (const [suffix, mkStore] of VARIANTS)
   for (const theme of ['', 'mermaid', 'sea', 'neon']) {
     for (const mode of ['full', 'color']) {
-      const p = await open(dupStore());
+      const p = await open(mkStore());
       const m = await p.evaluate(async ({ theme, mode }) => {
         if (theme) document.documentElement.setAttribute('data-theme', theme); else document.documentElement.removeAttribute('data-theme');
         document.documentElement.setAttribute('data-tmode', mode);
@@ -210,11 +324,14 @@ const lt = (billId, over) => Object.assign({ id: 'lt' + (NOW - 6 * 24 * 3600 * 1
         const box = document.getElementById('cmdLotDup'); box.scrollIntoView({ block: 'center' });
         const chip = box.querySelector('.cmd-chip'); const cs = getComputedStyle(chip);
         const txt = getComputedStyle(box.querySelector('.cmd-txt'));
-        return { overflow: document.documentElement.scrollWidth > window.innerWidth, boxRight: box.getBoundingClientRect().right, h: chip.getBoundingClientRect().height, color: cs.color, bg: cs.backgroundColor, txtColor: txt.color };
+        return { overflow: document.documentElement.scrollWidth > window.innerWidth, boxRight: box.getBoundingClientRect().right, h: chip.getBoundingClientRect().height, color: cs.color, bg: cs.backgroundColor, txtColor: txt.color,
+          chips: [...box.querySelectorAll('.cmd-chip')].map(c => c.textContent.trim()), chipsMaxRight: Math.max(...[...box.querySelectorAll('.cmd-chip')].map(c => c.getBoundingClientRect().right)) };
       }, { theme, mode });
       const name = (theme || 'macaron') + '-' + mode;
-      check(`[${name}] no horizontal overflow, chip >=44px, text visible`, !m.overflow && m.boxRight <= 420 && m.h >= 44 && m.color !== m.bg, m);
-      await p.locator('#cmdLotDup').screenshot({ path: path.join(SHOT_DIR, `cmd-lot-dup-${name}.png`) }).catch(() => {});
+      check(`[${name}${suffix}] no horizontal overflow, chip >=44px, text visible`, !m.overflow && m.boxRight <= 420 && m.chipsMaxRight <= 420 && m.h >= 44 && m.color !== m.bg, m);
+      if (suffix === '-many') check(`[${name}${suffix}] 6 date chips + "+2"`, m.chips.length === 7 && m.chips[6] === '+2', m.chips);
+      if (suffix === '-nodate') check(`[${name}${suffix}] only "ดูบิล ›" chip`, m.chips.length === 1 && m.chips[0] === 'ดูบิล ›', m.chips);
+      await p.locator('#cmdLotDup').screenshot({ path: path.join(SHOT_DIR, `cmd-lot-dup${suffix}-${name}.png`) }).catch(() => {});
       await p.close();
     }
   }

@@ -9901,13 +9901,17 @@ function lotBillIdAgeMs_(bid){
   return m ? Date.now() - Number(m[1]) : null;
 }
 // อ่านบิลล็อตสดข้ามแคช: ยังไม่มีคีย์ = [] • error อื่น/รูปข้อมูลแปลก = throw (ไม่เขียนอะไร)
-async function readLotBillKeyFresh_(key){
+// storage.get แปลง error ฝั่งเซิร์ฟเวอร์ทุกชนิดเป็น "Key not found" แยกไม่ออกว่าไม่มีคีย์จริงหรือเซิร์ฟเวอร์พัง —
+// ถ้าอ่านสดได้ว่าง แต่แคชเครื่องนี้มีบิลอยู่ (cachedLen > 0) = ถือว่าอ่านล้มเหลว throw (กันสร้างบิลซ้ำทั้งชุด)
+async function readLotBillKeyFresh_(key, cachedLen){
+  const emptyOrFail = () => { if(Number(cachedLen) > 0) throw new Error('lot bills: fresh read empty but cache has ' + Number(cachedLen)); return []; };
   let r;
   try{ r = await window.storage.get(key); }
-  catch(e){ if(e && e.message && e.message.indexOf('Key not found') === 0) return []; throw e; }
+  catch(e){ if(e && e.message && e.message.indexOf('Key not found') === 0) return emptyOrFail(); throw e; }
   const v = JSON.parse(r.value);
-  if(v === null || v === undefined) return [];
+  if(v === null || v === undefined) return emptyOrFail();
   if(!Array.isArray(v)) throw new Error('lot bills: not an array');
+  if(!v.length) return emptyOrFail();
   return v;
 }
 async function ensureLotBillRecords(lots){
@@ -9919,19 +9923,29 @@ async function ensureLotBillRecords(lots){
   finally{ if(ensureLotBillsInFlight_ === run) ensureLotBillsInFlight_ = null; }
 }
 async function ensureLotBillRecordsRun_(lots){
-  let plan = lotBillMissingOps_(lots, await loadLotProductBills(), await loadLotTransportBills());
+  const cachedProduct = await loadLotProductBills(), cachedTransport = await loadLotTransportBills();
+  let plan = lotBillMissingOps_(lots, cachedProduct, cachedTransport);
   if(!plan.productOps.length && !plan.transportOps.length) return; // ชั้นแรก: แคชบอกว่าครบ ไม่ยิงเน็ตเพิ่ม
-  const freshProduct = await readLotBillKeyFresh_('lotProductBills');
-  const freshTransport = await readLotBillKeyFresh_('lotTransportBills');
+  const freshProduct = await readLotBillKeyFresh_('lotProductBills', cachedProduct.length);
+  const freshTransport = await readLotBillKeyFresh_('lotTransportBills', cachedTransport.length);
   lotProductBillsCache_ = freshProduct; lotTransportBillsCache_ = freshTransport;
   plan = lotBillMissingOps_(lots, freshProduct, freshTransport);
-  if(isOffline_() || readOfflineQueue_().length > 0) return; // เน็ตหลุดระหว่างอ่าน — ไม่เข้าคิว
-  if(plan.productOps.length) await writeRootArrayOp_('lotProductBills', plan.productOps, arr=>{lotProductBillsCache_=arr;});
-  if(plan.transportOps.length) await writeRootArrayOp_('lotTransportBills', plan.transportOps, arr=>{lotTransportBillsCache_=arr;});
+  // เช็คออฟไลน์/คิวค้างซ้ำก่อนเขียนแต่ละคีย์ — ห้ามให้ op ใดเข้าคิวออฟไลน์ (idempotentOps_ แปลง push เป็น ลบ id + เพิ่ม
+  // ซึ่งอาจลบบิลที่จ่ายแล้ว) • หยุดกลางทาง = ไม่เขียนคีย์ที่เหลือ รอบหน้าค่อยเติม
+  const blocked = () => isOffline_() || readOfflineQueue_().length > 0;
+  if(plan.productOps.length){
+    if(blocked()) return;
+    await writeRootArrayOp_('lotProductBills', plan.productOps, arr=>{lotProductBillsCache_=arr;});
+  }
+  if(plan.transportOps.length){
+    if(blocked()) return;
+    await writeRootArrayOp_('lotTransportBills', plan.transportOps, arr=>{lotTransportBillsCache_=arr;});
+  }
 }
 function lotBillMissingOps_(lots, productBills, transportBills){
-  const haveBillIds = new Set((productBills||[]).map(b=>b && b.billId));
-  const haveTransportBillIds = new Set((transportBills||[]).map(b=>b && b.billId));
+  // เก็บเป็นสตริง — ชีตอาจคืน billId เป็นตัวเลข ถ้าเทียบตรงๆ จะจับคู่ไม่เจอแล้วสร้างซ้ำ
+  const haveBillIds = new Set((productBills||[]).filter(b=>b && b.billId != null).map(b=>String(b.billId)));
+  const haveTransportBillIds = new Set((transportBills||[]).filter(b=>b && b.billId != null).map(b=>String(b.billId)));
   const groups = {};
   lots.forEach(lot=>{
     const bid = lot.billId || lot.id;
@@ -9947,7 +9961,7 @@ function lotBillMissingOps_(lots, productBills, transportBills){
     if(rows.some(l=>isMonthClosed_(l.buyDate))) return; // เดือนที่ปิดแล้วห้ามแตะ
     const age = lotBillIdAgeMs_(bid);
     if(age !== null && age < LOT_BILL_SETTLE_MS) return; // บิลเพิ่งสร้าง (อาจยังเขียนไม่ครบ/เครื่องอื่นกำลังเขียน) รอก่อน
-    if(!haveBillIds.has(bid)){
+    if(!haveBillIds.has(String(bid))){
       const amount = rows.reduce((s,l)=>s+Number(l.qtyTotal||0)*Number(l.pricePerKg||0), 0);
       if(amount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
@@ -9955,7 +9969,7 @@ function lotBillMissingOps_(lots, productBills, transportBills){
       }
     }
     // เผื่อกรณีตอนบันทึกล็อตมีค่าขนส่ง (ติดอยู่ใน extra ของแต่ละล็อตแล้ว นับเป็นต้นทุนถูกต้องอยู่แล้ว) แต่บิลค่าขนส่งที่ต้องตามจ่ายไม่ถูกสร้างขึ้น (เช่น เน็ตสะดุดตอนบันทึกขั้นที่สอง) — สร้างย้อนหลังให้อัตโนมัติ กันตกหล่นไม่มีให้ตามจ่าย
-    if(!haveTransportBillIds.has(bid)){
+    if(!haveTransportBillIds.has(String(bid))){
       const transportAmount = Math.round(rows.reduce((s,l)=>s+Number(l.extra||0),0)*100)/100;
       if(transportAmount>0){
         const productLabels = rows.map(l=>{ const p=PRODUCTS.find(x=>x.id===l.productId); return p?`${p.emoji}${p.name}`:''; }).filter(Boolean);
@@ -9968,6 +9982,7 @@ function lotBillMissingOps_(lots, productBills, transportBills){
 // นับบิลล็อตที่ billId ซ้ำกัน (กลุ่มที่มีมากกว่า 1 ใบ นับทุกใบในกลุ่ม) แยกสินค้า/ขนส่ง — อ่านอย่างเดียว ไม่ลบ/แก้อะไร
 function lotBillDupStats_(productBills, transportBills){
   const dates = new Set();
+  let groups = 0;
   const count = arr => {
     const m = {};
     (Array.isArray(arr) ? arr : []).forEach(b=>{
@@ -9975,11 +9990,11 @@ function lotBillDupStats_(productBills, transportBills){
       (m[String(k)] = m[String(k)] || []).push(b);
     });
     let n = 0;
-    Object.values(m).forEach(g=>{ if(g.length > 1){ n += g.length; g.forEach(b=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(String(b.buyDate||''))) dates.add(b.buyDate); }); } });
+    Object.values(m).forEach(g=>{ if(g.length > 1){ n += g.length; groups++; g.forEach(b=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(String(b.buyDate||''))) dates.add(b.buyDate); }); } });
     return n;
   };
   const product = count(productBills), transport = count(transportBills);
-  return {product, transport, total: product + transport, dates: [...dates].sort().reverse()};
+  return {product, transport, total: product + transport, groups, dates: [...dates].sort().reverse()};
 }
 // เติมข้อมูลย้อนหลังให้รายการเคลม/ของเสีย (wasteRecords) ที่บันทึกไว้ก่อนมีระบบหักค้างตัดต้นทุนอัตโนมัติ (ยังไม่มี
 // lotClaimAllocations) — ถ้าสินค้านั้นมีล็อตวัตถุดิบอยู่จริง หักจำนวนที่เคลมออกจากค้างตัดต้นทุนแบบเดียวกับเคลมใหม่
@@ -13627,7 +13642,7 @@ async function renderTodayCommand_(){
   const gapHtml = lg.length ? `<div class="cmd-gapdays" id="cmdLeftGaps"><div class="cmd-gaphead"><span class="cmd-dot amber"></span><span class="cmd-txt">📦 ยังไม่จดของเหลือ ${lg.length} วัน<small>แตะวันที่ เพื่อไปจด</small></span></div>
       <div class="cmd-chips">${lg.slice(0,LG_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-leftgap="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('')}${lg.length>LG_MAX?`<button type="button" class="cmd-chip more" data-cmdgo="noti" data-cmdtoday="0">+${lg.length-LG_MAX}</button>`:''}</div></div>` : '';
   const ld = c.lotDup, LD_MAX = 6;
-  const dupHtml = ld && ld.total > 0 ? `<div class="cmd-gapdays" id="cmdLotDup"><div class="cmd-gaphead"><span class="cmd-dot red"></span><span class="cmd-txt">⚠️ พบบิลล็อตซ้ำ ${Number(ld.total)} ใบ<small>สินค้า ${Number(ld.product)} • ขนส่ง ${Number(ld.transport)} — แตะวันที่ไปตรวจบิล ระบบไม่ลบให้</small></span></div>
+  const dupHtml = ld && ld.total > 0 ? `<div class="cmd-gapdays" id="cmdLotDup"><div class="cmd-gaphead"><span class="cmd-dot red"></span><span class="cmd-txt">⚠️ พบบิลล็อตซ้ำ ${Number(ld.total)} ใบ ใน ${Number(ld.groups)} กลุ่มที่ซ้ำกัน<small>สินค้า ${Number(ld.product)} • ขนส่ง ${Number(ld.transport)} — แตะวันที่ไปตรวจบิล ระบบไม่ลบให้</small></span></div>
       <div class="cmd-chips">${ld.dates.length ? ld.dates.slice(0,LD_MAX).map(iso=>`<button type="button" class="cmd-chip num" data-lotdup="${escapeHtml(iso)}">${escapeHtml(formatDDMMYYYY(iso).slice(0,5))}</button>`).join('') : `<button type="button" class="cmd-chip more" data-cmdgo="purchase" data-cmdtoday="0">ดูบิล ›</button>`}${ld.dates.length>LD_MAX?`<button type="button" class="cmd-chip more" data-lotdup="${escapeHtml(ld.dates[LD_MAX])}">+${ld.dates.length-LD_MAX}</button>`:''}</div></div>` : '';
   el.innerHTML = `<div class="cmd-card">
     <div class="cmd-head"><h3>🧭 วันนี้ ${formatDDMMYYYY(c.t).slice(0,5)} ${reds?`<span style="color:#E0475A;">• ด่วน ${reds}</span>`:''}</h3>
@@ -14459,7 +14474,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-26.2';
+const APP_BUILD = '2026-11-26.3';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});

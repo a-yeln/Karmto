@@ -147,6 +147,10 @@
   --phat:#9757B8; --phat-soft:#EBD6F8;
   /* ม่วงตัวอักษรของ "แยกส่ง" (สวิตช์ฟอร์มออเดอร์/การ์ดสาขาวันนี้) อ่านชัดบนพื้นสว่าง — ธีม neon (พื้นมืด) ใช้ม่วงอ่อน */
   --sep-ink:#6E3A98;
+  /* พื้นปุ่ม/ป้าย/วงแหวน "แยกส่ง" (ขาวบนพื้นนี้ ≥4.5) — mermaid ใช้ม่วงเข้มกว่า เพราะ accent ของธีมก็เป็นม่วงอยู่แล้ว (ดู html[data-theme=mermaid] ท้ายบล็อกฟอร์ม) */
+  --sep-fill:var(--phat);
+  /* พื้น/เส้นกล่องเตือนสีเหลือง (ธีม mermaid เปลี่ยน c-lemon เป็นชมพู จึง override) */
+  --warn-bg:var(--c-lemon); --warn-bd:var(--b-lemon);
   --ocean:#0E7C93; --ocean-soft:#D6EFF5;
   --sunset:#F08A3E; --sunset-soft:#FFE5CF;
   --dash-wide-shadow:0 1px 2px rgba(15,38,43,0.04), 0 8px 24px rgba(15,38,43,0.07);
@@ -1406,7 +1410,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .bg-chip.split.has{background:var(--c-lav);border-color:var(--b-lav);color:var(--sep-ink);box-shadow:0 3px 0 color-mix(in srgb,var(--b-lav) 70%,transparent);}
 .bg-chip.rare:not(.has){border-color:var(--b-sky);}
 .bg-chip.sel{box-shadow:0 0 0 2px var(--surface),0 0 0 4.5px var(--accent);}
-.bgc-tk{position:absolute;top:-8px;right:-6px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;background:var(--phat);border:2px solid var(--surface);box-shadow:0 2px 0 rgba(60,25,90,.45);display:flex;align-items:center;justify-content:center;font-size:10.5px;line-height:1;pointer-events:none;}
+.bgc-tk{position:absolute;top:-8px;right:-6px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;background:var(--sep-fill);border:2px solid var(--surface);box-shadow:0 2px 0 rgba(60,25,90,.45);display:flex;align-items:center;justify-content:center;font-size:10.5px;line-height:1;pointer-events:none;}
 .bgc-tk span{filter:drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 .8px #fff);}
 .bgc-hgb{position:absolute;top:-7px;right:-5px;width:18px;height:18px;box-sizing:border-box;border-radius:50%;background:color-mix(in srgb,var(--text-faint) 35%,var(--surface));border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;pointer-events:none;}
 .bgc-hgb svg{width:10px;height:10px;}
@@ -1417,7 +1421,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .bgc-lead.sep{background:linear-gradient(180deg,var(--c-lav),color-mix(in srgb,var(--c-lav) 72%,var(--b-lav)));}
 .bgc-lead.rare{background:linear-gradient(180deg,var(--surface-3),color-mix(in srgb,var(--surface-3) 72%,var(--b-sky)));}
 .bgc-ico{width:32px;height:32px;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);}
-.bgc-ico.sep{background:var(--phat);box-shadow:0 2px 0 rgba(60,25,90,.45);font-size:15px;line-height:1;}
+.bgc-ico.sep{background:var(--sep-fill);box-shadow:0 2px 0 rgba(60,25,90,.45);font-size:15px;line-height:1;}
 .bgc-ico.sep span{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff);}
 .bgc-ico.rare{background:color-mix(in srgb,var(--text-faint) 35%,var(--surface));box-shadow:0 2px 0 color-mix(in srgb,var(--text-faint) 45%,transparent);}
 .bgc-ico.rare svg{width:17px;height:17px;}
@@ -1447,7 +1451,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
   .bgrid{transition:none;}
 }
 /* ---- ฟอร์มออเดอร์: สวิตช์ ส่งปกติ | แยกส่ง (สาขาคู่ เช่น 13 กับ 13T) + โทนม่วงตอนกรอกฝั่งแยกส่ง ---- */
-#orderFormCard{position:relative;}
+#orderFormCard{position:relative;scroll-margin-top:calc(var(--stick-h,130px) + 12px);} /* --stick-h = ความสูงหัวตรึงจริง (วัดใน wireStickyHeaderVar_ — ต่างกันตามธีม/ย่อหัว) กันหัวฟอร์ม+ป้ายคาดขอบถูกบังตอน scrollIntoView */
 #orderFormCard .field{margin-bottom:10px;}
 #orderFormCard .grid7{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
 #orderFormCard .grid7>div{min-width:0;}
@@ -1457,22 +1461,23 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 #orderFormCard #saveRowBtn,#orderFormCard #clearRowBtn{min-height:48px;}
 .osw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--surface-3);border:1.5px solid var(--field-bd);border-radius:999px;padding:4px;margin-bottom:12px;}
 .osw[hidden]{display:none;}
-.osw .seg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:48px;border:none;background:transparent;border-radius:999px;padding:6px 4px 5px;font-family:inherit;font-size:15.5px;font-weight:700;line-height:1.25;color:var(--text-dim);cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease;-webkit-tap-highlight-color:transparent;}
+.osw .seg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:48px;border:1.5px solid transparent;background:transparent;border-radius:999px;padding:6px 4px 5px;font-family:inherit;font-size:15.5px;font-weight:700;line-height:1.25;color:var(--text-dim);cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease;-webkit-tap-highlight-color:transparent;}
 .osw .seg .t{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.osw .seg .sub{display:flex;align-items:center;gap:5px;max-width:100%;font-size:12.5px;font-weight:600;color:var(--text-faint);white-space:nowrap;}
+.osw .seg .sub{display:flex;align-items:center;gap:5px;max-width:100%;font-size:12.5px;font-weight:600;color:var(--text-dim);white-space:nowrap;}
 .osw .seg .osw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--success);}
 .osw .seg.on-main{background:var(--accent);color:var(--accent-text);box-shadow:0 3px 0 var(--btn-depth);}
-.osw .seg.on-sep{background:var(--phat);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
-.osw .seg.on-main .sub,.osw .seg.on-sep .sub{color:inherit;opacity:.92;}
+.osw .seg.on-sep{background:var(--sep-fill);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
+.osw .seg.on-main .sub,.osw .seg.on-sep .sub{color:inherit;}
 .osw .seg.on-main .osw-dot,.osw .seg.on-sep .osw-dot{background:#fff;}
-.osw .seg.dis{opacity:.62;cursor:default;}
+/* ปิดใช้ = เส้นประ + พื้นโปร่ง (ไม่ใช้ opacity — ตัวหนังสืออ่านต้องผ่าน AA) */
+.osw .seg.dis{cursor:default;background:transparent;border:1.5px dashed color-mix(in srgb,var(--text-faint) 75%,transparent);box-shadow:none;}
 .osw .seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-.osw-bar{display:none;position:absolute;top:-19px;left:50%;transform:translateX(-50%);z-index:2;max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--phat);color:#fff;font-weight:700;font-size:14px;line-height:1.35;border-radius:999px;padding:4px 16px 3px;box-shadow:0 2px 0 rgba(60,25,90,.5);}
-#orderFormCard[data-side="sep"]{--card-bg:var(--c-lav);--card-bd:var(--b-lav);margin-top:26px;box-shadow:0 0 0 3px var(--phat),0 3px 0 rgba(60,25,90,.28),0 10px 22px rgba(151,87,184,.14);}
+.osw-bar{display:none;position:absolute;top:-19px;left:50%;transform:translateX(-50%);z-index:2;max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--sep-fill);color:#fff;font-weight:700;font-size:14px;line-height:1.35;border-radius:999px;padding:4px 16px 3px;box-shadow:0 2px 0 rgba(60,25,90,.5);}
+#orderFormCard[data-side="sep"]{--card-bg:var(--c-lav);--card-bd:var(--b-lav);margin-top:26px;scroll-margin-top:calc(var(--stick-h,130px) + 34px);box-shadow:0 0 0 3px var(--sep-fill),0 3px 0 rgba(60,25,90,.28),0 10px 22px rgba(151,87,184,.14);}
 #orderFormCard[data-side="sep"] .osw-bar{display:block;}
 #orderFormCard[data-side="sep"] .prodinput,#orderFormCard[data-side="sep"] select{border-color:var(--b-lav);}
 #orderFormCard[data-side="sep"] .osw{background:var(--paper);border-color:var(--b-lav);}
-#orderFormCard[data-side="sep"] #saveRowBtn{background:var(--phat);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
+#orderFormCard[data-side="sep"] #saveRowBtn{background:var(--sep-fill);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
 @media (prefers-reduced-motion:reduce){.osw .seg{transition:none;}}
 /* ---- สถานะบันทึกออเดอร์: #orderFormCard[data-save] = idle | dirty | saving | done | saved | queued | error ----
    saved/queued = การ์ดสรุปค้างถาวร (ไม่มีปุ่มบันทึกสีเข้ม) • error = ค่าที่พิมพ์ยังอยู่ + ปุ่ม "ลองบันทึกอีกครั้ง" — สีผ่าน token ทุกธีม */
@@ -1486,19 +1491,21 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .oss-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 .oss-card{display:flex;flex-direction:column;gap:9px;border:2px solid var(--b-mint);background:var(--c-mint);border-radius:16px;padding:12px;}
 .oss-card.queued{border:2px dashed color-mix(in srgb,var(--text-faint) 60%,transparent);background:var(--surface-3);}
-.oss-card.warn{border-color:var(--b-lemon);background:var(--c-lemon);}
+.oss-card.warn{border-color:var(--warn-bd);background:var(--warn-bg);}
 .oss-head{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:16px;font-weight:700;line-height:1.3;color:var(--success-ink);}
 .oss-card.queued .oss-head{color:var(--text-dim);}
 .oss-card.warn .oss-head{color:var(--text);}
 .oss-ck{flex:none;width:26px;height:26px;border-radius:50%;background:var(--success);display:inline-flex;align-items:center;justify-content:center;}
 .oss-ck svg{width:15px;height:15px;fill:none;stroke:var(--accent-text,#fff);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:0;}
 .oss-hg{flex:none;font-size:18px;line-height:1;}
-.oss-side{font-size:12.5px;font-weight:700;color:var(--sep-ink);background:var(--c-lav);border-radius:999px;padding:1px 9px;}
+.oss-side{font-size:12.5px;font-weight:700;border-radius:999px;padding:1px 9px;}
+.oss-side.sep{color:var(--sep-ink);background:var(--c-lav);}
+.oss-side.main{color:var(--text);background:var(--surface-3);border:1px solid var(--border);}
 .oss-items{display:flex;flex-wrap:wrap;gap:6px;min-width:0;}
 .oss-chip{background:var(--surface);border:1.5px solid var(--border);border-radius:999px;padding:2px 10px;font-size:14px;font-weight:700;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .oss-total{font-size:13.5px;font-weight:600;color:var(--text-dim);}
 .oss-note{font-size:13.5px;font-weight:600;color:var(--text-dim);line-height:1.4;}
-.oss-warn{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.4;background:var(--c-lemon);border:1.5px solid var(--b-lemon);border-radius:12px;padding:7px 10px;}
+.oss-warn{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.4;background:var(--warn-bg);border:1.5px solid var(--warn-bd);border-radius:12px;padding:7px 10px;}
 .oss-actions{display:flex;gap:8px;align-items:stretch;}
 .oss-actions button{min-height:48px;border-radius:999px;font-family:inherit;font-weight:700;font-size:15.5px;cursor:pointer;border:2px solid var(--field-bd);background:var(--paper);color:var(--text);padding:0 16px;min-width:0;}
 .oss-actions .oss-next{flex:1;background:var(--accent);color:var(--accent-text);border-color:transparent;box-shadow:0 3px 0 var(--btn-depth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1510,7 +1517,7 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 #orderFormCard[data-save="saving"] :is(#sepSwitch,#branchPick){opacity:.6;}
 #orderFormCard[data-save="saving"] #saveRowBtn::before{content:"";flex:none;width:16px;height:16px;box-sizing:border-box;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ossSpin .8s linear infinite;}
 #orderFormCard[data-save="error"]{box-shadow:0 0 0 2.5px var(--danger),0 3px 0 rgba(120,20,50,.25);}
-#orderFormCard[data-save="error"] #saveRowBtn{background:var(--danger);color:#fff;box-shadow:0 3px 0 rgba(120,20,50,.5);}
+#orderFormCard[data-save="error"] #saveRowBtn{background:color-mix(in srgb,var(--danger) 70%,#000);color:#fff;box-shadow:0 3px 0 rgba(60,10,30,.55);}
 #orderFormCard[data-save="error"] .oss-err{animation:ossShake .4s ease;}
 #orderFormCard[data-save="done"] .oss-card{animation:ossGlow .7s ease-out;}
 #orderFormCard[data-save="done"] .oss-ck svg{animation:ossDraw .35s ease-out both;}
@@ -1519,6 +1526,9 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 @keyframes ossGlow{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--success) 70%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
 @keyframes ossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 #orderFormCard[data-motion="off"] :is(.oss-card,.oss-ck svg,.oss-err){animation:none;}
+/* mermaid: accent ของธีมเป็นม่วง (#9B5CC7) ใกล้กับม่วงแยกส่ง — ใช้ม่วงเข้ม (ขาวบนพื้น ≈9:1) + วงแหวนขาวในปุ่มฝั่งแยกส่ง ให้แยกจาก "ส่งปกติ" ชัด; กล่องเตือนเป็นเหลือง (c-lemon ของธีมนี้เป็นชมพู) */
+html[data-theme=mermaid]{--sep-fill:#5B2D9B;--warn-bg:#FFF3C9;--warn-bd:#E8CD6A;}
+html[data-theme=mermaid] .osw .seg.on-sep{box-shadow:0 3px 0 rgba(40,15,80,.55),inset 0 0 0 2px rgba(255,255,255,.6);}
 @media (prefers-reduced-motion:reduce){
   #orderFormCard :is(.oss-card,.oss-ck svg,.oss-err){animation:none!important;}
   #orderFormCard[data-save="saving"] #saveRowBtn::before{animation:none;}
@@ -3579,7 +3589,12 @@ function renderOrderFormGroup_(code){
   if(bar) bar.textContent = isSep ? `กำลังกรอก ${code} (แยกส่ง)` : '';
   const saveBtn = document.getElementById('saveRowBtn');
   const paired = g.side==='sep' || !!g.sep;
-  if(saveBtn) saveBtn.textContent = paired ? (g.side==='sep' ? `บันทึก ${code} (แยกส่ง)` : `บันทึก ${code} (ส่งปกติ)`) : 'บันทึกสาขานี้';
+  if(saveBtn){
+    // ต้องตั้ง data-label ด้วย — renderOrderSaveState_ ใช้ data-label เป็นข้อความปุ่มตอนไม่ได้กำลังบันทึก/ล้ม (ไม่งั้นทับกลับเป็น "บันทึกสาขานี้")
+    const label = paired ? (g.side==='sep' ? `บันทึก ${code} (แยกส่ง)` : `บันทึก ${code} (ส่งปกติ)`) : 'บันทึกสาขานี้';
+    saveBtn.setAttribute('data-label', label);
+    saveBtn.textContent = label;
+  }
   const sw = document.getElementById('sepSwitch');
   if(!sw) return;
   if(standaloneSep){ sw.hidden = true; sw.innerHTML = ''; return; }
@@ -3741,7 +3756,9 @@ function renderOrderList(){
     if(formCard) formCard.scrollIntoView({behavior:'smooth', block:'start'});
     else window.scrollTo({top:0, behavior:'smooth'});
   }));
-  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>deleteOrder_(b.getAttribute('data-del'), b)));
+  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+    deleteOrder_(b.getAttribute('data-del'), b).catch(e=>{ console.error('deleteOrder_ failed', e); showToast('เกิดข้อผิดพลาดตอนลบ — ตรวจที่ลิสต์สาขาก่อนกดซ้ำ'); });
+  }));
 }
 // ---- สถานะการบันทึกออเดอร์ + นโยบาย B ----
 // บันทึก/ลบออเดอร์เขียนแค่ orders[รหัส] ด้วย patchField/patchOps ตามเดิม (ไม่ set ทั้งวัน ไม่แตะ billingPaid/ต้นทุน/ล็อต/costedQty)
@@ -3753,6 +3770,80 @@ let orderSaveSeq_ = 0;
 let orderDoneTimer_ = null;
 const orderDeleteBusy_ = new Set();
 const ORDER_SAVING_MIN_MS = 450, ORDER_DONE_MS = 700;
+// ---- ทะเบียนบันทึก/ลบออเดอร์ที่ "รอส่ง" (ออฟไลน์) แยกจากการ์ดสถานะ ----
+// การ์ดถูกล้างได้ (→ สาขาถัดไป/✎/เปลี่ยนสาขา/เปลี่ยนวัน/บันทึกสาขาอื่น) ซึ่งเป็นลำดับปกติของงานออฟไลน์ — แต่คำสั่งในคิวยังต้องไปทับ orders[รหัส]
+// บนเซิร์ฟเวอร์ตอนส่ง ถ้าอีกเครื่องเพิ่งติ๊กจ่ายบิลนั้นระหว่างที่เราออฟไลน์ ต้อง "ไม่เงียบ": ส่งเสร็จแล้วอ่านวันสดตรวจทุกรายการ เตือน+จด log (ไม่เขียน/ไม่ย้อน billingPaid)
+// เก็บลง localStorage ของเครื่อง (คู่กับ karmto_offline_queue — ต่อเครื่อง ไม่ใช่คีย์ storage ไม่ซิงก์ ไม่ต้องสำรอง) กันแอปถูกปิด/เปิดใหม่ระหว่างออฟไลน์แล้วทะเบียนหาย
+const QOW_LS = 'karmto.queuedOrderWrites';
+let queuedOrderWrites_ = (()=>{
+  try{ const a = JSON.parse(localStorage.getItem(QOW_LS) || '[]'); return Array.isArray(a) ? a.filter(x=>x && typeof x.iso === 'string' && typeof x.code === 'string' && typeof x.qid === 'string') : []; }
+  catch(e){ return []; }
+})();
+let orderWriteCheckBusy_ = false;
+const QOW_MAX_FAIL_MS = 7 * 86400000; // อ่านวันสดไม่สำเร็จต่อเนื่องนานเท่านี้ (นับจาก readyAt) ถึงเลิกตรวจ
+function persistQueuedOrderWrites_(){
+  try{ if(queuedOrderWrites_.length) localStorage.setItem(QOW_LS, JSON.stringify(queuedOrderWrites_.slice(-200))); else localStorage.removeItem(QOW_LS); }catch(e){}
+}
+// paidAtWrite = บิลสาขานั้น "จ่ายแล้ว" ไหม ณ ตอนกด (จากข้อมูลที่ใช้ถาม confirm — แคชถ้าออฟไลน์) ; true = ผู้ใช้เห็น/ยืนยันเรื่องนี้แล้ว ไม่ต้องเตือนซ้ำ
+function trackQueuedOrderWrite_(iso, code, op, paidAtWrite){
+  queuedOrderWrites_.push({qid: uid('qow'), iso, code, op, paidAtWrite: !!paidAtWrite, at: Date.now()});
+  persistQueuedOrderWrites_();
+}
+// หลังคิวออฟไลน์ส่งหมด: อ่านวันสดของทุกวันที่มีรายการรอส่ง — ถ้า billingPaid[รหัส] เป็นจริงแต่ตอนกดยังไม่จ่าย = บิลถูกติ๊กจ่ายระหว่างออฟไลน์
+// แล้วออเดอร์ที่เพิ่งส่งอาจทับ → เตือน (toast + logActivity_ + ขึ้นการ์ดถ้ายังโชว์สาขานั้นอยู่) เคลียร์เฉพาะรายการที่ตรวจได้จริง
+// คิวยังไม่หมด/ออฟไลน์/อ่านวันสดไม่ได้ = คงรายการไว้ตรวจรอบหน้า (ถูกเรียกจาก event karmto-queue-flushed และรอบซิงก์ 60 วินาที) — ห้าม throw
+async function checkQueuedOrderWrites_(){
+  if(orderWriteCheckBusy_ || !queuedOrderWrites_.length) return;
+  if(isOffline_() || offlineFlushing_ || readOfflineQueue_().length) return;
+  orderWriteCheckBusy_ = true;
+  try{
+    // ผ่านด่านดัก (ออนไลน์ + คิวออฟไลน์ว่าง + ไม่กำลังส่ง) ครั้งแรก = ประทับ readyAt — เวลาที่ใช้ตัดสินทิ้งนับจากตรงนี้ ไม่ใช่เวลากดบันทึก (e.at)
+    // (ออฟไลน์นานแค่ไหนแล้วส่งสำเร็จ ก็ต้องตรวจ+เตือนตามปกติ) ; ค่าใน localStorage เสีย/ไม่มี = ถือว่ายังไม่ประทับ
+    const nowMs = Date.now();
+    let stamped = false;
+    queuedOrderWrites_.forEach(e=>{ if(!(Number(e.readyAt || 0) > 0)){ e.readyAt = nowMs; stamped = true; } });
+    if(stamped) persistQueuedOrderWrites_();
+    // ลองอ่านวันสดก่อนเสมอ ไม่ว่ารายการอายุเท่าไร
+    const batch = queuedOrderWrites_.slice();
+    const days = {};
+    for(const iso of [...new Set(batch.map(e=>e.iso))]){
+      try{ const r = await window.storage.get('day:'+iso); days[iso] = normalizeDay_(JSON.parse(r.value)); }catch(e){ /* อ่านไม่ได้ = คงรายการไว้ลองรอบหน้า */ }
+    }
+    const checked = new Set(), warned = new Map();
+    batch.forEach(e=>{
+      const d = days[e.iso];
+      if(!d) return;
+      checked.add(e.qid);
+      if(!e.paidAtWrite && (d.billingPaid||{})[e.code]) warned.set(e.iso + '|' + e.code, {iso: e.iso, code: e.code});
+    });
+    queuedOrderWrites_ = queuedOrderWrites_.filter(e=>!checked.has(e.qid));
+    // ทิ้งได้เฉพาะรายการที่ "อ่านพลาดต่อเนื่อง" เกิน 7 วันนับจาก readyAt (รายการที่อ่านสำเร็จถูกเคลียร์ไปแล้วด้านบน จึงไม่มีทางถูกทิ้ง/ไม่เสียการเตือน)
+    const stale = queuedOrderWrites_.filter(e=>nowMs - Number(e.readyAt || nowMs) > QOW_MAX_FAIL_MS);
+    if(stale.length){
+      const staleIds = new Set(stale.map(e=>e.qid));
+      queuedOrderWrites_ = queuedOrderWrites_.filter(e=>!staleIds.has(e.qid));
+      const seen = new Set();
+      stale.forEach(e=>{
+        const k = e.iso + '|' + e.code; if(seen.has(k)) return; seen.add(k);
+        logActivity_(`ข้ามการตรวจบิลจ่ายของออเดอร์ที่รอส่ง สาขา ${e.code} วันที่ ${formatDDMMYYYY(e.iso)} — อ่านวันนี้จากเซิร์ฟเวอร์ไม่สำเร็จต่อเนื่องเกิน 7 วัน`);
+      });
+    }
+    persistQueuedOrderWrites_();
+    const items = [...warned.values()];
+    items.forEach(({iso, code})=>{
+      const msg = `บิลสาขา ${code} วันที่ ${formatDDMMYYYY(iso)} ถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ตรวจที่หน้าบิล`;
+      logActivity_(`⚠️ บิลสาขา ${code} ${branchName(code)} ถูกติ๊กจ่ายระหว่างที่ออเดอร์รอส่ง (ออฟไลน์) — ออเดอร์ที่ส่งทีหลังอาจทับ ตรวจยอดที่หน้าบิล (วันที่ ${formatDDMMYYYY(iso)})`);
+      const v = orderSavedView_;
+      if(v && v.iso === iso && v.code === code && ['queued','saved','mismatch'].includes(v.phase) && !v.warn){
+        v.warn = `⚠️ ${msg}`;
+        try{ renderOrderSaveState_(); }catch(e){}
+      }
+    });
+    if(items.length === 1) showToast(`⚠️ บิลสาขา ${items[0].code} วันที่ ${formatDDMMYYYY(items[0].iso)} ถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ตรวจที่หน้าบิล`);
+    else if(items.length > 1) showToast(`⚠️ ${items.length} บิลถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ดูรายการกิจกรรม/ตรวจที่หน้าบิล`);
+  }catch(e){ console.error('checkQueuedOrderWrites_ failed', e); }
+  finally{ orderWriteCheckBusy_ = false; }
+}
 // แอนิเมชันเปิดอยู่ไหม (ตั้งค่าแอป karmto.motion + prefers-reduced-motion) — ปิด = ไม่หน่วงเวลาโชว์สถานะเลย (ไม่ผูกกับ navigator.webdriver)
 function orderMotionOn_(){
   try{ if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false; }catch(e){}
@@ -3770,6 +3861,11 @@ function orderDayHasData_(d){ return !!d && (Object.keys(d.orders||{}).length > 
 //   ถ้าแคช/dayData ของวันนั้นมี orders หรือ billingPaid อยู่ = อ่านไม่ได้ → throw ให้ผู้เรียกบล็อกการเขียน (แบบเดียวกับ setShortQty_/toggleNoStock_)
 // • ออฟไลน์/คิวค้าง: อ่านสดไม่ได้ ใช้แคชในเครื่อง (รวมคำสั่งที่ค้างคิวแล้ว) + fromCache:true — ผู้เรียกบอกผู้ใช้ว่าเช็คกับเซิร์ฟเวอร์ไม่ได้
 async function readDayFreshForPaid_(iso){
+  // ออนไลน์แต่ยังมีของค้างในคิวออฟไลน์ → ส่งคิวก่อน (ตัวเดียวกับที่ wrapper ของ storage เรียกก่อนเขียน — flushOfflineQueue_ กันซ้อนด้วย offlineFlushing_
+  // และไม่เรียกกลับมาที่ฟังก์ชันนี้ จึงไม่วน) แล้วค่อยอ่านวันสด เช็คบิลจ่ายแล้วจะได้เทียบกับเซิร์ฟเวอร์จริง ไม่ใช่แคช; ส่งไม่หมด/ล้ม = ใช้แคชต่อ (บอกผู้ใช้ผ่าน fromCache)
+  if(!isOffline_() && readOfflineQueue_().length){
+    try{ await flushOfflineQueue_(); }catch(e){ /* ส่งไม่ได้ — ตกไปใช้แคชด้านล่าง */ }
+  }
   const cached = dayCache_[iso] || readDayFromLocalStorage_(iso) || (iso===currentDate ? dayData : null);
   if(isOffline_() || readOfflineQueue_().length){
     return {d: normalizeDay_(JSON.parse(JSON.stringify(cached || emptyDay()))), fromCache: true};
@@ -3848,7 +3944,7 @@ function orderSavedCardHtml_(v, st){
   const row = v.row || {};
   const g = orderFormGroup_(v.code);
   const sideLbl = (g.side === 'sep' || (g.side === 'main' && isFeeExempt(v.code))) ? 'แยกส่ง' : (g.sep ? 'ส่งปกติ' : '');
-  const side = sideLbl ? `<span class="oss-side">${sideLbl}</span>` : '';
+  const side = sideLbl ? `<span class="oss-side ${sideLbl === 'แยกส่ง' ? 'sep' : 'main'}">${sideLbl}</span>` : '';
   const code = escapeHtml(v.code);
   const chips = PRODUCTS.filter(p=>Number(row[p.id]||0) > 0).map(p=>`<span class="oss-chip">${p.emoji} ${escapeHtml(row[p.id])}</span>`)
     .concat((row.custom||[]).map(it=>`<span class="oss-chip">📦 ${escapeHtml(it.name)} ${escapeHtml(it.qty)}</span>`));
@@ -3865,7 +3961,7 @@ function orderSavedCardHtml_(v, st){
     head = `<span class="oss-ck" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7.5"/></svg></span><b>${code}</b>${side}<span>บันทึกแล้ว ${escapeHtml(orderTimeLabel_(v.savedAt))}</span>`;
   }
   const hasAny = orderRowHasOrder_(row);
-  const warn = v.warn ? `<div class="oss-warn">${escapeHtml(v.warn)}</div>` : '';
+  const warn = v.warn ? `<div class="oss-warn">${escapeHtml(/^⚠️/.test(v.warn) ? v.warn : '⚠️ ' + v.warn)}</div>` : ''; // คำเตือนทุกชนิดนำด้วย ⚠️ เหมือนกัน
   // ร่างของอีกฝั่ง (เช่น 13T) ที่ยังพิมพ์ค้างอยู่ — เตือน ไม่ทิ้งเงียบๆ
   const m = orderDraftMem_;
   const others = (m && m.iso === currentDate && m.main === g.main) ? Object.keys(m.drafts||{}).filter(c=>c !== v.code) : [];
@@ -3937,13 +4033,23 @@ async function onOrderQueueFlushed_(){
   const match = orderRowsEqual_((d.orders||{})[v.code], v.row);
   v.phase = match ? 'saved' : 'mismatch';
   v.doneUntil = 0; v.savedAt = new Date();
+  // คำเตือนบิลถูกติ๊กจ่ายระหว่างออฟไลน์: การ์ดแค่โชว์ (log + toast ทำที่ checkQueuedOrderWrites_ ซึ่งตรวจทุกรายการแม้การ์ดถูกล้างไปแล้ว — กัน log ซ้ำ)
   if(!!(d.billingPaid||{})[v.code] && !v.paidAtWrite){
     v.warn = `⚠️ บิลสาขา ${v.code} ถูกติ๊กจ่ายระหว่างออฟไลน์ ยอดบิลอาจเปลี่ยน ตรวจที่หน้าบิล`;
-    logActivity_(`บิลสาขา ${v.code} ${branchName(v.code)} ถูกติ๊กจ่ายระหว่างที่ออเดอร์รอส่ง — ตรวจยอดที่หน้าบิล (วันที่ ${formatDDMMYYYY(v.iso)})`);
   }
   if(!match) logActivity_(`ออเดอร์ สาขา ${v.code} ${branchName(v.code)} ที่รอส่ง ส่งแล้วแต่ค่าบนเซิร์ฟเวอร์ไม่ตรงกับที่กรอก — ตรวจที่หน้าออเดอร์ (วันที่ ${formatDDMMYYYY(v.iso)})`);
   renderOrderSaveState_();
   if(!orderSaveCardVisible_()) showToast(match ? `ส่งออเดอร์ ${v.code} (${formatDDMMYYYY(v.iso)}) ที่รอส่งแล้ว` : `⚠️ ออเดอร์ ${v.code} (${formatDDMMYYYY(v.iso)}) ส่งแล้วแต่ค่าไม่ตรง ตรวจที่หน้าออเดอร์`);
+}
+// ความสูงหัวตรึง (#dwhStickyWrap) ต่างกันตามธีม/โหมด/ย่อหัว (macaron ~123px, sea full ~160px) — วัดจริงแล้วตั้ง --stick-h บน <html>
+// ให้ CSS ของฟอร์มออเดอร์เผื่อ scroll-margin-top ตาม (กันหัวการ์ด/ป้ายคาดขอบ "กำลังกรอก 13T" ถูกหัวตรึงบังหลังแตะปุ่มสาขา)
+function wireStickyHeaderVar_(){
+  const el = document.getElementById('dwhStickyWrap');
+  if(!el) return;
+  const set = ()=>{ const h = Math.round(el.getBoundingClientRect().height); if(h > 0) document.documentElement.style.setProperty('--stick-h', h + 'px'); };
+  set();
+  if(typeof ResizeObserver === 'function') new ResizeObserver(set).observe(el);
+  else window.addEventListener('resize', set);
 }
 function wireOrderSaveState_(){
   const box = document.getElementById('orderSaveState');
@@ -3964,7 +4070,7 @@ function wireOrderSaveState_(){
       openBranchForm_(nx.getAttribute('data-ossnext'));
     }
   });
-  window.addEventListener('karmto-queue-flushed', ()=>{ onOrderQueueFlushed_().catch(()=>{}); });
+  window.addEventListener('karmto-queue-flushed', ()=>{ onOrderQueueFlushed_().catch(()=>{}); checkQueuedOrderWrites_(); });
 }
 async function saveRow(){
   const code = document.getElementById('branchSelect').value; // จับรหัส/วันที่ตอนกด — ใช้ตลอดทาง เปลี่ยนวัน/สาขากลางทางก็เขียนถูกที่
@@ -3979,9 +4085,10 @@ async function saveRow(){
   // ล้ม = toast เสมอ (แม้การ์ดถูกซ่อน/เปลี่ยนสาขา) + การ์ด error ถ้ายังเห็นอยู่ — จับ error เองทั้งหมด ไม่โยนให้ guardedClick (กัน toast ซ้ำ)
   const fail = msg=>{
     showToast(msg);
-    if(orderSavedView_ === v){ v.phase = 'error'; v.msg = msg; renderOrderSaveState_(); }
+    if(orderSavedView_ === v){ v.phase = 'error'; v.msg = msg; try{ renderOrderSaveState_(); }catch(e){ console.error(e); } } // เปลี่ยนเฟสก่อนวาดเสมอ — วาดพังก็ไม่ค้าง 'saving'
     return false;
   };
+  let wrote = false, wroteQueued = false; // เขียนถึงที่หมายแล้วหรือยัง — ใช้ตัดสินข้อความตอนมี exception ที่ไม่ได้ดัก (ห้ามบอก "ยังไม่ได้บันทึก" ทั้งที่เขียนไปแล้ว)
   orderSaving_ = true;
   try{
     renderOrderSaveState_();
@@ -4015,6 +4122,8 @@ async function saveRow(){
     try{ fresh = normalizeDay_(JSON.parse(res.value)); }
     catch(e){ return fail('ไม่แน่ใจว่าบันทึกสำเร็จไหม (อ่านค่ากลับไม่ได้) ตรวจที่ลิสต์สาขาที่บันทึกแล้วก่อนกดซ้ำ'); }
     const queued = !!(res && res.queued === true); // ออฟไลน์ = ต่อคิวไว้ในเครื่อง ยังไม่ถึงเซิร์ฟเวอร์ ห้ามโชว์ว่าสำเร็จ
+    wrote = true; wroteQueued = queued;
+    if(queued) trackQueuedOrderWrite_(iso, code, 'save', paidBefore); // ทะเบียนรอส่ง — ตรวจบิลจ่ายแล้วตอนคิวส่งเสร็จ แม้การ์ดถูกล้างไปแล้ว
     dayCache_[iso] = fresh;
     writeDayToLocalStorage_(iso, fresh);
     if(iso===currentDate) dayData = fresh;
@@ -4054,6 +4163,15 @@ async function saveRow(){
     if(!orderSaveCardVisible_()) showToast(queued ? `📴 เก็บออเดอร์ ${code} (${formatDDMMYYYY(iso)}) ไว้ในเครื่องแล้ว รอส่งเมื่อมีเน็ต` : `บันทึก ${code} — ${branchName(code)} วันที่ ${formatDDMMYYYY(iso)} แล้ว`);
     if(warn && !queued && !paidBefore) showToast(`⚠️ ${warn}`);
     return true;
+  }catch(e){
+    // exception ที่ไม่ได้ดักไว้ (เช่น ฟังก์ชันคิดยอด/วาดพังกลางทาง) — ห้ามปล่อยให้เฟส 'saving' ค้าง (ช่องกรอก readOnly + userBusy_ ติดตลอด) และห้ามเงียบ
+    console.error('saveRow failed', e);
+    if(!wrote) return fail('บันทึกไม่สำเร็จ (แอปผิดพลาด) ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่ ลองกดอีกครั้ง');
+    if(orderSavedView_ === v && v.phase === 'saving'){ v.phase = wroteQueued ? 'queued' : 'saved'; v.doneUntil = 0; v.savedAt = v.savedAt || new Date(); try{ renderOrderSaveState_(); }catch(_){} }
+    showToast(wroteQueued
+      ? `📴 เก็บออเดอร์ ${code} (${formatDDMMYYYY(iso)}) ไว้ในเครื่องแล้ว รอส่งเมื่อมีเน็ต แต่แสดงผลไม่ครบ — ตรวจที่ลิสต์สาขาที่บันทึกแล้ว`
+      : `บันทึก ${code} (${formatDDMMYYYY(iso)}) แล้ว แต่แสดงผลไม่ครบ — ตรวจที่ลิสต์สาขาที่บันทึกแล้ว`);
+    return true;
   }finally{
     orderSaving_ = false;
   }
@@ -4091,6 +4209,7 @@ async function deleteOrder_(code, btn){
     try{ fresh = normalizeDay_(JSON.parse(res.value)); }
     catch(e){ showToast('ไม่แน่ใจว่าลบสำเร็จไหม (อ่านค่ากลับไม่ได้) ตรวจที่ลิสต์สาขาก่อนกดซ้ำ'); return false; }
     const queued = !!(res && res.queued === true);
+    if(queued) trackQueuedOrderWrite_(iso, code, 'delete', paidBefore); // ทะเบียนรอส่ง (ดู checkQueuedOrderWrites_)
     dayCache_[iso] = fresh;
     writeDayToLocalStorage_(iso, fresh);
     if(iso===currentDate) dayData = fresh;
@@ -4745,6 +4864,7 @@ async function readOrderImages(fileList){
   if(ops.length>0){
     try{
       const res = await window.storage.patchOps('day:'+targetDate, ops, false);
+      if(res && res.queued === true) ops.forEach(o=>trackQueuedOrderWrite_(targetDate, o.path[1], 'save', !!(targetDay.billingPaid||{})[o.path[1]])); // ออฟไลน์ = ต่อคิว → ลงทะเบียนตรวจบิลจ่ายแล้วตอนส่ง
       const fresh = normalizeDay_(JSON.parse(res.value));
       dayCache_[targetDate] = fresh;
       writeDayToLocalStorage_(targetDate, fresh);
@@ -14535,7 +14655,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-25.1';
+const APP_BUILD = '2026-11-26.5';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -14565,6 +14685,7 @@ function userBusy_(){
   return [...document.querySelectorAll('[id$="ModalOverlay"],[id$="Overlay"]')].some(el=>el.style.display && el.style.display!=='none');
 }
 async function syncFromOtherDevices_(){
+  checkQueuedOrderWrites_(); // ทะเบียนออเดอร์รอส่งที่ตรวจไม่ได้รอบก่อน / เหลือจากก่อนปิด-เปิดแอป — ลองใหม่ (ไม่ throw, ว่าง = กลับทันที)
   if(syncInFlight_ || dateNavInFlight_ || !currentDate) return;
   syncInFlight_ = true;
   try{
@@ -15929,6 +16050,7 @@ async function init(){
   wireOrderFormSwitch_(); // ดรอปดาวน์สาขาหลัก (#branchPick) + สวิตช์ ส่งปกติ|แยกส่ง (#sepSwitch) — แค่ตั้ง #branchSelect แล้ววาดฟอร์มใหม่ ไม่เขียนข้อมูล
   document.getElementById('orderImageInput').addEventListener('change', e=>{ if(e.target.files.length) readOrderImages(e.target.files); });
   guardedClick('saveRowBtn', saveRow);
+  wireStickyHeaderVar_(); // วัดความสูงหัวตรึงจริง → --stick-h (ใช้กับ scroll-margin-top ของฟอร์มออเดอร์)
   wireOrderSaveState_(); // การ์ดสถานะบันทึก: ✎ แก้ไข / → สาขาถัดไป + ฟังคิวออฟไลน์ส่งเสร็จ + ชิป ● ยังไม่บันทึก
   document.getElementById('clearRowBtn').addEventListener('click', ()=>{ if(orderSaving_) return; editingCode=null; orderSavedView_ = null; clearOrderDrafts_(); renderProductInputs(); });
   guardedClick('saveLeftoverBtn', saveLeftover);

@@ -86,6 +86,9 @@ function seedStore(extra){
     await page.mouse.move(c.x, c.y);
     await page.mouse.down();
     await page.waitForTimeout(ms);
+    // กดค้างตั้งใจให้ครบ (≥1.1 วินาที): รอจนตัวจับเวลา 1 วินาทีของแอปทำงานจริง (lotHold_ ถูกเคลียร์) ก่อนปล่อย — ตอนเครื่องช้า (รันขนานกับงานอื่น) setTimeout ของหน้าอาจเลื่อนเกิน 300ms
+    // แล้ว mouse.up มาก่อนการตัดจะเริ่ม → เทส "ถูกบล็อก" ผ่านเปล่าๆ แต่ไม่เห็น toast (เคยแดงเป็นบางครั้ง) ; ถ้าไม่ยิงเลยด้วยเหตุอื่นรอไม่เกิน 4 วินาทีแล้วปล่อยตามเดิม
+    if (ms >= 1100) await page.waitForFunction(() => !lotHold_, null, { timeout: 4000 }).catch(() => {});
     await page.mouse.up();
   };
 
@@ -461,10 +464,12 @@ function seedStore(extra){
   {
     const b0 = await state(page);
     await setQty(page, 'p4', 3);
+    const fired0 = await page.evaluate(() => lotHoldFiredAt_);
     await mouseHold(page, 'p4', 1300);
     await idle(page);
     await page.waitForTimeout(400);
     st = await state(page);
+    check('เดือนปิดแล้ว: การกดค้างครบ 1 วินาทีทำงานจริง (ไม่ใช่ผ่านเพราะยังไม่ได้เริ่มตัด)', await page.evaluate(f => lotHoldFiredAt_ !== f, fired0));
     const toastNow = await page.evaluate(() => document.getElementById('toast').textContent);
     check('เดือนปิดแล้ว + กดค้างครบ → ถูกบล็อก: ไม่มีรายการต้นทุนซื้อ costedQty กลับเท่าเดิมทุกรอบ ไม่มีป้ายบันทึกแล้ว',
       st.pu.length === 0 && JSON.stringify(st.dr) === JSON.stringify(b0.dr) && st.saved === 0, { dr: st.dr, was: b0.dr, saved: st.saved, writes: st.writes });

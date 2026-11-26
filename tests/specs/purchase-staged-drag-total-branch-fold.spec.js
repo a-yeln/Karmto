@@ -9,16 +9,23 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
   await page.evaluate(async () => { localStorage.removeItem('karmto.purchAutoNext'); window.confirm = () => true; await switchTab('purchase'); });
 
   // 1) การ์ดสาขาวันนี้พับได้
-  const fold = await page.evaluate(() => {
-    const h3 = document.querySelector('#branchGridCard h3');
-    const body = document.querySelector('#branchGridCard .card-body');
-    return { collapsible: !!h3 && h3.classList.contains('collapsible'), hasBody: !!body, open: !!body && !body.classList.contains('collapsed') };
+  // แยกส่ง ชุด 2: การ์ด "สาขาวันนี้" พับ/กางด้วยกลไกของตัวเอง (แตะหัวการ์ด ไม่มีปุ่ม จำสถานะใน localStorage
+  // karmto.branchGridFold) แทนตัวพับกลาง (.card-body/.collapsible) — ตรวจพฤติกรรมเดิม: เริ่มกาง, แตะหัวแล้วพับ, แตะอีกทีกาง
+  const foldState = () => page.evaluate(() => {
+    const head = document.getElementById('branchGridHead');
+    const fold = document.getElementById('branchGridFold');
+    return { hasHead: !!head, hasFold: !!fold, expanded: head ? head.getAttribute('aria-expanded') : null, closed: !!fold && fold.classList.contains('closed') };
   });
-  check('Branch-grid card is collapsible and starts open', fold.collapsible && fold.hasBody && fold.open, fold);
+  await page.evaluate(async () => { await switchTab('order'); await new Promise(r => setTimeout(r, 400)); }); // การ์ดอยู่หน้าออเดอร์ — ตัวแตะหัวผูกตอนวาดการ์ด
+  const fold = await foldState();
+  check('Branch-grid card is collapsible and starts open', fold.hasHead && fold.hasFold && fold.expanded === 'true' && !fold.closed, fold);
   await page.evaluate(() => document.querySelector('#branchGridCard h3').click());
-  const folded = await page.evaluate(() => document.querySelector('#branchGridCard .card-body').classList.contains('collapsed'));
-  check('Clicking the header folds the branch grid', folded);
+  const folded = await foldState();
+  check('Clicking the header folds the branch grid', folded.expanded === 'false' && folded.closed, folded);
   await page.evaluate(() => document.querySelector('#branchGridCard h3').click());
+  const reopened = await foldState();
+  check('Clicking the header again opens the branch grid', reopened.expanded === 'true' && !reopened.closed, reopened);
+  await page.evaluate(async () => { await switchTab('purchase'); });
 
   // 2) ผลรวมต่อท้ายทุกแถว
   const fill = (q, pr) => page.evaluate(([q, pr]) => { document.getElementById('purchQty').value = q; document.getElementById('purchPrice').value = pr; }, [q, pr]);

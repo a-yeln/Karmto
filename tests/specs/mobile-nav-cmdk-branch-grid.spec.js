@@ -37,8 +37,10 @@ const { launch, mkDay, openApp, makeChecker } = require('../helpers');
 
   page = await open(420);
   await page.evaluate(async () => { await switchTab('order'); await new Promise(r => setTimeout(r, 500)); window.__writes.length = 0; });
-  const grid = await page.evaluate(() => ({ n: document.querySelectorAll('#branchGrid .bg-chip').length, total: settings.branches.length, has: [...document.querySelectorAll('#branchGrid .bg-chip.has')].map(c => c.dataset.bgcode), count: document.getElementById('branchGridCount').textContent }));
-  check('Branch grid shows every branch and marks the saved ones', grid.n === grid.total && grid.has.join() === '01,03' && grid.count.includes('2/' + grid.total), grid);
+  // ตัวนับ "บันทึกแล้ว/ทั้งหมด" ความหมายใหม่ (แยกส่ง ชุด 2): นับเฉพาะหน้า 1 = สาขาไม่แยกส่ง และไม่ติ๊ก "นานๆ สั่งที" — DEFAULT_BRANCHES 24 รหัส (13S/16S แยกส่ง) = 22
+  // ส่วนปุ่มรวมทุกหน้า (หน้า 1 + แถว 🚚/⏳ หน้า 2) ยังต้องเท่ากับจำนวนสาขาทั้งหมด (ทุกสาขาแตะเปิดฟอร์มได้)
+  const grid = await page.evaluate(() => ({ n: document.querySelectorAll('#branchGrid .bg-chip').length, p1: document.querySelectorAll('#branchGrid .bgc-page.p1 .bg-chip').length, total: settings.branches.length, sep: settings.branches.filter(b => b.separate).length, has: [...document.querySelectorAll('#branchGrid .bg-chip.has')].map(c => c.dataset.bgcode), count: document.getElementById('branchGridCount').textContent }));
+  check('Branch grid shows every branch (page 1 = non-separate non-rare, rest on page 2) and marks the saved ones', grid.n === grid.total && grid.total === 24 && grid.p1 === 22 && grid.p1 === grid.total - grid.sep && grid.has.join() === '01,03' && grid.count === '2/22', grid);
   await page.click('#branchGrid [data-bgcode="05"]');
   await page.waitForTimeout(300);
   const picked = await page.evaluate(() => ({ sel: document.getElementById('branchSelect').value, chip: document.querySelector('#branchGrid [data-bgcode="05"]').classList.contains('sel'), writes: window.__writes.length }));

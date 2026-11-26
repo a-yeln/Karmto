@@ -145,6 +145,12 @@
   --mahkard:#3E7CB1; --mahkard-soft:#C9E6F8;
   --monk:#2E9A9A; --monk-soft:#D3F4E1;
   --phat:#9757B8; --phat-soft:#EBD6F8;
+  /* ม่วงตัวอักษรของ "แยกส่ง" (สวิตช์ฟอร์มออเดอร์/การ์ดสาขาวันนี้) อ่านชัดบนพื้นสว่าง — ธีม neon (พื้นมืด) ใช้ม่วงอ่อน */
+  --sep-ink:#6E3A98;
+  /* พื้นปุ่ม/ป้าย/วงแหวน "แยกส่ง" (ขาวบนพื้นนี้ ≥4.5) — mermaid ใช้ม่วงเข้มกว่า เพราะ accent ของธีมก็เป็นม่วงอยู่แล้ว (ดู html[data-theme=mermaid] ท้ายบล็อกฟอร์ม) */
+  --sep-fill:var(--phat);
+  /* พื้น/เส้นกล่องเตือนสีเหลือง (ธีม mermaid เปลี่ยน c-lemon เป็นชมพู จึง override) */
+  --warn-bg:var(--c-lemon); --warn-bd:var(--b-lemon);
   --ocean:#0E7C93; --ocean-soft:#D6EFF5;
   --sunset:#F08A3E; --sunset-soft:#FFE5CF;
   --dash-wide-shadow:0 1px 2px rgba(15,38,43,0.04), 0 8px 24px rgba(15,38,43,0.07);
@@ -1005,7 +1011,7 @@ html[data-theme=neon]{
   --c-sky:#102338; --b-sky:#1FA9C9; --c-mint:#0F2A22; --b-mint:#2BD483; --c-peach:#2A1C12; --b-peach:#FF9F43;
   --c-lav:#1E1638; --b-lav:#A66BFF; --c-lemon:#29260F; --b-lemon:#E9DB3A; --c-pink:#2C1226; --b-pink:#FF4FA3;
   --c-aqua:#0E2A2E; --b-aqua:#2EF2E0; --c-lime:#1C2A10; --b-lime:#A8F03C; --field-bd:#3A3670;
-  --paper:#17162E; --paper-a:rgba(23,22,46,.75); --btn-depth:#0B8FA8; --val-neg:#FF6FB5; --val-pos:#5CFF9D;
+  --paper:#17162E; --paper-a:rgba(23,22,46,.75); --btn-depth:#0B8FA8; --val-neg:#FF6FB5; --val-pos:#5CFF9D; --sep-ink:#C9A6FF;
   --candy-shadow:0 3px 0 rgba(0,0,0,.45), 0 10px 22px rgba(0,0,0,.35); --dash-wide-shadow:0 8px 24px rgba(0,0,0,.4);
 }
 html[data-theme=neon] body{background:var(--bg);}
@@ -1374,12 +1380,167 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
 .wfall-lbl{font-size:10.5px;color:var(--text-dim);text-align:center;line-height:1.2;}
 @keyframes wfGrow{from{transform:scaleY(0)}}
 @media (prefers-reduced-motion:reduce){.wfall-track i{animation:none;}}
-/* ---- ตารางสาขาแตะครั้งเดียว (หน้าออเดอร์) ---- */
-.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:6px;}
-.bg-chip{min-height:42px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:2px;transition:transform .12s ease,background .2s ease;}
-.bg-chip:active{transform:scale(.92);}
-.bg-chip.has{background:var(--accent);border-color:var(--accent);color:#fff;}
-.bg-chip.sel{box-shadow:0 0 0 3px var(--accent-soft);}
+/* ---- การ์ด "สาขาวันนี้" (หน้าออเดอร์): แตะแถบหัว = พับ/กาง (ไม่มีปุ่ม/คำอธิบาย) • 2 หน้าปัดข้าง
+   หน้า 1 = สาขาปกติ (ไม่นานๆ ที) / หน้า 2 = 🚚 แยกส่ง ก่อน ⏳ นานๆ ที — สีผ่าน token ล้วนทุกธีม ---- */
+#branchGridCard{padding-bottom:12px;}
+.bgc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;border-radius:12px;}
+.bgc-head:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+.bgc-head h3{margin:0;font-size:16.5px;line-height:1.3;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.bgc-chips{display:flex;align-items:center;gap:6px;flex:none;}
+.bgc-chip{display:inline-flex;align-items:center;gap:4px;height:26px;box-sizing:border-box;padding:0 10px;border-radius:999px;font-size:14px;font-weight:700;line-height:1;white-space:nowrap;}
+.bgc-chip[hidden]{display:none;}
+.bgc-chip.cnt{background:var(--success-soft);color:var(--success-ink);}
+.bgc-chip.trk{background:var(--c-lav);color:var(--sep-ink);}
+.bgc-chip.trk .em{font-size:13px;line-height:1;}
+.bgc-prog{height:4px;margin:7px 2px 0;border-radius:999px;background:var(--surface-3);overflow:hidden;}
+.bgc-prog i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--success),color-mix(in srgb,var(--success) 55%,#fff));transition:width .35s ease;}
+/* ตัวพับ: ความสูงเลื่อนนุ่ม (grid-template-rows) + visibility ตามหลัง กันโฟกัสหลุดเข้าส่วนที่พับ */
+.bgc-fold{display:grid;grid-template-rows:1fr;transition:grid-template-rows .28s ease,visibility 0s linear 0s;}
+.bgc-fold.closed{grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .28s ease,visibility 0s linear .28s;}
+.bgc-fold-in{overflow:hidden;min-height:0;min-width:0;}
+.bgc-vp{position:relative;margin-top:2px;}
+/* #branchGrid = รางสไลด์ (ปัดนิ้วเนทีฟ scroll-snap) หน้า 2 โผล่ขอบ 24px */
+.bgrid{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 12px;padding:12px 12px 9px;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;}
+.bgrid::-webkit-scrollbar{display:none;}
+@media (max-width:767px){.bgrid{height:var(--bgc-h,auto);overflow-y:hidden;transition:height .25s ease;}}
+.bgc-page{flex:0 0 calc(100% - 24px);min-width:0;scroll-snap-align:start;}
+.bgc-page:only-child{flex-basis:100%;}
+.bgc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.bgc-page.p1 .bgc-grid{row-gap:12px;}
+.bgc-divider{height:0;border-top:1.5px dashed var(--border);margin:8px 2px;}
+.bg-chip{position:relative;height:48px;min-width:0;box-sizing:border-box;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 2px;border:2px dashed color-mix(in srgb,var(--text-faint) 55%,transparent);background:var(--surface);color:var(--text-dim);font-family:inherit;cursor:pointer;transition:transform .12s ease,background .2s ease,box-shadow .2s ease;-webkit-tap-highlight-color:transparent;}
+.bg-chip .n{font-size:21px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
+.bg-chip .ck{flex:none;width:14px;height:14px;display:none;fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;margin-top:1px;}
+.bg-chip:active{transform:scale(.94);}
+.bg-chip.has{border-style:solid;border-color:var(--b-mint);background:var(--c-mint);color:var(--success-ink);box-shadow:0 3px 0 color-mix(in srgb,var(--b-mint) 70%,transparent);}
+.bg-chip.has .ck{display:block;}
+.bg-chip.split{border-color:var(--b-lav);color:var(--sep-ink);}
+.bg-chip.split.has{background:var(--c-lav);border-color:var(--b-lav);color:var(--sep-ink);box-shadow:0 3px 0 color-mix(in srgb,var(--b-lav) 70%,transparent);}
+.bg-chip.rare:not(.has){border-color:var(--b-sky);}
+.bg-chip.sel{box-shadow:0 0 0 2px var(--surface),0 0 0 4.5px var(--accent);}
+.bgc-tk{position:absolute;top:-8px;right:-6px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;background:var(--sep-fill);border:2px solid var(--surface);box-shadow:0 2px 0 rgba(60,25,90,.45);display:flex;align-items:center;justify-content:center;font-size:10.5px;line-height:1;pointer-events:none;}
+.bgc-tk span{filter:drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 .8px #fff);}
+.bgc-hgb{position:absolute;top:-7px;right:-5px;width:18px;height:18px;box-sizing:border-box;border-radius:50%;background:color-mix(in srgb,var(--text-faint) 35%,var(--surface));border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.bgc-hgb svg{width:10px;height:10px;}
+.bgc-hgb svg,.bgc-ico svg{display:block;fill:none;stroke:var(--text);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:var(--text);}
+#bgc-hg .sand{fill:currentColor;fill-opacity:.4;stroke:none;}
+/* แถบนำกลุ่มของหน้า 2 = ไอคอนล้วน (🚚 วงม่วง / ⏳ วงเทา) ไม่มีข้อความ */
+.bgc-lead{grid-row:span var(--rs,1);min-height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;}
+.bgc-lead.sep{background:linear-gradient(180deg,var(--c-lav),color-mix(in srgb,var(--c-lav) 72%,var(--b-lav)));}
+.bgc-lead.rare{background:linear-gradient(180deg,var(--surface-3),color-mix(in srgb,var(--surface-3) 72%,var(--b-sky)));}
+.bgc-ico{width:32px;height:32px;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);}
+.bgc-ico.sep{background:var(--sep-fill);box-shadow:0 2px 0 rgba(60,25,90,.45);font-size:15px;line-height:1;}
+.bgc-ico.sep span{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff);}
+.bgc-ico.rare{background:color-mix(in srgb,var(--text-faint) 35%,var(--surface));box-shadow:0 2px 0 color-mix(in srgb,var(--text-faint) 45%,transparent);}
+.bgc-ico.rare svg{width:17px;height:17px;}
+/* ลูกศรจางตกแต่ง + จุดบอกหน้า (กดไม่ได้ — ปัดนิ้วอย่างเดียว) */
+.bgc-peek{position:absolute;top:0;bottom:0;width:24px;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s ease;}
+.bgc-peek.r{right:0;background:linear-gradient(90deg,color-mix(in srgb,var(--card-bg,var(--surface)) 40%,transparent),color-mix(in srgb,var(--card-bg,var(--surface)) 88%,transparent));}
+.bgc-peek.l{left:0;background:linear-gradient(270deg,color-mix(in srgb,var(--card-bg,var(--surface)) 40%,transparent),color-mix(in srgb,var(--card-bg,var(--surface)) 88%,transparent));}
+.bgc-peek svg{width:14px;height:22px;fill:none;stroke:var(--text-faint);stroke-opacity:.85;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+.bgc-vp[data-multi="1"][data-page="0"] .bgc-peek.r{opacity:1;}
+.bgc-vp[data-multi="1"][data-page="1"] .bgc-peek.l{opacity:1;}
+.bgc-dots{display:flex;justify-content:center;gap:7px;padding:0 0 2px;}
+.bgc-dots:empty{display:none;}
+.bgc-dots i{display:block;width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--text-faint) 38%,transparent);transition:background .2s ease,box-shadow .2s ease;}
+.bgc-dots i.on{background:var(--accent);box-shadow:0 0 0 2.5px var(--accent-soft);}
+@media (min-width:768px){
+  /* จอกว้าง: เรียงหน้าซ้อนกันไม่สไลด์ ซ่อนลูกศร/จุด */
+  .bgrid{display:block;overflow:visible;scroll-snap-type:none;padding:12px 4px 9px;}
+  .bgc-page,.bgc-page:only-child{width:auto;}
+  .bgc-page + .bgc-page{margin-top:14px;}
+  .bgc-grid{grid-template-columns:repeat(8,minmax(0,1fr));}
+  .bgc-lead{grid-row:auto;}
+  .bgc-peek,.bgc-dots{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  .bgc-fold,.bgc-fold.closed{transition:none;}
+  .bgc-prog i,.bgc-peek,.bgc-dots i,.bg-chip{transition:none;}
+  .bgrid{transition:none;}
+}
+/* ---- ฟอร์มออเดอร์: สวิตช์ ส่งปกติ | แยกส่ง (สาขาคู่ เช่น 13 กับ 13T) + โทนม่วงตอนกรอกฝั่งแยกส่ง ---- */
+#orderFormCard{position:relative;scroll-margin-top:calc(var(--stick-h,130px) + 12px);} /* --stick-h = ความสูงหัวตรึงจริง (วัดใน wireStickyHeaderVar_ — ต่างกันตามธีม/ย่อหัว) กันหัวฟอร์ม+ป้ายคาดขอบถูกบังตอน scrollIntoView */
+#orderFormCard .field{margin-bottom:10px;}
+#orderFormCard .grid7{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+#orderFormCard .grid7>div{min-width:0;}
+#orderFormCard .prodlabel{flex-wrap:wrap;line-height:1.25;margin-bottom:3px;}
+#orderFormCard .prodinput,#orderFormCard #customItemOpenBtn{min-height:46px;}
+#orderFormCard .prodinput{font-size:18px;font-weight:700;}
+#orderFormCard #saveRowBtn,#orderFormCard #clearRowBtn{min-height:48px;}
+.osw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--surface-3);border:1.5px solid var(--field-bd);border-radius:999px;padding:4px;margin-bottom:12px;}
+.osw[hidden]{display:none;}
+.osw .seg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:48px;border:1.5px solid transparent;background:transparent;border-radius:999px;padding:6px 4px 5px;font-family:inherit;font-size:15.5px;font-weight:700;line-height:1.25;color:var(--text-dim);cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease;-webkit-tap-highlight-color:transparent;}
+.osw .seg .t{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.osw .seg .sub{display:flex;align-items:center;gap:5px;max-width:100%;font-size:12.5px;font-weight:600;color:var(--text-dim);white-space:nowrap;}
+.osw .seg .osw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--success);}
+.osw .seg.on-main{background:var(--accent);color:var(--accent-text);box-shadow:0 3px 0 var(--btn-depth);}
+.osw .seg.on-sep{background:var(--sep-fill);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
+.osw .seg.on-main .sub,.osw .seg.on-sep .sub{color:inherit;}
+.osw .seg.on-main .osw-dot,.osw .seg.on-sep .osw-dot{background:#fff;}
+/* ปิดใช้ = เส้นประ + พื้นโปร่ง (ไม่ใช้ opacity — ตัวหนังสืออ่านต้องผ่าน AA) */
+.osw .seg.dis{cursor:default;background:transparent;border:1.5px dashed color-mix(in srgb,var(--text-faint) 75%,transparent);box-shadow:none;}
+.osw .seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.osw-bar{display:none;position:absolute;top:-19px;left:50%;transform:translateX(-50%);z-index:2;max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--sep-fill);color:#fff;font-weight:700;font-size:14px;line-height:1.35;border-radius:999px;padding:4px 16px 3px;box-shadow:0 2px 0 rgba(60,25,90,.5);}
+#orderFormCard[data-side="sep"]{--card-bg:var(--c-lav);--card-bd:var(--b-lav);margin-top:26px;scroll-margin-top:calc(var(--stick-h,130px) + 34px);box-shadow:0 0 0 3px var(--sep-fill),0 3px 0 rgba(60,25,90,.28),0 10px 22px rgba(151,87,184,.14);}
+#orderFormCard[data-side="sep"] .osw-bar{display:block;}
+#orderFormCard[data-side="sep"] .prodinput,#orderFormCard[data-side="sep"] select{border-color:var(--b-lav);}
+#orderFormCard[data-side="sep"] .osw{background:var(--paper);border-color:var(--b-lav);}
+#orderFormCard[data-side="sep"] #saveRowBtn{background:var(--sep-fill);color:#fff;box-shadow:0 3px 0 rgba(60,25,90,.5);}
+@media (prefers-reduced-motion:reduce){.osw .seg{transition:none;}}
+/* ---- สถานะบันทึกออเดอร์: #orderFormCard[data-save] = idle | dirty | saving | done | saved | queued | error ----
+   saved/queued = การ์ดสรุปค้างถาวร (ไม่มีปุ่มบันทึกสีเข้ม) • error = ค่าที่พิมพ์ยังอยู่ + ปุ่ม "ลองบันทึกอีกครั้ง" — สีผ่าน token ทุกธีม */
+#orderFormBtnRow{margin-top:10px;display:flex;gap:8px;}
+.oss-lblrow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.oss-lblrow label{margin-bottom:0;}
+.oss-dirty{font-size:12px;font-weight:700;line-height:1.5;color:var(--text);background:var(--sunset-soft);border-radius:999px;padding:0 9px;white-space:nowrap;}
+.oss-dirty[hidden]{display:none;}
+.oss{margin:0 0 12px;}
+.oss[hidden]{display:none;}
+.oss-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.oss-card{display:flex;flex-direction:column;gap:9px;border:2px solid var(--b-mint);background:var(--c-mint);border-radius:16px;padding:12px;}
+.oss-card.queued{border:2px dashed color-mix(in srgb,var(--text-faint) 60%,transparent);background:var(--surface-3);}
+.oss-card.warn{border-color:var(--warn-bd);background:var(--warn-bg);}
+.oss-head{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:16px;font-weight:700;line-height:1.3;color:var(--success-ink);}
+.oss-card.queued .oss-head{color:var(--text-dim);}
+.oss-card.warn .oss-head{color:var(--text);}
+.oss-ck{flex:none;width:26px;height:26px;border-radius:50%;background:var(--success);display:inline-flex;align-items:center;justify-content:center;}
+.oss-ck svg{width:15px;height:15px;fill:none;stroke:var(--accent-text,#fff);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:0;}
+.oss-hg{flex:none;font-size:18px;line-height:1;}
+.oss-side{font-size:12.5px;font-weight:700;border-radius:999px;padding:1px 9px;}
+.oss-side.sep{color:var(--sep-ink);background:var(--c-lav);}
+.oss-side.main{color:var(--text);background:var(--surface-3);border:1px solid var(--border);}
+.oss-items{display:flex;flex-wrap:wrap;gap:6px;min-width:0;}
+.oss-chip{background:var(--surface);border:1.5px solid var(--border);border-radius:999px;padding:2px 10px;font-size:14px;font-weight:700;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.oss-total{font-size:13.5px;font-weight:600;color:var(--text-dim);}
+.oss-note{font-size:13.5px;font-weight:600;color:var(--text-dim);line-height:1.4;}
+.oss-warn{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.4;background:var(--warn-bg);border:1.5px solid var(--warn-bd);border-radius:12px;padding:7px 10px;}
+.oss-actions{display:flex;gap:8px;align-items:stretch;}
+.oss-actions button{min-height:48px;border-radius:999px;font-family:inherit;font-weight:700;font-size:15.5px;cursor:pointer;border:2px solid var(--field-bd);background:var(--paper);color:var(--text);padding:0 16px;min-width:0;}
+.oss-actions .oss-next{flex:1;background:var(--accent);color:var(--accent-text);border-color:transparent;box-shadow:0 3px 0 var(--btn-depth);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.oss-alldone{flex:1;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--success-ink);}
+.oss-err{border:2px solid var(--danger);background:var(--danger-soft);color:var(--danger-ink);border-radius:14px;padding:9px 12px;font-size:14.5px;font-weight:700;line-height:1.4;}
+#orderFormCard:is([data-save="saved"],[data-save="done"],[data-save="queued"]) :is(#productInputs,#customItemsSection,#orderFormBtnRow){display:none;}
+#orderFormCard[data-save="saving"] :is(#productInputs,#customItemsSection){opacity:.55;pointer-events:none;}
+#orderFormCard[data-save="saving"] :is(#sepSwitch,#branchPick,#clearRowBtn,#saveRowBtn){pointer-events:none;}
+#orderFormCard[data-save="saving"] :is(#sepSwitch,#branchPick){opacity:.6;}
+#orderFormCard[data-save="saving"] #saveRowBtn::before{content:"";flex:none;width:16px;height:16px;box-sizing:border-box;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ossSpin .8s linear infinite;}
+#orderFormCard[data-save="error"]{box-shadow:0 0 0 2.5px var(--danger),0 3px 0 rgba(120,20,50,.25);}
+#orderFormCard[data-save="error"] #saveRowBtn{background:color-mix(in srgb,var(--danger) 70%,#000);color:#fff;box-shadow:0 3px 0 rgba(60,10,30,.55);}
+#orderFormCard[data-save="error"] .oss-err{animation:ossShake .4s ease;}
+#orderFormCard[data-save="done"] .oss-card{animation:ossGlow .7s ease-out;}
+#orderFormCard[data-save="done"] .oss-ck svg{animation:ossDraw .35s ease-out both;}
+@keyframes ossSpin{to{transform:rotate(360deg)}}
+@keyframes ossDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes ossGlow{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--success) 70%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@keyframes ossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+#orderFormCard[data-motion="off"] :is(.oss-card,.oss-ck svg,.oss-err){animation:none;}
+/* mermaid: accent ของธีมเป็นม่วง (#9B5CC7) ใกล้กับม่วงแยกส่ง — ใช้ม่วงเข้ม (ขาวบนพื้น ≈9:1) + วงแหวนขาวในปุ่มฝั่งแยกส่ง ให้แยกจาก "ส่งปกติ" ชัด; กล่องเตือนเป็นเหลือง (c-lemon ของธีมนี้เป็นชมพู) */
+html[data-theme=mermaid]{--sep-fill:#5B2D9B;--warn-bg:#FFF3C9;--warn-bd:#E8CD6A;}
+html[data-theme=mermaid] .osw .seg.on-sep{box-shadow:0 3px 0 rgba(40,15,80,.55),inset 0 0 0 2px rgba(255,255,255,.6);}
+@media (prefers-reduced-motion:reduce){
+  #orderFormCard :is(.oss-card,.oss-ck svg,.oss-err){animation:none!important;}
+  #orderFormCard[data-save="saving"] #saveRowBtn::before{animation:none;}
+}
 /* ---- แถบล่างมือถือ 4 ช่อง + ปุ่ม ⚡ (จอ < 768px ทุกธีม) ---- */
 .mnav{display:none;}
 @media (max-width:767px){
@@ -1695,21 +1856,54 @@ html[data-theme=sea][data-tmode=full] .dwh-sticky-wrap::after{height:28px;}
       <div id="orderImageStatus" class="hint" style="margin-top:6px;"></div>
       <div id="lineOrderDrafts" class="slip-inbox" style="display:none;margin-top:10px;"></div>
     </div>
-    <div class="card dash-wide-card" id="branchGridCard">
-      <h3 style="margin:0 0 8px;">🗂️ สาขาวันนี้ <span class="subhint" id="branchGridCount"></span></h3>
-      <div id="branchGrid" class="bgrid"></div>
-      <div class="hint" style="margin-top:8px;">แตะสาขาเพื่อกรอก/แก้ออเดอร์ • สีทึบ = บันทึกแล้ว</div>
-    </div>
-    <div class="card dash-wide-card">
-      <h3>📝 บันทึกออเดอร์ทีละสาขา</h3>
-      <div class="field">
-        <label>เลือกสาขา (อ่านจากภาพออเดอร์ 1 ภาพ = 1 สาขา)</label>
-        <select id="branchSelect"></select>
+    <div class="card dash-wide-card" data-no-collapse="1" id="branchGridCard">
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+          <symbol id="bgc-ck" viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7.5"/></symbol>
+          <symbol id="bgc-hg" viewBox="0 0 24 24">
+            <path d="M6.5 3.5h11M6.5 20.5h11"/>
+            <path d="M8 3.5v2.5c0 2 1.4 3.4 4 6M16 3.5v2.5c0 2-1.4 3.4-4 6"/>
+            <path d="M8 20.5V18c0-2 1.4-3.4 4-6M16 20.5V18c0-2-1.4-3.4-4-6"/>
+            <path class="sand" d="M9.4 20.2c.3-1.6 1.1-2.4 2.6-3.4 1.5 1 2.3 1.8 2.6 3.4z"/>
+          </symbol>
+          <symbol id="bgc-chr" viewBox="0 0 14 22"><path d="M3.5 3l7 8-7 8"/></symbol>
+          <symbol id="bgc-chl" viewBox="0 0 14 22"><path d="M10.5 3l-7 8 7 8"/></symbol>
+        </defs>
+      </svg>
+      <div class="bgc-head" id="branchGridHead" role="button" tabindex="0" aria-expanded="true" aria-controls="branchGridFold">
+        <h3>🗂️ สาขาวันนี้</h3>
+        <span class="bgc-chips">
+          <span class="bgc-chip cnt num" id="branchGridCount"></span>
+          <span class="bgc-chip trk num" id="branchGridSep" hidden></span>
+        </span>
       </div>
+      <div class="bgc-prog" aria-hidden="true"><i id="branchGridProg"></i></div>
+      <div class="bgc-fold" id="branchGridFold">
+        <div class="bgc-fold-in">
+          <div class="bgc-vp" id="branchGridVp" data-page="0">
+            <div id="branchGrid" class="bgrid"></div>
+            <div class="bgc-peek r" aria-hidden="true"><svg><use href="#bgc-chr"/></svg></div>
+            <div class="bgc-peek l" aria-hidden="true"><svg><use href="#bgc-chl"/></svg></div>
+          </div>
+          <div class="bgc-dots" id="branchGridDots" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card dash-wide-card" id="orderFormCard" data-side="main">
+      <h3>📝 บันทึกออเดอร์ทีละสาขา</h3>
+      <div class="osw-bar" id="orderSideBar" aria-hidden="true"></div>
+      <div class="field">
+        <div class="oss-lblrow"><label for="branchPick">สาขา</label><span id="orderDirtyDot" class="oss-dirty" hidden>● ยังไม่บันทึก</span></div>
+        <select id="branchPick"></select>
+        <!-- แหล่งความจริงของรหัสสาขาในฟอร์ม (ทุกรหัส รวม T คู่) — ซ่อนไว้ ผู้ใช้เลือกผ่าน #branchPick + สวิตช์ปกติ|แยกส่ง -->
+        <select id="branchSelect" style="display:none" tabindex="-1" aria-hidden="true"></select>
+      </div>
+      <div id="sepSwitch" class="osw" role="group" aria-label="ส่งปกติ หรือ แยกส่ง"></div>
+      <div id="orderSaveState" class="oss" role="status" aria-live="polite" hidden></div>
       <div id="productInputs" class="grid7"></div>
       <div id="customItemsSection" style="margin-top:12px;"></div>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button class="btn" id="saveRowBtn">บันทึกสาขานี้</button>
+      <div id="orderFormBtnRow">
+        <button class="btn" id="saveRowBtn" data-label="บันทึกสาขานี้">บันทึกสาขานี้</button>
         <button class="btn secondary" id="clearRowBtn" style="width:auto;padding:10px 16px;">ล้าง</button>
       </div>
     </div>
@@ -2895,6 +3089,8 @@ async function flushOfflineQueue_(){
     offlineFlushing_ = false;
     rawLotsCache_ = null; wasteRecordsCache_ = null; lotProductBillsCache_ = null; lotTransportBillsCache_ = null;
     renderOfflineBadge_();
+    // บอกหน้าออเดอร์ว่าคิวส่งจบรอบแล้ว (ไม่แตะตรรกะส่ง) — การ์ด ⏳ รอส่ง ฟังแล้วอ่านวันสดเทียบเองว่าส่งถึงจริงไหม
+    try{ window.dispatchEvent(new CustomEvent('karmto-queue-flushed', {detail:{sent}})); }catch(_){}
   }
   if(sent){ showToast(`✅ ส่งข้อมูลที่บันทึกตอนออฟไลน์แล้ว ${sent} รายการ`); try{ pendingSyncRender_ = true; syncFromOtherDevices_(); }catch(e){} }
 }
@@ -3339,20 +3535,147 @@ async function renderStats(){
 }
 
 // ---- Order tab ----
+// #branchSelect (ซ่อน) = แหล่งความจริงของ "รหัสสาขาที่กำลังกรอก" ทุกรหัสรวม T คู่ — โค้ดอื่นทั้งหมดอ่าน/ตั้งค่าตรงนี้ที่เดียว
+// ที่ผู้ใช้เห็นคือ #branchPick (เฉพาะสาขาหลัก ซ่อน T คู่) + สวิตช์ ส่งปกติ|แยกส่ง (#sepSwitch) ที่แค่ตั้งค่า #branchSelect แล้ววาดฟอร์มใหม่
+let orderFormIso_ = null;        // วันที่ที่ฟอร์มวาดล่าสุด — เปลี่ยนวัน = รีเซ็ตกลับสาขาแรกเหมือนเดิม; วันเดิม = คงสาขาที่เลือกไว้ (กันซิงก์ 60 วินาทีเด้งกลับสาขาแรก)
+let orderFormCustomSnap_ = '[]'; // สแนปช็อต customItemsStaged ตอนวาดฟอร์ม ใช้เทียบว่าแก้ค้างอยู่ไหม (orderFormDirty_)
+let orderDraftMem_ = null;       // ร่างตัวเลขที่พิมพ์ค้างต่อรหัสในกลุ่มเดียวกัน {iso, main, drafts:{code:{vals,custom}}} — หน่วยความจำอย่างเดียว ไม่เขียนข้อมูลร้าน
 function renderBranchSelect(){
   const sel = document.getElementById('branchSelect');
+  const pick = document.getElementById('branchPick');
   const optionHtml = b=>{
     const has = orderRowHasOrder_(dayData.orders[b.code]);
-    return `<option value="${b.code}">${escapeHtml(branchDisplayName(b))}${has?' ✓':''}</option>`;
+    return `<option value="${escapeHtml(b.code)}">${escapeHtml(branchDisplayName(b))}${has?' ✓':''}</option>`;
   };
+  const prevCode = sel.value;
   // สาขาที่ติ๊ก "นานๆ สั่งที" ไว้ (ตั้งค่า → รายชื่อสาขา) แยกไว้เป็นกลุ่มท้ายดรอปดาวน์เสมอ (optgroup) กันต้องเลื่อนผ่าน
   // ชื่อสาขาที่แทบไม่ได้ใช้ทุกครั้งที่จะเลือกสาขาประจำ — ไม่กระทบลำดับ/เนื้อหาของกลุ่มสาขาประจำด้านบนเลย
   const regular = settings.branches.filter(b=>!b.rare);
   const rare = settings.branches.filter(b=>b.rare);
   sel.innerHTML = regular.map(optionHtml).join('') +
     (rare.length ? `<optgroup label="นานๆ สั่งที">${rare.map(optionHtml).join('')}</optgroup>` : '');
+  if(pick){
+    // ดรอปดาวน์ที่ผู้ใช้เห็น: เฉพาะสาขาหลัก (ซ่อน T คู่) กลุ่ม "นานๆ สั่งที" ตามของสาขาหลัก
+    const mains = settings.branches.filter(b=>!sepMainCode_(b.code));
+    const mReg = mains.filter(b=>!b.rare), mRare = mains.filter(b=>b.rare);
+    pick.innerHTML = mReg.map(optionHtml).join('') +
+      (mRare.length ? `<optgroup label="นานๆ สั่งที">${mRare.map(optionHtml).join('')}</optgroup>` : '');
+  }
   if(editingCode) sel.value = editingCode;
+  else if(prevCode && orderFormIso_ === currentDate && [...sel.options].some(o=>o.value===prevCode)) sel.value = prevCode; // วันเดิม = คงสาขาเดิม ไม่เด้งไปสาขาแรกตอนซิงก์/วาดใหม่
   renderProductInputs();
+}
+// ตั้งสาขาที่กำลังกรอก (สวิตช์/ดรอปดาวน์ใช้ร่วมกัน) — editingCode ตามกติกาเดียวกับ openBranchForm_: สาขาที่ยังไม่มีออเดอร์ต้องล้างค่าเดิมทิ้ง
+// ไม่งั้นฟอร์มเด้งกลับสาขาเก่าเมื่อหน้ารีเฟรช (renderBranchSelect ให้ editingCode ชนะเสมอ)
+function setOrderFormCode_(code){
+  const sel = document.getElementById('branchSelect');
+  if(!sel) return false;
+  if(![...sel.options].some(o=>o.value===code)) return false;
+  editingCode = orderRowHasOrder_((dayData.orders||{})[code]) ? code : null;
+  sel.value = code;
+  orderSavedView_ = null; // เปลี่ยนสาขา/สลับฝั่ง/✎ แก้ไข = ออกจากการ์ด "บันทึกแล้ว" กลับไปฟอร์มปกติ
+  return true;
+}
+// ฟอร์มมีตัวเลขที่พิมพ์ค้างยังไม่บันทึกไหม — เทียบกับค่าที่วาดตอนเปิดฟอร์ม (input.defaultValue) ไม่เทียบ dayData/ไม่ปัดทศนิยม
+// (OCR เขียนทศนิยมไม่ปัด เช่น 2.25 — ถ้าเทียบกับค่าปัด 0.1 จะค้างเป็น "แก้อยู่" ถาวร)
+function orderFormDirty_(){
+  const inputs = document.querySelectorAll('#productInputs .prodinput');
+  for(const inp of inputs){ if(Number(inp.value||0) !== Number(inp.defaultValue||0)) return true; }
+  return JSON.stringify(customItemsStaged) !== orderFormCustomSnap_;
+}
+function clearOrderDrafts_(){ orderDraftMem_ = null; }
+// เก็บร่างของรหัสที่กำลังจะสลับออก (เฉพาะเมื่อมีตัวเลขค้าง) — เปลี่ยนวัน/เปลี่ยนสาขาหลัก = ทิ้งร่างเก่าทั้งหมด
+function stashOrderDraft_(code, main){
+  if(!orderDraftMem_ || orderDraftMem_.iso !== currentDate || orderDraftMem_.main !== main) orderDraftMem_ = {iso: currentDate, main, drafts: {}};
+  if(!orderFormDirty_()){ delete orderDraftMem_.drafts[code]; return; }
+  const vals = {};
+  document.querySelectorAll('#productInputs .prodinput').forEach(inp=>{ vals[inp.getAttribute('data-pid')] = inp.value; });
+  orderDraftMem_.drafts[code] = {vals, custom: customItemsStaged.map(it=>({...it}))};
+}
+function restoreOrderDraft_(code, main){
+  const m = orderDraftMem_;
+  if(!m || m.iso !== currentDate || m.main !== main || !m.drafts[code]) return false;
+  const d = m.drafts[code];
+  document.querySelectorAll('#productInputs .prodinput').forEach(inp=>{
+    const v = d.vals[inp.getAttribute('data-pid')];
+    if(v !== undefined) inp.value = v;
+  });
+  customItemsStaged = d.custom.map(it=>({...it}));
+  renderCustomItemsSection_();
+  delete m.drafts[code]; // ตัวเลขกลับมาอยู่ในฟอร์มแล้ว (ถ้าสลับไปอีกครั้งจะเก็บใหม่) — ไม่ทิ้งร่างซ้ำค้างจน userBusy_ ค้าง
+  onOrderFormChanged_();
+  return true;
+}
+// วาดส่วนที่ขึ้นกับ "สาขาที่เลือกอยู่": ดรอปดาวน์สาขาหลัก, สวิตช์ ส่งปกติ|แยกส่ง, โทนม่วง+ป้ายคาดขอบ, ข้อความปุ่มบันทึก
+// (จุดซิงก์จุดเดียว — เรียกท้าย renderProductInputs ทุกครั้ง จึงตรงกับ #branchSelect เสมอ)
+function renderOrderFormGroup_(code){
+  const card = document.getElementById('orderFormCard');
+  if(!card) return;
+  const g = orderFormGroup_(code);
+  const orders = dayData.orders || {};
+  const pick = document.getElementById('branchPick');
+  if(pick && [...pick.options].some(o=>o.value===g.main)) pick.value = g.main;
+  const standaloneSep = g.side==='main' && isFeeExempt(code);   // 19T ไม่มี 19 / 13S: สาขาแยกส่งเดี่ยว — ไม่มีสวิตช์ แต่ฟอร์มโทนม่วง
+  const isSep = g.side==='sep' || standaloneSep;
+  card.setAttribute('data-side', isSep ? 'sep' : 'main');
+  const bar = document.getElementById('orderSideBar');
+  if(bar) bar.textContent = isSep ? `กำลังกรอก ${code} (แยกส่ง)` : '';
+  const saveBtn = document.getElementById('saveRowBtn');
+  const paired = g.side==='sep' || !!g.sep;
+  if(saveBtn){
+    // ต้องตั้ง data-label ด้วย — renderOrderSaveState_ ใช้ data-label เป็นข้อความปุ่มตอนไม่ได้กำลังบันทึก/ล้ม (ไม่งั้นทับกลับเป็น "บันทึกสาขานี้")
+    const label = paired ? (g.side==='sep' ? `บันทึก ${code} (แยกส่ง)` : `บันทึก ${code} (ส่งปกติ)`) : 'บันทึกสาขานี้';
+    saveBtn.setAttribute('data-label', label);
+    saveBtn.textContent = label;
+  }
+  const sw = document.getElementById('sepSwitch');
+  if(!sw) return;
+  if(standaloneSep){ sw.hidden = true; sw.innerHTML = ''; return; }
+  sw.hidden = false;
+  const hint = g.sep ? 'pair' : sepHint_(g.main);
+  const qtyOf = c=>{ const r = orders[c]; return orderRowHasOrder_(r) ? orderRowQty_(r) : null; };
+  const sub = (c, active, fallback)=>{
+    const q = c ? qtyOf(c) : null;
+    if(q !== null) return `<span class="sub"><span class="osw-dot"></span>${q} ชิ้น</span>`;
+    return `<span class="sub">${escapeHtml(active ? 'กำลังกรอก' : fallback)}</span>`;
+  };
+  const mainActive = g.side==='main';
+  const sepCode = g.sep || (hint.startsWith('unticked:') ? hint.slice(9) : null);
+  const sepDisabled = hint !== 'pair';
+  const sepFallback = hint==='pair' ? 'แตะเพื่อสลับ' : (hint.startsWith('unticked:') ? 'ยังไม่ได้ติ๊กแยกส่ง' : 'ยังไม่เปิดใช้');
+  sw.innerHTML =
+    `<button type="button" class="seg${mainActive?' on-main':''}" data-sepside="main" aria-pressed="${mainActive}"><span class="t">📦 ส่งปกติ ${escapeHtml(g.main)}</span>${sub(g.main, mainActive, 'แตะเพื่อสลับ')}</button>` +
+    `<button type="button" class="seg${!mainActive?' on-sep':''}${sepDisabled?' dis':''}" data-sepside="sep" data-sephint="${escapeHtml(hint)}" aria-pressed="${!mainActive}"${sepDisabled?' aria-disabled="true"':''}><span class="t">🚚 แยกส่ง${sepCode?' '+escapeHtml(sepCode):''}</span>${sub(g.sep, !mainActive, sepFallback)}</button>`;
+}
+function wireOrderFormSwitch_(){
+  const sel = document.getElementById('branchSelect');
+  const pick = document.getElementById('branchPick');
+  const sw = document.getElementById('sepSwitch');
+  if(pick) pick.addEventListener('change', ()=>{
+    // เปลี่ยนสาขาจากดรอปดาวน์ = เริ่มสาขาใหม่ ทิ้งร่างค้างของสาขาเก่า (เหมือนเดิมที่ renderProductInputs ล้างตัวเลขเมื่อเปลี่ยนสาขา)
+    clearOrderDrafts_();
+    if(setOrderFormCode_(pick.value)) renderProductInputs();
+  });
+  if(sw) sw.addEventListener('click', e=>{
+    const btn = e.target.closest('[data-sepside]');
+    if(!btn) return;
+    const g = orderFormGroup_(sel.value);
+    const side = btn.getAttribute('data-sepside');
+    if(btn.getAttribute('aria-disabled') === 'true'){
+      const h = btn.getAttribute('data-sephint') || '';
+      showToast(h.startsWith('unticked:') ? `${h.slice(9)} ยังไม่ได้ติ๊กแยกส่งในตั้งค่า — ระบบไม่ติ๊กให้` : `สาขา ${g.main} ยังไม่มีสาขาแยกส่งในตั้งค่า — ระบบไม่สร้างให้`);
+      return;
+    }
+    if(side === g.side) return;
+    const saveBtn = document.getElementById('saveRowBtn');
+    if(saveBtn && saveBtn.disabled) return; // กำลังบันทึกอยู่ — ไม่สลับกลางทาง
+    const target = side==='sep' ? g.sep : g.main;
+    if(!target) return;
+    stashOrderDraft_(sel.value, g.main);  // เก็บตัวเลขที่พิมพ์ค้างของฝั่งนี้ไว้ก่อน (ถ้ามี) — สวิตช์ไม่เขียนข้อมูลใดๆ
+    if(!setOrderFormCode_(target)) return;
+    renderProductInputs();
+    restoreOrderDraft_(target, g.main);   // กลับมาฝั่งที่เคยพิมพ์ค้างไว้ = ตัวเลขยังอยู่
+  });
 }
 function renderProductInputs(){
   const code = document.getElementById('branchSelect').value;
@@ -3378,6 +3701,10 @@ function renderProductInputs(){
   customItemsStaged = ((row.custom||[]).map(it=>({...it})));
   customItemFormOpen = false;
   renderCustomItemsSection_();
+  orderFormIso_ = currentDate;
+  orderFormCustomSnap_ = JSON.stringify(customItemsStaged);
+  renderOrderFormGroup_(code); // ซิงก์ดรอปดาวน์สาขาหลัก/สวิตช์/โทนม่วง/ข้อความปุ่มบันทึก ให้ตรงกับรหัสที่เลือกอยู่เสมอ
+  renderOrderSaveState_();     // สถานะบันทึก (ยังไม่บันทึก/กำลังบันทึก/บันทึกแล้ว/รอส่ง/ล้ม) วาดซ้ำทุกครั้งที่ฟอร์มถูกวาดใหม่ — ซิงก์วาดทับก็ไม่หาย
 }
 // รายการ+ฟอร์มกรอก "สินค้าอื่นๆ" ที่โผล่ลงมาใต้กริดสินค้าหลักตอนกดปุ่ม "+ อื่นๆ" (ดูคอมเมนต์ที่ renderProductInputs) — สำหรับ
 // สินค้านอกเหนือ 7 รายการหลักที่ไม่มีในแคตตาล็อก (พิมพ์ชื่อ/ราคา/จำนวนเอง) รายการที่เพิ่มจะรวมเข้ายอดบิล/ใบเสร็จของสาขานั้น
@@ -3411,6 +3738,7 @@ function renderCustomItemsSection_(){
   wrap.querySelectorAll('[data-customitemdel]').forEach(btn=>btn.addEventListener('click', ()=>{
     customItemsStaged.splice(Number(btn.getAttribute('data-customitemdel')), 1);
     renderCustomItemsSection_();
+    onOrderFormChanged_();
   }));
   const cancelBtn = document.getElementById('customItemCancelBtn');
   if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ customItemFormOpen = false; renderCustomItemsSection_(); });
@@ -3424,6 +3752,7 @@ function renderCustomItemsSection_(){
     customItemsStaged.push({name, price, qty});
     customItemFormOpen = false;
     renderCustomItemsSection_();
+    onOrderFormChanged_();
   });
 }
 function renderOrderList(){
@@ -3442,77 +3771,496 @@ function renderOrderList(){
   entries.sort(branchEntrySortSeparateLast_);
   list.innerHTML = entries.map(([code,row])=>{
     const items = PRODUCTS.filter(p=>Number(row[p.id]||0)>0).map(p=>`${p.emoji}${row[p.id]}`).join(' ')
-      + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${it.qty}`).join(' ') : '');
+      + ((row.custom||[]).length ? ' ' + row.custom.map(it=>`📦${escapeHtml(it.name)} ${escapeHtml(it.qty)}`).join(' ') : '');
     const exemptTag = isFeeExempt(code) ? ` <span style="color:var(--text-faint);font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:1px 6px;">แยกส่ง ไม่คิดค่าธรรมเนียม</span>` : '';
-    return `<div class="orow"><div><div class="name"><span class="code">${code}</span>${branchName(code)}${exemptTag}</div><div class="items">${items}</div></div>
-      <div class="acts"><button class="iconbtn" data-edit="${code}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-printticket="${code}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-del="${code}" aria-label="ลบ">✕</button></div></div>`;
+    const codeEsc = escapeHtml(code); // รหัสสาขามาจากตั้งค่า (พิมพ์เองได้) — escape ทุกจุดที่ลง HTML/attribute
+    return `<div class="orow"><div><div class="name"><span class="code">${codeEsc}</span>${escapeHtml(branchName(code))}${exemptTag}</div><div class="items">${items}</div></div>
+      <div class="acts"><button class="iconbtn" data-edit="${codeEsc}" aria-label="แก้ไข">✎</button><button class="iconbtn" data-printticket="${codeEsc}" aria-label="บันทึกเป็นภาพสำหรับพิมพ์">🏷️</button><button class="iconbtn" data-del="${codeEsc}" aria-label="ลบ">✕</button></div></div>`;
   }).join('');
   list.querySelectorAll('[data-printticket]').forEach(b=>b.addEventListener('click', ()=>saveOrderTicketAsImage(b.getAttribute('data-printticket'))));
   list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
     editingCode = b.getAttribute('data-edit');
     document.getElementById('branchSelect').value = editingCode;
+    clearOrderDrafts_(); // ✎ = เปิดค่าที่บันทึกไว้จริง ทิ้งร่างที่พิมพ์ค้าง (ตามแผน: ต้องเห็นของจริง)
+    orderSavedView_ = null;
     renderProductInputs();
     setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', false); // กางฟอร์มให้เห็นรายละเอียดพร้อมแก้ไขได้ทันที ไม่ต้องกดกางเอง
     const formCard = document.getElementById('branchSelect').closest('.card');
     if(formCard) formCard.scrollIntoView({behavior:'smooth', block:'start'});
     else window.scrollTo({top:0, behavior:'smooth'});
   }));
-  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
-    const code = b.getAttribute('data-del');
-    if(!confirm(`ลบออเดอร์สาขา ${code} ${branchName(code)} ของวันนี้ทั้งหมดเลยใช่ไหม?`)) return;
-    const iso = currentDate;
+  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+    deleteOrder_(b.getAttribute('data-del'), b).catch(e=>{ console.error('deleteOrder_ failed', e); showToast('เกิดข้อผิดพลาดตอนลบ — ตรวจที่ลิสต์สาขาก่อนกดซ้ำ'); });
+  }));
+}
+// ---- สถานะการบันทึกออเดอร์ + นโยบาย B ----
+// บันทึก/ลบออเดอร์เขียนแค่ orders[รหัส] ด้วย patchField/patchOps ตามเดิม (ไม่ set ทั้งวัน ไม่แตะ billingPaid/ต้นทุน/ล็อต/costedQty)
+// นโยบาย B: ออเดอร์ของบิลที่ "จ่ายแล้ว" แก้/ลบได้ก็ต่อเมื่อ AY กดยืนยันหลังเห็นค่าเก่า→ใหม่ + ยอดบิล ฿เก่า→฿ใหม่ (สูตรเดิม ไม่คิดเอง)
+// ระบบไม่แก้สถานะจ่ายให้ — ยอดที่จ่ายไปแล้วอาจไม่ตรงบิลใหม่ ต้องไปแก้ที่หน้าบิลเอง
+let orderSaving_ = false;        // กำลังเขียนอยู่จริง (กันบันทึกซ้อน + userBusy_) — ปล่อยทันทีที่เขียนเสร็จ ไม่รอแอนิเมชัน
+let orderSavedView_ = null;      // สถานะที่การ์ดฟอร์มโชว์ {iso, code, row, phase:'saving'|'saved'|'queued'|'mismatch'|'error', ...} หน่วยความจำอย่างเดียว ไม่ลง storage
+let orderSaveSeq_ = 0;
+let orderDoneTimer_ = null;
+const orderDeleteBusy_ = new Set();
+const ORDER_SAVING_MIN_MS = 450, ORDER_DONE_MS = 700;
+// ---- ทะเบียนบันทึก/ลบออเดอร์ที่ "รอส่ง" (ออฟไลน์) แยกจากการ์ดสถานะ ----
+// การ์ดถูกล้างได้ (→ สาขาถัดไป/✎/เปลี่ยนสาขา/เปลี่ยนวัน/บันทึกสาขาอื่น) ซึ่งเป็นลำดับปกติของงานออฟไลน์ — แต่คำสั่งในคิวยังต้องไปทับ orders[รหัส]
+// บนเซิร์ฟเวอร์ตอนส่ง ถ้าอีกเครื่องเพิ่งติ๊กจ่ายบิลนั้นระหว่างที่เราออฟไลน์ ต้อง "ไม่เงียบ": ส่งเสร็จแล้วอ่านวันสดตรวจทุกรายการ เตือน+จด log (ไม่เขียน/ไม่ย้อน billingPaid)
+// เก็บลง localStorage ของเครื่อง (คู่กับ karmto_offline_queue — ต่อเครื่อง ไม่ใช่คีย์ storage ไม่ซิงก์ ไม่ต้องสำรอง) กันแอปถูกปิด/เปิดใหม่ระหว่างออฟไลน์แล้วทะเบียนหาย
+const QOW_LS = 'karmto.queuedOrderWrites';
+let queuedOrderWrites_ = (()=>{
+  try{ const a = JSON.parse(localStorage.getItem(QOW_LS) || '[]'); return Array.isArray(a) ? a.filter(x=>x && typeof x.iso === 'string' && typeof x.code === 'string' && typeof x.qid === 'string') : []; }
+  catch(e){ return []; }
+})();
+let orderWriteCheckBusy_ = false;
+const QOW_MAX_FAIL_MS = 7 * 86400000; // อ่านวันสดไม่สำเร็จต่อเนื่องนานเท่านี้ (นับจาก readyAt) ถึงเลิกตรวจ
+function persistQueuedOrderWrites_(){
+  try{ if(queuedOrderWrites_.length) localStorage.setItem(QOW_LS, JSON.stringify(queuedOrderWrites_.slice(-200))); else localStorage.removeItem(QOW_LS); }catch(e){}
+}
+// paidAtWrite = บิลสาขานั้น "จ่ายแล้ว" ไหม ณ ตอนกด (จากข้อมูลที่ใช้ถาม confirm — แคชถ้าออฟไลน์) ; true = ผู้ใช้เห็น/ยืนยันเรื่องนี้แล้ว ไม่ต้องเตือนซ้ำ
+function trackQueuedOrderWrite_(iso, code, op, paidAtWrite){
+  queuedOrderWrites_.push({qid: uid('qow'), iso, code, op, paidAtWrite: !!paidAtWrite, at: Date.now()});
+  persistQueuedOrderWrites_();
+}
+// หลังคิวออฟไลน์ส่งหมด: อ่านวันสดของทุกวันที่มีรายการรอส่ง — ถ้า billingPaid[รหัส] เป็นจริงแต่ตอนกดยังไม่จ่าย = บิลถูกติ๊กจ่ายระหว่างออฟไลน์
+// แล้วออเดอร์ที่เพิ่งส่งอาจทับ → เตือน (toast + logActivity_ + ขึ้นการ์ดถ้ายังโชว์สาขานั้นอยู่) เคลียร์เฉพาะรายการที่ตรวจได้จริง
+// คิวยังไม่หมด/ออฟไลน์/อ่านวันสดไม่ได้ = คงรายการไว้ตรวจรอบหน้า (ถูกเรียกจาก event karmto-queue-flushed และรอบซิงก์ 60 วินาที) — ห้าม throw
+async function checkQueuedOrderWrites_(){
+  if(orderWriteCheckBusy_ || !queuedOrderWrites_.length) return;
+  if(isOffline_() || offlineFlushing_ || readOfflineQueue_().length) return;
+  orderWriteCheckBusy_ = true;
+  try{
+    // ผ่านด่านดัก (ออนไลน์ + คิวออฟไลน์ว่าง + ไม่กำลังส่ง) ครั้งแรก = ประทับ readyAt — เวลาที่ใช้ตัดสินทิ้งนับจากตรงนี้ ไม่ใช่เวลากดบันทึก (e.at)
+    // (ออฟไลน์นานแค่ไหนแล้วส่งสำเร็จ ก็ต้องตรวจ+เตือนตามปกติ) ; ค่าใน localStorage เสีย/ไม่มี = ถือว่ายังไม่ประทับ
+    const nowMs = Date.now();
+    let stamped = false;
+    queuedOrderWrites_.forEach(e=>{ if(!(Number(e.readyAt || 0) > 0)){ e.readyAt = nowMs; stamped = true; } });
+    if(stamped) persistQueuedOrderWrites_();
+    // ลองอ่านวันสดก่อนเสมอ ไม่ว่ารายการอายุเท่าไร
+    const batch = queuedOrderWrites_.slice();
+    const days = {};
+    for(const iso of [...new Set(batch.map(e=>e.iso))]){
+      try{ const r = await window.storage.get('day:'+iso); days[iso] = normalizeDay_(JSON.parse(r.value)); }catch(e){ /* อ่านไม่ได้ = คงรายการไว้ลองรอบหน้า */ }
+    }
+    const checked = new Set(), warned = new Map();
+    batch.forEach(e=>{
+      const d = days[e.iso];
+      if(!d) return;
+      checked.add(e.qid);
+      if(!e.paidAtWrite && (d.billingPaid||{})[e.code]) warned.set(e.iso + '|' + e.code, {iso: e.iso, code: e.code});
+    });
+    queuedOrderWrites_ = queuedOrderWrites_.filter(e=>!checked.has(e.qid));
+    // ทิ้งได้เฉพาะรายการที่ "อ่านพลาดต่อเนื่อง" เกิน 7 วันนับจาก readyAt (รายการที่อ่านสำเร็จถูกเคลียร์ไปแล้วด้านบน จึงไม่มีทางถูกทิ้ง/ไม่เสียการเตือน)
+    const stale = queuedOrderWrites_.filter(e=>nowMs - Number(e.readyAt || nowMs) > QOW_MAX_FAIL_MS);
+    if(stale.length){
+      const staleIds = new Set(stale.map(e=>e.qid));
+      queuedOrderWrites_ = queuedOrderWrites_.filter(e=>!staleIds.has(e.qid));
+      const seen = new Set();
+      stale.forEach(e=>{
+        const k = e.iso + '|' + e.code; if(seen.has(k)) return; seen.add(k);
+        logActivity_(`ข้ามการตรวจบิลจ่ายของออเดอร์ที่รอส่ง สาขา ${e.code} วันที่ ${formatDDMMYYYY(e.iso)} — อ่านวันนี้จากเซิร์ฟเวอร์ไม่สำเร็จต่อเนื่องเกิน 7 วัน`);
+      });
+    }
+    persistQueuedOrderWrites_();
+    const items = [...warned.values()];
+    items.forEach(({iso, code})=>{
+      const msg = `บิลสาขา ${code} วันที่ ${formatDDMMYYYY(iso)} ถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ตรวจที่หน้าบิล`;
+      logActivity_(`⚠️ บิลสาขา ${code} ${branchName(code)} ถูกติ๊กจ่ายระหว่างที่ออเดอร์รอส่ง (ออฟไลน์) — ออเดอร์ที่ส่งทีหลังอาจทับ ตรวจยอดที่หน้าบิล (วันที่ ${formatDDMMYYYY(iso)})`);
+      const v = orderSavedView_;
+      if(v && v.iso === iso && v.code === code && ['queued','saved','mismatch'].includes(v.phase) && !v.warn){
+        v.warn = `⚠️ ${msg}`;
+        try{ renderOrderSaveState_(); }catch(e){}
+      }
+    });
+    if(items.length === 1) showToast(`⚠️ บิลสาขา ${items[0].code} วันที่ ${formatDDMMYYYY(items[0].iso)} ถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ตรวจที่หน้าบิล`);
+    else if(items.length > 1) showToast(`⚠️ ${items.length} บิลถูกติ๊กจ่ายระหว่างออฟไลน์ ออเดอร์ที่ส่งทีหลังอาจทับ — ดูรายการกิจกรรม/ตรวจที่หน้าบิล`);
+  }catch(e){ console.error('checkQueuedOrderWrites_ failed', e); }
+  finally{ orderWriteCheckBusy_ = false; }
+}
+// แอนิเมชันเปิดอยู่ไหม (ตั้งค่าแอป karmto.motion + prefers-reduced-motion) — ปิด = ไม่หน่วงเวลาโชว์สถานะเลย (ไม่ผูกกับ navigator.webdriver)
+function orderMotionOn_(){
+  try{ if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false; }catch(e){}
+  return motionEnabled_();
+}
+function orderRowsEqual_(a, b){
+  a = a || {}; b = b || {};
+  if(PRODUCTS.some(p=>Number(a[p.id]||0) !== Number(b[p.id]||0))) return false;
+  const norm = r=>(r.custom||[]).map(it=>[String((it && it.name) || ''), Number((it && it.qty) || 0), Number((it && it.price) || 0)]);
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
+function orderDayHasData_(d){ return !!d && (Object.keys(d.orders||{}).length > 0 || Object.keys(d.billingPaid||{}).length > 0); }
+// อ่านวันสดไว้เช็คว่าบิลสาขานั้น "จ่ายแล้ว" ไหมก่อนแก้/ลบออเดอร์ → {d, fromCache}
+// • ออนไลน์+คิวว่าง: storage.get สด — error ทุกแบบฝั่ง storage ถูกแปลงเป็น 'Key not found' จึง "ห้ามถือเป็นวันว่าง" โดยอัตโนมัติ:
+//   ถ้าแคช/dayData ของวันนั้นมี orders หรือ billingPaid อยู่ = อ่านไม่ได้ → throw ให้ผู้เรียกบล็อกการเขียน (แบบเดียวกับ setShortQty_/toggleNoStock_)
+// • ออฟไลน์/คิวค้าง: อ่านสดไม่ได้ ใช้แคชในเครื่อง (รวมคำสั่งที่ค้างคิวแล้ว) + fromCache:true — ผู้เรียกบอกผู้ใช้ว่าเช็คกับเซิร์ฟเวอร์ไม่ได้
+async function readDayFreshForPaid_(iso){
+  // ออนไลน์แต่ยังมีของค้างในคิวออฟไลน์ → ส่งคิวก่อน (ตัวเดียวกับที่ wrapper ของ storage เรียกก่อนเขียน — flushOfflineQueue_ กันซ้อนด้วย offlineFlushing_
+  // และไม่เรียกกลับมาที่ฟังก์ชันนี้ จึงไม่วน) แล้วค่อยอ่านวันสด เช็คบิลจ่ายแล้วจะได้เทียบกับเซิร์ฟเวอร์จริง ไม่ใช่แคช; ส่งไม่หมด/ล้ม = ใช้แคชต่อ (บอกผู้ใช้ผ่าน fromCache)
+  if(!isOffline_() && readOfflineQueue_().length){
+    try{ await flushOfflineQueue_(); }catch(e){ /* ส่งไม่ได้ — ตกไปใช้แคชด้านล่าง */ }
+  }
+  const cached = dayCache_[iso] || readDayFromLocalStorage_(iso) || (iso===currentDate ? dayData : null);
+  if(isOffline_() || readOfflineQueue_().length){
+    return {d: normalizeDay_(JSON.parse(JSON.stringify(cached || emptyDay()))), fromCache: true};
+  }
+  try{
+    const r = await window.storage.get('day:'+iso);
+    return {d: normalizeDay_(JSON.parse(r.value)), fromCache: false};
+  }catch(e){
+    const notFound = !!(e && e.message && String(e.message).indexOf('Key not found') === 0);
+    const known = orderDayHasData_(dayCache_[iso]) || orderDayHasData_(readDayFromLocalStorage_(iso)) || (iso===currentDate && orderDayHasData_(dayData));
+    if(notFound && !known) return {d: emptyDay(), fromCache: false}; // วันนี้ยังไม่เคยมีข้อมูลจริงๆ (แคชก็ว่าง)
+    throw e;
+  }
+}
+function paidInfoText_(bp){
+  const parts = [];
+  if(bp && typeof bp.paidDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bp.paidDate)) parts.push('จ่ายเมื่อ ' + formatDDMMYYYY(bp.paidDate));
+  const amt = Number(bp && (bp.transferAmount != null ? bp.transferAmount : bp.billedAmount));
+  if(isFinite(amt) && amt > 0) parts.push('ยอดที่จ่าย ' + money(amt));
+  return parts.join(' • ');
+}
+// ยอดบิลของสาขา = สูตรเดิมเป๊ะ branchBillAmount(row, iso, d, code) + billExtra (แถวว่าง/ไม่มีออเดอร์ = 0)
+function orderBillAmount_(row, iso, d, code){
+  if(!row || !orderRowHasOrder_(row)) return 0;
+  return branchBillAmount(row, iso, d, code) + Number(((d||{}).billExtra||{})[code] || 0);
+}
+function paidEditConfirmText_(code, iso, d, oldRow, newRow, fromCache){
+  const info = paidInfoText_((d.billingPaid||{})[code]);
+  return [
+    `บิลสาขา ${code} ${branchName(code)} ของวันที่ ${formatDDMMYYYY(iso)} จ่ายแล้ว${info ? ' ('+info+')' : ''}`,
+    `ออเดอร์เดิม: ${orderRowSummary_(oldRow) || 'ไม่มีรายการ'}`,
+    `ออเดอร์ใหม่: ${orderRowSummary_(newRow) || 'ไม่มีรายการ'}`,
+    `ยอดบิล ${money(orderBillAmount_(oldRow, iso, d, code))} → ${money(orderBillAmount_(newRow, iso, d, code))}`,
+    `ยอดที่จ่ายไปแล้วจะไม่ตรงบิลใหม่ — ระบบไม่แก้สถานะจ่ายให้ (ต้องไปแก้ที่หน้าบิลเอง)`,
+    fromCache ? 'หมายเหตุ: ตอนนี้เช็คกับเซิร์ฟเวอร์ไม่ได้ (ออฟไลน์/มีของค้างส่ง) ใช้ข้อมูลในเครื่องนี้' : '',
+    `ยืนยันบันทึกทับใช่ไหม?`,
+  ].filter(Boolean).join('\n');
+}
+function paidDeleteConfirmText_(code, iso, d, oldRow, fromCache){
+  const bp = (d.billingPaid||{})[code];
+  const info = paidInfoText_(bp);
+  const paidAmt = Number(bp && (bp.transferAmount != null ? bp.transferAmount : bp.billedAmount));
+  return [
+    `บิลสาขา ${code} ${branchName(code)} ของวันที่ ${formatDDMMYYYY(iso)} จ่ายแล้ว${info ? ' ('+info+')' : ''}`,
+    `ออเดอร์ที่จะลบ: ${orderRowSummary_(oldRow) || 'ไม่มีรายการ'}`,
+    `ยอดบิล ${money(orderBillAmount_(oldRow, iso, d, code))} → ${money(0)}${isFinite(paidAmt) && paidAmt > 0 ? ` (ยอดที่จ่ายไปแล้ว ${money(paidAmt)} จะค้างอยู่ไม่ตรงบิล)` : ''}`,
+    `ระบบไม่แก้สถานะจ่ายให้ (ต้องไปแก้ที่หน้าบิลเอง)`,
+    fromCache ? 'หมายเหตุ: ตอนนี้เช็คกับเซิร์ฟเวอร์ไม่ได้ (ออฟไลน์/มีของค้างส่ง) ใช้ข้อมูลในเครื่องนี้' : '',
+    `ยืนยันลบออเดอร์นี้ใช่ไหม?`,
+  ].filter(Boolean).join('\n');
+}
+function orderSaveViewApplies_(){
+  const v = orderSavedView_, sel = document.getElementById('branchSelect');
+  return !!(v && sel && v.iso === currentDate && v.code === sel.value);
+}
+// การ์ดสถานะมองเห็นอยู่ไหม (อยู่ในฟอร์มของรหัสที่เลือก และฟอร์มไม่ได้พับ) — ถ้าไม่เห็นต้องบอกผลทาง toast แทน
+function orderSaveCardVisible_(){
+  const box = document.getElementById('orderSaveState');
+  return !!(orderSaveViewApplies_() && box && !box.hidden && box.getClientRects().length > 0);
+}
+function orderTimeLabel_(dt){
+  try{ return new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', hour12:false}).format(dt || new Date()); }
+  catch(e){ return ''; }
+}
+// ใส่ค่าที่เคยพิมพ์ (แถวที่กำลังจะบันทึก) กลับลงช่อง — ใช้ตอนบันทึกล้มแล้วฟอร์มถูกวาดใหม่ ให้ค่าที่พิมพ์ครบ ไม่หาย
+function applyRowToOrderForm_(row){
+  row = row || {};
+  PRODUCTS.forEach(p=>{
+    const inp = document.querySelector(`#productInputs .prodinput[data-pid="${p.id}"]`);
+    if(inp){ const q = Number(row[p.id]||0); inp.value = q ? String(q) : ''; }
+  });
+  customItemsStaged = (row.custom||[]).map(it=>({...it}));
+  renderCustomItemsSection_();
+}
+function orderSavedCardHtml_(v, st){
+  const row = v.row || {};
+  const g = orderFormGroup_(v.code);
+  const sideLbl = (g.side === 'sep' || (g.side === 'main' && isFeeExempt(v.code))) ? 'แยกส่ง' : (g.sep ? 'ส่งปกติ' : '');
+  const side = sideLbl ? `<span class="oss-side ${sideLbl === 'แยกส่ง' ? 'sep' : 'main'}">${sideLbl}</span>` : '';
+  const code = escapeHtml(v.code);
+  const chips = PRODUCTS.filter(p=>Number(row[p.id]||0) > 0).map(p=>`<span class="oss-chip">${p.emoji} ${escapeHtml(row[p.id])}</span>`)
+    .concat((row.custom||[]).map(it=>`<span class="oss-chip">📦 ${escapeHtml(it.name)} ${escapeHtml(it.qty)}</span>`));
+  let cls = 'oss-card', head, note = '';
+  if(v.phase === 'queued'){
+    cls += ' queued';
+    head = `<span class="oss-hg" aria-hidden="true">⏳</span><b>${code}</b>${side}<span>รอส่งเมื่อมีเน็ต</span>`;
+    note = `<div class="oss-note">เก็บไว้ในเครื่องนี้แล้ว จะส่งเองเมื่อเน็ตกลับมา</div>`;
+  }else if(v.phase === 'mismatch'){
+    cls += ' warn';
+    head = `<span class="oss-hg" aria-hidden="true">⚠️</span><b>${code}</b>${side}<span>ส่งแล้ว แต่ค่าบนเซิร์ฟเวอร์ไม่ตรงกับที่กรอก</span>`;
+    note = `<div class="oss-warn">ตรวจที่ลิสต์ "สาขาที่บันทึกแล้ววันนี้" ด้านล่าง แล้วแก้ที่หน้าออเดอร์</div>`;
+  }else{
+    head = `<span class="oss-ck" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7.5"/></svg></span><b>${code}</b>${side}<span>บันทึกแล้ว ${escapeHtml(orderTimeLabel_(v.savedAt))}</span>`;
+  }
+  const hasAny = orderRowHasOrder_(row);
+  const warn = v.warn ? `<div class="oss-warn">${escapeHtml(/^⚠️/.test(v.warn) ? v.warn : '⚠️ ' + v.warn)}</div>` : ''; // คำเตือนทุกชนิดนำด้วย ⚠️ เหมือนกัน
+  // ร่างของอีกฝั่ง (เช่น 13T) ที่ยังพิมพ์ค้างอยู่ — เตือน ไม่ทิ้งเงียบๆ
+  const m = orderDraftMem_;
+  const others = (m && m.iso === currentDate && m.main === g.main) ? Object.keys(m.drafts||{}).filter(c=>c !== v.code) : [];
+  const draftWarn = others.length ? `<div class="oss-warn">⚠️ ${escapeHtml(others.join(', '))} ยังมีตัวเลขที่พิมพ์ไว้ ยังไม่บันทึก (แตะสวิตช์ด้านบนเพื่อกลับไปกรอกต่อ)</div>` : '';
+  const next = findNextUnrecordedBranch(v.code);
+  const nextHtml = next
+    ? `<button type="button" class="oss-next" data-ossnext="${escapeHtml(next)}">→ สาขาถัดไป ${escapeHtml(next)}</button>`
+    : `<div class="oss-alldone">✓ ครบทุกสาขาแล้ว</div>`;
+  return `<div class="${cls}"><div class="oss-head">${head}</div>`
+    + (chips.length ? `<div class="oss-items">${chips.join('')}</div>` : '')
+    + `<div class="oss-total">${hasAny ? 'รวม ' + orderRowQty_(row) + ' ชิ้น' : 'ไม่มีรายการ'}</div>`
+    + note + warn + draftWarn
+    + `<div class="oss-actions"><button type="button" data-ossedit="1">✎ แก้ไข</button>${nextHtml}</div></div>`;
+}
+// วาดสถานะบันทึกของฟอร์มให้ตรงกับ orderSavedView_ (วาดซ้ำได้ทุกครั้งที่ฟอร์มถูกวาดใหม่ เช่นซิงก์ — สถานะไม่หาย)
+function renderOrderSaveState_(){
+  const card = document.getElementById('orderFormCard');
+  const box = document.getElementById('orderSaveState');
+  if(!card || !box) return;
+  const v = orderSavedView_;
+  const applies = orderSaveViewApplies_();
+  let st = 'idle';
+  if(applies){
+    if(v.phase === 'saving') st = 'saving';
+    else if(v.phase === 'error') st = 'error';
+    else if(v.phase === 'queued') st = 'queued';
+    else st = (v.phase === 'saved' && v.doneUntil && Date.now() < v.doneUntil) ? 'done' : 'saved'; // saved | mismatch
+  }
+  // ล้มแล้วฟอร์มถูกวาดใหม่ (ค่าจากข้อมูลจริง) — ใส่ค่าที่พิมพ์ไว้กลับ ไม่ให้หาย
+  if(st === 'error' && !orderFormDirty_()) applyRowToOrderForm_(v.row);
+  if(st === 'idle') st = orderFormDirty_() ? 'dirty' : 'idle';
+  card.setAttribute('data-save', st);
+  card.setAttribute('data-motion', orderMotionOn_() ? 'on' : 'off');
+  document.querySelectorAll('#productInputs .prodinput').forEach(i=>{ i.readOnly = (st === 'saving'); });
+  const dot = document.getElementById('orderDirtyDot');
+  if(dot) dot.hidden = (st !== 'dirty');
+  const saveBtn = document.getElementById('saveRowBtn');
+  if(saveBtn){
+    const base = saveBtn.getAttribute('data-label') || 'บันทึกสาขานี้';
+    saveBtn.textContent = st === 'saving' ? 'กำลังบันทึก…' : (st === 'error' ? 'ลองบันทึกอีกครั้ง' : base);
+  }
+  if(st === 'saving'){
+    box.hidden = false; box.className = 'oss oss-sr'; box.textContent = 'กำลังบันทึก…';
+  }else if(st === 'error'){
+    box.hidden = false; box.className = 'oss'; box.innerHTML = `<div class="oss-err">${escapeHtml(v.msg || 'บันทึกไม่สำเร็จ ยังไม่ได้บันทึก')}</div>`;
+  }else if(st === 'saved' || st === 'done' || st === 'queued'){
+    box.hidden = false; box.className = 'oss'; box.innerHTML = orderSavedCardHtml_(v, st);
+  }else if(!box.hidden){
+    box.hidden = true; box.className = 'oss'; box.innerHTML = '';
+  }
+  clearTimeout(orderDoneTimer_);
+  if(st === 'done') orderDoneTimer_ = setTimeout(()=>{ if(orderSavedView_ === v) renderOrderSaveState_(); }, Math.max(0, v.doneUntil - Date.now()) + 20);
+}
+// พิมพ์/เพิ่ม-ลบสินค้าอื่นๆ ในฟอร์ม → ชิป "● ยังไม่บันทึก" (ถ้าเพิ่งล้ม แล้วเริ่มแก้ใหม่ = กลับเป็นยังไม่บันทึก)
+function onOrderFormChanged_(){
+  if(orderSavedView_ && orderSavedView_.phase === 'error' && orderSaveViewApplies_()) orderSavedView_ = null;
+  renderOrderSaveState_();
+}
+// คิวออฟไลน์ส่งเสร็จ → ถ้าการ์ดยังเป็น ⏳ รอส่ง: อ่านวันสด 1 ครั้งเทียบแถวที่ส่ง — ตรง = บันทึกแล้วจริง; ไม่ตรง (เช่นเดือนถูกปิดระหว่างนั้น
+// คำสั่งโดนทิ้ง) = เตือนเหลือง "ส่งแล้วแต่ค่าไม่ตรง" ไม่เขียนว่า "ไม่ได้ส่ง"; อ่านสดไม่ได้ = ค้าง ⏳ ต่อ (ไม่เดา) — ไม่เขียนข้อมูลใดๆ
+async function onOrderQueueFlushed_(){
+  const v = orderSavedView_;
+  if(!v || v.phase !== 'queued') return;
+  if(isOffline_() || readOfflineQueue_().length) return;
+  let d;
+  try{ const r = await window.storage.get('day:'+v.iso); d = normalizeDay_(JSON.parse(r.value)); }
+  catch(e){ return; }
+  if(orderSavedView_ !== v || v.phase !== 'queued') return;
+  const match = orderRowsEqual_((d.orders||{})[v.code], v.row);
+  v.phase = match ? 'saved' : 'mismatch';
+  v.doneUntil = 0; v.savedAt = new Date();
+  // คำเตือนบิลถูกติ๊กจ่ายระหว่างออฟไลน์: การ์ดแค่โชว์ (log + toast ทำที่ checkQueuedOrderWrites_ ซึ่งตรวจทุกรายการแม้การ์ดถูกล้างไปแล้ว — กัน log ซ้ำ)
+  if(!!(d.billingPaid||{})[v.code] && !v.paidAtWrite){
+    v.warn = `⚠️ บิลสาขา ${v.code} ถูกติ๊กจ่ายระหว่างออฟไลน์ ยอดบิลอาจเปลี่ยน ตรวจที่หน้าบิล`;
+  }
+  if(!match) logActivity_(`ออเดอร์ สาขา ${v.code} ${branchName(v.code)} ที่รอส่ง ส่งแล้วแต่ค่าบนเซิร์ฟเวอร์ไม่ตรงกับที่กรอก — ตรวจที่หน้าออเดอร์ (วันที่ ${formatDDMMYYYY(v.iso)})`);
+  renderOrderSaveState_();
+  if(!orderSaveCardVisible_()) showToast(match ? `ส่งออเดอร์ ${v.code} (${formatDDMMYYYY(v.iso)}) ที่รอส่งแล้ว` : `⚠️ ออเดอร์ ${v.code} (${formatDDMMYYYY(v.iso)}) ส่งแล้วแต่ค่าไม่ตรง ตรวจที่หน้าออเดอร์`);
+}
+// ความสูงหัวตรึง (#dwhStickyWrap) ต่างกันตามธีม/โหมด/ย่อหัว (macaron ~123px, sea full ~160px) — วัดจริงแล้วตั้ง --stick-h บน <html>
+// ให้ CSS ของฟอร์มออเดอร์เผื่อ scroll-margin-top ตาม (กันหัวการ์ด/ป้ายคาดขอบ "กำลังกรอก 13T" ถูกหัวตรึงบังหลังแตะปุ่มสาขา)
+function wireStickyHeaderVar_(){
+  const el = document.getElementById('dwhStickyWrap');
+  if(!el) return;
+  const set = ()=>{ const h = Math.round(el.getBoundingClientRect().height); if(h > 0) document.documentElement.style.setProperty('--stick-h', h + 'px'); };
+  set();
+  if(typeof ResizeObserver === 'function') new ResizeObserver(set).observe(el);
+  else window.addEventListener('resize', set);
+}
+function wireOrderSaveState_(){
+  const box = document.getElementById('orderSaveState');
+  const inputs = document.getElementById('productInputs');
+  if(inputs) inputs.addEventListener('input', onOrderFormChanged_);
+  if(box) box.addEventListener('click', e=>{
+    const ed = e.target.closest('[data-ossedit]');
+    const nx = e.target.closest('[data-ossnext]');
+    if(ed){
+      const v = orderSavedView_;
+      if(!v || v.iso !== currentDate) return;
+      if(setOrderFormCode_(v.code)) renderProductInputs(); // โหลดค่าที่บันทึกไว้จริงกลับมาแก้ (setOrderFormCode_ ล้างสถานะให้)
+    }else if(nx){
+      const v = orderSavedView_;
+      const m = orderDraftMem_;
+      const others = (v && m && m.iso === currentDate) ? Object.keys(m.drafts||{}).filter(c=>c !== v.code) : [];
+      if(others.length && !confirm(`${others.join(', ')} ยังมีตัวเลขที่พิมพ์ไว้ ยังไม่บันทึก — ไปสาขาถัดไปจะทิ้งตัวเลขนั้น ไปต่อไหม?`)) return;
+      openBranchForm_(nx.getAttribute('data-ossnext'));
+    }
+  });
+  window.addEventListener('karmto-queue-flushed', ()=>{ onOrderQueueFlushed_().catch(()=>{}); checkQueuedOrderWrites_(); });
+}
+async function saveRow(){
+  const code = document.getElementById('branchSelect').value; // จับรหัส/วันที่ตอนกด — ใช้ตลอดทาง เปลี่ยนวัน/สาขากลางทางก็เขียนถูกที่
+  const iso = currentDate;
+  if(orderSaving_){ showToast('กำลังบันทึกสาขาอื่นอยู่ รอสักครู่แล้วกดบันทึกอีกครั้ง'); return false; }
+  const row = {};
+  // ปัด 1 ตำแหน่งทศนิยม (ตรงกับ step="0.1" ของช่องกรอก) กันเศษทศนิยมแปลกๆ จากการคำนวณ float (เช่น 2.3000000000000003)
+  document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
+  if(customItemsStaged.length) row.custom = customItemsStaged.map(it=>({...it})); // สินค้าอื่นๆ ที่พิมพ์เอง (ดูคอมเมนต์ที่ renderCustomItemsSection_)
+  const t0 = Date.now();
+  const v = orderSavedView_ = {iso, code, row: JSON.parse(JSON.stringify(row)), phase: 'saving', seq: ++orderSaveSeq_};
+  // ล้ม = toast เสมอ (แม้การ์ดถูกซ่อน/เปลี่ยนสาขา) + การ์ด error ถ้ายังเห็นอยู่ — จับ error เองทั้งหมด ไม่โยนให้ guardedClick (กัน toast ซ้ำ)
+  const fail = msg=>{
+    showToast(msg);
+    if(orderSavedView_ === v){ v.phase = 'error'; v.msg = msg; try{ renderOrderSaveState_(); }catch(e){ console.error(e); } } // เปลี่ยนเฟสก่อนวาดเสมอ — วาดพังก็ไม่ค้าง 'saving'
+    return false;
+  };
+  let wrote = false, wroteQueued = false; // เขียนถึงที่หมายแล้วหรือยัง — ใช้ตัดสินข้อความตอนมี exception ที่ไม่ได้ดัก (ห้ามบอก "ยังไม่ได้บันทึก" ทั้งที่เขียนไปแล้ว)
+  orderSaving_ = true;
+  try{
+    renderOrderSaveState_();
+    // เดือนที่ปิดแล้ว: orders ไม่ใช่ฟิลด์ที่แก้ได้หลังปิด — บอกก่อนถาม/เขียน
+    if(isMonthClosed_(iso)) return fail(`🔒 เดือน ${monthLabel_(iso.slice(0,7))} ปิดแล้ว ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่`);
+    let d, fromCache;
+    try{ ({d, fromCache} = await readDayFreshForPaid_(iso)); }
+    catch(e){ return fail('เช็คข้อมูลล่าสุดไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่'); }
+    const oldRow = (d.orders||{})[code];
+    const paidBefore = !!(d.billingPaid||{})[code];
+    // นโยบาย B: บิลจ่ายแล้ว + ออเดอร์เปลี่ยนจริง → ถามยืนยันพร้อมค่าเก่า→ใหม่ (แถวเท่าเดิม = ไม่ถาม)
+    if(paidBefore && !orderRowsEqual_(oldRow, row) && !confirm(paidEditConfirmText_(code, iso, d, oldRow, row, fromCache))){
+      if(orderSavedView_ === v){ orderSavedView_ = null; renderOrderSaveState_(); }
+      showToast('ยกเลิกแล้ว — ยังไม่ได้บันทึก');
+      return false;
+    }
+    const hadOrder = orderRowHasOrder_(oldRow);
+    // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน dayData.orders[code]=row; saveDay() ทั้งวัน — เดิมถ้าบันทึกสาขา
+    // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
+    // ทั้งก้อนที่ยิงออกไปพร้อมกันอาจถึงเซิร์ฟเวอร์สลับคิวกัน ใครมาถึงทีหลังจะเขียนทับของอีกฝั่งทั้งหมดแบบเงียบๆ (ตรงกับปัญหา
+    // จริงที่เจอ: กรอกออเดอร์ใหม่แล้วต้นทุนซื้อ/สถานะบิลของวันนั้นกลับกลายเป็นข้อมูลเก่า) patchField ล็อกฝั่งเซิร์ฟเวอร์ตรงนี้
+    let res;
+    try{ res = await window.storage.patchField('day:'+iso, ['orders', code], row); }
+    catch(e){
+      if(e && e.monthLocked) return fail(`🔒 เดือน ${monthLabel_(e.monthLocked)} ปิดแล้ว ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่`);
+      if(e && e.offline) return fail('ออฟไลน์ ส่วนนี้ต้องต่อเน็ตก่อน ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่');
+      console.error(e);
+      return fail('บันทึกไม่สำเร็จ (เน็ตมีปัญหา?) ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่');
+    }
+    let fresh;
+    try{ fresh = normalizeDay_(JSON.parse(res.value)); }
+    catch(e){ return fail('ไม่แน่ใจว่าบันทึกสำเร็จไหม (อ่านค่ากลับไม่ได้) ตรวจที่ลิสต์สาขาที่บันทึกแล้วก่อนกดซ้ำ'); }
+    const queued = !!(res && res.queued === true); // ออฟไลน์ = ต่อคิวไว้ในเครื่อง ยังไม่ถึงเซิร์ฟเวอร์ ห้ามโชว์ว่าสำเร็จ
+    wrote = true; wroteQueued = queued;
+    if(queued) trackQueuedOrderWrite_(iso, code, 'save', paidBefore); // ทะเบียนรอส่ง — ตรวจบิลจ่ายแล้วตอนคิวส่งเสร็จ แม้การ์ดถูกล้างไปแล้ว
+    dayCache_[iso] = fresh;
+    writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate) dayData = fresh;
+    // เช็คซ้ำบนค่าที่เซิร์ฟเวอร์คืนมา: อีกเครื่องเพิ่งติ๊กจ่ายบิลนี้ระหว่างที่เราเขียน → ไม่ย้อนค่า (ผู้ใช้ยืนยันแนวทาง B) แต่เตือนค้างไว้ + จด log
+    let warn = '';
+    if(!queued && !paidBefore && (fresh.billingPaid||{})[code]){
+      warn = `บิลสาขา ${code} เพิ่งถูกติ๊กจ่ายระหว่างบันทึก ยอดบิลเปลี่ยน ${money(orderBillAmount_(oldRow, iso, d, code))} → ${money(orderBillAmount_(row, iso, fresh, code))} ตรวจที่หน้าบิล`;
+      logActivity_(`⚠️ ${warn} (วันที่ ${formatDDMMYYYY(iso)})`);
+    }
+    if(!queued && paidBefore && !orderRowsEqual_(oldRow, row)) warn = `บิลสาขา ${code} จ่ายแล้ว — ยืนยันแก้ออเดอร์แล้ว ตรวจยอดที่จ่ายไปให้ตรงบิลใหม่ที่หน้าบิล`;
+    logActivity_(`${hadOrder?'แก้ไขออเดอร์':'บันทึกออเดอร์'} สาขา ${code} ${branchName(code)} ${orderRowSummary_(row)}${queued?' (รอส่ง)':''}${paidBefore?' (บิลจ่ายแล้ว — ยืนยันแก้)':''} — วันที่ ${formatDDMMYYYY(iso)}`);
+    editingCode = null;
+    if(orderDraftMem_ && orderDraftMem_.drafts) delete orderDraftMem_.drafts[code]; // ร่างค้างของรหัสนี้หมดหน้าที่แล้ว (ร่างอีกฝั่งคงไว้)
+    // ถึงตรงนี้เขียนเสร็จจริงแล้ว — ปล่อยตัวกันซ้ำทันที แอนิเมชันที่ตามมาเป็นแค่การโชว์ ไม่หน่วงการเขียน/ไม่ทำให้ saveRow ช้าลง
+    orderSaving_ = false;
+    const finalPhase = queued ? 'queued' : 'saved';
+    Object.assign(v, {warn, savedAt: new Date(), paidAtWrite: paidBefore, msg: ''});
+    const wait = orderMotionOn_() ? Math.max(0, ORDER_SAVING_MIN_MS - (Date.now() - t0)) : 0; // ถ้าไม่เปิดแอนิเมชัน = ไม่หน่วงเลย
+    if(wait > 0){
+      v.phase = 'saving';
+      setTimeout(()=>{ if(orderSavedView_ === v && v.phase === 'saving'){ v.phase = finalPhase; v.doneUntil = Date.now() + ORDER_DONE_MS; renderOrderSaveState_(); } }, wait);
+    }else{
+      v.phase = finalPhase; v.doneUntil = orderMotionOn_() ? Date.now() + ORDER_DONE_MS : 0;
+    }
+    // เขียนสำเร็จแล้ว — ถ้าวาดหน้าจอพังหลังจากนี้ ห้ามบอกผู้ใช้ว่า "บันทึกไม่สำเร็จ" (ข้อมูลถึงแล้ว) แค่จด console
+    try{
+      refreshOrderTab(); renderStats();
+      // ไม่เลื่อนจอไปที่ลิสต์ (การ์ดสถานะอยู่ตรงนี้แล้ว) — แค่แฟลชแถวของสาขานี้ในลิสต์ "สาขาที่บันทึกแล้ววันนี้"
+      const savedBtn = Array.from(document.querySelectorAll('#orderList [data-edit]')).find(b=>b.getAttribute('data-edit') === code);
+      const savedRow = savedBtn ? savedBtn.closest('.orow') : null;
+      if(savedRow){
+        savedRow.classList.add('flash-saved');
+        setTimeout(()=>savedRow.classList.remove('flash-saved'), 1400);
+      }
+    }catch(e){ console.error('saveRow: render after save failed', e); }
+    // การ์ดมองไม่เห็น (เปลี่ยนสาขา/เปลี่ยนวัน/ฟอร์มถูกพับ) → บอกทาง toast พร้อมรหัสและวันที่ที่บันทึกจริง
+    if(!orderSaveCardVisible_()) showToast(queued ? `📴 เก็บออเดอร์ ${code} (${formatDDMMYYYY(iso)}) ไว้ในเครื่องแล้ว รอส่งเมื่อมีเน็ต` : `บันทึก ${code} — ${branchName(code)} วันที่ ${formatDDMMYYYY(iso)} แล้ว`);
+    if(warn && !queued && !paidBefore) showToast(`⚠️ ${warn}`);
+    return true;
+  }catch(e){
+    // exception ที่ไม่ได้ดักไว้ (เช่น ฟังก์ชันคิดยอด/วาดพังกลางทาง) — ห้ามปล่อยให้เฟส 'saving' ค้าง (ช่องกรอก readOnly + userBusy_ ติดตลอด) และห้ามเงียบ
+    console.error('saveRow failed', e);
+    if(!wrote) return fail('บันทึกไม่สำเร็จ (แอปผิดพลาด) ยังไม่ได้บันทึก ข้อมูลที่กรอกยังอยู่ ลองกดอีกครั้ง');
+    if(orderSavedView_ === v && v.phase === 'saving'){ v.phase = wroteQueued ? 'queued' : 'saved'; v.doneUntil = 0; v.savedAt = v.savedAt || new Date(); try{ renderOrderSaveState_(); }catch(_){} }
+    showToast(wroteQueued
+      ? `📴 เก็บออเดอร์ ${code} (${formatDDMMYYYY(iso)}) ไว้ในเครื่องแล้ว รอส่งเมื่อมีเน็ต แต่แสดงผลไม่ครบ — ตรวจที่ลิสต์สาขาที่บันทึกแล้ว`
+      : `บันทึก ${code} (${formatDDMMYYYY(iso)}) แล้ว แต่แสดงผลไม่ครบ — ตรวจที่ลิสต์สาขาที่บันทึกแล้ว`);
+    return true;
+  }finally{
+    orderSaving_ = false;
+  }
+}
+// ลบออเดอร์ของสาขา — ตัวกันกดซ้ำต่อรหัส; อ่านวันสดก่อน; บิลจ่ายแล้ว = ถามยืนยันพร้อมค่าเก่า→ใหม่ (ไม่แตะ billingPaid)
+async function deleteOrder_(code, btn){
+  const iso = currentDate;
+  const key = iso + '|' + code;
+  if(orderDeleteBusy_.has(key)) return false;
+  if(isMonthClosed_(iso)){ showToast(`🔒 เดือน ${monthLabel_(iso.slice(0,7))} ปิดแล้ว ยังไม่ได้ลบ`); return false; }
+  orderDeleteBusy_.add(key);
+  if(btn) btn.disabled = true;
+  try{
+    let d, fromCache;
+    try{ ({d, fromCache} = await readDayFreshForPaid_(iso)); }
+    catch(e){ showToast('เช็คข้อมูลล่าสุดไม่ได้ (เน็ตมีปัญหา?) ยังไม่ได้ลบ'); return false; }
+    const oldRow = (d.orders||{})[code];
+    const paidBefore = !!(d.billingPaid||{})[code];
+    const okText = paidBefore ? paidDeleteConfirmText_(code, iso, d, oldRow, fromCache) : `ลบออเดอร์สาขา ${code} ${branchName(code)} ของวันนี้ทั้งหมดเลยใช่ไหม?`;
+    if(!confirm(okText)) return false;
+    let res;
     try{
       // ลบแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchOps ไม่เขียนทับทั้งก้อน) แทนลบเองแล้ว saveDay() ทั้งวัน — เดิมถ้ากดลบ
       // หลายสาขาติดๆ กันเร็วๆ (ยังรอ saveDay ของสาขาก่อนหน้าไม่เสร็จ) คำขอที่ยิงออกไปพร้อมกันอาจมาถึงเซิร์ฟเวอร์สลับคิวกัน
       // คำขอที่มีข้อมูลเก่ากว่า (ยังมีสาขาที่เพิ่งลบไปติดอยู่) มาถึงทีหลังจะเขียนทับ ทำให้สาขาที่ลบไปแล้วโผล่กลับมาใหม่
       // แบบเงียบๆ (ตรงกับปัญหาจริงที่เจอ: ลบหมดแล้วแต่ยังเหลือค้างอยู่บางสาขา) patchOps ล็อกฝั่งเซิร์ฟเวอร์แก้ตรงนี้โดยตรง
-      const res = await window.storage.patchOps('day:'+iso, [{path:['orders', code], deleteKey:true}], false);
-      const fresh = normalizeDay_(JSON.parse(res.value));
-      dayCache_[iso] = fresh;
-      writeDayToLocalStorage_(iso, fresh);
-      if(iso===currentDate) dayData = fresh;
-      logActivity_(`ลบออเดอร์ สาขา ${code} ${branchName(code)} — วันที่ ${formatDDMMYYYY(iso)}`);
-      refreshOrderTab(); renderStats(); showToast('ลบแล้ว');
+      res = await window.storage.patchOps('day:'+iso, [{path:['orders', code], deleteKey:true}], false);
     }catch(e){
-      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ลองใหม่อีกครั้ง');
+      if(e && e.monthLocked){ showToast(`🔒 เดือน ${monthLabel_(e.monthLocked)} ปิดแล้ว ยังไม่ได้ลบ`); return false; }
+      if(e && e.offline){ showToast('ออฟไลน์ ส่วนนี้ต้องต่อเน็ตก่อน ยังไม่ได้ลบ'); return false; }
+      showToast('ลบไม่สำเร็จ (เน็ตมีปัญหา?) ยังไม่ได้ลบ ลองใหม่อีกครั้ง');
+      return false;
     }
-  }));
-}
-async function saveRow(){
-  const code = document.getElementById('branchSelect').value;
-  const row = {};
-  // ปัด 1 ตำแหน่งทศนิยม (ตรงกับ step="0.1" ของช่องกรอก) กันเศษทศนิยมแปลกๆ จากการคำนวณ float (เช่น 2.3000000000000003)
-  document.querySelectorAll('.prodinput').forEach(inp=>{ row[inp.getAttribute('data-pid')] = Math.round(Number(inp.value||0)*10)/10; });
-  if(customItemsStaged.length) row.custom = customItemsStaged.map(it=>({...it})); // สินค้าอื่นๆ ที่พิมพ์เอง (ดูคอมเมนต์ที่ renderCustomItemsSection_)
-  const iso = currentDate;
-  // เขียนแบบล็อกกันชนกันฝั่งเซิร์ฟเวอร์ (patchField) แทน dayData.orders[code]=row; saveDay() ทั้งวัน — เดิมถ้าบันทึกสาขา
-  // นี้ใกล้ๆ กับมีการบันทึก/ลบอย่างอื่นของวันเดียวกัน (เช่น กำลังลบต้นทุนซื้อหลายรายการติดๆ กันอยู่พอดี) คำขอ saveDay()
-  // ทั้งก้อนที่ยิงออกไปพร้อมกันอาจถึงเซิร์ฟเวอร์สลับคิวกัน ใครมาถึงทีหลังจะเขียนทับของอีกฝั่งทั้งหมดแบบเงียบๆ (ตรงกับปัญหา
-  // จริงที่เจอ: กรอกออเดอร์ใหม่แล้วต้นทุนซื้อ/สถานะบิลของวันนั้นกลับกลายเป็นข้อมูลเก่า) patchField ล็อกฝั่งเซิร์ฟเวอร์ตรงนี้
-  const hadOrder = orderRowHasOrder_((dayData.orders||{})[code]);
-  const res = await window.storage.patchField('day:'+iso, ['orders', code], row);
-  const fresh = normalizeDay_(JSON.parse(res.value));
-  dayCache_[iso] = fresh;
-  writeDayToLocalStorage_(iso, fresh);
-  if(iso===currentDate) dayData = fresh;
-  logActivity_(`${hadOrder?'แก้ไขออเดอร์':'บันทึกออเดอร์'} สาขา ${code} ${branchName(code)} ${orderRowSummary_(row)} — วันที่ ${formatDDMMYYYY(iso)}`);
-  editingCode = null;
-  refreshOrderTab(); renderStats();
-  // เลื่อนไปให้เห็นบรรทัดสาขาที่เพิ่งบันทึกในลิสต์ "สาขาที่บันทึกแล้ววันนี้" ทันที ให้มั่นใจว่าบันทึกจริง (ไม่ต้องคอยเชื่อ toast อย่างเดียว)
-  const savedRowBtn = document.querySelector(`#orderList [data-edit="${code}"]`);
-  const savedRow = savedRowBtn ? savedRowBtn.closest('.orow') : null;
-  if(savedRow){
-    savedRow.scrollIntoView({behavior:'smooth', block:'center'});
-    savedRow.classList.add('flash-saved');
-    setTimeout(()=>savedRow.classList.remove('flash-saved'), 1400);
+    let fresh;
+    try{ fresh = normalizeDay_(JSON.parse(res.value)); }
+    catch(e){ showToast('ไม่แน่ใจว่าลบสำเร็จไหม (อ่านค่ากลับไม่ได้) ตรวจที่ลิสต์สาขาก่อนกดซ้ำ'); return false; }
+    const queued = !!(res && res.queued === true);
+    if(queued) trackQueuedOrderWrite_(iso, code, 'delete', paidBefore); // ทะเบียนรอส่ง (ดู checkQueuedOrderWrites_)
+    dayCache_[iso] = fresh;
+    writeDayToLocalStorage_(iso, fresh);
+    if(iso===currentDate) dayData = fresh;
+    logActivity_(`ลบออเดอร์ สาขา ${code} ${branchName(code)}${queued?' (รอส่ง)':''}${paidBefore?' (บิลจ่ายแล้ว — ยืนยันลบ)':''} — วันที่ ${formatDDMMYYYY(iso)}`);
+    // ของที่พิมพ์ค้าง/สถานะบันทึกของรหัสที่เพิ่งลบ หมดความหมายแล้ว
+    if(orderSavedView_ && orderSavedView_.iso === iso && orderSavedView_.code === code) orderSavedView_ = null;
+    if(orderDraftMem_ && orderDraftMem_.drafts) delete orderDraftMem_.drafts[code];
+    refreshOrderTab(); renderStats();
+    if(!queued && !paidBefore && (fresh.billingPaid||{})[code]){
+      const w = `บิลสาขา ${code} เพิ่งถูกติ๊กจ่ายระหว่างลบ ยอดบิลเปลี่ยน ${money(orderBillAmount_(oldRow, iso, d, code))} → ${money(0)} ตรวจที่หน้าบิล`;
+      logActivity_(`⚠️ ${w} (วันที่ ${formatDDMMYYYY(iso)})`);
+      showToast(`⚠️ ${w}`);
+    }else showToast(queued ? 'ลบไว้ในเครื่องแล้ว รอส่งเมื่อมีเน็ต' : (paidBefore ? `ลบแล้ว — บิลสาขา ${code} จ่ายแล้ว ตรวจยอดที่หน้าบิล` : 'ลบแล้ว'));
+    return true;
+  }finally{
+    orderDeleteBusy_.delete(key);
+    if(btn && btn.isConnected) btn.disabled = false;
   }
-  // บันทึกสาขานี้เสร็จแล้ว วิ่งไปสาขาถัดไปที่ยังไม่มีออเดอร์อัตโนมัติเลย ไม่ต้องค้างอยู่ที่เดิม (ค้างที่ธงเฉพาะตอนเปิดแท็บครั้งแรกเท่านั้น)
-  const nextCode = findNextUnrecordedBranch(code);
-  if(nextCode){
-    document.getElementById('branchSelect').value = nextCode;
-    renderProductInputs();
-  }
-  showToast(`บันทึก ${code} — ${branchName(code)} แล้ว`);
 }
 function refreshOrderTab(){ renderBranchSelect(); renderOrderList(); updateOrderFormAutoFold(); refreshTodayAnomalyCard_(); renderMessages(); renderOrderForecast_(); }
 // ป้ายสติ๊กเกอร์ออเดอร์สำหรับพิมพ์ (ใช้คู่กับแอพ PeriPage) — ไม่มีราคา เพราะจุดประสงค์คือแปะกล่อง/เช็คของตอนแพ็ค ไม่ใช่ใบเสร็จ
@@ -3986,6 +4734,8 @@ function fillOrderFormFromParsed_(parsed, statusEl, fromLine){
     }
     editingCode = branch.code;
     { const sel = document.getElementById('branchSelect'); if(![...sel.options].some(o=>o.value===branch.code)) renderBranchSelect(); sel.value = branch.code; }
+    clearOrderDrafts_(); // OCR/ร่าง LINE เติมฟอร์มใหม่ = ทิ้งร่างที่พิมพ์ค้างของสาขาก่อนหน้า (ฝั่งปกติ/แยกส่งของสาขาที่เจอ = ตามรหัสที่อ่านได้ ไม่เลือกฝั่งให้เอง)
+    orderSavedView_ = null;
     renderProductInputs();
     const row = {};
     (parsed.items||[]).forEach(it=>{
@@ -4009,6 +4759,7 @@ function fillOrderFormFromParsed_(parsed, statusEl, fromLine){
       const input = document.querySelector(`.prodinput[data-pid="${pid}"]`);
       if(input) input.value = qty;
     });
+    onOrderFormChanged_(); // เติมลงช่องแล้ว = ยังไม่บันทึก (ชิป ● ยังไม่บันทึก)
     window.scrollTo({top:0, behavior:'smooth'});
     return true;
   }
@@ -4146,6 +4897,7 @@ async function readOrderImages(fileList){
   if(ops.length>0){
     try{
       const res = await window.storage.patchOps('day:'+targetDate, ops, false);
+      if(res && res.queued === true) ops.forEach(o=>trackQueuedOrderWrite_(targetDate, o.path[1], 'save', !!(targetDay.billingPaid||{})[o.path[1]])); // ออฟไลน์ = ต่อคิว → ลงทะเบียนตรวจบิลจ่ายแล้วตอนส่ง
       const fresh = normalizeDay_(JSON.parse(res.value));
       dayCache_[targetDate] = fresh;
       writeDayToLocalStorage_(targetDate, fresh);
@@ -8293,6 +9045,47 @@ function pairCodeCmp_(x, y){
   const sx = isFeeExempt(x), sy = isFeeExempt(y);
   if(sx !== sy) return sx ? 1 : -1;
   return String(x).localeCompare(String(y));
+}
+// ---- "T คู่" ของฟอร์มออเดอร์ (13 กับ 13T) — ตัวช่วยอ่านอย่างเดียว ไม่เขียนข้อมูล ไม่ติ๊กแยกส่งให้ใคร ไม่สร้างสาขา ----
+// เงื่อนไขเข้มกว่า branchSameGroup_ (ที่รับทุกรหัสแยกส่งรวม 13S): ต้องเป็นรหัส "ตัวเลข+T" ที่ติ๊กแยกส่งในตั้งค่าแล้ว และมีสาขาหลัก
+// (ตัวเลขล้วน ไม่ติ๊กแยกส่ง) เลขเท่ากัน — มีหลายตัวเลขเท่ากัน (01 กับ 1) จับคู่กับตัวแรกตามลำดับในตั้งค่าเสมอ (ไม่แย่งกัน);
+// มี T ซ้ำเลขเดียวกัน (13T กับ 013T) = คู่เฉพาะตัวแรก ตัวที่เหลือเป็นสาขาเดี่ยวธรรมดา (ยังเลือกได้จากดรอปดาวน์)
+// ไม่ติ๊กแยกส่ง = ไม่ใช่ T คู่ (กัน Brand fee คิดผิดบนออเดอร์ T) — ห้ามแตะ isFeeExempt/branchBaseNumber_/สูตรบิล
+function sepMainCode_(code){
+  if(!code || !isFeeExempt(code)) return null;
+  const m = /^(\d+)t$/i.exec(String(code)); if(!m) return null;
+  const n = Number(m[1]);
+  const list = settings.branches || [];
+  const main = list.find(b=>b && b.code && /^\d+$/.test(b.code) && !isFeeExempt(b.code) && Number(b.code)===n);
+  if(!main) return null;
+  const firstT = list.find(b=>{ const mm = b && b.code && /^(\d+)t$/i.exec(b.code); return !!mm && Number(mm[1])===n && isFeeExempt(b.code); });
+  return (firstT && firstT.code===code) ? main.code : null;
+}
+function sepPartnerCode_(main){
+  if(!main) return null;
+  const b = (settings.branches||[]).find(b=>b && b.code && b.code!==main && sepMainCode_(b.code)===main);
+  return b ? b.code : null;
+}
+// สถานะฝั่ง "แยกส่ง" ของสาขาหลัก: 'pair' = มี T คู่ใช้งานได้ • 'unticked:<รหัส>' = มีแถว T แต่ยังไม่ติ๊กแยกส่ง (ไม่นับเป็นคู่) • 'none' = ไม่มีแถว T
+function sepHint_(main){
+  if(sepPartnerCode_(main)) return 'pair';
+  if(!/^\d+$/.test(String(main||'')) || isFeeExempt(main)) return 'none';
+  const n = Number(main);
+  const t = (settings.branches||[]).find(b=>{ const mm = b && b.code && /^(\d+)t$/i.exec(b.code); return !!mm && Number(mm[1])===n && !isFeeExempt(b.code); });
+  return t ? 'unticked:'+t.code : 'none';
+}
+// {main, sep, side}: side 'sep' = code เป็น T คู่ (main = สาขาหลัก) • side 'main' = สาขาหลัก/สาขาเดี่ยว (sep = T คู่ ถ้ามี) — รหัสเดี่ยว (19T ไม่มี 19, 13S, 00) = sep:null
+function orderFormGroup_(code){
+  const m = sepMainCode_(code);
+  if(m) return {main:m, sep:code, side:'sep'};
+  return {main:code, sep:sepPartnerCode_(code), side:'main'};
+}
+// จำนวนชิ้นรวมของแถวออเดอร์ — ใช้โชว์ "N ชิ้น" ในสวิตช์อย่างเดียว ไม่เกี่ยวกับเงิน/บิล
+function orderRowQty_(row){
+  if(!row) return 0;
+  let q = PRODUCTS.reduce((s,p)=>s+Number(row[p.id]||0), 0);
+  (row.custom||[]).forEach(it=>{ q += Number(it && it.qty || 0); });
+  return Math.round(q*10)/10;
 }
 function branchEntryPairCmp_(a, b){ return pairCodeCmp_(a[0], b[0]); } // ลิสต์แบบ [code, row] (บิลรายวัน)
 function outstandingPairCmp_(a, b){ return pairCodeCmp_(a.code, b.code); } // ลิสต์แบบ {code} (หน้ารวมตามโอน)
@@ -14035,27 +14828,108 @@ function openBranchForm_(code){
   if(![...sel.options].some(o=>o.value===code)) return false;
   editingCode = orderRowHasOrder_((dayData.orders||{})[code]) ? code : null; // สาขาที่ยังไม่มีออเดอร์ต้องล้างค่าเดิมทิ้ง ไม่งั้นฟอร์มเด้งกลับสาขาเก่าเมื่อหน้ารีเฟรช
   sel.value = code;
+  orderSavedView_ = null;
+  clearOrderDrafts_(); // เปิดสาขาจากตาราง/⚡ = เริ่มสาขานั้นใหม่ ทิ้งร่างที่พิมพ์ค้างของสาขาก่อนหน้า
   renderProductInputs();
   setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', false);
+  // ปุ่มของรหัสนั้นมีปุ่มเดียวเสมอ (T คู่ = ปุ่มในแถว 🚚 หน้า 2) — ไฮไลต์ตามรหัสที่เปิดจริง
   document.querySelectorAll('#branchGrid .bg-chip').forEach(c=>c.classList.toggle('sel', c.getAttribute('data-bgcode')===code));
   const formCard = sel.closest('.card');
   if(formCard) formCard.scrollIntoView({behavior:'smooth', block:'start'});
   return true;
 }
+// ---- การ์ด "สาขาวันนี้": แตะแถบหัว = พับ/กาง (จำต่อเครื่องใน localStorage ไม่ลงข้อมูลร้าน) • สไลด์ 2 หน้า (scroll-snap เนทีฟ) ----
+const BGC_FOLD_KEY = 'karmto.branchGridFold';
+function branchGridFolded_(){ try{ return localStorage.getItem(BGC_FOLD_KEY) === '1'; }catch(e){ return false; } }
+function applyBranchGridFold_(folded){
+  const fold = document.getElementById('branchGridFold'), head = document.getElementById('branchGridHead');
+  if(fold) fold.classList.toggle('closed', !!folded);
+  if(head) head.setAttribute('aria-expanded', String(!folded));
+}
+function updateBranchGridPage_(){
+  const el = document.getElementById('branchGrid'), vp = document.getElementById('branchGridVp'), dots = document.getElementById('branchGridDots');
+  if(!el || !vp) return;
+  const multi = el.querySelectorAll('.bgc-page').length > 1;
+  const max = el.scrollWidth - el.clientWidth;
+  const page = (multi && max > 0 && el.scrollLeft > max/2) ? 1 : 0;
+  vp.setAttribute('data-multi', multi ? '1' : '0');
+  vp.setAttribute('data-page', String(page));
+  if(dots) [...dots.children].forEach((d,i)=>d.classList.toggle('on', i===page));
+  // มือถือ: ความสูงรางสไลด์ตามหน้าที่เห็นอยู่ (หน้า 2 สั้นกว่าหน้า 1 มาก — ไม่เว้นที่ว่างโหว่ใต้หน้า 2)
+  const pg = el.querySelectorAll('.bgc-page')[page];
+  if(pg && pg.offsetHeight > 0) el.style.setProperty('--bgc-h', (pg.offsetHeight + 21) + 'px'); // 21 = padding บน 12 + ล่าง 9 ของราง
+  else el.style.removeProperty('--bgc-h');
+}
+function wireBranchGrid_(){
+  const head = document.getElementById('branchGridHead'), el = document.getElementById('branchGrid');
+  if(!head || !el || head.__wired) return;
+  head.__wired = true;
+  const toggle = ()=>{
+    const fold = document.getElementById('branchGridFold');
+    const willFold = !(fold && fold.classList.contains('closed'));
+    applyBranchGridFold_(willFold);
+    try{ localStorage.setItem(BGC_FOLD_KEY, willFold ? '1' : '0'); }catch(e){}
+  };
+  head.addEventListener('click', toggle);
+  head.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+  el.addEventListener('click', e=>{ const c = e.target.closest('[data-bgcode]'); if(c) openBranchForm_(c.getAttribute('data-bgcode')); }); // แตะ = เปิดฟอร์มอย่างเดียว ไม่เขียนข้อมูล
+  let raf = 0;
+  el.addEventListener('scroll', ()=>{ if(raf) return; raf = requestAnimationFrame(()=>{ raf = 0; updateBranchGridPage_(); }); }, {passive:true});
+  window.addEventListener('resize', updateBranchGridPage_); // หมุนจอ/ปรับขนาด → วัดความสูงหน้าใหม่
+  applyBranchGridFold_(branchGridFolded_());
+}
 function renderBranchGrid_(){
   renderLineOrderDrafts_();
   const el = document.getElementById('branchGrid');
   if(!el) return;
+  wireBranchGrid_();
   const orders = dayData.orders || {};
   const cur = (document.getElementById('branchSelect')||{}).value;
-  let n = 0;
-  el.innerHTML = settings.branches.map(b=>{
-    const has = orderRowHasOrder_(orders[b.code]); if(has) n++;
-    return `<button type="button" class="bg-chip${has?' has':''}${b.code===cur?' sel':''}" data-bgcode="${escapeHtml(b.code)}" title="${escapeHtml(branchDisplayName(b))}" aria-label="${escapeHtml(branchDisplayName(b))}${has?' (บันทึกแล้ว)':''}">${escapeHtml(b.code)}</button>`;
-  }).join('');
+  const all = settings.branches || [];
+  const hasOrd = c=>orderRowHasOrder_(orders[c]);
+  // หน้า 1 = สาขาปกติที่ไม่ติ๊ก "นานๆ สั่งที" • หน้า 2 = แถว 🚚 (ทุกสาขาที่ติ๊กแยกส่ง) ก่อนแถว ⏳ (นานๆ สั่งที ที่ไม่แยกส่ง)
+  // สาขาที่ติ๊กทั้งแยกส่งและนานๆ ที (เช่น 13T/16T) ขึ้นเฉพาะแถว 🚚
+  const page1 = all.filter(b=>!isFeeExempt(b.code) && !b.rare);
+  const sepList = all.filter(b=>isFeeExempt(b.code));
+  const rareList = all.filter(b=>b.rare && !isFeeExempt(b.code));
+  const btn = (b, kind)=>{
+    const has = hasOrd(b.code);
+    const name = branchDisplayName(b);
+    let label = b.code, badge = '';
+    if(kind === 'sep') label = String(b.code).replace(/t$/i,''); // 13T → "13" (รหัสอื่นเช่น 13S แสดงดิบ)
+    if(kind === 'main'){
+      const partner = sepPartnerCode_(b.code);
+      if(partner && hasOrd(partner)) badge = '<span class="bgc-tk" aria-hidden="true"><span>🚚</span></span>'; // ฝั่งแยกส่งของสาขานี้มีออเดอร์แล้ว (ปุ่มนี้ยังไม่ติ๊กถ้ามีแต่ฝั่งแยกส่ง)
+    }
+    if(kind === 'rare') badge = '<span class="bgc-hgb" aria-hidden="true"><svg><use href="#bgc-hg"/></svg></span>';
+    return `<button type="button" class="bg-chip${kind==='sep'?' split':''}${kind==='rare'?' rare':''}${has?' has':''}${b.code===cur?' sel':''}" data-bgcode="${escapeHtml(b.code)}" title="${escapeHtml(name)}" aria-label="${escapeHtml(name)}${kind==='sep'?' (แยกส่ง)':''}${has?' (บันทึกแล้ว)':''}">${badge}<span class="n">${escapeHtml(label)}</span><svg class="ck" aria-hidden="true"><use href="#bgc-ck"/></svg></button>`;
+  };
+  const group = (kind, list, lead)=> list.length
+    ? `<div class="bgc-grid" style="--rs:${Math.ceil(list.length/3)}">${lead}${list.map(b=>btn(b, kind)).join('')}</div>` : '';
+  const leadSep = '<div class="bgc-lead sep" aria-hidden="true"><span class="bgc-ico sep"><span>🚚</span></span></div>';
+  const leadRare = '<div class="bgc-lead rare" aria-hidden="true"><span class="bgc-ico rare"><svg><use href="#bgc-hg"/></svg></span></div>';
+  const groups2 = [group('sep', sepList, leadSep), group('rare', rareList, leadRare)].filter(Boolean);
+  const prevLeft = el.scrollLeft; // วาดใหม่ทุกรอบ (เช่นหลังบันทึก) — จำตำแหน่งสไลด์ไว้ กันเด้งกลับหน้า 1
+  el.innerHTML =
+    (page1.length ? `<div class="bgc-page p1"><div class="bgc-grid">${page1.map(b=>btn(b,'main')).join('')}</div></div>` : '') +
+    (groups2.length ? `<div class="bgc-page">${groups2.join('<div class="bgc-divider"></div>')}</div>` : '');
+  if(prevLeft) el.scrollLeft = prevLeft;
+  const n = page1.filter(b=>hasOrd(b.code)).length;
   const cnt = document.getElementById('branchGridCount');
-  if(cnt) cnt.textContent = `(บันทึกแล้ว ${n}/${settings.branches.length})`;
-  el.querySelectorAll('[data-bgcode]').forEach(c=>c.addEventListener('click', ()=>openBranchForm_(c.getAttribute('data-bgcode'))));
+  if(cnt){ cnt.textContent = `${n}/${page1.length}`; cnt.setAttribute('aria-label', `บันทึกแล้ว ${n} จาก ${page1.length} สาขา`); }
+  const sepAll = all.filter(b=>isFeeExempt(b.code));
+  const sepChip = document.getElementById('branchGridSep');
+  if(sepChip){
+    const ns = sepAll.filter(b=>hasOrd(b.code)).length;
+    sepChip.hidden = sepAll.length === 0;
+    sepChip.innerHTML = `<span class="em">🚚</span>${ns}`;
+    sepChip.setAttribute('aria-label', `แยกส่งบันทึกแล้ว ${ns} สาขา`);
+  }
+  const prog = document.getElementById('branchGridProg');
+  if(prog) prog.style.width = page1.length ? Math.round(n/page1.length*100) + '%' : '0%';
+  const dots = document.getElementById('branchGridDots');
+  if(dots) dots.innerHTML = (page1.length && groups2.length) ? '<i class="on"></i><i></i>' : '';
+  updateBranchGridPage_();
 }
 // ---- ⚡ ค้นหา / สั่งงาน: ไปหน้า/สาขา/วันที่ หรือเรียกงานที่ใช้บ่อยจากช่องเดียว (นำทางอย่างเดียว ไม่เขียนข้อมูล) ----
 function openMsgCard_(){
@@ -14474,7 +15348,7 @@ function setDateNavControlsDisabled_(disabled){
 // ซิงก์ข้ามเครื่อง: เมื่อกลับมาที่แอป (และทุก 60 วิ ขณะเปิดค้าง) เช็ค dayRevs บนเซิร์ฟเวอร์ ถ้าวันไหนมีเครื่องอื่นแก้ ล้างแคชวันนั้นแล้ววาดใหม่
 // ไม่วาดใหม่ระหว่างกำลังพิมพ์/เปิดหน้าต่างอยู่ — รอรอบถัดไปแทน กันฟอร์มที่กรอกค้างหาย
 let syncInFlight_ = false, pendingSyncRender_ = false, hiddenAt_ = 0;
-const APP_BUILD = '2026-11-26.4';
+const APP_BUILD = '2026-11-26.5';
 function setLastSyncLabel_(){
   const el = document.getElementById('lastSyncLabel');
   if(el) el.textContent = new Date().toLocaleTimeString('th-TH', {timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -14496,9 +15370,15 @@ function userBusy_(){
   const a = document.activeElement;
   if(a && (a.tagName==='TEXTAREA' || a.tagName==='SELECT' || (a.tagName==='INPUT' && !['button','checkbox','radio','submit'].includes(a.type)))) return true;
   if(editingCode) return true;
+  // กำลังบันทึกออเดอร์ / ตัวเลขที่พิมพ์ค้างยังไม่บันทึก (รวมร่างอีกฝั่งของสวิตช์ ส่งปกติ|แยกส่ง) — ซิงก์/รีโหลด build ใหม่ห้ามวาดทับหรือทิ้ง
+  if(orderSaving_ || (orderSavedView_ && orderSavedView_.phase === 'saving')) return true;
+  if(orderDraftMem_ && orderDraftMem_.iso === currentDate && Object.keys(orderDraftMem_.drafts||{}).length) return true;
+  const po = document.getElementById('panel-order');
+  if(po && po.classList.contains('active') && orderFormDirty_()) return true;
   return [...document.querySelectorAll('[id$="ModalOverlay"],[id$="Overlay"]')].some(el=>el.style.display && el.style.display!=='none');
 }
 async function syncFromOtherDevices_(){
+  checkQueuedOrderWrites_(); // ทะเบียนออเดอร์รอส่งที่ตรวจไม่ได้รอบก่อน / เหลือจากก่อนปิด-เปิดแอป — ลองใหม่ (ไม่ throw, ว่าง = กลับทันที)
   if(syncInFlight_ || dateNavInFlight_ || !currentDate) return;
   syncInFlight_ = true;
   try{
@@ -14511,7 +15391,8 @@ async function syncFromOtherDevices_(){
     if(!pendingSyncRender_ && !isRecentDay_(iso)) return;
     // วันใกล้ๆ โหลดสดเสมออยู่แล้ว — เทียบกับที่โชว์อยู่ตรงๆ ด้วย ไม่พึ่งป้ายอย่างเดียว (เผื่ออีกเครื่องยังเป็นเวอร์ชันเก่าที่ไม่สแตมป์ป้าย)
     const fresh = await loadDay(iso);
-    if(dateNavInFlight_ || iso !== currentDate) return;
+    // ระหว่างรอโหลด ผู้ใช้อาจเริ่มพิมพ์/กดบันทึกแล้ว — เช็คซ้ำก่อนวาดทับ (pendingSyncRender_ ค้างไว้ รอบหน้าค่อยวาด)
+    if(dateNavInFlight_ || iso !== currentDate || userBusy_()) return;
     if(!pendingSyncRender_ && JSON.stringify(fresh) === JSON.stringify(dayData)) return;
     pendingSyncRender_ = false;
     dayData = fresh;
@@ -14549,6 +15430,8 @@ async function loadForDate(iso){
     if(dwhDateLabel) dwhDateLabel.textContent = formatDDMMYYYY(iso);
     updateWeekdayBadge_(iso);
     editingCode = null;
+    clearOrderDrafts_(); // เปลี่ยนวัน = ทิ้งร่างที่พิมพ์ค้าง (ร่างของวันก่อนห้ามไปโผล่/ถูกบันทึกลงวันใหม่)
+    orderSavedView_ = null;
     renderStats(); refreshOrderTab();
     updateTopbarCollapsedDate();
     await switchTab(document.querySelector('.tab.active').getAttribute('data-tab'));
@@ -14750,15 +15633,21 @@ function applyDailyExpenseRoutine_(){
 function updateOrderFormAutoFold(){
   const hasData = Object.values(dayData.orders||{}).some(row=>orderRowHasOrder_(row));
   setCardFoldByH3('อ่านออเดอร์จากรูปภาพ', hasData);
-  setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
+  // กำลังบันทึก/การ์ดสถานะ (บันทึกแล้ว ⏳ รอส่ง ล้ม) ยังโชว์อยู่ในฟอร์ม → ห้ามพับฟอร์มทับให้หาย
+  const v = orderSavedView_;
+  const hold = orderSaving_ || !!(v && v.iso === currentDate);
+  if(!hold) setCardFoldByH3('บันทึกออเดอร์ทีละสาขา', hasData);
 }
 // หาสาขาถัดไปที่ยังไม่มีออเดอร์วันนี้ ไล่ต่อจากสาขาที่เพิ่งบันทึกเสร็จ (วนกลับไปต้นรายชื่อถ้าไล่จนสุด) เพื่อบันทึกต่อเนื่องได้เลยไม่ต้องเลือกเอง
 // วิ่งเฉพาะสาขาประจำ (ไม่ติ๊ก "นานๆ สั่งที") — ข้ามสาขาที่สั่งนานๆ ทีไปเลยอัตโนมัติ ไม่ต้องกดข้ามเอง เหมือนที่ดรอปดาวน์เลือกสาขา
 // (renderBranchSelect) แยกกลุ่มสาขาพวกนี้ไว้ท้ายสุดอยู่แล้ว
+// ฝั่งแยกส่ง (T คู่ เช่น 13T) ไม่นับเป็นสาขาในลำดับนี้: ข้ามไปเลย และ "บันทึกแล้ว" ของสาขา = ฝั่งสาขาหลักมีออเดอร์ (13T ไม่นับแทน 13)
+// ถ้า afterCode เป็น T คู่ ใช้สาขาหลักหาตำแหน่ง (กัน idx=-1 แล้ววนกลับต้นลิสต์)
 function findNextUnrecordedBranch(afterCode){
   const orderedCodes = new Set(Object.entries(dayData.orders).filter(([c,row])=>orderRowHasOrder_(row)).map(([c])=>c));
-  const branches = settings.branches.filter(b=>!b.rare);
-  const idx = branches.findIndex(b=>b.code===afterCode);
+  const branches = settings.branches.filter(b=>!b.rare && !sepMainCode_(b.code));
+  const after = sepMainCode_(afterCode) || afterCode;
+  const idx = branches.findIndex(b=>b.code===after);
   for(let i=1;i<=branches.length;i++){
     const b = branches[(idx+i+branches.length)%branches.length];
     if(!orderedCodes.has(b.code)) return b.code;
@@ -15853,9 +16742,12 @@ async function init(){
     await renderCalPopup();
   });
   document.getElementById('branchSelect').addEventListener('change', renderProductInputs);
+  wireOrderFormSwitch_(); // ดรอปดาวน์สาขาหลัก (#branchPick) + สวิตช์ ส่งปกติ|แยกส่ง (#sepSwitch) — แค่ตั้ง #branchSelect แล้ววาดฟอร์มใหม่ ไม่เขียนข้อมูล
   document.getElementById('orderImageInput').addEventListener('change', e=>{ if(e.target.files.length) readOrderImages(e.target.files); });
   guardedClick('saveRowBtn', saveRow);
-  document.getElementById('clearRowBtn').addEventListener('click', ()=>{ editingCode=null; renderProductInputs(); });
+  wireStickyHeaderVar_(); // วัดความสูงหัวตรึงจริง → --stick-h (ใช้กับ scroll-margin-top ของฟอร์มออเดอร์)
+  wireOrderSaveState_(); // การ์ดสถานะบันทึก: ✎ แก้ไข / → สาขาถัดไป + ฟังคิวออฟไลน์ส่งเสร็จ + ชิป ● ยังไม่บันทึก
+  document.getElementById('clearRowBtn').addEventListener('click', ()=>{ if(orderSaving_) return; editingCode=null; orderSavedView_ = null; clearOrderDrafts_(); renderProductInputs(); });
   guardedClick('saveLeftoverBtn', saveLeftover);
   const ltInput = document.getElementById('ltImgInput');
   document.getElementById('leftoverInView').addEventListener('click', e=>{
